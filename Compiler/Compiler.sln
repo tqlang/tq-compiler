@@ -1,0 +1,22 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Compiler", "Compiler\Compiler.csproj", "{55D08D66-6D0D-4C32-BCC9-4E13B332537D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CodeProcess", "CodeProcess\CodeProcess.csproj", "{028ADCC1-E4F6-42C9-9AE9-22B6916C4165}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{55D08D66-6D0D-4C32-BCC9-4E13B332537D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{55D08D66-6D0D-4C32-BCC9-4E13B332537D}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{55D08D66-6D0D-4C32-BCC9-4E13B332537D}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{55D08D66-6D0D-4C32-BCC9-4E13B332537D}.Release|Any CPU.Build.0 = Release|Any CPU
+		{028ADCC1-E4F6-42C9-9AE9-22B6916C4165}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{028ADCC1-E4F6-42C9-9AE9-22B6916C4165}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{028ADCC1-E4F6-42C9-9AE9-22B6916C4165}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{028ADCC1-E4F6-42C9-9AE9-22B6916C4165}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+EndGlobal
