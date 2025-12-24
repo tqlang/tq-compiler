@@ -1,9 +1,9 @@
 ﻿namespace CodeProcess.Lexing;
 
-struct class Token(TokenType type, uint ptr, uint len, uint line, uint column)
+public struct Token(TokenType type, uint ptr, uint len, uint line, uint column)
 {
-    private readonly uint pointer = ptr;
-    private readonly uint length = len;
+    public readonly uint pointer = ptr;
+    public readonly uint length = len;
     
     public readonly TokenType Type = type;
     public readonly uint line = line;
