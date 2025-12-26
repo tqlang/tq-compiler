@@ -58,21 +58,10 @@ from Std.Console import
 	    
         Console.WriteLine("Hello, World!");
         var lex = new Lex();
+        var parser = new Parser();
         
         var tokens = lex.Parse(text);
-        DumpTokens(text, tokens);
-    }
-
-    static void DumpTokens(string src, List<Token> tokens)
-    {
-	    Console.WriteLine($"Tokens {tokens.Count}:");
-	    foreach (var i in tokens)
-	    {
-		    var spanptr = i.pointer;
-		    var spanlen = i.length;
-		    var type = i.Type;
-		    
-		    Console.WriteLine($"{src[(int)spanptr .. (int)(spanptr+spanlen)]} ({type})");
-	    }
+        var syntaxTree = parser.Parse(tokens);
+        ;
     }
 }

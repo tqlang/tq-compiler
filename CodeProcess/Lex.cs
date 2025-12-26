@@ -73,11 +73,10 @@ public ref struct Lex
 
     };
     
-    public List<Token> Parse(ReadOnlySpan<char> source)
+    public TokensCollection Parse(string source)
     {
-        _source = source; 
+        _source = source.AsSpan(); 
         _currentLine_begin = _currentColumn_beguin = _currentLine_end = _currentColumn_end = 0;
-        
         _tokens = [];
 
         while (!IsEof())
@@ -290,8 +289,9 @@ public ref struct Lex
                 } break;
             }
         }
+        CreateToken(TokenType.EofChar);
         
-        return _tokens;
+        return new TokensCollection([.._tokens]);
     }
 
 
@@ -299,8 +299,7 @@ public ref struct Lex
     {
         _tokens.Add(new Token(
             type,
-            (uint)_span_start,
-            (uint)(_span_end - _span_start), 
+            _source[_span_start .. _span_end].ToString(), 
             (uint)_currentLine_begin,
             (uint)_currentColumn_beguin));
         Discard();
@@ -309,7 +308,7 @@ public ref struct Lex
 
     private void Discard()
     {
-        _currentLine_end = _currentLine_begin;
+        _currentLine_begin = _currentLine_end;
         _currentColumn_beguin = _currentColumn_end;
         _span_start = _span_end;
     }
@@ -361,6 +360,6 @@ public ref struct Lex
     }
     private bool IsEof() => _span_end >= _source.Length;
 
-    private bool IsValidOnIdentifierStarter(char c) => char.IsAsciiLetter(c) || c == '_';
-    private bool IsValidOnIdentifier(char c) => char.IsAsciiLetterOrDigit(c) || c == '_';
+    private static bool IsValidOnIdentifierStarter(char c) => char.IsAsciiLetter(c) || c == '_';
+    private static bool IsValidOnIdentifier(char c) => char.IsAsciiLetterOrDigit(c) || c == '_';
 }
