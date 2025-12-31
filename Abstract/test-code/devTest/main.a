@@ -1,3 +1,0 @@
-@export("main") func main() void {
-	return
-}

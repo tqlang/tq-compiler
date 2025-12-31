@@ -1,0 +1,16 @@
+###    ABSTRACT STANDARD LIBRARY SCRIPT    ###
+
+@public @extern("System.Console.Write")   func write(i64 value) void
+@public @extern("System.Console.Write")   func write(u64 value) void
+@public @extern("System.Console.Write")   func write(i128 value) void
+@public @extern("System.Console.Write")   func write(u128 value) void
+
+@public @extern("System.Console.Write")   func write(string value) void
+
+
+@public @extern("System.Console.WriteLine")  func writeln(i64 value) void
+@public @extern("System.Console.WriteLine")  func writeln(u64 value) void
+@public @extern("System.Console.WriteLine")  func writeln(i128 value) void
+@public @extern("System.Console.WriteLine")  func writeln(u128 value) void
+
+@public @extern("System.Console.WriteLine")  func writeln(string value) void

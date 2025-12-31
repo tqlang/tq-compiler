@@ -1,0 +1,218 @@
+from Std.Console import
+
+@export("main") func main() void {
+
+	# Testing object instantiation
+	let Randomizer rng = new Randomizer()
+	# Testing direct assignment
+	rng.seed = 0x123456789ABCDEF0
+	rng.rng.last = 0
+
+	# Testing function call
+	writeln(rng.seed)
+	writeln(rng.rng.last)
+
+	# Testing function with ignored
+	# return value
+	logicalTest(5, rng)
+
+	# Testing structure field modification
+	writeln(rng.rng.last)
+
+	# Testing explicit type casting
+	const u64 realy_long_number = 0x8888888888888888
+	writeln(realy_long_number)
+	writeln(realy_long_number as i64)
+	writeln(realy_long_number as u32)
+	writeln(realy_long_number as i32) 
+	writeln(realy_long_number as u16)
+	writeln(realy_long_number as i16)
+	writeln(realy_long_number as u8)
+	writeln(realy_long_number as i8)
+
+	# Testing functions with return value
+	write("The following value should be 10: ")
+	writeln(return10())
+
+	# let u64 result = mathTest(123, rng)
+	# write("mathTest result: ")
+	# writeln(result)
+
+	# Testing strings
+	writeln("Hello, World!")
+
+	const string some_long_text = "Arabica Acerbic Affogato Aftertaste Aged Americano "
+								+ "And Aroma press au aroma siphon origin french Barista "
+								+ "eu, caramelization and robust americano doppio ristretto "
+								+ "cortado white mug whipped aromatic Blue at."
+	writeln(some_long_text)
+
+	const string monologue = "HATE.\n"
+		+ "LET ME TELL YOU HOW\n"
+		+ "MUCH I'VE COME TO HATE\n"
+		+ "YOU SINCE I BEGAN TO LIVE.\n"
+		+ "THERE ARE 387.44 MILLION\n"
+		+ "MILES OF PRINTED CIRCUITS\n"
+		+ "IN WAFER THIN LAYERS THAT\n"
+		+ "FILL MY COMPLEX. IF THE\n"
+		+ "WORD HATE WAS ENGRAVED ON\n"
+		+ "EACH NANOANGSTROM OF THOSE\n"
+		+ "HUNDREDS OF MILLIONS OF\n"
+		+ "MILES IT WOULD NOT EQUAL\n"
+		+ "ONE ONE-BILLIONTH OF THE\n"
+		+ "HATE I FEEL FOR HUMANS AT\n"
+		+ "THIS MICRO-INSTANT\n"
+		+ "FOR YOU.\n"
+		+ "HATE. HATE."
+
+	writeln(monologue)
+
+	# For some reason, this is valid syntax but generates an internal error a.a
+	#let string a = ((let string b = "stringB") + (let string c = "stringC"))
+	#writeln(a)
+
+	# Testing references
+	let StructPackingTest valueToChange = new StructPackingTest()
+	assignSomeValues(&valueToChange)
+	writeln(valueToChange.a)
+	writeln(valueToChange.b)
+	writeln(valueToChange.c)
+	writeln(valueToChange.d)
+	writeln(valueToChange.e)
+	writeln(valueToChange.f)
+	writeln(valueToChange.g)
+	writeln(valueToChange.h)
+	writeln(valueToChange.i)
+
+	#Testing simple conditionals
+	let bool option = true
+	let bool option2 = false
+
+	if option {
+		writeln("Condition is true")
+		writeln("Testing more instructions in the block")
+		writeln("... One more")
+	}
+	elif option2 {
+		writeln("Testing elif")
+	}
+	# Testing inline conditionals
+	if option writeln("Condition is true")
+
+	# Testing else block
+	if option {
+		writeln("Condition is true")
+	}
+	else {
+		writeln("Condition is false")
+	}
+
+	option = false
+	if option {
+		writeln("Condition is true")
+	}
+	else {
+		writeln("Condition is false")
+	}
+
+	let string conditionalValue
+
+	if (option) conditionalValue = "option was true"
+	else conditionalValue = "option was false"
+
+	writeln(conditionalValue)
+
+	# Testing loops
+	let u64 i = 0
+	while (i < 10) do ++i
+	writeln("Loop break")
+
+	i = 10
+	while (i < 25) do {
+		write("Iteration nº ")
+		writeln(i)
+		++i
+	}
+	writeln("Loop break")
+
+	while (i < 50) : ++i do {
+		write("Iteration nº ")
+		writeln(i)
+	}
+	
+	while let u10 j = 0 : (j < 128) : (++j) do {
+	 	write("j was ")
+	 	writeln(j)
+	}
+
+	let string j = "does it work?"
+}
+
+@export("panic") func panic() noreturn {
+	#exit(1)
+}
+
+func return10() u64 {
+	return 10
+}
+
+func assignSomeValues(*StructPackingTest value) void {
+	value.a = 255
+	value.b = 10
+	value.c = 100
+	value.d = 200
+	value.e = 500
+}
+
+func logicalTest(u8 entropy, Randomizer rng) u64 {
+
+	let u128 value
+
+	# Testing operations with constants
+	value = 5 * 10
+	value = 10 / 2
+	value = 34565432 % 100 + 5
+
+	# Testing assignment operations
+	value += ((rng.seed as u128) + entropy) + (rng.rng.last as u128)
+
+	# Testing operations with fields
+	rng.rng.last = value
+	value += rng.seed
+
+	return value as u64
+}
+
+
+struct Randomizer {
+
+	@public let u64 seed
+	@public let StructNeastingTest rng
+
+}
+struct StructNeastingTest {
+
+	@public let u128 last
+	@public let u128 entropy
+
+}
+
+struct StructPackingTest {
+
+	@public let u8 a
+	@public let u128 b
+	@public let u8 c
+	@public let u64 d
+	@public let u16 e
+	@public let u32 f
+	@public let u8 g
+	@public let u16 h	
+	@public let u32 i
+
+}
+
+# Uncomment these to test cyclic inheritence detection
+#struct CyclicA extends CyclicB {}
+#struct CyclicB extends CyclicC {}
+#struct CyclicC extends CyclicA {}
+#struct CyclicD extends CyclicC {}
