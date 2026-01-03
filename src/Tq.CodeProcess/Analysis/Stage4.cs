@@ -4,7 +4,6 @@ using Abstract.CodeProcess.Core;
 using Abstract.CodeProcess.Core.Language.EvaluationData;
 using Abstract.CodeProcess.Core.Language.EvaluationData.IntermediateTree;
 using Abstract.CodeProcess.Core.Language.EvaluationData.IntermediateTree.Expresions;
-using Abstract.CodeProcess.Core.Language.EvaluationData.IntermediateTree.Macros;
 using Abstract.CodeProcess.Core.Language.EvaluationData.IntermediateTree.Statements;
 using Abstract.CodeProcess.Core.Language.EvaluationData.IntermediateTree.Values;
 using Abstract.CodeProcess.Core.Language.EvaluationData.LanguageObjects;
@@ -115,6 +114,12 @@ public partial class Analyzer
             if (IsSolved(i.Type)) continue;
             i.Type = SolveTypeLazy2(i.Type, null, function);
         }
+
+        foreach (var i in function.Locals)
+        {
+            if (IsSolved(i.Type)) continue;
+            i.Type = SolveTypeLazy2(i.Type, null, function);
+        }
     }
 
     private void StructureSemaAnal(StructObject structure)
@@ -140,8 +145,6 @@ public partial class Analyzer
     {
         return node switch
         {
-            IRDefLocal @dl => NodeSemaAnal_Macro_DefLocal(dl, ctx),
-            
             IRInvoke @iv => NodeSemaAnal_Invoke(iv, ctx),
             IRAssign @ass => NodeSemaAnal_Assign(ass, ctx),
             IRCompareExp @ce => NodeSemaAnal_CmpExp(ce, ctx),
@@ -163,15 +166,6 @@ public partial class Analyzer
             
             _ => throw new NotImplementedException(),
         };
-    }
-
-    private IRNode NodeSemaAnal_Macro_DefLocal(IRDefLocal deflocal, IrBlockExecutionContextData ctx)
-    {
-        if (!IsSolved(deflocal.LocalVariable.Type))
-            deflocal.LocalVariable.Type = SolveTypeLazy2(deflocal.LocalVariable.Type, ctx, null);
-        
-        ctx.RegisterLocalVariable(deflocal.LocalVariable);
-        return deflocal;
     }
     
     private IRNode NodeSemaAnal_Invoke(IRInvoke node, IrBlockExecutionContextData ctx)
@@ -563,7 +557,7 @@ public partial class Analyzer
             case IdentifierNode @idnode:
             {
                 // Search in local variables
-                var r = ctx?.LocalVariables.FirstOrDefault(e => e.Name == idnode.Value);
+                var r = (parent as FunctionObject)?.Locals.FirstOrDefault(e => e.Name == idnode.Value);
                 if (r != null) return new IRSolvedReference(syntaxNode, new LocalReference(r)) { Type = r.Type };
 
                 // Search in parameters

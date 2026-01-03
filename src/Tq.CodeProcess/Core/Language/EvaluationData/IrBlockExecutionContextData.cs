@@ -5,7 +5,7 @@ namespace Abstract.CodeProcess.Core.Language.EvaluationData;
 
 public class IrBlockExecutionContextData(LangObject obj)
 {
-    public List<LocalVariableObject?> LocalVariables = [];
+    public List<LocalVariableObject> LocalVariables = [];
     private Stack<int> _stack = [];
     public readonly LangObject Parent = obj;
 
@@ -16,9 +16,4 @@ public class IrBlockExecutionContextData(LangObject obj)
         LocalVariables.RemoveRange(frame, LocalVariables.Count - frame);
     }
     
-    public void RegisterLocalVariable(LocalVariableObject localVariable)
-    {
-        localVariable.index = LocalVariables.Count;
-        LocalVariables.Add(localVariable);
-    }
 }

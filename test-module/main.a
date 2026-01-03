@@ -140,11 +140,6 @@ from Std.Console import
 		writeln(i)
 	}
 	
-	while let u10 j = 0 : (j < 128) : (++j) do {
-	 	write("j was ")
-	 	writeln(j)
-	}
-
 	let string j = "does it work?"
 }
 

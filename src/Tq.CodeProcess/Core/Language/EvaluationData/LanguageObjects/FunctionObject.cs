@@ -27,21 +27,21 @@ public class FunctionObject(string[] g, string n, FunctionDeclarationNode synnod
     public bool Abstract { get; set; } = false;
     public bool Virtual { get; set; } = false;
     public bool Override { get; set; } = false;
-    public (string? domain, string? symbol) Extern { get; set; } = (null, null);
     public string? Export { get; set; } = null;
     public bool Generic { get; set; } = false;
     public bool ConstExp { get; set; } = false;
+    public (string? domain, string? symbol) Extern { get; set; } = (null, null);
 
     
-    public uint VirtualIndex = 0;
-
     public TypeReference ReturnType = null!;
     public ParameterObject[] Parameters => [.. _parameters];
+    public LocalVariableObject[] Locals => [.._locals];
     public IRBlock? Body = null;
     
 
     public readonly FunctionDeclarationNode syntaxNode = synnode;
     private List<ParameterObject> _parameters = [];
+    private List<LocalVariableObject> _locals = [];
 
     public void AddParameter(params ParameterObject[] parameter)
     {
@@ -52,7 +52,16 @@ public class FunctionObject(string[] g, string n, FunctionDeclarationNode synnod
             p.index = lastidx++;
         }
     }
-
+    public void AddLocal(params LocalVariableObject[] local)
+    {
+        var lastidx = _locals.Count;
+        foreach (var p in local)
+        {
+            _locals.Add(p);
+            p.index = lastidx++;
+        }
+    }
+    
     public override string ToString()
     {
         var sb = new StringBuilder();
@@ -63,13 +72,13 @@ public class FunctionObject(string[] g, string n, FunctionDeclarationNode synnod
         if (Virtual) sb.Append("virtual ");
         if (Override) sb.Append("override ");
         if (Extern.domain == null && Extern.symbol != null) sb.Append($"import_extern(\"{Extern.symbol}\") ");
-        else if (Extern.domain != null && Extern.symbol != null) sb.Append($"import_extern(\"{Extern.domain}\" \"{Extern.symbol}\") ");
+        else if (Extern is { domain: not null, symbol: not null }) sb.Append($"import_extern(\"{Extern.domain}\" \"{Extern.symbol}\") ");
         if (Generic) sb.Append("generic ");
 
         sb.AppendLine($"Function {Name} -> {ReturnType}:");
 
-        foreach (var p in _parameters)
-            sb.AppendLine($"\t{p}");
+        foreach (var p in _parameters) sb.AppendLine($"\t{p}");
+        foreach (var l in _locals) sb.AppendLine($"\t{l}");
 
         if (Body == null) sb.AppendLine("\t[Bodyless]");
         else

@@ -4,7 +4,6 @@ using Abstract.CodeProcess.Core.Language;
 using Abstract.CodeProcess.Core.Language.EvaluationData;
 using Abstract.CodeProcess.Core.Language.EvaluationData.IntermediateTree;
 using Abstract.CodeProcess.Core.Language.EvaluationData.IntermediateTree.Expresions;
-using Abstract.CodeProcess.Core.Language.EvaluationData.IntermediateTree.Macros;
 using Abstract.CodeProcess.Core.Language.EvaluationData.IntermediateTree.Statements;
 using Abstract.CodeProcess.Core.Language.EvaluationData.IntermediateTree.Values;
 using Abstract.CodeProcess.Core.Language.EvaluationData.LanguageObjects;
@@ -13,7 +12,6 @@ using Abstract.CodeProcess.Core.Language.EvaluationData.LanguageReferences.CodeR
 using Abstract.CodeProcess.Core.Language.EvaluationData.LanguageReferences.TypeReferences;
 using Abstract.CodeProcess.Core.Language.EvaluationData.LanguageReferences.TypeReferences.Builtin.Integer;
 using Abstract.CodeProcess.Core.Language.SyntaxNodes.Base;
-using Abstract.CodeProcess.Core.Language.SyntaxNodes.Control;
 using Abstract.CodeProcess.Core.Language.SyntaxNodes.Expression;
 using Abstract.CodeProcess.Core.Language.SyntaxNodes.Statement;
 using Abstract.CodeProcess.Core.Language.SyntaxNodes.Value;
@@ -89,9 +87,8 @@ public partial class Analyzer
     private void ScanFunctionMeta(FunctionObject function)
     {
         foreach (var t in function.Parameters)
-        {
             if (!IsSolved(t.Type)) t.Type = SolveTypeLazy(t.Type, null, function);
-        }
+        
         if (!IsSolved(function.ReturnType))
             function.ReturnType = SolveTypeLazy(function.ReturnType, null, function);
     }
@@ -102,10 +99,18 @@ public partial class Analyzer
         {
             switch (i.Value)
             {
-                case FunctionObject @funcobj: ScanFunctionExecutionBody(funcobj); break;
+                case FunctionObject @funcobj:
+                {
+                    ScanFunctionExecutionBody(funcobj);
+                    foreach (var l in funcobj.Locals) l.Type = SolveTypeLazy(l.Type, null, funcobj);
+                } break;
                 case FunctionGroupObject @funcgroup:
                 {
-                    foreach (var i2 in funcgroup.Overloads) ScanFunctionExecutionBody(i2);
+                    foreach (var i2 in funcgroup.Overloads)
+                    {
+                        ScanFunctionExecutionBody(i2);
+                        foreach (var l in i2.Locals) l.Type = SolveTypeLazy(l.Type, null, i2);
+                    }
                     break;
                 }
                 case FieldObject @fld: ScanFieldValueBody(fld); break;
@@ -163,12 +168,11 @@ public partial class Analyzer
                 var name = localvar.TypedIdentifier.Identifier.Value;
                 var type = SolveTypeLazy(new UnsolvedTypeReference(localvar.TypedIdentifier.Type), ctx, null);
                 
-                if (ctx.Locals.Any(e => e.LocalVariable.Name == name))
+                if (ctx.Locals.Any(e => e.Name == name))
                     throw new Exception($"{localvar:pos} shadows \'{name}\' declaration");
                 
-                var deflocal = new IRDefLocal(localvar, new LocalVariableObject(type, name));
-                ctx.CurrentBlock.Content.Add(deflocal);
-                return (deflocal, true);
+                ctx.AppendLocal(new LocalVariableObject(type, name));
+                return (null, false);
             }
 
             case AssignmentExpressionNode @assign:
@@ -323,16 +327,14 @@ public partial class Analyzer
             {
                 var name = localvar.TypedIdentifier.Identifier.Value;
                 
-                if (ctx.Locals.Any(e => e.LocalVariable.Name == name))
+                if (ctx.Locals.Any(e => e.Name == name))
                     throw new Exception($"{localvar:pos} shadows \'{name}\' declaration");
                 
                 var newLocal = new LocalVariableObject(
                     SolveTypeLazy(new UnsolvedTypeReference(localvar.TypedIdentifier.Type), ctx, null), name);
                 
-                ctx.CurrentBlock.Content.Add(new IRDefLocal(localvar, newLocal));
-                return new IRSolvedReference(
-                    localvar.TypedIdentifier.Identifier,
-                    new LocalReference(newLocal));
+                ctx.AppendLocal(newLocal);
+                return new IRSolvedReference(localvar.TypedIdentifier.Identifier, new LocalReference(newLocal));
             }
 
             case FunctionCallExpressionNode @funccal:
@@ -498,7 +500,7 @@ public partial class Analyzer
             {
                 structure.VirtualTable[i].parent = func;
                 structure.VirtualTable[i].overrided = func;
-                func.VirtualIndex = i;
+                //func.VirtualIndex = i;
                 i++;
             }
             
@@ -528,7 +530,7 @@ public partial class Analyzer
             }
             
             parent.VirtualTable[i].overrided = basefunc;
-            func.VirtualIndex = (uint)i;
+            //func.VirtualIndex = (uint)i;
             return;
         }
 

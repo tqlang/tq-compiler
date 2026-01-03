@@ -4,7 +4,6 @@ using System.Reflection.Emit;
 using Abstract.CodeProcess.Core.Language.EvaluationData;
 using Abstract.CodeProcess.Core.Language.EvaluationData.IntermediateTree;
 using Abstract.CodeProcess.Core.Language.EvaluationData.IntermediateTree.Expresions;
-using Abstract.CodeProcess.Core.Language.EvaluationData.IntermediateTree.Macros;
 using Abstract.CodeProcess.Core.Language.EvaluationData.IntermediateTree.Values;
 using Abstract.CodeProcess.Core.Language.EvaluationData.LanguageObjects;
 using Abstract.CodeProcess.Core.Language.EvaluationData.LanguageReferences.CodeReferences;
@@ -171,22 +170,23 @@ public class Compiler
             if (body == null) continue;
             
             var generator = mbuilder.GetILGenerator();
-            CompileIr(body, generator);
+
+            LocalBuilder[] locals = new LocalBuilder[obj.Locals.Length];
+            foreach (var local in obj.Locals) locals[local.index] = generator.DeclareLocal(TypeFromRef(local.Type));
+            
+            CompileIr(body, generator, locals);
         }
     }
 
-    private void CompileIr(IRBlock block, ILGenerator gen)
+    private void CompileIr(IRBlock block, ILGenerator gen, LocalBuilder[] locals)
     {
-        List<LocalBuilder> locals = [];
         foreach (var node in block.Content) CompileIrNodeLoad(node, gen, locals);
     }
 
-    private void CompileIrNodeLoad(IRNode node, ILGenerator gen, List<LocalBuilder> locals)
+    private void CompileIrNodeLoad(IRNode node, ILGenerator gen, LocalBuilder[] locals)
     {
         switch (node)
         {
-            case IRDefLocal @d: locals.Add(gen.DeclareLocal(TypeFromRef(d.LocalVariable.Type))); break;
-
             case IRAssign @ass:
                 CompileIrNodeStore(ass.Target, ass.Value, gen, locals);
                 break;
@@ -316,7 +316,7 @@ public class Compiler
         }
     }
 
-    private void CompileIrNodeLoadAsRef(IRNode node, ILGenerator gen, List<LocalBuilder> locals)
+    private void CompileIrNodeLoadAsRef(IRNode node, ILGenerator gen, LocalBuilder[] locals)
     {
         switch (node)
         {
@@ -334,7 +334,7 @@ public class Compiler
         }
     }
     
-    private void CompileIrNodeStore(IRNode node, IRNode value, ILGenerator gen, List<LocalBuilder> locals)
+    private void CompileIrNodeStore(IRNode node, IRNode value, ILGenerator gen, LocalBuilder[] locals)
     {
         switch (node)
         {
@@ -365,7 +365,7 @@ public class Compiler
         }
     }
 
-    private void CompileIrNodeCall(IRNode node, ILGenerator gen, List<LocalBuilder> locals)
+    private void CompileIrNodeCall(IRNode node, ILGenerator gen, LocalBuilder[] locals)
     {
         switch (node)
         {
