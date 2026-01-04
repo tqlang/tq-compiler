@@ -1,9 +1,10 @@
 using System.Diagnostics;
 using System.Reflection;
-using System.Reflection.Emit;
+using System.Text;
 using Abstract.CodeProcess.Core.Language.EvaluationData;
 using Abstract.CodeProcess.Core.Language.EvaluationData.IntermediateTree;
 using Abstract.CodeProcess.Core.Language.EvaluationData.IntermediateTree.Expresions;
+using Abstract.CodeProcess.Core.Language.EvaluationData.IntermediateTree.Statements;
 using Abstract.CodeProcess.Core.Language.EvaluationData.IntermediateTree.Values;
 using Abstract.CodeProcess.Core.Language.EvaluationData.LanguageObjects;
 using Abstract.CodeProcess.Core.Language.EvaluationData.LanguageReferences.CodeReferences;
@@ -12,41 +13,152 @@ using Abstract.CodeProcess.Core.Language.EvaluationData.LanguageReferences.Funct
 using Abstract.CodeProcess.Core.Language.EvaluationData.LanguageReferences.TypeReferences;
 using Abstract.CodeProcess.Core.Language.EvaluationData.LanguageReferences.TypeReferences.Builtin;
 using Abstract.CodeProcess.Core.Language.EvaluationData.LanguageReferences.TypeReferences.Builtin.Integer;
+using AsmResolver.DotNet;
+using AsmResolver.PE.DotNet.Cil;
+using AsmResolver.DotNet.Code.Cil;
+using AsmResolver.DotNet.Collections;
+using AsmResolver.DotNet.Signatures;
+using AsmResolver.DotNet.Signatures.Types;
+using AssemblyDefinition = AsmResolver.DotNet.AssemblyDefinition;
+using FieldAttributes = AsmResolver.PE.DotNet.Metadata.Tables.Rows.FieldAttributes;
+using FieldDefinition = AsmResolver.DotNet.FieldDefinition;
+using MethodAttributes = AsmResolver.PE.DotNet.Metadata.Tables.Rows.MethodAttributes;
+using MethodDefinition = AsmResolver.DotNet.MethodDefinition;
+using ModuleDefinition = AsmResolver.DotNet.ModuleDefinition;
+using TypeAttributes = AsmResolver.PE.DotNet.Metadata.Tables.Rows.TypeAttributes;
+using TypeDefinition = AsmResolver.DotNet.TypeDefinition;
+using TypeReference = Abstract.CodeProcess.Core.Language.EvaluationData.LanguageReferences.TypeReferences.TypeReference;
 
 namespace Abstract.CodeProcess;
 
 public class Compiler
 {
-
-    private List<StructObject> _programStructs = [];
-    private List<FunctionObject> _programStaticFunctions = [];
-
-    private Dictionary<StructObject, TypeInfo> _structTable = [];
-    private Dictionary<FunctionObject, MethodInfo> _funcTable = [];
-    private Dictionary<FieldObject, FieldInfo> _fieldTable = [];
     
-    private ModuleBuilder _mbuilder;
-    private TypeBuilder _staticContainer;
+    private Dictionary<FunctionObject, MethodDefinition> _functionsMap = [];
+    private Dictionary<StructObject, TypeDefinition> _typesMap = [];
+    private Dictionary<FieldObject, FieldDefinition> _fieldsMap = [];
+    private TypeDefinition _staticContainer;
+
+    private AssemblyDefinition _assembly;
+    private ModuleDefinition _module;
     
-    private TypeInfo ValueType => typeof(ValueType).GetTypeInfo();
+    private CorLibTypeFactory corLib = null!;
+    private Dictionary<string, (ITypeDefOrRef t, Dictionary<string, IMethodDescriptor> m)> _coreLib = [];
     
     public void Compile(ProgramObject program)
     {
         var programName = program.Modules[0].Name;
         
-        var asmName = new AssemblyName(programName);
-        var asmBuilder = AssemblyBuilder.DefineDynamicAssembly(asmName, AssemblyBuilderAccess.Run);
+        _assembly = new AssemblyDefinition(programName + ".dll",
+            new Version(1, 0, 0, 0));
         
-        _mbuilder = asmBuilder.DefineDynamicModule(programName);
-        _staticContainer = _mbuilder.DefineType("<static_container>", TypeAttributes.Public);
+        _module = new ModuleDefinition(programName);
+        _assembly.Modules.Add(_module);
 
+        corLib = _module.CorLibTypeFactory;
+        LoadCoreLibResources();
+
+        _staticContainer = new TypeDefinition(
+            "",
+            "Program",
+            TypeAttributes.Public
+            | TypeAttributes.Sealed
+            | TypeAttributes.Class,
+            corLib.Object.Type);
+        _module.TopLevelTypes.Add(_staticContainer);
+        
         foreach (var m in program.Modules) SearchRecursive(m);
 
         DeclareTypes();
-        DeclareContent();
+        ResolveContent();
         ImplementMethods();
+        
+        {
+            var sb = new StringBuilder();
+            foreach (var type in _module.GetAllTypes())
+            {
+                sb.AppendLine($"Type: {type.FullName}");
+                foreach (var method in type.Methods)
+                {
+                    sb.AppendLine($"  Method: {method.Name}");
+                    if (method.CilMethodBody != null)
+                    {
+                        foreach (var inst in method.CilMethodBody.Instructions)
+                            sb.AppendLine($"    {inst}");
+                    }
+                }
+            }
+            
+            File.WriteAllText(".abs-cache/debug/dlldump.il", sb.ToString());
+        }
+        
+        _module.Write($".abs-out/{programName}.dll");
     }
 
+    private void LoadCoreLibResources()
+    {
+        Dictionary<string, IMethodDescriptor> methods;
+        Type type;
+        
+        methods = [];
+        type = typeof(Int128);
+        {
+            methods.Add("Parse", _module.DefaultImporter.ImportMethod(type.GetMethod("Parse", BindingFlags.Public | BindingFlags.Static, [typeof(string)]) ?? throw new Exception()));
+            methods.Add("Add_ovf", _module.DefaultImporter.ImportMethod(type.GetMethod("op_Addition", BindingFlags.Public | BindingFlags.Static, [typeof(Int128), typeof(Int128)]) ?? throw new Exception()));
+            methods.Add("Add", _module.DefaultImporter.ImportMethod(type.GetMethod("op_CheckedAddition", BindingFlags.Public | BindingFlags.Static, [typeof(Int128), typeof(Int128)]) ?? throw new Exception()));
+            methods.Add("Sub_ovf", _module.DefaultImporter.ImportMethod(type.GetMethod("op_Subtraction", BindingFlags.Public | BindingFlags.Static, [typeof(Int128), typeof(Int128)]) ?? throw new Exception()));
+            methods.Add("Sub", _module.DefaultImporter.ImportMethod(type.GetMethod("op_CheckedSubtraction", BindingFlags.Public | BindingFlags.Static, [typeof(Int128), typeof(Int128)]) ?? throw new Exception()));
+            
+            methods.Add("Conv_from_i8", _module.DefaultImporter.ImportMethod(type.GetMethod("op_Implicit", BindingFlags.Public | BindingFlags.Static, [typeof(sbyte)]) ?? throw new Exception()));
+            methods.Add("Conv_from_u8", _module.DefaultImporter.ImportMethod(type.GetMethod("op_Implicit", BindingFlags.Public | BindingFlags.Static, [typeof(byte)]) ?? throw new Exception()));
+            methods.Add("Conv_from_i16", _module.DefaultImporter.ImportMethod(type.GetMethod("op_Implicit", BindingFlags.Public | BindingFlags.Static, [typeof(short)]) ?? throw new Exception()));
+            methods.Add("Conv_from_u16", _module.DefaultImporter.ImportMethod(type.GetMethod("op_Implicit", BindingFlags.Public | BindingFlags.Static, [typeof(ushort)]) ?? throw new Exception()));
+            methods.Add("Conv_from_i32", _module.DefaultImporter.ImportMethod(type.GetMethod("op_Implicit", BindingFlags.Public | BindingFlags.Static, [typeof(int)]) ?? throw new Exception()));
+            methods.Add("Conv_from_u32", _module.DefaultImporter.ImportMethod(type.GetMethod("op_Implicit", BindingFlags.Public | BindingFlags.Static, [typeof(uint)]) ?? throw new Exception()));
+            methods.Add("Conv_from_i64", _module.DefaultImporter.ImportMethod(type.GetMethod("op_Implicit", BindingFlags.Public | BindingFlags.Static, [typeof(long)]) ?? throw new Exception()));
+            methods.Add("Conv_from_u64", _module.DefaultImporter.ImportMethod(type.GetMethod("op_Implicit", BindingFlags.Public | BindingFlags.Static, [typeof(ulong)]) ?? throw new Exception()));
+            
+            methods.Add("Conv_to_i8", _module.DefaultImporter.ImportMethod(type.GetMethods().First(e => e.Name == "op_Explicit" && e.ReturnType == typeof(sbyte)) ?? throw new Exception()));
+            methods.Add("Conv_to_u8", _module.DefaultImporter.ImportMethod(type.GetMethods().First(e => e.Name == "op_Explicit" && e.ReturnType == typeof(byte)) ?? throw new Exception()));
+            methods.Add("Conv_to_i16", _module.DefaultImporter.ImportMethod(type.GetMethods().First(e => e.Name == "op_Explicit" && e.ReturnType == typeof(short)) ?? throw new Exception()));
+            methods.Add("Conv_to_u16", _module.DefaultImporter.ImportMethod(type.GetMethods().First(e => e.Name == "op_Explicit" && e.ReturnType == typeof(ushort)) ?? throw new Exception()));
+            methods.Add("Conv_to_i32", _module.DefaultImporter.ImportMethod(type.GetMethods().First(e => e.Name == "op_Explicit" && e.ReturnType == typeof(int)) ?? throw new Exception()));
+            methods.Add("Conv_to_u32", _module.DefaultImporter.ImportMethod(type.GetMethods().First(e => e.Name == "op_Explicit" && e.ReturnType == typeof(uint)) ?? throw new Exception()));
+            methods.Add("Conv_to_i64", _module.DefaultImporter.ImportMethod(type.GetMethods().First(e => e.Name == "op_Explicit" && e.ReturnType == typeof(long)) ?? throw new Exception()));
+            methods.Add("Conv_to_u64", _module.DefaultImporter.ImportMethod(type.GetMethods().First(e => e.Name == "op_Explicit" && e.ReturnType == typeof(ulong)) ?? throw new Exception()));
+        }
+        _coreLib.Add(type.Name, (_module.DefaultImporter.ImportType(type), methods));
+        
+        methods = [];
+        type = typeof(UInt128);
+        {
+            methods.Add("Parse", _module.DefaultImporter.ImportMethod(type.GetMethod("Parse", BindingFlags.Public | BindingFlags.Static, [typeof(string)]) ?? throw new Exception()));
+            methods.Add("Add_ovf", _module.DefaultImporter.ImportMethod(type.GetMethod("op_Addition", BindingFlags.Public | BindingFlags.Static, [typeof(UInt128), typeof(UInt128)]) ?? throw new Exception()));
+            methods.Add("Add", _module.DefaultImporter.ImportMethod(type.GetMethod("op_CheckedAddition", BindingFlags.Public | BindingFlags.Static, [typeof(UInt128), typeof(UInt128)]) ?? throw new Exception()));
+            methods.Add("Sub_ovf", _module.DefaultImporter.ImportMethod(type.GetMethod("op_Subtraction", BindingFlags.Public | BindingFlags.Static, [typeof(UInt128), typeof(UInt128)]) ?? throw new Exception()));
+            methods.Add("Sub", _module.DefaultImporter.ImportMethod(type.GetMethod("op_CheckedSubtraction", BindingFlags.Public | BindingFlags.Static, [typeof(UInt128), typeof(UInt128)]) ?? throw new Exception()));
+            
+            methods.Add("Conv_from_i8", _module.DefaultImporter.ImportMethod(type.GetMethod("op_Explicit", BindingFlags.Public | BindingFlags.Static, [typeof(sbyte)]) ?? throw new Exception()));
+            methods.Add("Conv_from_u8", _module.DefaultImporter.ImportMethod(type.GetMethod("op_Implicit", BindingFlags.Public | BindingFlags.Static, [typeof(byte)]) ?? throw new Exception()));
+            methods.Add("Conv_from_i16", _module.DefaultImporter.ImportMethod(type.GetMethod("op_Explicit", BindingFlags.Public | BindingFlags.Static, [typeof(short)]) ?? throw new Exception()));
+            methods.Add("Conv_from_u16", _module.DefaultImporter.ImportMethod(type.GetMethod("op_Implicit", BindingFlags.Public | BindingFlags.Static, [typeof(ushort)]) ?? throw new Exception()));
+            methods.Add("Conv_from_i32", _module.DefaultImporter.ImportMethod(type.GetMethod("op_Explicit", BindingFlags.Public | BindingFlags.Static, [typeof(int)]) ?? throw new Exception()));
+            methods.Add("Conv_from_u32", _module.DefaultImporter.ImportMethod(type.GetMethod("op_Implicit", BindingFlags.Public | BindingFlags.Static, [typeof(uint)]) ?? throw new Exception()));
+            methods.Add("Conv_from_i64", _module.DefaultImporter.ImportMethod(type.GetMethod("op_Explicit", BindingFlags.Public | BindingFlags.Static, [typeof(long)]) ?? throw new Exception()));
+            methods.Add("Conv_from_u64", _module.DefaultImporter.ImportMethod(type.GetMethod("op_Implicit", BindingFlags.Public | BindingFlags.Static, [typeof(ulong)]) ?? throw new Exception()));
+            
+            methods.Add("Conv_to_i8", _module.DefaultImporter.ImportMethod(type.GetMethods().First(e => e.Name == "op_Explicit" && e.ReturnType == typeof(sbyte)) ?? throw new Exception()));
+            methods.Add("Conv_to_u8", _module.DefaultImporter.ImportMethod(type.GetMethods().First(e => e.Name == "op_Explicit" && e.ReturnType == typeof(byte)) ?? throw new Exception()));
+            methods.Add("Conv_to_i16", _module.DefaultImporter.ImportMethod(type.GetMethods().First(e => e.Name == "op_Explicit" && e.ReturnType == typeof(short)) ?? throw new Exception()));
+            methods.Add("Conv_to_u16", _module.DefaultImporter.ImportMethod(type.GetMethods().First(e => e.Name == "op_Explicit" && e.ReturnType == typeof(ushort)) ?? throw new Exception()));
+            methods.Add("Conv_to_i32", _module.DefaultImporter.ImportMethod(type.GetMethods().First(e => e.Name == "op_Explicit" && e.ReturnType == typeof(int)) ?? throw new Exception()));
+            methods.Add("Conv_to_u32", _module.DefaultImporter.ImportMethod(type.GetMethods().First(e => e.Name == "op_Explicit" && e.ReturnType == typeof(uint)) ?? throw new Exception()));
+            methods.Add("Conv_to_i64", _module.DefaultImporter.ImportMethod(type.GetMethods().First(e => e.Name == "op_Explicit" && e.ReturnType == typeof(long)) ?? throw new Exception()));
+            methods.Add("Conv_to_u64", _module.DefaultImporter.ImportMethod(type.GetMethods().First(e => e.Name == "op_Explicit" && e.ReturnType == typeof(ulong)) ?? throw new Exception()));
+        }
+        _coreLib.Add(type.Name, (_module.DefaultImporter.ImportType(type), methods));
+    }
+    
     private void SearchRecursive(LangObject obj)
     {
         switch (obj)
@@ -60,11 +172,12 @@ public class Compiler
                 break;
             
             case FunctionGroupObject @a:
-                foreach (var i in a.Overloads) _programStaticFunctions.Add(i);
+                foreach (var i in a.Overloads)
+                    _functionsMap.Add(i, null!);
                 break;
 
             case StructObject @a:
-                _programStructs.Add(a);
+                _typesMap.Add(a, null!);
                 break;
             
             default: throw new UnreachableException();
@@ -73,87 +186,74 @@ public class Compiler
 
     private void DeclareTypes()
     {
-        foreach (var obj in _programStructs)
+        foreach (var (k, v) in _typesMap)
         {
-            var typeName = string.Join(".", obj.Global);
-            if (obj.Extends == null)
-            {
-                var typebuilder = _mbuilder.DefineType(
-                    typeName,
-                    TypeAttributes.Public
-                    | TypeAttributes.Sealed
-                    | TypeAttributes.ExplicitLayout);
-                _structTable.Add(obj, typebuilder);
-            }
-            else
-            {
-                var typebuilder = _mbuilder.DefineType(
-                    typeName,
-                    TypeAttributes.Public
-                    | TypeAttributes.ExplicitLayout);
-                _structTable.Add(obj, typebuilder);
-            }
+            var nmsp = string.Join('.', k.Global[0..^1]);
+            var name = k.Name;
+
+            var attributes = TypeAttributes.Class
+                             | TypeAttributes.Public
+                             | TypeAttributes.AnsiClass;
+                             //| TypeAttributes.ExplicitLayout;
+            
+            if (k.Abstract) attributes |= TypeAttributes.Abstract;
+            if (k.Final) attributes |= TypeAttributes.Sealed;
+
+            var typedef = new TypeDefinition(nmsp, name, attributes, corLib.Object.Type);
+            _module.TopLevelTypes.Add(typedef);
+            _typesMap[k] = typedef;
         }
     }
 
-    private void DeclareContent()
+    private void ResolveContent()
     {
-        foreach (var f in _programStaticFunctions)
+        foreach (var (k, v) in _functionsMap)
         {
-            var methodName = string.Join(".", f.Global);
-            var method = _staticContainer.DefineMethod(
-                methodName,
-                MethodAttributes.Public | MethodAttributes.Static,
-                CallingConventions.Standard);
-            _funcTable.Add(f, method);
+            var fun = DeclareFunction(k, _staticContainer);
+            _functionsMap[k] = fun;
         }
-
-        foreach (var (obj, typeInfo) in _structTable)
+        
+        foreach (var (k, v) in _typesMap)
         {
-            foreach (var i in obj.Children)
+            v.BaseType = k.Extends == null ? TypeRefOf(k.Extends) : corLib.Object.Type;
+
+            {
+                var signature = MethodSignature.CreateInstance(new TypeDefOrRefSignature(corLib.Void.Type));
+                var ctor = new MethodDefinition(".ctor",
+                    MethodAttributes.Public
+                    | MethodAttributes.HideBySig
+                    | MethodAttributes.SpecialName
+                    | MethodAttributes.RuntimeSpecialName,
+                    signature);
+
+                v.Methods.Add(ctor);
+
+                var body = new CilMethodBody(ctor);
+                ctor.CilMethodBody = body;
+
+                var objectCtor = _module.DefaultImporter.ImportMethod(typeof(object).GetConstructors()[0]);
+                var baseCtorRef = _module.DefaultImporter.ImportMethod(objectCtor);
+                
+                body.Instructions.Add(new CilInstruction(CilOpCodes.Ldarg_0));
+                body.Instructions.Add(new CilInstruction(CilOpCodes.Call, baseCtorRef));
+                body.Instructions.Add(new CilInstruction(CilOpCodes.Ret));
+            }
+
+            foreach (var i in k.Children)
             {
                 switch (i)
                 {
-                    case FunctionObject @a:
-                    {
-                        var methodName = string.Join(".", a.Global);
-                        MethodBuilder method;
-                        if (a.Static)
-                        {
-                            method = ((TypeBuilder)typeInfo).DefineMethod(
-                                methodName,
-                                MethodAttributes.Public
-                                | MethodAttributes.Static,
-                                CallingConventions.Standard);
-                        }
-                        else
-                        {
-                            method = ((TypeBuilder)typeInfo).DefineMethod(
-                                methodName,
-                                MethodAttributes.Public,
-                                CallingConventions.Standard);
-                        }
-                    
-                        List<TypeInfo> paramTypes = [];
-                        paramTypes.AddRange(a.Parameters.Select(param => TypeFromRef(param.Type)));
-                        TypeInfo returnType = TypeFromRef(a.ReturnType);
-                    
-                        method.SetParameters([.. paramTypes]);
-                        method.SetReturnType(returnType);
-                    
-                        _funcTable.Add(a, method);
-                    } break;
-
                     case FieldObject @a:
-                    {
-                        var fieldName = string.Join(".", a.Global);
-                        var fieldBuilder = ((TypeBuilder)typeInfo).DefineField(
-                            fieldName,
-                            TypeFromRef(a.Type),
-                            FieldAttributes.Public);
-                        _fieldTable.Add(a, fieldBuilder);
+                    { 
+                        var f = DeclareField(a, v);
+                        _fieldsMap.Add(a, f);
                     } break;
-                
+                    
+                    //case FunctionGroupObject @fg:
+                    //{
+                    //    
+                    //} break;
+                    
                     default: throw new UnreachableException();
                 }
             }
@@ -162,50 +262,107 @@ public class Compiler
 
     private void ImplementMethods()
     {
-        foreach (var (obj, methodInfo) in _funcTable)
+        foreach (var (k, method) in _functionsMap)
         {
-            if (methodInfo is not MethodBuilder @mbuilder) continue;
+            if (k.Body == null) continue;
             
-            var body = obj.Body;
-            if (body == null) continue;
+            var body = new CilMethodBody(method);
+            method.CilMethodBody = body;
             
-            var generator = mbuilder.GetILGenerator();
+            var locals = new CilLocalVariable[k.Locals.Length];
+            foreach (var local in k.Locals)
+            {
+                var l = new CilLocalVariable(TypeFromRef(local.Type));
+                locals[local.index] = l;
+                body.LocalVariables.Add(l);
+            }
 
-            LocalBuilder[] locals = new LocalBuilder[obj.Locals.Length];
-            foreach (var local in obj.Locals) locals[local.index] = generator.DeclareLocal(TypeFromRef(local.Type));
-            
-            CompileIr(body, generator, locals);
+            var args = method.Parameters.ToArray();
+                
+            CompileIr(k.Body!, body.Instructions, args, locals);
+            body.Instructions.OptimizeMacros();
         }
     }
-
-    private void CompileIr(IRBlock block, ILGenerator gen, LocalBuilder[] locals)
+    
+    private MethodDefinition DeclareFunction(FunctionObject funcobj, TypeDefinition parent)
     {
-        foreach (var node in block.Content) CompileIrNodeLoad(node, gen, locals);
-    }
+        var nmsp = string.Join('.', funcobj.Global[0..^1]);
+        var name = funcobj.Name;
 
-    private void CompileIrNodeLoad(IRNode node, ILGenerator gen, LocalBuilder[] locals)
+        MethodAttributes attributes = 0;
+            
+        if (funcobj.Abstract) attributes |= MethodAttributes.Abstract;
+        if (funcobj.Public) attributes |= MethodAttributes.Public;
+        if (funcobj.Static) attributes |= MethodAttributes.Static;
+        
+        
+        var argTypes = funcobj.Parameters
+            .Select(p => TypeFromRef(p.Type));
+        var argDefs = funcobj.Parameters
+            .Select((p, i) => new ParameterDefinition((ushort)(i+1), p.Name, 0));
+        
+        MethodSignature sig = funcobj.Static switch
+        {
+            true => MethodSignature.CreateStatic(TypeFromRef(funcobj.ReturnType), argTypes),
+            false => MethodSignature.CreateInstance(TypeFromRef(funcobj.ReturnType), argTypes),
+        };
+        
+        var m = new MethodDefinition(name, attributes, sig);
+        foreach (var i in argDefs) m.ParameterDefinitions.Add(i);
+        parent.Methods.Add(m);
+        return m;
+    }
+    private FieldDefinition DeclareField(FieldObject fieldobj, TypeDefinition parent)
+    {
+        FieldAttributes attributes = 0;
+        
+        if (fieldobj.Public) attributes |= FieldAttributes.Public;
+        if (fieldobj.Static) attributes |= FieldAttributes.Static;
+        
+        var sig = new FieldSignature(CallingConventionAttributes.Default, TypeFromRef(fieldobj.Type));
+        var f = new FieldDefinition(fieldobj.Name, attributes, sig);
+        parent.Fields.Add(f);
+        return f;
+    }
+    
+    
+    
+    private void CompileIr(IRBlock block, CilInstructionCollection gen, Parameter[] args, CilLocalVariable[] locals)
+    {
+        foreach (var node in block.Content) CompileIrNodeLoad(node, gen, args, locals);
+    }
+    
+    private void CompileIrNodeLoad(IRNode node, CilInstructionCollection gen, Parameter[] args, CilLocalVariable[] locals)
     {
         switch (node)
         {
             case IRAssign @ass:
-                CompileIrNodeStore(ass.Target, ass.Value, gen, locals);
+                CompileIrNodeStore(ass.Target, ass.Value, gen, args, locals);
                 break;
             
             case IRNewObject @nobj:
-                gen.Emit(OpCodes.Newobj, TypeFromRef(nobj.Type));
+                var ctor = _typesMap[((SolvedStructTypeReference)nobj.InstanceType).Struct]
+                    .Methods.First(e => e.Name == ".ctor");
+                gen.Add(CilOpCodes.Newobj, ctor);
                 break;
-
-            case IRIntegerLiteral @intlit:
+    
+            case IrIntegerLiteral @intlit:
             {
+                var signed = ((RuntimeIntegerTypeReference)intlit.Type!).Signed;
+                
                 switch (intlit.Size)
                 {
-                    case <= 32: gen.Emit(OpCodes.Ldc_I4, (uint)intlit.Value); break;
-                    case <= 64: gen.Emit(OpCodes.Ldc_I4, (ulong)intlit.Value); break;
+                    case <= 32: gen.Add(CilInstruction.CreateLdcI4((int)intlit.Value)); break;
+                    case <= 64: gen.Add(CilOpCodes.Ldc_I8, unchecked((long)(UInt128)intlit.Value)); break;
+                    case <= 128:
+                        gen.Add(CilOpCodes.Ldstr, intlit.Value.ToString());
+                        gen.Add(CilOpCodes.Call, (signed ? _coreLib["Int128"] : _coreLib["UInt128"]).m["Parse"]);
+                        break;
                     default: throw new UnreachableException();
                 }
             } break;
             case IRStringLiteral @strlit:
-                gen.Emit(OpCodes.Ldstr, strlit.Data);
+                gen.Add(CilOpCodes.Ldstr, strlit.Data);
                 break;
                 
             case IRSolvedReference @solv:
@@ -213,110 +370,259 @@ public class Compiler
                 switch (solv.Reference)
                 {
                     case LocalReference @lr:
-                    {
-                        switch (lr.Local.index)
-                        {
-                            case 0: gen.Emit(OpCodes.Ldloc_0); break;
-                            case 1: gen.Emit(OpCodes.Ldloc_1); break;
-                            case 2: gen.Emit(OpCodes.Ldloc_2); break;
-                            case 3: gen.Emit(OpCodes.Ldloc_3); break;
-                            default: gen.Emit(OpCodes.Ldloc, lr.Local.index); break;
-                        }
-                    } break;
+                        gen.Add(CilOpCodes.Ldloc, locals[lr.Local.index]); break;
+    
+                    case ParameterReference @pr:
+                        gen.Add(CilOpCodes.Ldarg, args[pr.Parameter.index]); break;
                     
                     case SolvedFieldReference @fr:
-                        gen.Emit(OpCodes.Ldflda, _fieldTable[fr.Field]);
+                        gen.Add(CilOpCodes.Ldflda, _fieldsMap[fr.Field]);
                         break;
                     
                     default: throw new UnreachableException();
                 }
             } break;
-
+    
             case IRAccess @acc:
             {
-                CompileIrNodeLoad(acc.A, gen, locals);
-                CompileIrNodeLoad(acc.B, gen, locals);
+                CompileIrNodeLoad(acc.A, gen, args, locals);
+                CompileIrNodeLoad(acc.B, gen, args, locals);
             } break;
-
+    
             case IRInvoke @iv:
             {
                 foreach (var i in iv.Arguments)
-                    CompileIrNodeLoad(i, gen, locals);
-                CompileIrNodeCall(iv.Target, gen, locals);
+                    CompileIrNodeLoad(i, gen, args, locals);
+                CompileIrNodeCall(iv.Target, gen, args, locals);
             } break;
-
+    
             case IRIntCast ic:
             {
+                CompileIrNodeLoad(ic.Expression, gen, args, locals);
+                
+                var srt = (RuntimeIntegerTypeReference)ic.TargetType;
+                var srs = srt.Signed;
+                var srbitsize = srt.PtrSized ? 0 : srt.BitSize;
+    
                 var targt = (RuntimeIntegerTypeReference)ic.Type!;
                 var s = targt.Signed;
                 var bitsize = targt.PtrSized ? 0 : targt.BitSize;
-                
-                switch (bitsize)
-                {
-                    case 0: gen.Emit(s ? OpCodes.Conv_I : OpCodes.Conv_U); break;
-                    
-                    case <= 8: gen.Emit(s ? OpCodes.Conv_I1 : OpCodes.Conv_U1); break;
-                    case <= 16: gen.Emit(s ? OpCodes.Conv_I2 : OpCodes.Conv_U2); break;
-                    case <= 32: gen.Emit(s ? OpCodes.Conv_I4 : OpCodes.Conv_U4); break;
-                    case <= 64: gen.Emit(s ? OpCodes.Conv_I8 : OpCodes.Conv_U8); break;
-                    
-                    default: throw new UnreachableException();
-                }
-            } break;
-            case IRIntExtend @ie:
-            {
-                var targt = (RuntimeIntegerTypeReference)ie.Type!;
-                var s = targt.Signed;
-                var bitsize = targt.PtrSized ? 0 : targt.BitSize;
-                
-                switch (bitsize)
-                {
-                    case 0: gen.Emit(s ? OpCodes.Conv_I : OpCodes.Conv_U); break;
-                    
-                    case <= 8: gen.Emit(s ? OpCodes.Conv_I1 : OpCodes.Conv_U1); break;
-                    case <= 16: gen.Emit(s ? OpCodes.Conv_I2 : OpCodes.Conv_U2); break;
-                    case <= 32: gen.Emit(s ? OpCodes.Conv_I4 : OpCodes.Conv_U4); break;
-                    case <= 64: gen.Emit(s ? OpCodes.Conv_I8 : OpCodes.Conv_U8); break;
-                    
-                    default: throw new UnreachableException();
-                }
-            } break;
-            case IRIntTrunc @it:
-            {
-                var targt = (RuntimeIntegerTypeReference)it.Type!;
-                var s = targt.Signed;
-                var bitsize = targt.PtrSized ? 0 : targt.BitSize;
-                
-                switch (bitsize)
-                {
-                    case 0: gen.Emit(s ? OpCodes.Conv_I : OpCodes.Conv_U); break;
-                    
-                    case <= 8: gen.Emit(s ? OpCodes.Conv_I1 : OpCodes.Conv_U1); break;
-                    case <= 16: gen.Emit(s ? OpCodes.Conv_I2 : OpCodes.Conv_U2); break;
-                    case <= 32: gen.Emit(s ? OpCodes.Conv_I4 : OpCodes.Conv_U4); break;
-                    case <= 64: gen.Emit(s ? OpCodes.Conv_I8 : OpCodes.Conv_U8); break;
-                    
-                    default: throw new UnreachableException();
-                }
-            } break;
 
+                if (srbitsize == 128)
+                {
+                    var baset = srs ? _coreLib["Int128"] : _coreLib["UInt128"];
+                    switch (bitsize)
+                    {
+                        case <= 8: gen.Add(CilOpCodes.Call, baset.m[s ? "Conv_to_i8" : "Conv_to_u8"]); break;
+                        case <= 16: gen.Add(CilOpCodes.Call, baset.m[s ? "Conv_to_i16" : "Conv_to_u16"]); break;
+                        case <= 32: gen.Add(CilOpCodes.Call, baset.m[s ? "Conv_to_i32" : "Conv_to_u32"]); break;
+                        case <= 64: gen.Add(CilOpCodes.Call, baset.m[s ? "Conv_to_i64" : "Conv_to_u64"]); break;
+                        default: throw new UnreachableException();
+                    }
+                    return;
+                }
+                
+                switch (bitsize)
+                {
+                    case 0: gen.Add(s ? CilOpCodes.Conv_I : CilOpCodes.Conv_U); break;
+                    
+                    case <= 8: gen.Add(s ? CilOpCodes.Conv_I1 : CilOpCodes.Conv_U1); break;
+                    case <= 16: gen.Add(s ? CilOpCodes.Conv_I2 : CilOpCodes.Conv_U2); break;
+                    case <= 32: gen.Add(s ? CilOpCodes.Conv_I4 : CilOpCodes.Conv_U4); break;
+                    case <= 64: gen.Add(s ? CilOpCodes.Conv_I8 : CilOpCodes.Conv_U8); break;
+
+                    case <= 128:
+                    {
+                        var baset = srs ? _coreLib["Int128"] : _coreLib["UInt128"];
+                        
+                        switch (srbitsize)
+                        {
+                            case <= 8: gen.Add(CilOpCodes.Call, baset.m[s ? "Conv_from_i8" : "Conv_from_u8"]); break;
+                            case <= 16: gen.Add(CilOpCodes.Call, baset.m[s ? "Conv_from_i16" : "Conv_from_u16"]); break;
+                            case <= 32: gen.Add(CilOpCodes.Call, baset.m[s ? "Conv_from_i32" : "Conv_from_u32"]); break;
+                            case <= 64: gen.Add(CilOpCodes.Call, baset.m[s ? "Conv_from_i64" : "Conv_from_u64"]); break;
+                            default: throw new UnreachableException();
+                        }
+
+                        break;
+                    }
+
+                    default: throw new UnreachableException();
+                }
+            } break;
+    
             case IRUnaryExp @ue:
             {
                 switch (ue.Operation)
                 {
                     case IRUnaryExp.UnaryOperation.Reference:
-                        CompileIrNodeLoadAsRef(ue.Value, gen, locals);
+                        CompileIrNodeLoadAsRef(ue.Value, gen, args, locals);
+                        break;
+                    
+                    case IRUnaryExp.UnaryOperation.PreIncrement:
+                        CompileIrNodeLoad(ue.Value, gen, args, locals);
+                        var it = (RuntimeIntegerTypeReference)ue.Value.Type;
+                        var bs = it.PtrSized ? 0 : it.BitSize;
+                        switch (bs)
+                        {
+                            case <= 32: CilInstruction.CreateLdcI4(1); break;
+                            case <= 64: gen.Add(CilOpCodes.Ldc_I8, (long)1); break;
+                            default: throw new UnreachableException();
+                        }
+                        gen.Add(CilOpCodes.Add);
+                        CompileIrNodeStore(ue.Value, null, gen, args, locals);
+                        break;
+                    
+                    default: throw new ArgumentOutOfRangeException();
+                }
+            } break;
+            case IRBinaryExp @bin:
+            {
+                CompileIrNodeLoad(@bin.Left, gen, args, locals);
+                CompileIrNodeLoad(@bin.Right, gen, args, locals);
+                
+                var isSigned = ((RuntimeIntegerTypeReference)bin.Type!).Signed;
+                var is128 = ((RuntimeIntegerTypeReference)bin.Type!).BitSize == 128;
+    
+                switch (bin.Operator)
+                {
+                    case IRBinaryExp.Operators.Add:
+                        if (is128) gen.Add(CilOpCodes.Call, _coreLib[isSigned ? "Int128" : "UInt128"].m["Add"]);
+                        else gen.Add(CilOpCodes.Add);
+                        break;
+                    
+                    case IRBinaryExp.Operators.AddWarpAround:
+                        if (is128) gen.Add(CilOpCodes.Call, _coreLib[isSigned ? "Int128" : "UInt128"].m["AddOvf"]);
+                        else gen.Add(isSigned ? CilOpCodes.Add_Ovf : CilOpCodes.Add_Ovf_Un);
+                        break;
+                    
+                    
+                    case IRBinaryExp.Operators.Subtract:
+                        if (is128) gen.Add(CilOpCodes.Call, _coreLib[isSigned ? "Int128" : "UInt128"].m["CheckedSub"]);
+                        else gen.Add(CilOpCodes.Sub);
+                        break;
+                    
+                    case IRBinaryExp.Operators.SubtractWarpAround:
+                        if (is128) gen.Add(CilOpCodes.Call, _coreLib[isSigned ? "Int128" : "UInt128"].m["Sub"]);
+                        else gen.Add(isSigned ? CilOpCodes.Sub_Ovf : CilOpCodes.Sub_Ovf_Un);
+                        break;
+                    
+                    case IRBinaryExp.Operators.AddOnBounds:
+                    case IRBinaryExp.Operators.SubtractOnBounds:
+                    case IRBinaryExp.Operators.Multiply:
+                    case IRBinaryExp.Operators.Divide:
+                    case IRBinaryExp.Operators.DivideFloor:
+                    case IRBinaryExp.Operators.DivideCeil:
+                    case IRBinaryExp.Operators.Reminder:
+                    case IRBinaryExp.Operators.BitwiseAnd:
+                    case IRBinaryExp.Operators.BitwiseOr:
+                    case IRBinaryExp.Operators.BitwiseXor:
+                    case IRBinaryExp.Operators.LeftShift:
+                    case IRBinaryExp.Operators.RightShift:
+                    case IRBinaryExp.Operators.LogicalAnd:
+                    case IRBinaryExp.Operators.LogicalOr:
+                    default: throw new ArgumentOutOfRangeException();
+                }
+            } break;
+            case IRCompareExp @cmp:
+            {
+                CompileIrNodeLoad(cmp.Left, gen, args, locals);
+                CompileIrNodeLoad(cmp.Right, gen, args, locals);
+    
+                var sig = ((RuntimeIntegerTypeReference)cmp.Left.Type!).Signed;
+                
+                switch (cmp.Operator)
+                {
+                    case IRCompareExp.Operators.GreaterThan: gen.Add(sig ? CilOpCodes.Cgt : CilOpCodes.Cgt_Un); break;
+                    case IRCompareExp.Operators.LessThan: gen.Add(sig ? CilOpCodes.Clt : CilOpCodes.Clt_Un); break;
+                    
+                    case IRCompareExp.Operators.GreaterThanOrEqual:
+                        gen.Add(sig ? CilOpCodes.Clt : CilOpCodes.Clt_Un);
+                        gen.Add(CilOpCodes.Ldc_I4_0);
+                        gen.Add(CilOpCodes.Ceq);
+                        break;
+                    case IRCompareExp.Operators.LessThanOrEqual:
+                        gen.Add(sig ? CilOpCodes.Cgt : CilOpCodes.Cgt_Un);
+                        gen.Add(CilOpCodes.Ldc_I4_0);
+                        gen.Add(CilOpCodes.Ceq);
                         break;
                     
                     default: throw new ArgumentOutOfRangeException();
                 }
             } break;
             
+            case IRIf @if:
+            {
+                var breakLabel = new CilInstructionLabel();
+                var nextConditionLabel = new CilInstructionLabel();
+                
+                CompileIrNodeLoad(@if.Condition, gen, args, locals);
+                gen.Add(CilOpCodes.Brfalse, nextConditionLabel);
+                
+                CompileIr(@if.Then, gen, args, locals);
+                gen.Add(CilOpCodes.Br, breakLabel);
+    
+                var currentElse = @if.Else;
+                while (currentElse != null)
+                {
+                    var anchor = gen.Add(CilOpCodes.Nop);
+                    nextConditionLabel.Instruction = anchor;
+
+                    if (currentElse is IRIf @elseIf)
+                    {
+                        nextConditionLabel = new CilInstructionLabel();
+            
+                        CompileIrNodeLoad(@elseIf.Condition, gen, args, locals);
+                        gen.Add(CilOpCodes.Brfalse, nextConditionLabel);
+            
+                        CompileIr(@elseIf.Then, gen, args, locals);
+                        gen.Add(CilOpCodes.Br, breakLabel);
+            
+                        currentElse = @elseIf.Else;
+                    }
+                    else if (currentElse is IRElse @else)
+                    {
+                        CompileIr(@else.Then, gen, args, locals);
+                        currentElse = null; 
+                    }
+                }
+                
+                var finalNop = gen.Add(CilOpCodes.Nop);
+                
+                breakLabel.Instruction = finalNop;
+                if (nextConditionLabel.Instruction == null) 
+                    nextConditionLabel.Instruction = finalNop;
+
+            } break;
+    
+            case IRWhile @while:
+            {
+                var loopLabel = new CilInstructionLabel();
+                var breakLabel = new CilInstructionLabel();
+                
+                var lastIdx = gen.Count;
+                CompileIrNodeLoad(@while.Condition, gen, args, locals);
+                gen.Add(CilOpCodes.Brfalse, breakLabel);
+                loopLabel.Instruction = gen[lastIdx];
+                
+                CompileIr(@while.Process,  gen, args, locals);
+                
+                if (@while.Step != null) CompileIr(@while.Step, gen, args, locals);
+                gen.Add(CilOpCodes.Br, loopLabel);
+                
+                breakLabel.Instruction = gen.Add(CilOpCodes.Nop);
+            } break;
+            
+            case IRReturn @ret:
+                if (ret.Value != null) CompileIrNodeLoad(ret.Value, gen, args, locals);
+                gen.Add(CilOpCodes.Ret);
+                break;
+            
             default: throw new UnreachableException();
         }
     }
-
-    private void CompileIrNodeLoadAsRef(IRNode node, ILGenerator gen, LocalBuilder[] locals)
+    
+    private void CompileIrNodeLoadAsRef(IRNode node, CilInstructionCollection gen, Parameter[] args, CilLocalVariable[] locals)
     {
         switch (node)
         {
@@ -324,7 +630,7 @@ public class Compiler
             {
                 switch (sr.Reference)
                 {
-                    case LocalReference @l: gen.Emit(OpCodes.Ldloca, locals[l.Local.index]); break;
+                    case LocalReference @l: gen.Add(CilOpCodes.Ldloca, locals[l.Local.index]); break;
                     
                     default: throw new UnreachableException();
                 }
@@ -334,7 +640,7 @@ public class Compiler
         }
     }
     
-    private void CompileIrNodeStore(IRNode node, IRNode value, ILGenerator gen, LocalBuilder[] locals)
+    private void CompileIrNodeStore(IRNode node, IRNode? value, CilInstructionCollection gen, Parameter[] args, CilLocalVariable[] locals)
     {
         switch (node)
         {
@@ -343,29 +649,30 @@ public class Compiler
                 switch (solv.Reference)
                 {
                     case LocalReference @l:
-                        CompileIrNodeLoad(value, gen, locals);
-                        gen.Emit(OpCodes.Stloc, locals[l.Local.index]);
+                        if (value != null) CompileIrNodeLoad(value, gen, args, locals);
+                        gen.Add(CilOpCodes.Stloc, locals[l.Local.index]);
                         break;
                     
                     case SolvedFieldReference @f:
-                        gen.Emit(f.Field.Static ? OpCodes.Stsfld : OpCodes.Stfld, _fieldTable[f.Field]);
+                        if (value != null) CompileIrNodeLoad(value, gen, args, locals);
+                        gen.Add(f.Field.Static ? CilOpCodes.Stsfld : CilOpCodes.Stfld, _fieldsMap[f.Field]);
                         break;
                     
                     default: throw new UnreachableException();
                 }
             } break;
-
+    
             case IRAccess @access:
             {
-                CompileIrNodeLoad(@access.A, gen, locals);
-                CompileIrNodeStore(access.B, value, gen, locals);
+                CompileIrNodeLoad(@access.A, gen, args, locals);
+                CompileIrNodeStore(access.B, value, gen, args, locals);
             } break;
             
             default: throw new UnreachableException();
         }
     }
-
-    private void CompileIrNodeCall(IRNode node, ILGenerator gen, LocalBuilder[] locals)
+    
+    private void CompileIrNodeCall(IRNode node, CilInstructionCollection gen, Parameter[] args, CilLocalVariable[] locals)
     {
         switch (node)
         {
@@ -374,7 +681,7 @@ public class Compiler
                 switch (solvedReference.Reference)
                 {
                     case SolvedFunctionReference sfr:
-                        gen.Emit(OpCodes.Call, _funcTable[sfr.Function]);
+                        gen.Add(CilOpCodes.Call, _functionsMap[sfr.Function]);
                         break;
                         
                     default: throw new UnreachableException();
@@ -385,34 +692,48 @@ public class Compiler
         }
     }
     
-    private TypeInfo TypeFromRef(TypeReference? typeRef)
+
+    private TypeSignature TypeFromRef(TypeReference? typeRef)
     {
-        if (typeRef == null) return typeof(void).GetTypeInfo();
+        if (typeRef == null) return new TypeDefOrRefSignature(corLib.Void.Type);
+        return typeRef switch
+        {
+            NoReturnTypeReference or VoidTypeReference => new TypeDefOrRefSignature(corLib.Void.Type),
+            ReferenceTypeReference @tref => TypeFromRef(@tref.InternalType).MakeByReferenceType(),
+            
+            _ => new TypeDefOrRefSignature(TypeRefOf(typeRef))
+        };
+    }
+    private ITypeDefOrRef TypeRefOf(TypeReference? typeRef)
+    {
+        if (typeRef == null) return corLib.Void.Type;
         switch (typeRef)
         {
             case RuntimeIntegerTypeReference @i:
             {
-                if (i.PtrSized) return i.Signed
-                    ? typeof(IntPtr).GetTypeInfo() : typeof(UIntPtr).GetTypeInfo();
+                if (i.PtrSized) return (i.Signed ? corLib.IntPtr : corLib.UIntPtr).Type;
                 
                 switch (i.BitSize)
                 {
-                    case <= 8: return (i.Signed ? typeof(sbyte) : typeof(byte)).GetTypeInfo();
-                    case <= 16: return (i.Signed ? typeof(short) : typeof(ushort)).GetTypeInfo();;
-                    case <= 32: return (i.Signed ? typeof(int) : typeof(uint)).GetTypeInfo();;
-                    case <= 64: return (i.Signed ? typeof(long) : typeof(ulong)).GetTypeInfo();;
-                    case <= 128: return (i.Signed ? typeof(Int128) : typeof(UInt128)).GetTypeInfo();;
+                    case <= 8: return (i.Signed ? corLib.SByte : corLib.Byte).Type;
+                    case <= 16: return (i.Signed ?  corLib.Int16 : corLib.UInt16).Type;
+                    case <= 32: return (i.Signed ?  corLib.Int32 : corLib.UInt32).Type;
+                    case <= 64: return (i.Signed ?  corLib.Int64 : corLib.UInt64).Type;
+                    case <= 128: return _coreLib[i.Signed ? "Int128" : "UInt128"].t;
                 }
                 throw new UnreachableException();
             }
-
-            case StringTypeReference: return typeof(string).GetTypeInfo();
-            case BooleanTypeReference: return typeof(bool).GetTypeInfo();
+    
+            case StringTypeReference: return corLib.String.Type;
+            case BooleanTypeReference: return corLib.Boolean.Type;
             
-            case SolvedStructTypeReference @i:
-                return _structTable[i.Struct];
+            case NoReturnTypeReference:
+            case VoidTypeReference: return corLib.Void.Type;
+            
+            case SolvedStructTypeReference @i: return _typesMap[i.Struct].ToTypeReference();
             
             default: throw new UnreachableException();
         }
     }
+    
 }

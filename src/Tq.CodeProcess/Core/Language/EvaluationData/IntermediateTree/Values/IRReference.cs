@@ -5,6 +5,6 @@ using Abstract.CodeProcess.Core.Language.SyntaxNodes.Expression;
 
 namespace Abstract.CodeProcess.Core.Language.EvaluationData.IntermediateTree.Values;
 
-public abstract class IRReference(SyntaxNode origin, TypeReference t) : IRExpression(origin, t)
+public abstract class IRReference(SyntaxNode origin) : IrExpression(origin)
 {
 }

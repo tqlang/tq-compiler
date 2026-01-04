@@ -4,10 +4,10 @@ using Abstract.CodeProcess.Core.Language.SyntaxNodes.Base;
 
 namespace Abstract.CodeProcess.Core.Language.EvaluationData.IntermediateTree.Statements;
 
-public class IRWhile(SyntaxNode origin, IRBlock?  d, IRExpression? c, IRBlock? s, IRBlock p) : IRStatement(origin)
+public class IRWhile(SyntaxNode origin, IRBlock?  d, IrExpression? c, IRBlock? s, IRBlock p) : IRStatement(origin)
 {
     public IRBlock? Define = d;
-    public IRExpression Condition = c;
+    public IrExpression Condition = c;
     public IRBlock? Step = s;
     public IRBlock Process = p;
 

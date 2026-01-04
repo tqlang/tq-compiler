@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using Abstract.CodeProcess.Core.Language.EvaluationData.IntermediateTree;
 using Abstract.CodeProcess.Core.Language.EvaluationData.IntermediateTree.Expresions;
 using Abstract.CodeProcess.Core.Language.EvaluationData.IntermediateTree.Values;
 using Abstract.CodeProcess.Core.Language.EvaluationData.LanguageReferences.CodeReferences;
@@ -17,11 +18,11 @@ namespace Abstract.CodeProcess;
 public partial class Analyzer
 {
 
-    private static TypeReference GetEffectiveTypeReference(IRExpression expr)
+    private static TypeReference GetEffectiveTypeReference(IrExpression expr)
     {
         return expr switch
         {
-            IRIntegerLiteral => new ComptimeIntegerTypeReference(),
+            IrIntegerLiteral => new ComptimeIntegerTypeReference(),
             IRStringLiteral => new StringTypeReference(StringEncoding.Undefined),
             IRSolvedReference @solvedFuck => solvedFuck.Reference switch
             {
@@ -33,15 +34,6 @@ public partial class Analyzer
 
                 LocalReference @local => local.Local.Type,
                 ParameterReference @param => param.Parameter.Type,
-
-                MetaReference @meta => meta.Type switch
-                {
-                    MetaReference.MetaReferenceType.Name => new StringTypeReference(StringEncoding.Ascii),
-                    MetaReference.MetaReferenceType.ByteSize or
-                    MetaReference.MetaReferenceType.BitSize or
-                    MetaReference.MetaReferenceType.Alignment => new RuntimeIntegerTypeReference(false),
-                    _ => throw new ArgumentOutOfRangeException()
-                },
                 
                 _ => throw new NotImplementedException()
             },
@@ -56,8 +48,6 @@ public partial class Analyzer
             
             IrConv @conv => conv.Type,
             IRIntCast @tcast => tcast.Type,
-            IRIntExtend @icast => icast.Type,
-            IRIntTrunc @itrunc => itrunc.Type,
             
             _ => throw new NotImplementedException()
             
@@ -132,15 +122,15 @@ public partial class Analyzer
     /// <param name="typeTo"> Target type </param>
     /// <param name="value"> Value to cast </param>
     /// <returns></returns>
-    private IRExpression SolveTypeCast(TypeReference typeTo, IRExpression value, bool @explicit = false)
+    private IrExpression SolveTypeCast(TypeReference typeTo, IrExpression value, bool @explicit = false)
     {
         var a = typeTo;
         var b = value;
         
         switch (typeTo)
         {
-            case RuntimeIntegerTypeReference typetoRi when value is IRIntegerLiteral @lit:
-                return new IRIntegerLiteral(lit.Origin, lit.Value, typetoRi);
+            case RuntimeIntegerTypeReference typetoRi when value is IrIntegerLiteral @lit:
+                return new IrIntegerLiteral(lit.Origin, lit.Value, typetoRi);
             
             case RuntimeIntegerTypeReference typetoRi:
             {
@@ -158,28 +148,9 @@ public partial class Analyzer
                     var val = valueRi;
                     var tar = typetoRi;
                     var o = value.Origin;
-                
-                    if (val.Signed == tar.Signed)
-                    {
-                        if (val.BitSize == tar.BitSize) return value;
-                        if (val.BitSize < tar.BitSize) return new IRIntExtend(o, value, tar);
-                        if (val.BitSize > tar.BitSize && @explicit) return new IRIntTrunc(o, value, tar);
-                    }
-                    else if (!val.Signed && tar.Signed)
-                    {
-                    
-                        if (val.BitSize == tar.BitSize && @explicit) return new IRIntCast(o, value, tar);
-                        if (val.BitSize < tar.BitSize) return new IRIntExtend(o, value, tar);
-                        if (val.BitSize > tar.BitSize && @explicit) return new IRIntTrunc(o, value, tar);
-                    }
-                    else
-                    {
-                        if (val.BitSize == tar.BitSize && @explicit) return new IRIntCast(o, value, tar);
-                        if (val.BitSize < tar.BitSize && @explicit) return new IRIntExtend(o, value, tar);
-                        if (val.BitSize > tar.BitSize && @explicit) return new IRIntTrunc(o, value, tar);
-                    }
-                    
-                    throw new Exception($"Cannot convert type {val} to {tar} in {value.Origin:pos}");
+
+                    if (val.Signed == tar.Signed && val.BitSize == tar.BitSize) return value;
+                    return new IRIntCast(o, value, tar);
                 }
 
                 break;

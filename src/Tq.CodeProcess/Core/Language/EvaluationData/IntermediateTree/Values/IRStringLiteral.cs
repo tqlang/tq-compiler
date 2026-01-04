@@ -1,24 +1,25 @@
-using Abstract.CodeProcess.Core.Language.EvaluationData.IntermediateTree.Expresions;
+using Abstract.CodeProcess.Core.Language.EvaluationData.LanguageReferences.TypeReferences;
 using Abstract.CodeProcess.Core.Language.EvaluationData.LanguageReferences.TypeReferences.Builtin;
 using Abstract.CodeProcess.Core.Language.SyntaxNodes.Base;
 
-
-
 namespace Abstract.CodeProcess.Core.Language.EvaluationData.IntermediateTree.Values;
 
-public class IRStringLiteral : IRExpression
+public class IRStringLiteral : IrExpression
 {
-    public string Data;
+    private TypeReference _type;
+    public readonly string Data;
+    
+    public override TypeReference Type => _type;
     public StringEncoding Encoding => ((StringTypeReference)Type!).Encoding;
 
-    public IRStringLiteral(SyntaxNode origin, StringEncoding enconding, string data)
-        : base(origin, new StringTypeReference(enconding))
+    public IRStringLiteral(SyntaxNode origin, StringEncoding encoding, string data) : base(origin)
     {
+        _type = new StringTypeReference(encoding);
         Data = data;
     }
-    public IRStringLiteral(SyntaxNode origin, string data)
-        : base(origin, new StringTypeReference(StringEncoding.Undefined))
+    public IRStringLiteral(SyntaxNode origin, string data) : base(origin)
     {
+        _type = new StringTypeReference(StringEncoding.Undefined);
         Data = data;
     }
 

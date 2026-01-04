@@ -1,5 +1,4 @@
 using System.Diagnostics;
-using Abstract.CodeProcess.Core;
 using Abstract.CodeProcess.Core.Language;
 using Abstract.CodeProcess.Core.Language.EvaluationData;
 using Abstract.CodeProcess.Core.Language.EvaluationData.IntermediateTree;
@@ -319,7 +318,7 @@ public partial class Analyzer
             return new IRIf(@origin, condition, then);
         }
     }
-    private IRExpression UnwrapExecutionContext_Expression(SyntaxNode node, ExecutionContextData ctx)
+    private IrExpression UnwrapExecutionContext_Expression(SyntaxNode node, ExecutionContextData ctx)
     {
         switch (node)
         {
@@ -378,15 +377,15 @@ public partial class Analyzer
                         
                         "%" => IRBinaryExp.Operators.Reminder,
 
-                        "&" => IRBinaryExp.Operators.Bitwise_And,
-                        "|" => IRBinaryExp.Operators.Bitwise_Or,
-                        "^" => IRBinaryExp.Operators.Bitwise_Xor,
+                        "&" => IRBinaryExp.Operators.BitwiseAnd,
+                        "|" => IRBinaryExp.Operators.BitwiseOr,
+                        "^" => IRBinaryExp.Operators.BitwiseXor,
 
-                        "<<" => IRBinaryExp.Operators.Left_Shift,
-                        ">>" => IRBinaryExp.Operators.Right_Shift,
+                        "<<" => IRBinaryExp.Operators.LeftShift,
+                        ">>" => IRBinaryExp.Operators.RightShift,
                         
-                        "or" => IRBinaryExp.Operators.Logical_Or,
-                        "and" => IRBinaryExp.Operators.Logical_And,
+                        "or" => IRBinaryExp.Operators.LogicalOr,
+                        "and" => IRBinaryExp.Operators.LogicalAnd,
 
                         _ => throw new UnreachableException(),
                     },
@@ -433,14 +432,14 @@ public partial class Analyzer
             case IdentifierNode @ident: return SolveReferenceChain(ident, ctx, null);
 
             case IntegerLiteralNode @intlit:
-                return new IRIntegerLiteral(intlit, intlit.Value, new ComptimeIntegerTypeReference());
+                return new IrIntegerLiteral(intlit, intlit.Value, new ComptimeIntegerTypeReference());
             case StringLiteralNode @strlit:
             {
                 if (strlit.IsSimple) return new IRStringLiteral(strlit, strlit.RawContent);
                 throw new NotImplementedException();
             }
             case BooleanLiteralNode @boollit:
-                return new IRIntegerLiteral(boollit, boollit.Value ? 1 : 0, new RuntimeIntegerTypeReference(false, 1));
+                return new IrIntegerLiteral(boollit, boollit.Value ? 1 : 0, new RuntimeIntegerTypeReference(false, 1));
             case NullLiteralNode @nulllit: 
                 return new IRNullLiteral(nulllit);
             
@@ -538,14 +537,14 @@ public partial class Analyzer
     }
 
 
-    private IRExpression SolveReferenceChain(ExpressionNode node, ExecutionContextData? ctx, LangObject? obj)
+    private IrExpression SolveReferenceChain(ExpressionNode node, ExecutionContextData? ctx, LangObject? obj)
     {
         return node switch
         {
             AccessNode @access => new IRAccess(node,
                 SolveReferenceChain(access.Left, ctx, obj), SolveReferenceChain(access.Right, ctx, obj)),
             
-            IdentifierNode @ident => ((Func<IRExpression>)(() =>
+            IdentifierNode @ident => ((Func<IrExpression>)(() =>
             {
                 var a = SolveShallowType(ident);
                 return a is UnsolvedTypeReference

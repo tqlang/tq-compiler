@@ -8,13 +8,14 @@ namespace Abstract.CodeProcess.Core.Language.EvaluationData.IntermediateTree.Exp
 public class IRCompareExp(
     BinaryExpressionNode origin,
     IRCompareExp.Operators ope,
-    IRExpression left,
-    IRExpression right) : IRExpression(origin, new BooleanTypeReference())
+    IrExpression left,
+    IrExpression right) : IrExpression(origin)
 {
+    public override TypeReference Type => new BooleanTypeReference();
 
     public Operators Operator { get; set; } = ope;
-    public IRExpression Left { get; set; } = left;
-    public IRExpression Right { get; set; } = right;
+    public IrExpression Left { get; set; } = left;
+    public IrExpression Right { get; set; } = right;
     
     public override string ToString()
     {

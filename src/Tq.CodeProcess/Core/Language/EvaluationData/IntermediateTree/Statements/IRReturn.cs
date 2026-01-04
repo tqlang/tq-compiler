@@ -4,9 +4,9 @@ using Abstract.CodeProcess.Core.Language.SyntaxNodes.Base;
 
 namespace Abstract.CodeProcess.Core.Language.EvaluationData.IntermediateTree.Statements;
 
-public class IRReturn(SyntaxNode origin, IRExpression? val) : IRStatement(origin)
+public class IRReturn(SyntaxNode origin, IrExpression? val) : IRStatement(origin)
 {
-    public IRExpression? Value { get; set; } = val;
+    public IrExpression? Value { get; set; } = val;
     
     public override string ToString()
     {

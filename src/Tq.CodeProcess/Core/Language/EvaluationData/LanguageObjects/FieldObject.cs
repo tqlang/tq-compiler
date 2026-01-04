@@ -1,4 +1,5 @@
 using System.Text;
+using Abstract.CodeProcess.Core.Language.EvaluationData.IntermediateTree;
 using Abstract.CodeProcess.Core.Language.EvaluationData.IntermediateTree.Expresions;
 using Abstract.CodeProcess.Core.Language.EvaluationData.LanguageObjects.Attributes;
 using Abstract.CodeProcess.Core.Language.EvaluationData.LanguageReferences.TypeReferences;
@@ -24,7 +25,7 @@ public class FieldObject(string[] g, string n, TopLevelVariableNode synnode, Typ
     public readonly TopLevelVariableNode syntaxNode = synnode;
 
 
-    public IRExpression? Value = null;
+    public IrExpression? Value = null;
     
     public override string ToString()
     {

@@ -2,5 +2,5 @@ namespace Abstract.CodeProcess.Core.Language.EvaluationData.LanguageReferences.T
 
 public abstract class TypeReference: LanguageReference
 {
-    
+    public override TypeReference Type => this;
 }

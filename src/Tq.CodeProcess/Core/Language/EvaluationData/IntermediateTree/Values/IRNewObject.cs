@@ -7,11 +7,13 @@ using Abstract.CodeProcess.Core.Language.SyntaxNodes.Base;
 
 namespace Abstract.CodeProcess.Core.Language.EvaluationData.IntermediateTree.Values;
 
-public class IRNewObject(SyntaxNode origin, TypeReference t, IRExpression[] args, IRAssign[] inlineAssingns) : IRExpression(origin, t)
+public class IRNewObject(SyntaxNode origin, TypeReference t, IrExpression[] args, IRAssign[] inlineAssingns) : IrExpression(origin)
 {
-    public IRExpression[] Arguments { get; set; } = args;
+    public TypeReference InstanceType = t;
+    public readonly IrExpression[] Arguments = args;
     public readonly IRAssign[] InlineAssignments = inlineAssingns;
     
+    public override TypeReference Type => InstanceType;
     public override string ToString()
     {
         var sb = new StringBuilder();

@@ -3,10 +3,12 @@ using Abstract.CodeProcess.Core.Language.SyntaxNodes.Base;
 
 namespace Abstract.CodeProcess.Core.Language.EvaluationData.IntermediateTree.Expresions;
 
-public class IRUnaryExp(SyntaxNode origin, IRUnaryExp.UnaryOperation op, IRExpression value) : IRExpression(origin, value.Type)
+public class IRUnaryExp(SyntaxNode origin, IRUnaryExp.UnaryOperation op, IrExpression value) : IrExpression(origin)
 {
+    public override TypeReference Type => value.Type;
+
     public UnaryOperation Operation = op;
-    public IRExpression Value = value;
+    public IrExpression Value = value;
     
     public enum UnaryOperation
     {

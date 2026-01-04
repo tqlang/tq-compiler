@@ -7,14 +7,17 @@ namespace Abstract.CodeProcess.Core.Language.EvaluationData.IntermediateTree.Exp
 public class IRBinaryExp(
     BinaryExpressionNode origin,
     IRBinaryExp.Operators ope,
-    IRExpression left,
-    IRExpression right) : IRExpression(origin, null)
+    IrExpression left,
+    IrExpression right) : IrExpression(origin)
 {
+    public TypeReference ResultType = null!;
 
     public Operators Operator { get; set; } = ope;
-    public IRExpression Left { get; set; } = left;
-    public IRExpression Right { get; set; } = right;
-    
+    public IrExpression Left { get; set; } = left;
+    public IrExpression Right { get; set; } = right;
+
+    public override TypeReference Type => ResultType;
+
     public override string ToString()
     {
         var sb = new StringBuilder();
@@ -41,13 +44,13 @@ public class IRBinaryExp(
         DivideCeil,
         Reminder,
         
-        Bitwise_And,
-        Bitwise_Or,
-        Bitwise_Xor,
-        Left_Shift,
-        Right_Shift,
+        BitwiseAnd,
+        BitwiseOr,
+        BitwiseXor,
+        LeftShift,
+        RightShift,
         
-        Logical_And,
-        Logical_Or,
+        LogicalAnd,
+        LogicalOr,
     }
 }
