@@ -14,19 +14,23 @@ public class IRIf(SyntaxNode origin, IrExpression exp, IRBlock then) : IRStateme
     {
         var sb = new StringBuilder();
 
-        sb.Append("(if ");
-        sb.AppendLine(Condition.ToString());
+        sb.AppendLine($"if ({Condition}) {{");
         sb.Append(Then.ToString().TabAll());
+        sb.Append('}');
 
-        if (Else != null)
+        if (Else is IRIf @irif)
         {
-            sb.AppendLine("(else");
+            sb.Append(" else ");
+            sb.Append(irif);
+        }
+        else if (Else is IRElse)
+        {
+            sb.AppendLine(" else {");
             sb.Append(Else.ToString().TabAll());
-            sb.Append(')');
+            sb.Append('}');
         }
 
-        sb.Append(')');
-            
+        sb.AppendLine();
         return sb.ToString();
     }
 }

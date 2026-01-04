@@ -10,5 +10,5 @@ public class IrConv(SyntaxNode origin, IrExpression v, TypeReference ty) : IrExp
     public TypeReference OriginType => v.Type;
     public IrExpression Expression = v;
 
-    public override string ToString() => $"(conv {Expression} {Type})";
+    public override string ToString() => $"{Expression} as {Type}";
 }

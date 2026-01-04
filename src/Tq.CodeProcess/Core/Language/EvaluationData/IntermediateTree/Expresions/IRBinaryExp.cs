@@ -18,17 +18,7 @@ public class IRBinaryExp(
 
     public override TypeReference Type => ResultType;
 
-    public override string ToString()
-    {
-        var sb = new StringBuilder();
-
-        sb.AppendLine($"({Operator.ToString().ToLower()}");
-        sb.AppendLine(Left.ToString().TabAll());
-        sb.Append(Right.ToString().TabAll());
-        sb.Append(')');
-        
-        return sb.ToString();
-    }
+    public override string ToString() => $"{Operator} {Left} {Right}";
     
     public enum Operators
     {

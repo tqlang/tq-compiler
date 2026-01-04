@@ -10,7 +10,6 @@ public class NamespaceObject(string[] g, string n, NamespaceNode synnode)
     public bool Static { get => true; set { } }
 
     public readonly NamespaceNode syntaxNode = synnode;
-    public override NamespaceObject Namespace => this;
     
     public List<ImportObject> Imports = [];
     

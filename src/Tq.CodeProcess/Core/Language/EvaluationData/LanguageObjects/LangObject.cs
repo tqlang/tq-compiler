@@ -12,7 +12,25 @@ public abstract class LangObject(string[] global, string name)
     public readonly string[] Global = global;
     public readonly string Name = name;
     public LangObject Parent { get =>_parent; set => _parent = value; }
-    public virtual NamespaceObject Namespace => _parent.Namespace;
+
+    public NamespaceObject? Namespace
+    {
+        get
+        {
+            if (_parent == null) return null;
+            if (_parent is NamespaceObject @nmsp) return nmsp;
+            return _parent.Namespace;
+        }
+    }
+    public ModuleObject? Module
+    {
+        get
+        {
+            if (_parent == null) return null;
+            if (_parent is ModuleObject @mod) return mod;
+            return _parent.Module;
+        }
+    }
     public ImportObject? Imports = null;
     
     public LangObject[] Children => [.. _children];

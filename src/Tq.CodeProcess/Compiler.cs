@@ -33,11 +33,10 @@ namespace Abstract.CodeProcess;
 
 public class Compiler
 {
-    
+    private Dictionary<ModuleObject, TypeDefinition> _modulesMap = [];
     private Dictionary<FunctionObject, MethodDefinition> _functionsMap = [];
     private Dictionary<StructObject, TypeDefinition> _typesMap = [];
     private Dictionary<FieldObject, FieldDefinition> _fieldsMap = [];
-    private TypeDefinition _staticContainer;
 
     private AssemblyDefinition _assembly;
     private ModuleDefinition _module;
@@ -57,15 +56,6 @@ public class Compiler
 
         corLib = _module.CorLibTypeFactory;
         LoadCoreLibResources();
-
-        _staticContainer = new TypeDefinition(
-            "",
-            "Program",
-            TypeAttributes.Public
-            | TypeAttributes.Sealed
-            | TypeAttributes.Class,
-            corLib.Object.Type);
-        _module.TopLevelTypes.Add(_staticContainer);
         
         foreach (var m in program.Modules) SearchRecursive(m);
 
@@ -73,33 +63,62 @@ public class Compiler
         ResolveContent();
         ImplementMethods();
         
-        {
-            var sb = new StringBuilder();
-            foreach (var type in _module.GetAllTypes())
-            {
-                sb.AppendLine($"Type: {type.FullName}");
-                foreach (var method in type.Methods)
-                {
-                    sb.AppendLine($"  Method: {method.Name}");
-                    if (method.CilMethodBody != null)
-                    {
-                        foreach (var inst in method.CilMethodBody.Instructions)
-                            sb.AppendLine($"    {inst}");
-                    }
-                }
-            }
-            
-            File.WriteAllText(".abs-cache/debug/dlldump.il", sb.ToString());
-        }
-        
+        DumpModule();
         _module.Write($".abs-out/{programName}.dll");
     }
 
+    private void DumpModule()
+    {
+        var sb = new StringBuilder();
+        foreach (var type in _module.GetAllTypes())
+        {
+            sb.Append('\n');
+            sb.Append(type.IsValueType ? "struct " : "class ");
+            sb.AppendLine($"{type.FullName} extends {type.BaseType} {{");
+
+            foreach (var field in type.Fields)
+            {
+                sb.Append("\tfield ");
+                sb.Append(field.IsPublic ? "public " : "private ");
+                sb.Append(field.IsStatic ? "static " : "instance ");
+                sb.AppendLine($"{field.Signature} {field.Name}");
+            }
+                
+            foreach (var method in type.Methods)
+            {
+                sb.Append("\n\tmethod ");
+                sb.Append(method.IsPublic ? "public " : "private ");
+                sb.Append(method.IsStatic ? "static " : "instance ");
+                sb.Append($"{method.Name} ({string.Join(", ", method.Parameters)}) ");
+                sb.Append($"{method.Signature!.ReturnType} ");
+                sb.AppendLine("{");
+                if (method.CilMethodBody != null)
+                {
+                    foreach (var local in method.CilMethodBody.LocalVariables)
+                        sb.AppendLine($"\t\t.locals init ({local.VariableType} {local})");
+                        
+                    foreach (var inst in method.CilMethodBody.Instructions)
+                        sb.AppendLine($"\t\t{inst}");
+                }
+                sb.AppendLine("\t}");
+            }
+            sb.AppendLine("}");
+        }
+            
+        File.WriteAllText(".abs-cache/debug/dlldump.il", sb.ToString());
+    }
+    
     private void LoadCoreLibResources()
     {
         Dictionary<string, IMethodDescriptor> methods;
         Type type;
         
+        methods = [];
+        type = typeof(ValueType);
+        {
+        }
+        _coreLib.Add(type.Name, (_module.DefaultImporter.ImportType(type), methods));
+            
         methods = [];
         type = typeof(Int128);
         {
@@ -164,9 +183,20 @@ public class Compiler
         switch (obj)
         {
             case ModuleObject @a:
-                foreach (var i in a.Children) SearchRecursive(i); 
-                break;
-            
+            {
+                var attributes = TypeAttributes.AnsiClass
+                                 | TypeAttributes.Class
+                                 | TypeAttributes.Sealed
+                                 | TypeAttributes.Public
+                                 | TypeAttributes.Abstract;
+
+                var moduledef = new TypeDefinition(a.Name, "Statics", attributes, corLib.Object.Type);
+                _module.TopLevelTypes.Add(moduledef);
+                _modulesMap.Add(a, moduledef);
+                
+                foreach (var i in a.Children) SearchRecursive(i);
+            } break;
+
             case NamespaceObject @a:
                 foreach (var i in a.Children) SearchRecursive(i);
                 break;
@@ -191,15 +221,14 @@ public class Compiler
             var nmsp = string.Join('.', k.Global[0..^1]);
             var name = k.Name;
 
-            var attributes = TypeAttributes.Class
-                             | TypeAttributes.Public
-                             | TypeAttributes.AnsiClass;
-                             //| TypeAttributes.ExplicitLayout;
+            var attributes = TypeAttributes.AnsiClass
+                             | TypeAttributes.ExplicitLayout;
             
+            if (k.Public) attributes |= TypeAttributes.Public;
             if (k.Abstract) attributes |= TypeAttributes.Abstract;
             if (k.Final) attributes |= TypeAttributes.Sealed;
 
-            var typedef = new TypeDefinition(nmsp, name, attributes, corLib.Object.Type);
+            var typedef = new TypeDefinition(nmsp, name, attributes, _coreLib["ValueType"].t);
             _module.TopLevelTypes.Add(typedef);
             _typesMap[k] = typedef;
         }
@@ -209,16 +238,14 @@ public class Compiler
     {
         foreach (var (k, v) in _functionsMap)
         {
-            var fun = DeclareFunction(k, _staticContainer);
+            var fun = DeclareFunction(k, _modulesMap[k.Module!]);
             _functionsMap[k] = fun;
         }
         
         foreach (var (k, v) in _typesMap)
         {
-            v.BaseType = k.Extends == null ? TypeRefOf(k.Extends) : corLib.Object.Type;
-
             {
-                var signature = MethodSignature.CreateInstance(new TypeDefOrRefSignature(corLib.Void.Type));
+                var signature = MethodSignature.CreateInstance(corLib.Void);
                 var ctor = new MethodDefinition(".ctor",
                     MethodAttributes.Public
                     | MethodAttributes.HideBySig
@@ -234,9 +261,12 @@ public class Compiler
                 var objectCtor = _module.DefaultImporter.ImportMethod(typeof(object).GetConstructors()[0]);
                 var baseCtorRef = _module.DefaultImporter.ImportMethod(objectCtor);
                 
-                body.Instructions.Add(new CilInstruction(CilOpCodes.Ldarg_0));
-                body.Instructions.Add(new CilInstruction(CilOpCodes.Call, baseCtorRef));
-                body.Instructions.Add(new CilInstruction(CilOpCodes.Ret));
+                body.Instructions.Add(CilOpCodes.Ldarg_0);
+                body.Instructions.Add(CilOpCodes.Initobj, _typesMap[k]);
+                body.Instructions.Add(CilOpCodes.Ret);
+                
+                body.Instructions.OptimizeMacros();
+                body.ComputeMaxStack();
             }
 
             foreach (var i in k.Children)
@@ -280,6 +310,10 @@ public class Compiler
             var args = method.Parameters.ToArray();
                 
             CompileIr(k.Body!, body.Instructions, args, locals);
+            
+            if (body.Instructions.Count == 0 || body.Instructions[^1].OpCode != CilOpCodes.Ret)
+                body.Instructions.Add(CilOpCodes.Ret);
+            
             body.Instructions.OptimizeMacros();
         }
     }
@@ -329,10 +363,11 @@ public class Compiler
     
     private void CompileIr(IRBlock block, CilInstructionCollection gen, Parameter[] args, CilLocalVariable[] locals)
     {
-        foreach (var node in block.Content) CompileIrNodeLoad(node, gen, args, locals);
+        foreach (var node in block.Content)
+            CompileIrNodeLoad(node, gen, args, locals, ignoreValue: true);
     }
     
-    private void CompileIrNodeLoad(IRNode node, CilInstructionCollection gen, Parameter[] args, CilLocalVariable[] locals)
+    private void CompileIrNodeLoad(IRNode node, CilInstructionCollection gen, Parameter[] args, CilLocalVariable[] locals, bool ignoreValue = false)
     {
         switch (node)
         {
@@ -341,9 +376,13 @@ public class Compiler
                 break;
             
             case IRNewObject @nobj:
+                
+                CompileIrNodeLoadAsRef(nobj.Arguments[0],  gen, args, locals);
+                foreach (var i in nobj.Arguments[1..]) CompileIrNodeLoad(i,  gen, args, locals);
+                
                 var ctor = _typesMap[((SolvedStructTypeReference)nobj.InstanceType).Struct]
                     .Methods.First(e => e.Name == ".ctor");
-                gen.Add(CilOpCodes.Newobj, ctor);
+                gen.Add(CilOpCodes.Call, ctor);
                 break;
     
             case IrIntegerLiteral @intlit:
@@ -394,6 +433,8 @@ public class Compiler
                 foreach (var i in iv.Arguments)
                     CompileIrNodeLoad(i, gen, args, locals);
                 CompileIrNodeCall(iv.Target, gen, args, locals);
+                if (ignoreValue && ((FunctionTypeReference)iv.Target.Type).Returns is not VoidTypeReference)
+                    gen.Add(CilOpCodes.Pop);
             } break;
     
             case IRIntCast ic:
@@ -597,20 +638,26 @@ public class Compiler
     
             case IRWhile @while:
             {
-                var loopLabel = new CilInstructionLabel();
+                var checkLabel = new CilInstructionLabel();
+                var bodyLabel = new CilInstructionLabel();
                 var breakLabel = new CilInstructionLabel();
                 
+                // Jump to check
+                gen.Add(CilOpCodes.Br,  checkLabel);
+                
+                // Body
                 var lastIdx = gen.Count;
-                CompileIrNodeLoad(@while.Condition, gen, args, locals);
-                gen.Add(CilOpCodes.Brfalse, breakLabel);
-                loopLabel.Instruction = gen[lastIdx];
-                
                 CompileIr(@while.Process,  gen, args, locals);
+                bodyLabel.Instruction = gen[lastIdx];
                 
+                // Step
                 if (@while.Step != null) CompileIr(@while.Step, gen, args, locals);
-                gen.Add(CilOpCodes.Br, loopLabel);
                 
-                breakLabel.Instruction = gen.Add(CilOpCodes.Nop);
+                // Check
+                lastIdx = gen.Count;
+                CompileIrNodeLoad(@while.Condition, gen, args, locals);
+                gen.Add(CilOpCodes.Brtrue, bodyLabel);
+                checkLabel.Instruction = gen[lastIdx];
             } break;
             
             case IRReturn @ret:
@@ -695,11 +742,16 @@ public class Compiler
 
     private TypeSignature TypeFromRef(TypeReference? typeRef)
     {
-        if (typeRef == null) return new TypeDefOrRefSignature(corLib.Void.Type);
+        if (typeRef == null) return corLib.Void;
+        if (typeRef is ReferenceTypeReference tref)
+        {
+            var baset = TypeRefOf(@tref.InternalType);
+            return baset.IsValueType ? baset.MakeByReferenceType() : baset.ToTypeSignature();
+        }
+        
         return typeRef switch
         {
-            NoReturnTypeReference or VoidTypeReference => new TypeDefOrRefSignature(corLib.Void.Type),
-            ReferenceTypeReference @tref => TypeFromRef(@tref.InternalType).MakeByReferenceType(),
+            NoReturnTypeReference or VoidTypeReference => corLib.Void,
             
             _ => new TypeDefOrRefSignature(TypeRefOf(typeRef))
         };

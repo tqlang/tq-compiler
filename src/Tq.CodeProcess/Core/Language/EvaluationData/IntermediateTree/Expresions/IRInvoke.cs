@@ -17,20 +17,6 @@ public class IRInvoke(
 
     public IrExpression Target { get; set; } = target;
     public IrExpression[] Arguments { get; set; } = args;
-    
-    public override string ToString()
-    {
-        var sb = new StringBuilder();
 
-        sb.AppendLine("(invoke");
-        sb.AppendLine(Target.ToString().TabAll());
-        foreach (var arg in Arguments)
-        {
-            sb.AppendLine(arg.ToString().TabAll());
-        }
-        sb.Length -= Environment.NewLine.Length;
-        sb.Append(')');
-        
-        return sb.ToString();
-    }
+    public override string ToString() => $"call {Target} ({string.Join(", ", Arguments)})";
 }

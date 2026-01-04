@@ -15,12 +15,13 @@ public class IRWhile(SyntaxNode origin, IRBlock?  d, IrExpression? c, IRBlock? s
     {
         var sb = new StringBuilder();
         
-        sb.AppendLine($"(while {Condition.ToString().TabAll()[1..]})");
+        sb.AppendLine($"while ({Condition.ToString().TabAll()[1..]}) {{");
         
-        if (Define != null) sb.Append($"(def\n{Define.ToString().TabAll()})");
-        if (Step != null) sb.Append($"(step\n{Step.ToString().TabAll()})");
+        if (Define != null) sb.Append($"def {{ {Define.ToString()} }}".TabAll());
+        if (Step != null) sb.Append($"step {{ {Step.ToString()} }}".TabAll());
         
-        sb.Append($"{Process.ToString().TabAll()})");
+        sb.Append($"{Process.ToString().TabAll()}");
+        sb.AppendLine("}");
         
         return sb.ToString();
     }

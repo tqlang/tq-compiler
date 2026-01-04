@@ -256,6 +256,13 @@ public partial class Analyzer
         node.Value = (IrExpression)NodeSemaAnal(node.Value, ctx);
 
         // TODO type target inference
+
+        if (node.Value is IRNewObject @newobj)
+            return new IRNewObject(
+                node.Origin,
+                newobj.InstanceType,
+                [node.Target, ..newobj.Arguments],
+                newobj.InlineAssignments);
         
         node.Value = SolveTypeCast(GetEffectiveTypeReference(node.Target), node.Value);
         

@@ -18,19 +18,16 @@ public class IRNewObject(SyntaxNode origin, TypeReference t, IrExpression[] args
     {
         var sb = new StringBuilder();
 
-        sb.AppendLine($"(new");
-        sb.AppendLine((Type ?? throw new UnreachableException()).ToString().TabAll());
-        
-        foreach (var arg in Arguments)
-            sb.Append(arg.ToString().TabAll());
-        
-        sb.Append("\t(");
+        sb.Append($"new ");
+        sb.Append(Type ?? throw new UnreachableException());
+        sb.Append($"({string.Join(", ", Arguments)})");
 
-        foreach (var i in InlineAssignments)
-            sb.Append(i.ToString().TabAll());
+        if (InlineAssignments.Length <= 0) return sb.ToString();
         
-        sb.Append("))");
-        
+        sb.AppendLine("{");
+        foreach (var i in InlineAssignments) sb.Append(i.ToString().TabAll());
+        sb.AppendLine("}");
+
         return sb.ToString();
     }
 }

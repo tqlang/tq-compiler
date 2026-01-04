@@ -12,5 +12,5 @@ public class IRIntCast(SyntaxNode origin, IrExpression v, IntegerTypeReference t
     
     public IrExpression Expression = v;
     
-    public override string ToString() => $"(intcast {Expression} {Type})";
+    public override string ToString() => $"{Expression} intcast {Type})";
 }

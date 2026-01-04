@@ -16,18 +16,8 @@ public class IRCompareExp(
     public Operators Operator { get; set; } = ope;
     public IrExpression Left { get; set; } = left;
     public IrExpression Right { get; set; } = right;
-    
-    public override string ToString()
-    {
-        var sb = new StringBuilder();
 
-        sb.AppendLine($"({Operator.ToString().ToLower()}");
-        sb.AppendLine(Left.ToString().TabAll());
-        sb.Append(Right.ToString().TabAll());
-        sb.Append(')');
-        
-        return sb.ToString();
-    }
+    public override string ToString() => $"cmp {Operator} {Left} {Right}";
     
     public enum Operators
     {

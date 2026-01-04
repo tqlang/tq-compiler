@@ -15,15 +15,5 @@ public class IRAssign(
     public IrExpression Value { get; set; } = val;
     public override TypeReference Type => Target.Type;
 
-    public override string ToString()
-    {
-        var sb = new StringBuilder();
-
-        sb.AppendLine($"(Assign");
-        sb.AppendLine(Target.ToString().TabAll());
-        sb.Append(Value.ToString().TabAll());
-        sb.Append(')');
-        
-        return sb.ToString();
-    }
+    public override string ToString() => $"{Target} = {Value}";
 }
