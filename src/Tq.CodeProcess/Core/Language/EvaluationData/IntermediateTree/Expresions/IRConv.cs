@@ -7,7 +7,7 @@ namespace Abstract.CodeProcess.Core.Language.EvaluationData.IntermediateTree.Exp
 public class IrConv(SyntaxNode origin, IrExpression v, TypeReference ty) : IrExpression(origin)
 {
     public override TypeReference Type => ty;
-    public TypeReference OriginType => v.Type;
+    public TypeReference OriginType => Expression.Type;
     public IrExpression Expression = v;
 
     public override string ToString() => $"{Expression} as {Type}";

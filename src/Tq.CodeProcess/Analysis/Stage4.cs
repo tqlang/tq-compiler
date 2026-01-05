@@ -429,7 +429,7 @@ public partial class Analyzer
     private IRNode NodeSemaAnal_Conv(IrConv node, IrBlockExecutionContextData ctx)
     {
         node.Expression = (IrExpression)NodeSemaAnal(node.Expression, ctx);
-        return SolveTypeCast(node.Type, node.Expression, true);
+        return SolveTypeCast(node.Type, node.Expression, node, true);
     }
     private IRNode NodeSemaAnal_NewObj(IRNewObject node, IrBlockExecutionContextData ctx)
     {

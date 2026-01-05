@@ -1,16 +1,38 @@
-###    ABSTRACT STANDARD LIBRARY SCRIPT    ###
+###    TQ STANDARD LIBRARY SCRIPT    ###
 
-@public @extern("System.Console.Write")   func write(i64 value) void
-@public @extern("System.Console.Write")   func write(u64 value) void
-@public @extern("System.Console.Write")   func write(i128 value) void
-@public @extern("System.Console.Write")   func write(u128 value) void
+@extern("Internal.Console", "Write")      func Console_Write(string value) void
+@extern("Internal.Console", "WriteLine")  func Console_WriteLine(string value) void
 
-@public @extern("System.Console.Write")   func write(string value) void
+func write(i64 value) void {
+    Console_Write(value as string)
+}
+func write(u64 value) void {
+    Console_Write(value as string)
+}
+func write(i128 value) void {
+    Console_Write(value as string)
+}
+func write(u128 value) void {
+    Console_Write(value as string)
+}
+func write(string value) void {
+    Console_Write(value)
+}
 
+func writeln(i64 value) void {
+    Console_WriteLine(value as string)
+}
+func writeln(u64 value) void {
+    Console_WriteLine(value as string)
+}
+func writeln(i128 value) void {
+    Console_WriteLine(value as string)
+}
+func writeln(u128 value) void {
+    Console_WriteLine(value as string)
+}
 
-@public @extern("System.Console.WriteLine")  func writeln(i64 value) void
-@public @extern("System.Console.WriteLine")  func writeln(u64 value) void
-@public @extern("System.Console.WriteLine")  func writeln(i128 value) void
-@public @extern("System.Console.WriteLine")  func writeln(u128 value) void
+func writeln(string value) void {
+    Console_WriteLine(value)
+}
 
-@public @extern("System.Console.WriteLine")  func writeln(string value) void

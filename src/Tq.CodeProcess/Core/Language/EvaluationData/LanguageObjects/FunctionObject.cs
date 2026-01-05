@@ -19,7 +19,8 @@ public class FunctionObject(string[] g, string n, FunctionDeclarationNode synnod
         IOverrideAttribute,
         IExternModifier,
         IExportModifier,
-        IParametrizable
+        IParametrizable,
+        IFormattable
 {
     public bool Public { get; set; } = false;
     public bool Static { get; set; } = false;
@@ -30,7 +31,7 @@ public class FunctionObject(string[] g, string n, FunctionDeclarationNode synnod
     public string? Export { get; set; } = null;
     public bool Generic { get; set; } = false;
     public bool ConstExp { get; set; } = false;
-    public (string? domain, string? symbol) Extern { get; set; } = (null, null);
+    public (string nmsp, string name)? Extern { get; set; } = null;
 
     
     public TypeReference ReturnType = null!;
@@ -71,8 +72,7 @@ public class FunctionObject(string[] g, string n, FunctionDeclarationNode synnod
         sb.Append(Abstract ? "abstract " : "concrete ");
         if (Virtual) sb.Append("virtual ");
         if (Override) sb.Append("override ");
-        if (Extern.domain == null && Extern.symbol != null) sb.Append($"import_extern(\"{Extern.symbol}\") ");
-        else if (Extern is { domain: not null, symbol: not null }) sb.Append($"import_extern(\"{Extern.domain}\" \"{Extern.symbol}\") ");
+        if (Extern == null) sb.Append($"extern(\"{Extern}\") ");
         if (Generic) sb.Append("generic ");
 
         sb.AppendLine($"Function {Name} -> {ReturnType}:");
@@ -89,5 +89,10 @@ public class FunctionObject(string[] g, string n, FunctionDeclarationNode synnod
         
         return sb.ToString();
     }
-    
+    public string ToSignatureString() => $"{ReturnType} {Name} ({string.Join(", ", Parameters.Select(e => e.Type))})";
+    public string ToString(string? format, IFormatProvider? formatProvider) =>format switch
+        {
+            "sig" => ToSignatureString(),
+            _ => ToString()
+        };
 }

@@ -34,15 +34,16 @@ namespace Abstract.CodeProcess;
 public class Compiler
 {
     private Dictionary<ModuleObject, TypeDefinition> _modulesMap = [];
-    private Dictionary<FunctionObject, MethodDefinition> _functionsMap = [];
+    private Dictionary<FunctionObject, IMethodDescriptor> _functionsMap = [];
     private Dictionary<StructObject, TypeDefinition> _typesMap = [];
     private Dictionary<FieldObject, FieldDefinition> _fieldsMap = [];
 
     private AssemblyDefinition _assembly;
     private ModuleDefinition _module;
     
-    private CorLibTypeFactory corLib = null!;
-    private Dictionary<string, (ITypeDefOrRef t, Dictionary<string, IMethodDescriptor> m)> _coreLib = [];
+    private CorLibTypeFactory _corLibFactory;
+    private Dictionary<string, (TypeSignature t, Dictionary<string, IMethodDescriptor> m)> _coreLib = [];
+    
     
     public void Compile(ProgramObject program)
     {
@@ -51,10 +52,11 @@ public class Compiler
         _assembly = new AssemblyDefinition(programName + ".dll",
             new Version(1, 0, 0, 0));
         
-        _module = new ModuleDefinition(programName);
+        var thisAssembly = typeof(object).Assembly.GetName();
+        var coreLib = new AssemblyReference(thisAssembly.Name, thisAssembly.Version!, true, thisAssembly.GetPublicKeyToken());
+        
+        _module = new ModuleDefinition(programName, coreLib);
         _assembly.Modules.Add(_module);
-
-        corLib = _module.CorLibTypeFactory;
         LoadCoreLibResources();
         
         foreach (var m in program.Modules) SearchRecursive(m);
@@ -110,72 +112,114 @@ public class Compiler
     
     private void LoadCoreLibResources()
     {
+        var cl = _corLibFactory = _module.CorLibTypeFactory;
+
+        CorLibTypeSignature[] types = [
+            cl.SByte, cl.Byte,
+            cl.Int16, cl.UInt16,
+            cl.Int32, cl.UInt32,
+            cl.Int64, cl.UInt64,
+            cl.IntPtr, cl.UIntPtr,
+            cl.String,
+            cl.Boolean,
+            cl.Void,
+        ];
+        
         Dictionary<string, IMethodDescriptor> methods;
-        Type type;
+        AsmResolver.DotNet.TypeReference typeref;
+        ITypeDefOrRef type;
+        TypeSignature self;
+
+        foreach (var i in types)
+            _coreLib.Add(i.Name!, (i, []));
+        
         
         methods = [];
-        type = typeof(ValueType);
+        type = _module.DefaultImporter.ImportType(cl.CorLibScope.CreateTypeReference("System", "ValueType"));
+        self = type.ToTypeSignature();
         {
+            
         }
-        _coreLib.Add(type.Name, (_module.DefaultImporter.ImportType(type), methods));
-            
-        methods = [];
-        type = typeof(Int128);
-        {
-            methods.Add("Parse", _module.DefaultImporter.ImportMethod(type.GetMethod("Parse", BindingFlags.Public | BindingFlags.Static, [typeof(string)]) ?? throw new Exception()));
-            methods.Add("Add_ovf", _module.DefaultImporter.ImportMethod(type.GetMethod("op_Addition", BindingFlags.Public | BindingFlags.Static, [typeof(Int128), typeof(Int128)]) ?? throw new Exception()));
-            methods.Add("Add", _module.DefaultImporter.ImportMethod(type.GetMethod("op_CheckedAddition", BindingFlags.Public | BindingFlags.Static, [typeof(Int128), typeof(Int128)]) ?? throw new Exception()));
-            methods.Add("Sub_ovf", _module.DefaultImporter.ImportMethod(type.GetMethod("op_Subtraction", BindingFlags.Public | BindingFlags.Static, [typeof(Int128), typeof(Int128)]) ?? throw new Exception()));
-            methods.Add("Sub", _module.DefaultImporter.ImportMethod(type.GetMethod("op_CheckedSubtraction", BindingFlags.Public | BindingFlags.Static, [typeof(Int128), typeof(Int128)]) ?? throw new Exception()));
-            
-            methods.Add("Conv_from_i8", _module.DefaultImporter.ImportMethod(type.GetMethod("op_Implicit", BindingFlags.Public | BindingFlags.Static, [typeof(sbyte)]) ?? throw new Exception()));
-            methods.Add("Conv_from_u8", _module.DefaultImporter.ImportMethod(type.GetMethod("op_Implicit", BindingFlags.Public | BindingFlags.Static, [typeof(byte)]) ?? throw new Exception()));
-            methods.Add("Conv_from_i16", _module.DefaultImporter.ImportMethod(type.GetMethod("op_Implicit", BindingFlags.Public | BindingFlags.Static, [typeof(short)]) ?? throw new Exception()));
-            methods.Add("Conv_from_u16", _module.DefaultImporter.ImportMethod(type.GetMethod("op_Implicit", BindingFlags.Public | BindingFlags.Static, [typeof(ushort)]) ?? throw new Exception()));
-            methods.Add("Conv_from_i32", _module.DefaultImporter.ImportMethod(type.GetMethod("op_Implicit", BindingFlags.Public | BindingFlags.Static, [typeof(int)]) ?? throw new Exception()));
-            methods.Add("Conv_from_u32", _module.DefaultImporter.ImportMethod(type.GetMethod("op_Implicit", BindingFlags.Public | BindingFlags.Static, [typeof(uint)]) ?? throw new Exception()));
-            methods.Add("Conv_from_i64", _module.DefaultImporter.ImportMethod(type.GetMethod("op_Implicit", BindingFlags.Public | BindingFlags.Static, [typeof(long)]) ?? throw new Exception()));
-            methods.Add("Conv_from_u64", _module.DefaultImporter.ImportMethod(type.GetMethod("op_Implicit", BindingFlags.Public | BindingFlags.Static, [typeof(ulong)]) ?? throw new Exception()));
-            
-            methods.Add("Conv_to_i8", _module.DefaultImporter.ImportMethod(type.GetMethods().First(e => e.Name == "op_Explicit" && e.ReturnType == typeof(sbyte)) ?? throw new Exception()));
-            methods.Add("Conv_to_u8", _module.DefaultImporter.ImportMethod(type.GetMethods().First(e => e.Name == "op_Explicit" && e.ReturnType == typeof(byte)) ?? throw new Exception()));
-            methods.Add("Conv_to_i16", _module.DefaultImporter.ImportMethod(type.GetMethods().First(e => e.Name == "op_Explicit" && e.ReturnType == typeof(short)) ?? throw new Exception()));
-            methods.Add("Conv_to_u16", _module.DefaultImporter.ImportMethod(type.GetMethods().First(e => e.Name == "op_Explicit" && e.ReturnType == typeof(ushort)) ?? throw new Exception()));
-            methods.Add("Conv_to_i32", _module.DefaultImporter.ImportMethod(type.GetMethods().First(e => e.Name == "op_Explicit" && e.ReturnType == typeof(int)) ?? throw new Exception()));
-            methods.Add("Conv_to_u32", _module.DefaultImporter.ImportMethod(type.GetMethods().First(e => e.Name == "op_Explicit" && e.ReturnType == typeof(uint)) ?? throw new Exception()));
-            methods.Add("Conv_to_i64", _module.DefaultImporter.ImportMethod(type.GetMethods().First(e => e.Name == "op_Explicit" && e.ReturnType == typeof(long)) ?? throw new Exception()));
-            methods.Add("Conv_to_u64", _module.DefaultImporter.ImportMethod(type.GetMethods().First(e => e.Name == "op_Explicit" && e.ReturnType == typeof(ulong)) ?? throw new Exception()));
-        }
-        _coreLib.Add(type.Name, (_module.DefaultImporter.ImportType(type), methods));
+        _coreLib.Add(type.Name!, (self, []));
         
         methods = [];
-        type = typeof(UInt128);
+        self = cl.Object;
+        type = _module.DefaultImporter.ImportType(self.ToTypeDefOrRef());
         {
-            methods.Add("Parse", _module.DefaultImporter.ImportMethod(type.GetMethod("Parse", BindingFlags.Public | BindingFlags.Static, [typeof(string)]) ?? throw new Exception()));
-            methods.Add("Add_ovf", _module.DefaultImporter.ImportMethod(type.GetMethod("op_Addition", BindingFlags.Public | BindingFlags.Static, [typeof(UInt128), typeof(UInt128)]) ?? throw new Exception()));
-            methods.Add("Add", _module.DefaultImporter.ImportMethod(type.GetMethod("op_CheckedAddition", BindingFlags.Public | BindingFlags.Static, [typeof(UInt128), typeof(UInt128)]) ?? throw new Exception()));
-            methods.Add("Sub_ovf", _module.DefaultImporter.ImportMethod(type.GetMethod("op_Subtraction", BindingFlags.Public | BindingFlags.Static, [typeof(UInt128), typeof(UInt128)]) ?? throw new Exception()));
-            methods.Add("Sub", _module.DefaultImporter.ImportMethod(type.GetMethod("op_CheckedSubtraction", BindingFlags.Public | BindingFlags.Static, [typeof(UInt128), typeof(UInt128)]) ?? throw new Exception()));
-            
-            methods.Add("Conv_from_i8", _module.DefaultImporter.ImportMethod(type.GetMethod("op_Explicit", BindingFlags.Public | BindingFlags.Static, [typeof(sbyte)]) ?? throw new Exception()));
-            methods.Add("Conv_from_u8", _module.DefaultImporter.ImportMethod(type.GetMethod("op_Implicit", BindingFlags.Public | BindingFlags.Static, [typeof(byte)]) ?? throw new Exception()));
-            methods.Add("Conv_from_i16", _module.DefaultImporter.ImportMethod(type.GetMethod("op_Explicit", BindingFlags.Public | BindingFlags.Static, [typeof(short)]) ?? throw new Exception()));
-            methods.Add("Conv_from_u16", _module.DefaultImporter.ImportMethod(type.GetMethod("op_Implicit", BindingFlags.Public | BindingFlags.Static, [typeof(ushort)]) ?? throw new Exception()));
-            methods.Add("Conv_from_i32", _module.DefaultImporter.ImportMethod(type.GetMethod("op_Explicit", BindingFlags.Public | BindingFlags.Static, [typeof(int)]) ?? throw new Exception()));
-            methods.Add("Conv_from_u32", _module.DefaultImporter.ImportMethod(type.GetMethod("op_Implicit", BindingFlags.Public | BindingFlags.Static, [typeof(uint)]) ?? throw new Exception()));
-            methods.Add("Conv_from_i64", _module.DefaultImporter.ImportMethod(type.GetMethod("op_Explicit", BindingFlags.Public | BindingFlags.Static, [typeof(long)]) ?? throw new Exception()));
-            methods.Add("Conv_from_u64", _module.DefaultImporter.ImportMethod(type.GetMethod("op_Implicit", BindingFlags.Public | BindingFlags.Static, [typeof(ulong)]) ?? throw new Exception()));
-            
-            methods.Add("Conv_to_i8", _module.DefaultImporter.ImportMethod(type.GetMethods().First(e => e.Name == "op_Explicit" && e.ReturnType == typeof(sbyte)) ?? throw new Exception()));
-            methods.Add("Conv_to_u8", _module.DefaultImporter.ImportMethod(type.GetMethods().First(e => e.Name == "op_Explicit" && e.ReturnType == typeof(byte)) ?? throw new Exception()));
-            methods.Add("Conv_to_i16", _module.DefaultImporter.ImportMethod(type.GetMethods().First(e => e.Name == "op_Explicit" && e.ReturnType == typeof(short)) ?? throw new Exception()));
-            methods.Add("Conv_to_u16", _module.DefaultImporter.ImportMethod(type.GetMethods().First(e => e.Name == "op_Explicit" && e.ReturnType == typeof(ushort)) ?? throw new Exception()));
-            methods.Add("Conv_to_i32", _module.DefaultImporter.ImportMethod(type.GetMethods().First(e => e.Name == "op_Explicit" && e.ReturnType == typeof(int)) ?? throw new Exception()));
-            methods.Add("Conv_to_u32", _module.DefaultImporter.ImportMethod(type.GetMethods().First(e => e.Name == "op_Explicit" && e.ReturnType == typeof(uint)) ?? throw new Exception()));
-            methods.Add("Conv_to_i64", _module.DefaultImporter.ImportMethod(type.GetMethods().First(e => e.Name == "op_Explicit" && e.ReturnType == typeof(long)) ?? throw new Exception()));
-            methods.Add("Conv_to_u64", _module.DefaultImporter.ImportMethod(type.GetMethods().First(e => e.Name == "op_Explicit" && e.ReturnType == typeof(ulong)) ?? throw new Exception()));
+            methods.Add("ToString", CreateMethodRef(type, "ToString", MethodSignature.CreateInstance(cl.String)));
         }
-        _coreLib.Add(type.Name, (_module.DefaultImporter.ImportType(type), methods));
+        _coreLib.Add(type.Name!, (self, methods));
+        
+        methods = [];
+        type = _module.DefaultImporter.ImportType(cl.CorLibScope.CreateTypeReference("System", "Int128"));
+        self = type.ToTypeSignature();
+        {
+            methods.Add("Parse", CreateMethodRef(type, "Parse", MethodSignature.CreateStatic(self, cl.String)));
+            methods.Add("Add_ovf", CreateMethodRef(type, "op_Addition", MethodSignature.CreateStatic(self, self, self)));
+            methods.Add("Add", CreateMethodRef(type, "op_CheckedAddition", MethodSignature.CreateStatic(self, self, self)));
+            methods.Add("Sub_ovf", CreateMethodRef(type, "op_Subtraction", MethodSignature.CreateStatic(self, self, self)));
+            methods.Add("Sub", CreateMethodRef(type, "op_CheckedSubtraction", MethodSignature.CreateStatic(self, self, self)));
+            
+            methods.Add("Conv_from_i8", CreateMethodRef(type, "op_Implicit", MethodSignature.CreateStatic(self, cl.SByte)));
+            methods.Add("Conv_from_u8", CreateMethodRef(type, "op_Implicit", MethodSignature.CreateStatic(self, cl.Byte)));
+            methods.Add("Conv_from_i16", CreateMethodRef(type, "op_Implicit", MethodSignature.CreateStatic(self, cl.Int16)));
+            methods.Add("Conv_from_u16", CreateMethodRef(type, "op_Implicit", MethodSignature.CreateStatic(self, cl.UInt16)));
+            methods.Add("Conv_from_i32", CreateMethodRef(type, "op_Implicit", MethodSignature.CreateStatic(self, cl.Int32)));
+            methods.Add("Conv_from_u32", CreateMethodRef(type, "op_Implicit", MethodSignature.CreateStatic(self, cl.UInt32)));
+            methods.Add("Conv_from_i64", CreateMethodRef(type, "op_Implicit", MethodSignature.CreateStatic(self, cl.Int64)));
+            methods.Add("Conv_from_u64", CreateMethodRef(type, "op_Implicit", MethodSignature.CreateStatic(self, cl.UInt64)));
+            
+            methods.Add("Conv_to_i8", CreateMethodRef(type, "op_Explicit", MethodSignature.CreateStatic(cl.SByte, self)));
+            methods.Add("Conv_to_u8", CreateMethodRef(type, "op_Explicit", MethodSignature.CreateStatic(cl.Byte, self)));
+            methods.Add("Conv_to_i16", CreateMethodRef(type, "op_Explicit", MethodSignature.CreateStatic(cl.Int16, self)));
+            methods.Add("Conv_to_u16", CreateMethodRef(type, "op_Explicit", MethodSignature.CreateStatic(cl.UInt16, self)));
+            methods.Add("Conv_to_i32", CreateMethodRef(type, "op_Explicit", MethodSignature.CreateStatic(cl.Int32, self)));
+            methods.Add("Conv_to_u32", CreateMethodRef(type, "op_Explicit", MethodSignature.CreateStatic(cl.UInt32, self)));
+            methods.Add("Conv_to_i64", CreateMethodRef(type, "op_Explicit", MethodSignature.CreateStatic(cl.Int64, self)));
+            methods.Add("Conv_to_u64", CreateMethodRef(type, "op_Explicit", MethodSignature.CreateStatic(cl.UInt64, self)));
+        }
+        methods.TrimExcess();
+        _coreLib.Add(type.Name!, (self, methods));
+        
+        methods = [];
+        type = _module.DefaultImporter.ImportType(cl.CorLibScope.CreateTypeReference("System", "UInt128"));
+        self = type.ToTypeSignature();
+        {
+            methods.Add("Parse", CreateMethodRef(type, "Parse", MethodSignature.CreateStatic(self, cl.String)));
+            methods.Add("Add_ovf", CreateMethodRef(type, "op_Addition", MethodSignature.CreateStatic(self, self, self)));
+            methods.Add("Add", CreateMethodRef(type, "op_CheckedAddition", MethodSignature.CreateStatic(self, self, self)));
+            methods.Add("Sub_ovf", CreateMethodRef(type, "op_Subtraction", MethodSignature.CreateStatic(self, self, self)));
+            methods.Add("Sub", CreateMethodRef(type, "op_CheckedSubtraction", MethodSignature.CreateStatic(self, self, self)));
+            
+            methods.Add("Conv_from_i8", CreateMethodRef(type, "op_Explicit", MethodSignature.CreateStatic(self, cl.SByte)));
+            methods.Add("Conv_from_u8", CreateMethodRef(type, "op_Implicit", MethodSignature.CreateStatic(self, cl.Byte)));
+            methods.Add("Conv_from_i16", CreateMethodRef(type, "op_Explicit", MethodSignature.CreateStatic(self, cl.Int16)));
+            methods.Add("Conv_from_u16", CreateMethodRef(type, "op_Implicit", MethodSignature.CreateStatic(self, cl.UInt16)));
+            methods.Add("Conv_from_i32", CreateMethodRef(type, "op_Explicit", MethodSignature.CreateStatic(self, cl.Int32)));
+            methods.Add("Conv_from_u32", CreateMethodRef(type, "op_Implicit", MethodSignature.CreateStatic(self, cl.UInt32)));
+            methods.Add("Conv_from_i64", CreateMethodRef(type, "op_Explicit", MethodSignature.CreateStatic(self, cl.Int64)));
+            methods.Add("Conv_from_u64", CreateMethodRef(type, "op_Implicit", MethodSignature.CreateStatic(self, cl.UInt64)));
+            
+            methods.Add("Conv_to_i8", CreateMethodRef(type, "op_Explicit", MethodSignature.CreateStatic(cl.SByte, self)));
+            methods.Add("Conv_to_u8", CreateMethodRef(type, "op_Explicit", MethodSignature.CreateStatic(cl.Byte, self)));
+            methods.Add("Conv_to_i16", CreateMethodRef(type, "op_Explicit", MethodSignature.CreateStatic(cl.Int16, self)));
+            methods.Add("Conv_to_u16", CreateMethodRef(type, "op_Explicit", MethodSignature.CreateStatic(cl.UInt16, self)));
+            methods.Add("Conv_to_i32", CreateMethodRef(type, "op_Explicit", MethodSignature.CreateStatic(cl.Int32, self)));
+            methods.Add("Conv_to_u32", CreateMethodRef(type, "op_Explicit", MethodSignature.CreateStatic(cl.UInt32, self)));
+            methods.Add("Conv_to_i64", CreateMethodRef(type, "op_Explicit", MethodSignature.CreateStatic(cl.Int64, self)));
+            methods.Add("Conv_to_u64", CreateMethodRef(type, "op_Explicit", MethodSignature.CreateStatic(cl.UInt64, self)));
+        }
+        methods.TrimExcess();
+        _module.DefaultImporter.ImportType(type);
+        _coreLib.Add(type.Name!, (self, methods));
+        
+        return;
+        IMethodDescriptor CreateMethodRef(ITypeDefOrRef basetype, string name, MethodSignature signature)
+        {
+            var importedsig = _module.DefaultImporter.ImportMethodSignature(signature);
+            var meth = basetype.CreateMemberReference(name, importedsig);
+            return _module.DefaultImporter.ImportMethod(meth);
+        }
     }
     
     private void SearchRecursive(LangObject obj)
@@ -190,7 +234,7 @@ public class Compiler
                                  | TypeAttributes.Public
                                  | TypeAttributes.Abstract;
 
-                var moduledef = new TypeDefinition(a.Name, "Statics", attributes, corLib.Object.Type);
+                var moduledef = new TypeDefinition(a.Name, "Static", attributes, _coreLib["Object"].t.ToTypeDefOrRef());
                 _module.TopLevelTypes.Add(moduledef);
                 _modulesMap.Add(a, moduledef);
                 
@@ -221,14 +265,13 @@ public class Compiler
             var nmsp = string.Join('.', k.Global[0..^1]);
             var name = k.Name;
 
-            var attributes = TypeAttributes.AnsiClass
-                             | TypeAttributes.ExplicitLayout;
+            var attributes = TypeAttributes.AnsiClass;
             
             if (k.Public) attributes |= TypeAttributes.Public;
             if (k.Abstract) attributes |= TypeAttributes.Abstract;
             if (k.Final) attributes |= TypeAttributes.Sealed;
 
-            var typedef = new TypeDefinition(nmsp, name, attributes, _coreLib["ValueType"].t);
+            var typedef = new TypeDefinition(nmsp, name, attributes, _coreLib["ValueType"].t.ToTypeDefOrRef());
             _module.TopLevelTypes.Add(typedef);
             _typesMap[k] = typedef;
         }
@@ -245,7 +288,7 @@ public class Compiler
         foreach (var (k, v) in _typesMap)
         {
             {
-                var signature = MethodSignature.CreateInstance(corLib.Void);
+                var signature = MethodSignature.CreateInstance(_coreLib["Void"].t);
                 var ctor = new MethodDefinition(".ctor",
                     MethodAttributes.Public
                     | MethodAttributes.HideBySig
@@ -257,9 +300,6 @@ public class Compiler
 
                 var body = new CilMethodBody(ctor);
                 ctor.CilMethodBody = body;
-
-                var objectCtor = _module.DefaultImporter.ImportMethod(typeof(object).GetConstructors()[0]);
-                var baseCtorRef = _module.DefaultImporter.ImportMethod(objectCtor);
                 
                 body.Instructions.Add(CilOpCodes.Ldarg_0);
                 body.Instructions.Add(CilOpCodes.Initobj, _typesMap[k]);
@@ -292,9 +332,10 @@ public class Compiler
 
     private void ImplementMethods()
     {
-        foreach (var (k, method) in _functionsMap)
+        foreach (var (k, v) in _functionsMap)
         {
             if (k.Body == null) continue;
+            if (v is not MethodDefinition method) continue;
             
             var body = new CilMethodBody(method);
             method.CilMethodBody = body;
@@ -318,32 +359,58 @@ public class Compiler
         }
     }
     
-    private MethodDefinition DeclareFunction(FunctionObject funcobj, TypeDefinition parent)
+    
+    private IMethodDescriptor DeclareFunction(FunctionObject funcobj, TypeDefinition parent)
     {
+        if (funcobj.Extern != null)
+        {
+            var typeName = funcobj.Extern.Value.nmsp;
+            var methodName = funcobj.Extern.Value.name;
+            var lastDot = typeName.LastIndexOf('.');
+
+            var a = typeof(Console).FullName;
+            
+            var baseType = _corLibFactory.CorLibScope.CreateTypeReference(typeName[0..lastDot], typeName[(lastDot + 1)..]);
+            if (baseType == null) throw new Exception("Extern type not found: " + typeName);
+
+            var signature = MethodSignature.CreateStatic(
+                TypeFromRef(funcobj.ReturnType), funcobj.Parameters.Select(e => TypeFromRef(e.Type)));
+
+            var method = baseType.CreateMemberReference(methodName, signature);
+            if (method == null)
+                throw new Exception(
+                    $"Extern method '{methodName}" +
+                    $"({string.Join(", ", funcobj.Parameters.Select(e => e.Type))})" +
+                    $"' not found at base type {baseType.FullName}");
+            
+            return _module.DefaultImporter.ImportMethod(method);
+        }
+
         var nmsp = string.Join('.', funcobj.Global[0..^1]);
         var name = funcobj.Name;
 
         MethodAttributes attributes = 0;
-            
+
         if (funcobj.Abstract) attributes |= MethodAttributes.Abstract;
         if (funcobj.Public) attributes |= MethodAttributes.Public;
         if (funcobj.Static) attributes |= MethodAttributes.Static;
         
-        
         var argTypes = funcobj.Parameters
             .Select(p => TypeFromRef(p.Type));
         var argDefs = funcobj.Parameters
-            .Select((p, i) => new ParameterDefinition((ushort)(i+1), p.Name, 0));
-        
+            .Select((p, i) => new ParameterDefinition((ushort)(i + 1), p.Name, 0));
+
         MethodSignature sig = funcobj.Static switch
         {
             true => MethodSignature.CreateStatic(TypeFromRef(funcobj.ReturnType), argTypes),
             false => MethodSignature.CreateInstance(TypeFromRef(funcobj.ReturnType), argTypes),
         };
-        
+
         var m = new MethodDefinition(name, attributes, sig);
         foreach (var i in argDefs) m.ParameterDefinitions.Add(i);
         parent.Methods.Add(m);
+
+        if (funcobj.Export == "main") _module.ManagedEntryPointMethod = m;
         return m;
     }
     private FieldDefinition DeclareField(FieldObject fieldobj, TypeDefinition parent)
@@ -424,8 +491,9 @@ public class Compiler
     
             case IRAccess @acc:
             {
-                CompileIrNodeLoad(acc.A, gen, args, locals);
-                CompileIrNodeLoad(acc.B, gen, args, locals);
+                CompileIrNodeLoadAsRef(acc.A, gen, args, locals);
+                CompileIrNodeLoadAsRef(acc.B, gen, args, locals);
+                gen.Add(CilOpCodes.Ldobj, TypeFromRef(acc.Type).ToTypeDefOrRef());
             } break;
     
             case IRInvoke @iv:
@@ -491,7 +559,20 @@ public class Compiler
                     default: throw new UnreachableException();
                 }
             } break;
-    
+            case IrConv @c:
+            {
+                var fromType = c.OriginType;
+                var toType = c.Type;
+
+                if (toType is StringTypeReference)
+                {
+                    var baseTypeRef = TypeFromRef(fromType);
+                    CompileIrNodeLoad(c.Expression, gen, args, locals);
+                    gen.Add(CilOpCodes.Box, baseTypeRef.ToTypeDefOrRef());
+                    gen.Add(CilOpCodes.Callvirt, _coreLib["Object"].m["ToString"]);
+                }
+            } break;
+            
             case IRUnaryExp @ue:
             {
                 switch (ue.Operation)
@@ -677,10 +758,27 @@ public class Compiler
             {
                 switch (sr.Reference)
                 {
-                    case LocalReference @l: gen.Add(CilOpCodes.Ldloca, locals[l.Local.index]); break;
+                    case LocalReference @l:
+                        gen.Add(CilOpCodes.Ldloca, locals[l.Local.index]);
+                        break;
+                    
+                    case ParameterReference @p:
+                        gen.Add(args[p.Parameter.index].ParameterType.IsValueType
+                                ? CilOpCodes.Ldarga : CilOpCodes.Ldarg, args[p.Parameter.index]);
+                        break;
+                    
+                    case SolvedFieldReference @f:
+                        gen.Add(CilOpCodes.Ldflda, _fieldsMap[f.Field]);
+                        break;
                     
                     default: throw new UnreachableException();
                 }
+            } break;
+            
+            case IRAccess @acc:
+            {
+                CompileIrNodeLoadAsRef(acc.A, gen, args, locals);
+                CompileIrNodeLoadAsRef(acc.B, gen, args, locals);
             } break;
             
             default: throw new UnreachableException();
@@ -711,7 +809,7 @@ public class Compiler
     
             case IRAccess @access:
             {
-                CompileIrNodeLoad(@access.A, gen, args, locals);
+                CompileIrNodeLoadAsRef(@access.A, gen, args, locals);
                 CompileIrNodeStore(access.B, value, gen, args, locals);
             } break;
             
@@ -742,50 +840,36 @@ public class Compiler
 
     private TypeSignature TypeFromRef(TypeReference? typeRef)
     {
-        if (typeRef == null) return corLib.Void;
-        if (typeRef is ReferenceTypeReference tref)
-        {
-            var baset = TypeRefOf(@tref.InternalType);
-            return baset.IsValueType ? baset.MakeByReferenceType() : baset.ToTypeSignature();
-        }
-        
-        return typeRef switch
-        {
-            NoReturnTypeReference or VoidTypeReference => corLib.Void,
-            
-            _ => new TypeDefOrRefSignature(TypeRefOf(typeRef))
-        };
-    }
-    private ITypeDefOrRef TypeRefOf(TypeReference? typeRef)
-    {
-        if (typeRef == null) return corLib.Void.Type;
+        if (typeRef == null) return _coreLib["Void"].t;
         switch (typeRef)
         {
+            case ReferenceTypeReference @r:
+                return TypeFromRef(r.InternalType).MakeByReferenceType();
+            
             case RuntimeIntegerTypeReference @i:
             {
-                if (i.PtrSized) return (i.Signed ? corLib.IntPtr : corLib.UIntPtr).Type;
-                
-                switch (i.BitSize)
+                if (i.PtrSized) return _coreLib[i.Signed ? "IntPtr" : "UIntPtr"].t;
+
+                return i.BitSize switch
                 {
-                    case <= 8: return (i.Signed ? corLib.SByte : corLib.Byte).Type;
-                    case <= 16: return (i.Signed ?  corLib.Int16 : corLib.UInt16).Type;
-                    case <= 32: return (i.Signed ?  corLib.Int32 : corLib.UInt32).Type;
-                    case <= 64: return (i.Signed ?  corLib.Int64 : corLib.UInt64).Type;
-                    case <= 128: return _coreLib[i.Signed ? "Int128" : "UInt128"].t;
-                }
-                throw new UnreachableException();
+                    <= 8 => _coreLib[i.Signed ? "SByte" : "Byte"].t,
+                    <= 16 => _coreLib[i.Signed ? "Int16" : "UInt16"].t,
+                    <= 32 => _coreLib[i.Signed ? "Int32" : "UInt32"].t,
+                    <= 64 => _coreLib[i.Signed ? "Int64" : "UInt64"].t,
+                    <= 128 => _coreLib[i.Signed ? "Int128" : "UInt128"].t,
+                    _ => throw new UnreachableException()
+                };
             }
     
-            case StringTypeReference: return corLib.String.Type;
-            case BooleanTypeReference: return corLib.Boolean.Type;
+            case StringTypeReference: return _coreLib["String"].t;
+            case BooleanTypeReference: return _coreLib["Boolean"].t;
             
             case NoReturnTypeReference:
-            case VoidTypeReference: return corLib.Void.Type;
+            case VoidTypeReference: return _coreLib["Void"].t;
             
-            case SolvedStructTypeReference @i: return _typesMap[i.Struct].ToTypeReference();
+            case SolvedStructTypeReference @i: return _typesMap[i.Struct].ToTypeSignature();
             
             default: throw new UnreachableException();
         }
     }
-    
 }

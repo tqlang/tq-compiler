@@ -112,6 +112,20 @@ public partial class Analyzer
             }
         }
     }
+
+
+    /// <summary>
+    /// With a desired type and a value node,
+    /// returns a node that explicitly solves
+    /// any applicable casting.
+    /// Value must already have been evaluated!
+    /// </summary>
+    /// <param name="typeTo"> Target type </param>
+    /// <param name="value"> Value to cast </param>
+    /// <param name="explicit"> explicit flag </param>
+    /// <returns></returns>
+    private IrExpression SolveTypeCast(TypeReference typeTo, IrExpression value, bool @explicit = false)
+        => SolveTypeCast(typeTo, value, value, @explicit);
     
     /// <summary>
     /// With a desired type and a value node,
@@ -121,8 +135,10 @@ public partial class Analyzer
     /// </summary>
     /// <param name="typeTo"> Target type </param>
     /// <param name="value"> Value to cast </param>
+    /// <param name="origin"> Original node </param>
+    /// <param name="explicit"> explicit flag </param>
     /// <returns></returns>
-    private IrExpression SolveTypeCast(TypeReference typeTo, IrExpression value, bool @explicit = false)
+    private IrExpression SolveTypeCast(TypeReference typeTo, IrExpression value, IrExpression origin, bool @explicit = false)
     {
         var a = typeTo;
         var b = value;
@@ -156,10 +172,8 @@ public partial class Analyzer
                 break;
             }
 
-            case SolvedTypedefTypeReference typedef:
-            {
-              // TODO idk handle it somehow  
-            } break;
+            default: return origin;
+            
         }
         
         return value;

@@ -101,26 +101,18 @@ public partial class Analyzer
 
                     switch (args.Length)
                     {
-                        case 1:
-                        {
-                            if (args[0] is not StringLiteralNode @strlit)
-                                throw new Exception("'Extern' expected argument 0 as ComptimeString");
 
-                            externModifier.Extern = (null, strlit.RawContent);
-                            break;
-                        }
                         case 2:
                         {
                             if (args[0] is not StringLiteralNode @strlit1)
                                 throw new Exception("'Extern' expected argument 0 as ComptimeString");
                             if (args[1] is not StringLiteralNode @strlit2)
                                 throw new Exception("'Extern' expected argument 1 as ComptimeString");
-                        
+                            
                             externModifier.Extern = (strlit1.RawContent, strlit2.RawContent);
                             break;
                         }
-                        default:
-                            throw new Exception($"'Extern' expected 1 or 2 arguments, found {args.Length}");
+                        default: throw new Exception($"'Extern' expected 2 arguments, found {args.Length}");
                     }
                 } break;
 
