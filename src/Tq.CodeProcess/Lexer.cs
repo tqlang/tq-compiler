@@ -69,6 +69,10 @@ public class Lexer
 
         { "as", TokenType.AsKeyword },
         { "new", TokenType.NewKeyword },
+        
+        { "AND", TokenType.BitwiseAndKeyword },
+        { "OR", TokenType.BitwiseOrKeyword },
+        { "XOR", TokenType.BitwiseXorKeyword },
 
         // values
         { "null", TokenType.NullKeyword },
@@ -140,6 +144,7 @@ public class Lexer
                 case ',': tokens.Add(Tokenize(TokenType.CommaChar, src.GetSlice())); break;
                 case '.': tokens.Add(Tokenize(TokenType.DotChar, src.GetSlice())); break;
                 case ':': tokens.Add(Tokenize(TokenType.ColonChar, src.GetSlice())); break;
+                case '~': tokens.Add(Tokenize(TokenType.TildeChar, src.GetSlice())); break;
 
                 case '<':
                 {

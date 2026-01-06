@@ -320,11 +320,16 @@ public partial class Analyzer
     private IRNode NodeSemaAnal_BinExp(IRBinaryExp node, IrBlockExecutionContextData ctx)
     {
         node.Left = (IrExpression)NodeSemaAnal(node.Left, ctx);
+        node.Right = (IrExpression)NodeSemaAnal(node.Right, ctx);
         var leftTypeRef = GetEffectiveTypeReference(node.Left);
-        node.Right = SolveTypeCast(leftTypeRef, (IrExpression)NodeSemaAnal(node.Right, ctx));
-
+        
         // TODO solve operator overloading
 
+        if (node.Operator is not (IRBinaryExp.Operators.LeftShift or IRBinaryExp.Operators.RightShift))
+            node.Right = SolveTypeCast(leftTypeRef, node.Right);
+        else
+            node.Right = SolveTypeCast(new RuntimeIntegerTypeReference(false), node.Right);
+        
         var ltype = GetEffectiveTypeReference(node.Left);
         var rtype = GetEffectiveTypeReference(node.Right);
         TypeReference ftype = ltype;
@@ -362,7 +367,7 @@ public partial class Analyzer
                 rtype is StringTypeReference @sr:
             {
                 if (sl.Encoding == sr.Encoding) ftype = new StringTypeReference(sl.Encoding);
-                else throw new Exception("Cannot concatenate strings with different encoding");
+                else throw new Exception("Cannot automatically concatenate strings with different encoding");
             } break;
 
             default: throw new NotImplementedException();

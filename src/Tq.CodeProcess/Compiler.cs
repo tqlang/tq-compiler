@@ -1,5 +1,5 @@
 using System.Diagnostics;
-using System.Reflection;
+using System.Numerics;
 using System.Text;
 using Abstract.CodeProcess.Core.Language.EvaluationData;
 using Abstract.CodeProcess.Core.Language.EvaluationData.IntermediateTree;
@@ -51,16 +51,19 @@ public class Compiler
         
         _assembly = new AssemblyDefinition(programName + ".dll",
             new Version(1, 0, 0, 0));
+
+        var systemCore = new AssemblyReference("System.Runtime", new Version(10, 0, 0))
+        {
+            PublicKeyOrToken = [ 0xb0, 0x3f, 0x5f, 0x7f, 0x11, 0xd5, 0x0a, 0x3a ]
+        };
         
-        var thisAssembly = typeof(object).Assembly.GetName();
-        var coreLib = new AssemblyReference(thisAssembly.Name, thisAssembly.Version!, true, thisAssembly.GetPublicKeyToken());
+        _module = new ModuleDefinition(programName, systemCore);
         
-        _module = new ModuleDefinition(programName, coreLib);
         _assembly.Modules.Add(_module);
         LoadCoreLibResources();
         
         foreach (var m in program.Modules) SearchRecursive(m);
-
+        
         DeclareTypes();
         ResolveContent();
         ImplementMethods();
@@ -113,6 +116,7 @@ public class Compiler
     private void LoadCoreLibResources()
     {
         var cl = _corLibFactory = _module.CorLibTypeFactory;
+        cl.CorLibScope.GetAssembly().Resolve();
 
         CorLibTypeSignature[] types = [
             cl.SByte, cl.Byte,
@@ -136,7 +140,7 @@ public class Compiler
         
         methods = [];
         type = _module.DefaultImporter.ImportType(cl.CorLibScope.CreateTypeReference("System", "ValueType"));
-        self = type.ToTypeSignature();
+        self = _module.DefaultImporter.ImportTypeSignature(type.ToTypeSignature());
         {
             
         }
@@ -152,13 +156,25 @@ public class Compiler
         
         methods = [];
         type = _module.DefaultImporter.ImportType(cl.CorLibScope.CreateTypeReference("System", "Int128"));
-        self = type.ToTypeSignature();
+        self = _module.DefaultImporter.ImportTypeSignature(type.ToTypeSignature());
         {
+            methods.Add("new", CreateMethodRef(type, ".ctor", MethodSignature.CreateInstance(cl.Void, cl.UInt64, cl.UInt64)));
+            
             methods.Add("Parse", CreateMethodRef(type, "Parse", MethodSignature.CreateStatic(self, cl.String)));
             methods.Add("Add_ovf", CreateMethodRef(type, "op_Addition", MethodSignature.CreateStatic(self, self, self)));
             methods.Add("Add", CreateMethodRef(type, "op_CheckedAddition", MethodSignature.CreateStatic(self, self, self)));
             methods.Add("Sub_ovf", CreateMethodRef(type, "op_Subtraction", MethodSignature.CreateStatic(self, self, self)));
             methods.Add("Sub", CreateMethodRef(type, "op_CheckedSubtraction", MethodSignature.CreateStatic(self, self, self)));
+            methods.Add("Mul", CreateMethodRef(type, "op_Multiply", MethodSignature.CreateStatic(self, self, self)));
+            methods.Add("Div", CreateMethodRef(type, "op_Division", MethodSignature.CreateStatic(self, self, self)));
+            methods.Add("Rem", CreateMethodRef(type, "op_Modulus", MethodSignature.CreateStatic(self, self, self)));
+            
+            methods.Add("BitwiseAnd", CreateMethodRef(type, "op_BitwiseAnd", MethodSignature.CreateStatic(self, self, self)));
+            methods.Add("BitwiseOr", CreateMethodRef(type, "op_BitwiseOr", MethodSignature.CreateStatic(self, self, self)));
+            methods.Add("BitwiseXor", CreateMethodRef(type, "op_ExclusiveOr", MethodSignature.CreateStatic(self, self, self)));
+            methods.Add("BitwiseNot", CreateMethodRef(type, "op_OnesComplement", MethodSignature.CreateStatic(self, self)));
+            methods.Add("LeftShift", CreateMethodRef(type, "op_LeftShift", MethodSignature.CreateStatic(self, self, cl.Int32)));
+            methods.Add("RightShift", CreateMethodRef(type, "op_RightShift", MethodSignature.CreateStatic(self, self, cl.Int32)));
             
             methods.Add("Conv_from_i8", CreateMethodRef(type, "op_Implicit", MethodSignature.CreateStatic(self, cl.SByte)));
             methods.Add("Conv_from_u8", CreateMethodRef(type, "op_Implicit", MethodSignature.CreateStatic(self, cl.Byte)));
@@ -183,13 +199,25 @@ public class Compiler
         
         methods = [];
         type = _module.DefaultImporter.ImportType(cl.CorLibScope.CreateTypeReference("System", "UInt128"));
-        self = type.ToTypeSignature();
+        self = _module.DefaultImporter.ImportTypeSignature(type.ToTypeSignature());
         {
+            methods.Add("new", CreateMethodRef(type, ".ctor", MethodSignature.CreateInstance(cl.Void, cl.UInt64, cl.UInt64)));
+            
             methods.Add("Parse", CreateMethodRef(type, "Parse", MethodSignature.CreateStatic(self, cl.String)));
             methods.Add("Add_ovf", CreateMethodRef(type, "op_Addition", MethodSignature.CreateStatic(self, self, self)));
             methods.Add("Add", CreateMethodRef(type, "op_CheckedAddition", MethodSignature.CreateStatic(self, self, self)));
             methods.Add("Sub_ovf", CreateMethodRef(type, "op_Subtraction", MethodSignature.CreateStatic(self, self, self)));
             methods.Add("Sub", CreateMethodRef(type, "op_CheckedSubtraction", MethodSignature.CreateStatic(self, self, self)));
+            methods.Add("Mul", CreateMethodRef(type, "op_Multiply", MethodSignature.CreateStatic(self, self, self)));
+            methods.Add("Div", CreateMethodRef(type, "op_Division", MethodSignature.CreateStatic(self, self, self)));
+            methods.Add("Rem", CreateMethodRef(type, "op_Modulus", MethodSignature.CreateStatic(self, self, self)));
+            
+            methods.Add("BitwiseAnd", CreateMethodRef(type, "op_BitwiseAnd", MethodSignature.CreateStatic(self, self, self)));
+            methods.Add("BitwiseOr", CreateMethodRef(type, "op_BitwiseOr", MethodSignature.CreateStatic(self, self, self)));
+            methods.Add("BitwiseXor", CreateMethodRef(type, "op_ExclusiveOr", MethodSignature.CreateStatic(self, self, self)));
+            methods.Add("BitwiseNot", CreateMethodRef(type, "op_OnesComplement", MethodSignature.CreateStatic(self, self)));
+            methods.Add("LeftShift", CreateMethodRef(type, "op_LeftShift", MethodSignature.CreateStatic(self, self, cl.Int32)));
+            methods.Add("RightShift", CreateMethodRef(type, "op_RightShift", MethodSignature.CreateStatic(self, self, cl.Int32)));
             
             methods.Add("Conv_from_i8", CreateMethodRef(type, "op_Explicit", MethodSignature.CreateStatic(self, cl.SByte)));
             methods.Add("Conv_from_u8", CreateMethodRef(type, "op_Implicit", MethodSignature.CreateStatic(self, cl.Byte)));
@@ -210,7 +238,6 @@ public class Compiler
             methods.Add("Conv_to_u64", CreateMethodRef(type, "op_Explicit", MethodSignature.CreateStatic(cl.UInt64, self)));
         }
         methods.TrimExcess();
-        _module.DefaultImporter.ImportType(type);
         _coreLib.Add(type.Name!, (self, methods));
         
         return;
@@ -347,15 +374,18 @@ public class Compiler
                 locals[local.index] = l;
                 body.LocalVariables.Add(l);
             }
-
+            if (locals.Length > 0) body.InitializeLocals = true;
+            
             var args = method.Parameters.ToArray();
-                
+            
             CompileIr(k.Body!, body.Instructions, args, locals);
             
             if (body.Instructions.Count == 0 || body.Instructions[^1].OpCode != CilOpCodes.Ret)
                 body.Instructions.Add(CilOpCodes.Ret);
             
-            body.Instructions.OptimizeMacros();
+            //body.ComputeMaxStackOnBuild = false;
+            //body.MaxStack = 16;
+            body.Instructions.CalculateOffsets();
         }
     }
     
@@ -430,8 +460,7 @@ public class Compiler
     
     private void CompileIr(IRBlock block, CilInstructionCollection gen, Parameter[] args, CilLocalVariable[] locals)
     {
-        foreach (var node in block.Content)
-            CompileIrNodeLoad(node, gen, args, locals, ignoreValue: true);
+        foreach (var node in block.Content) CompileIrNodeLoad(node, gen, args, locals, ignoreValue: true);
     }
     
     private void CompileIrNodeLoad(IRNode node, CilInstructionCollection gen, Parameter[] args, CilLocalVariable[] locals, bool ignoreValue = false)
@@ -461,9 +490,28 @@ public class Compiler
                     case <= 32: gen.Add(CilInstruction.CreateLdcI4((int)intlit.Value)); break;
                     case <= 64: gen.Add(CilOpCodes.Ldc_I8, unchecked((long)(UInt128)intlit.Value)); break;
                     case <= 128:
-                        gen.Add(CilOpCodes.Ldstr, intlit.Value.ToString());
-                        gen.Add(CilOpCodes.Call, (signed ? _coreLib["Int128"] : _coreLib["UInt128"]).m["Parse"]);
-                        break;
+                    {
+                        var largeType = signed ? _coreLib["Int128"] : _coreLib["UInt128"];
+
+                        var tmp = new CilLocalVariable(largeType.t);
+                        gen.Owner.LocalVariables.Add(tmp);
+                        
+                        gen.Add(CilOpCodes.Ldloca, tmp);
+                        if (intlit.Value == 0)
+                        {
+                            gen.Add(CilOpCodes.Initobj, largeType.t.ToTypeDefOrRef());
+                        }
+                        else
+                        {
+                            var mask = (BigInteger.One << 64) - BigInteger.One;
+                            var hi = (ulong)((intlit.Value >> 64) & mask);
+                            var lo = (ulong)(intlit.Value & mask);
+                            gen.Add(CilOpCodes.Ldc_I8, unchecked((long)hi));
+                            gen.Add(CilOpCodes.Ldc_I8, unchecked((long)lo));
+                            gen.Add(CilOpCodes.Call, largeType.m["new"]);
+                        }
+                        gen.Add(CilOpCodes.Ldloc, tmp);
+                    } break;
                     default: throw new UnreachableException();
                 }
             } break;
@@ -580,7 +628,17 @@ public class Compiler
                     case IRUnaryExp.UnaryOperation.Reference:
                         CompileIrNodeLoadAsRef(ue.Value, gen, args, locals);
                         break;
-                    
+
+                    case IRUnaryExp.UnaryOperation.BitwiseNot:
+                    {
+                        var isSigned = ((RuntimeIntegerTypeReference)ue.Type!).Signed;
+                        var is128 = ((RuntimeIntegerTypeReference)ue.Type!).BitSize == 128;
+                        
+                        CompileIrNodeLoad(ue.Value, gen, args, locals);
+                        if (is128) gen.Add(CilOpCodes.Call, _coreLib[isSigned ? "Int128" : "UInt128"].m["BitwiseNot"]);
+                        else gen.Add(CilOpCodes.Not);
+                    } break;
+
                     case IRUnaryExp.UnaryOperation.PreIncrement:
                         CompileIrNodeLoad(ue.Value, gen, args, locals);
                         var it = (RuntimeIntegerTypeReference)ue.Value.Type;
@@ -620,27 +678,61 @@ public class Compiler
                     
                     
                     case IRBinaryExp.Operators.Subtract:
-                        if (is128) gen.Add(CilOpCodes.Call, _coreLib[isSigned ? "Int128" : "UInt128"].m["CheckedSub"]);
+                        if (is128) gen.Add(CilOpCodes.Call, _coreLib[isSigned ? "Int128" : "UInt128"].m["Sub"]);
                         else gen.Add(CilOpCodes.Sub);
                         break;
                     
                     case IRBinaryExp.Operators.SubtractWarpAround:
-                        if (is128) gen.Add(CilOpCodes.Call, _coreLib[isSigned ? "Int128" : "UInt128"].m["Sub"]);
+                        if (is128) gen.Add(CilOpCodes.Call, _coreLib[isSigned ? "Int128" : "UInt128"].m["SubOvf"]);
                         else gen.Add(isSigned ? CilOpCodes.Sub_Ovf : CilOpCodes.Sub_Ovf_Un);
+                        break;
+                    
+                    case IRBinaryExp.Operators.Multiply:
+                        if (is128) gen.Add(CilOpCodes.Call, _coreLib[isSigned ? "Int128" : "UInt128"].m["Mul"]);
+                        else gen.Add(isSigned ? CilOpCodes.Mul_Ovf : CilOpCodes.Mul_Ovf_Un);
+                        break;
+                    
+                    case IRBinaryExp.Operators.Divide:
+                        if (is128) gen.Add(CilOpCodes.Call, _coreLib[isSigned ? "Int128" : "UInt128"].m["Div"]);
+                        else gen.Add(isSigned ? CilOpCodes.Div : CilOpCodes.Div_Un);
+                        break;
+                    
+                    case IRBinaryExp.Operators.Reminder:
+                        if (is128) gen.Add(CilOpCodes.Call, _coreLib[isSigned ? "Int128" : "UInt128"].m["Rem"]);
+                        else gen.Add(isSigned ? CilOpCodes.Rem : CilOpCodes.Rem_Un);
+                        break;
+                    
+                    case IRBinaryExp.Operators.BitwiseAnd:
+                        if (is128) gen.Add(CilOpCodes.Call, _coreLib[isSigned ? "Int128" : "UInt128"].m["BitwiseAnd"]);
+                        else gen.Add(CilOpCodes.And);
+                        break;
+                    
+                    case IRBinaryExp.Operators.BitwiseOr:
+                        if (is128) gen.Add(CilOpCodes.Call, _coreLib[isSigned ? "Int128" : "UInt128"].m["BitwiseOr"]);
+                        else gen.Add(CilOpCodes.Or);
+                        break;
+
+                    case IRBinaryExp.Operators.BitwiseXor:
+                        if (is128) gen.Add(CilOpCodes.Call, _coreLib[isSigned ? "Int128" : "UInt128"].m["BitwiseXor"]);
+                        else gen.Add(CilOpCodes.Xor);
+                        break;
+                    
+                    case IRBinaryExp.Operators.LeftShift:
+                        //gen.Add(CilOpCodes.Conv_I4);
+                        if (is128) gen.Add(CilOpCodes.Call, _coreLib[isSigned ? "Int128" : "UInt128"].m["LeftShift"]);
+                        else gen.Add(CilOpCodes.Shl);
+                        break;
+                    
+                    case IRBinaryExp.Operators.RightShift:
+                        //gen.Add(CilOpCodes.Conv_I4);
+                        if (is128) gen.Add(CilOpCodes.Call, _coreLib[isSigned ? "Int128" : "UInt128"].m["RightShift"]);
+                        else gen.Add(CilOpCodes.Shr_Un);
                         break;
                     
                     case IRBinaryExp.Operators.AddOnBounds:
                     case IRBinaryExp.Operators.SubtractOnBounds:
-                    case IRBinaryExp.Operators.Multiply:
-                    case IRBinaryExp.Operators.Divide:
                     case IRBinaryExp.Operators.DivideFloor:
                     case IRBinaryExp.Operators.DivideCeil:
-                    case IRBinaryExp.Operators.Reminder:
-                    case IRBinaryExp.Operators.BitwiseAnd:
-                    case IRBinaryExp.Operators.BitwiseOr:
-                    case IRBinaryExp.Operators.BitwiseXor:
-                    case IRBinaryExp.Operators.LeftShift:
-                    case IRBinaryExp.Operators.RightShift:
                     case IRBinaryExp.Operators.LogicalAnd:
                     case IRBinaryExp.Operators.LogicalOr:
                     default: throw new ArgumentOutOfRangeException();

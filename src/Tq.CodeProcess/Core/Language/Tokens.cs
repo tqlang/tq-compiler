@@ -63,6 +63,10 @@ public enum TokenType : byte
     NullKeyword,            // null
     TrueKeyword,            // true
     FalseKeyword,           // false
+    
+    BitwiseAndKeyword,      // AND
+    BitwiseOrKeyword,       // OR
+    BitwiseXorKeyword,      // XOR
 
     LeftPerenthesisChar,    // (
     RightParenthesisChar,   // )
@@ -85,6 +89,7 @@ public enum TokenType : byte
     PercentChar,            // %
     EqualsChar,             // =
     CircumflexChar,         // ^
+    TildeChar,              // ~
     AmpersandChar,          // &
     QuestionChar,           // ?
     BangChar,               // !

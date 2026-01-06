@@ -18,7 +18,7 @@ public class IRBinaryExp(
 
     public override TypeReference Type => ResultType;
 
-    public override string ToString() => $"{Operator} {Left} {Right}";
+    public override string ToString() => $"{Operator}({Left}, {Right})";
     
     public enum Operators
     {

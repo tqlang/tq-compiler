@@ -161,21 +161,74 @@ func assignSomeValues(*StructPackingTest value) void {
 
 func logicalTest(u8 entropy, Randomizer rng) u64 {
 
-	let u128 value
+	#let i32 smallType
+	#let iptr nativeType
+	let u128 extremeType
 
 	# Testing operations with constants
-	value = 5 * 10
-	value = 10 / 2
-	value = 34565432 % 100 + 5
+	# smallType = 5 * 10
+	# smallType = 10 / 2
+	# smallType = 34565432 % 100 + 5
+
+	# nativeType = 5 * 10
+	# nativeType = 10 / 2
+	# nativeType = 34565432 % 100 + 5
+
+	#extremeType = 5 * 10
+	#extremeType = 10 / 2
+	#extremeType = 34565432 % 100 + 5
 
 	# Testing assignment operations
-	value += ((rng.seed as u128) + entropy) + (rng.rng.last as u128)
+	# smallType += ((rng.seed as i32) + entropy) + (rng.rng.last as i32)
+	# nativeType += ((rng.seed as iptr) + entropy) + (rng.rng.last as iptr)
+	extremeType += ((rng.seed as u128) + entropy) + (rng.rng.last)
+
+	# Testing aritmetic operations
+	# smallType += 1
+	# smallType -= 1
+	# smallType *= 1
+	# smallType /= 1
+	# smallType %= 1
+
+	# nativeType += 1
+	# nativeType -= 1
+	# nativeType *= 1
+	# nativeType /= 1
+	# nativeType %= 1
+
+	extremeType += 1
+	extremeType -= 1
+	extremeType *= 1
+	extremeType /= 1
+	extremeType %= 1
+
+	# Testing bitwise operations
+	# smallType = smallType AND 1
+	# smallType = smallType OR 1
+	# smallType = smallType XOR 1
+	# smallType = ~smallType
+	# smallType = smallType << 10
+	# smallType = smallType >> 10
+
+	# nativeType = nativeType AND 1
+	# nativeType = nativeType OR 1
+	# nativeType = nativeType XOR 1
+	# nativeType = ~nativeType
+	# nativeType = nativeType << 10
+	# nativeType = nativeType >> 10
+
+	extremeType = extremeType AND 1
+	extremeType = extremeType OR 1
+	extremeType = extremeType XOR 1
+	extremeType = ~extremeType
+	extremeType = extremeType << 10
+	extremeType = extremeType >> 10
 
 	# Testing operations with fields
-	rng.rng.last = value
-	value += rng.seed
+	rng.rng.last = extremeType
+	extremeType += rng.seed
 
-	return value as u64
+	return extremeType as u64
 }
 
 

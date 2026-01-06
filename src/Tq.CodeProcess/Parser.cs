@@ -420,9 +420,9 @@ public class Parser(ErrorHandler errHandler)
         var node = ParseCastingExpression(recursive);
 
         if (!Taste(
-                TokenType.PipeChar, // |
-                TokenType.AmpersandChar, // &
-                TokenType.CircumflexChar, // ^
+                TokenType.BitwiseOrKeyword, // OR
+                TokenType.BitwiseAndKeyword, // AND
+                TokenType.BitwiseXorKeyword, // XOR
             
                 TokenType.BitShiftLeftOperator, // <<
                 TokenType.BitShiftRightOperator // >>
@@ -458,6 +458,7 @@ public class Parser(ErrorHandler errHandler)
                TokenType.CrossChar, // +
                TokenType.MinusChar,  // -
                TokenType.AmpersandChar,  // &
+               TokenType.TildeChar,  // ~
                TokenType.IncrementOperator, // ++
                TokenType.DecrementOperator // --
            ))
@@ -672,7 +673,7 @@ public class Parser(ErrorHandler errHandler)
             case TokenType.NullKeyword:
                 return new NullLiteralNode(Eat());
 
-            default: throw new Exception($"Unexpected token {Bite()}");
+            default: throw new Exception($"Unexpected token {Eat()}");
         }
 
         while (TryEatAsNode(TokenType.DotChar, out var n))

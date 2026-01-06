@@ -5,7 +5,7 @@ namespace Abstract.CodeProcess.Core.Language.EvaluationData.IntermediateTree.Exp
 
 public class IRUnaryExp(SyntaxNode origin, IRUnaryExp.UnaryOperation op, IrExpression value) : IrExpression(origin)
 {
-    public override TypeReference Type => value.Type;
+    public override TypeReference Type => Value.Type;
 
     public UnaryOperation Operation = op;
     public IrExpression Value = value;
@@ -18,6 +18,8 @@ public class IRUnaryExp(SyntaxNode origin, IRUnaryExp.UnaryOperation op, IrExpre
         
         Reference,
         
+        BitwiseNot,
+        
         PreIncrement, PostIncrement,
         PreDecrement, PostDecrement,
     }
@@ -29,6 +31,7 @@ public class IRUnaryExp(SyntaxNode origin, IRUnaryExp.UnaryOperation op, IrExpre
         UnaryOperation.Not => $"!{Value}",
         
         UnaryOperation.Reference => $"&{Value}",
+        UnaryOperation.BitwiseNot => $"~{Value}",
         
         UnaryOperation.PreIncrement => $"++{Value}",
         UnaryOperation.PostIncrement => $"{Value}++",

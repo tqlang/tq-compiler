@@ -377,9 +377,9 @@ public partial class Analyzer
                         
                         "%" => IRBinaryExp.Operators.Reminder,
 
-                        "&" => IRBinaryExp.Operators.BitwiseAnd,
-                        "|" => IRBinaryExp.Operators.BitwiseOr,
-                        "^" => IRBinaryExp.Operators.BitwiseXor,
+                        "AND" => IRBinaryExp.Operators.BitwiseAnd,
+                        "OR" => IRBinaryExp.Operators.BitwiseOr,
+                        "XOR" => IRBinaryExp.Operators.BitwiseXor,
 
                         "<<" => IRBinaryExp.Operators.LeftShift,
                         ">>" => IRBinaryExp.Operators.RightShift,
@@ -401,6 +401,7 @@ public partial class Analyzer
                     "!" => IRUnaryExp.UnaryOperation.Not,
                     
                     "&" => IRUnaryExp.UnaryOperation.Reference,
+                    "~" => IRUnaryExp.UnaryOperation.BitwiseNot,
                     
                     "++" => IRUnaryExp.UnaryOperation.PreIncrement,
                     "--" => IRUnaryExp.UnaryOperation.PreDecrement,
