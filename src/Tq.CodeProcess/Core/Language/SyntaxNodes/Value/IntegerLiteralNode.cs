@@ -11,7 +11,7 @@ public class IntegerLiteralNode(Token token) : ValueNode(token)
     {
         get
         {
-            var numstr = token.ValueString();
+            var numstr = Token.ValueString();
 
             (BigInteger numBase, var str) = numstr.Length < 3
                 ? (10, numstr)

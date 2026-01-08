@@ -89,6 +89,7 @@ public class Lexer
         { "type", TokenType.TypeKeyword },
 
         { "byte", TokenType.TypeKeyword },
+        { "int", TokenType.TypeKeyword },   { "uint", TokenType.TypeKeyword },
         { "f32", TokenType.TypeKeyword },   { "float", TokenType.TypeKeyword },
         { "f64", TokenType.TypeKeyword },   { "double", TokenType.TypeKeyword },
 

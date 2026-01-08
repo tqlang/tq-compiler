@@ -1,7 +1,7 @@
 namespace Abstract.CodeProcess.Core.Language.SyntaxNodes.Value;
 
-public class BooleanLiteralNode(Token token) : ValueNode(token)
+public class BooleanLiteralNode(Token tkn) : ValueNode(tkn)
 {
-    public bool Value => token.value.ToString() == "true";
+    public bool Value => Token.value.ToString() == "true";
     public override string ToString() => $"{Value}";
 }

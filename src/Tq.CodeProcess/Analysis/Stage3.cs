@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using Abstract.CodeProcess.Core;
 using Abstract.CodeProcess.Core.Language;
 using Abstract.CodeProcess.Core.Language.EvaluationData;
 using Abstract.CodeProcess.Core.Language.EvaluationData.IntermediateTree;
@@ -48,6 +49,16 @@ public partial class Analyzer
             }
         }
 
+        foreach (var i in _globalReferenceTable.Values.OfType<StructObject>())
+        {
+            if (i.Extends == null) continue;
+            i.Extends = SolveTypeLazy2(i.Extends, null, i);
+            if (i.Extends is UnsolvedTypeReference) throw new Exception($"Cannot solve type {i.syntaxNode:pos}");
+            if (i.Extends is not SolvedStructTypeReference) throw new Exception("Non-struct types cannot be inherited");
+            if (i.Extends is SolvedStructTypeReference { Struct.Static: true }) throw new Exception("Cannot extends static type");
+            Console.WriteLine(i.Extends);
+        }
+        
         var structsSortedList = TopologicalSort(_globalReferenceTable.Values.OfType<StructObject>());
         foreach (var structs in structsSortedList) LazyScanStructureMeta(structs);
     }
@@ -58,14 +69,6 @@ public partial class Analyzer
     }
     private void ScanStructureMeta(StructObject structure)
     {
-        if (structure.Extends != null)
-        {
-            structure.Extends = SolveTypeLazy(structure.Extends, null, structure);
-            if (structure.Extends is UnsolvedTypeReference)
-                throw new NotImplementedException();
-            if (structure.Extends is not SolvedStructTypeReference)
-                throw new Exception("Trying to extend a non-struct type");
-        }
         
         foreach (var i in structure.Children)
         {
@@ -121,7 +124,7 @@ public partial class Analyzer
     {
         var nodes = field.syntaxNode.Children;
 
-        if (nodes is not [_, _, TokenNode { token.type: TokenType.EqualsChar }, ExpressionNode @value]) return;
+        if (nodes is not [_, _, TokenNode { Token.type: TokenType.EqualsChar }, ExpressionNode @value]) return;
         
         var ctx = new ExecutionContextData(field);
         field.Value = UnwrapExecutionContext_Expression(value, ctx);
@@ -384,6 +387,12 @@ public partial class Analyzer
                         "<<" => IRBinaryExp.Operators.LeftShift,
                         ">>" => IRBinaryExp.Operators.RightShift,
                         
+                        "==" => IRBinaryExp.Operators.Equality,
+                        "!=" => IRBinaryExp.Operators.Inequality,
+                        "<" => IRBinaryExp.Operators.LessThan,
+                        "<=" => IRBinaryExp.Operators.LessThanOrEqual,
+                        ">" => IRBinaryExp.Operators.GreaterThan,
+                        ">=" => IRBinaryExp.Operators.GreaterThanOrEqual,
                         "or" => IRBinaryExp.Operators.LogicalOr,
                         "and" => IRBinaryExp.Operators.LogicalAnd,
 
@@ -480,16 +489,19 @@ public partial class Analyzer
     {
         // This functions ensures that the structure's dependency tree
         // was already scanned!
-
+        
         var parent = (structure.Extends as SolvedStructTypeReference)?.Struct;
         var virtualCount = EnumerateFunctions(structure.Children).Count(e => e.Abstract || e.Virtual);
-        virtualCount += parent?.VirtualTable.Length ?? 0;
+        virtualCount += parent?.VirtualTable?.Length ?? 0;
 
         structure.VirtualTable = new (FunctionObject, FunctionObject?, bool)[virtualCount];
-        if (parent != null) foreach (var (idx, e) in parent.VirtualTable.Index())
-            structure.VirtualTable[idx].parent = e.overrided ?? e.parent;
-        
-        var virtualStartAt = parent?.VirtualTable.Length ?? 0;
+        if (parent is { VirtualTable: not null })
+        {
+            foreach (var (idx, e) in parent.VirtualTable.Index())
+                structure.VirtualTable[idx].parent = e.overrided ?? e.parent;
+        }
+
+        var virtualStartAt = parent?.VirtualTable?.Length ?? 0;
 
         uint i = 0;
         foreach (var func in EnumerateFunctions(structure.Children))
@@ -508,8 +520,26 @@ public partial class Analyzer
             if (func.Override) SolveOverridingFunction(func, structure);
         }
 
-    }
+        Alignment fieldOffset = parent != null ? parent.Length!.Value : 0;
+        Alignment bestAlignment = parent != null ? parent.Alignment!.Value : 0;
 
+        // Sorting the fields by alignment order
+        var fields = structure.Children.OfType<FieldObject>().ToArray();
+        fields.Sort((a, b) => b.Alignment.Bits - a.Alignment.Bits);
+        
+        foreach (var field in fields)
+        {
+            field.Type = SolveTypeLazy(field.Type, null, field);
+            var flen = Alignment.Align(field.Type.Length, field.Type.Alignment);
+            bestAlignment = Alignment.Max(bestAlignment, flen);
+            field.Offset = fieldOffset;
+            fieldOffset += flen;
+        }
+        structure.Length = fieldOffset;
+        structure.Alignment = bestAlignment;
+
+    }
+    
     private void SolveOverridingFunction(FunctionObject func, StructObject parent)
     {
         foreach (var (i, e) in parent.VirtualTable.Index())
@@ -585,7 +615,6 @@ public partial class Analyzer
         }
     }
 
-
     
     private List<StructObject> TopologicalSort(IEnumerable<StructObject> structs)
     {
@@ -598,20 +627,17 @@ public partial class Analyzer
 
         void Visit(StructObject s)
         {
-            if (visited.Contains(s))
-                return;
+            if (visited.Contains(s)) return;
 
             if (!visiting.Add(s))
                 throw new Exception($"Cyclic dependency detected at struct '{string.Join('.', s.Global)}'");
 
             var parent = (s.Extends as SolvedStructTypeReference)?.Struct;
-            if (parent != null)
-                Visit(parent);
+            if (parent != null) Visit(parent);
 
             visiting.Remove(s);
             visited.Add(s);
             ordered.Add(s);
         }
     }
-
 }

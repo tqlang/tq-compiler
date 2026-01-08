@@ -6,14 +6,14 @@ public abstract class ValueNode : ExpressionNode
 {
     public ValueNode(Token token)
     {
-        this.token = token;
+        this.Token = token;
         _children = null!;
     }
 
-    public Token token;
+    public Token Token;
 
     public override (uint line_start, uint line_end, uint start, uint end) Range
-        => (token.Range.line, token.Range.line, token.Range.start, token.Range.end);
+        => (Token.Range.line, Token.Range.line, Token.Range.start, Token.Range.end);
 
 
     public abstract override string ToString();

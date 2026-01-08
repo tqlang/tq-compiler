@@ -5,7 +5,8 @@ namespace Abstract.CodeProcess.Core.Language.EvaluationData.LanguageReferences.T
 public class SolvedStructTypeReference(StructObject struc) : TypeReference
 {
     public readonly StructObject Struct = struc;
-
+    public override Alignment Length => Struct.Length ?? 0;
+    public override Alignment Alignment => Struct.Alignment ?? 0;
     public override string ToString() => $"Struct<{string.Join('.', Struct.Global)}>";
 
     public int CalculateSuitability(SolvedStructTypeReference to)

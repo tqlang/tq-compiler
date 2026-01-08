@@ -135,6 +135,13 @@ public class Parser(ErrorHandler errHandler)
                     var value = Bite();
                     switch (value.type)
                     {
+                        case TokenType.Identifier:
+                        {
+                            var n = new TypeDefinitionNamedItemNode();
+                            n.AppendChild(ParseValue(false));
+                            block.AppendChild(n);
+                        } break;
+                        
                         case TokenType.RangeOperator:
                         case TokenType.IntegerNumberLiteral when TasteMore(1, TokenType.RangeOperator):
                             throw new NotImplementedException();
@@ -611,8 +618,8 @@ public class Parser(ErrorHandler errHandler)
                 break;
             
             // Booleans
-            case TokenType.TrueKeyword
-            or TokenType.FalseKeyword:
+            case TokenType.TrueKeyword:
+            case TokenType.FalseKeyword:
                 node = new BooleanLiteralNode(Eat());
                 break;
             

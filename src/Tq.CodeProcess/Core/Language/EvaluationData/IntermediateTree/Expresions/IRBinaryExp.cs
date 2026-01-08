@@ -40,6 +40,12 @@ public class IRBinaryExp(
         LeftShift,
         RightShift,
         
+        Equality,
+        Inequality,
+        LessThan,
+        LessThanOrEqual,
+        GreaterThan,
+        GreaterThanOrEqual,
         LogicalAnd,
         LogicalOr,
     }

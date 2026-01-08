@@ -9,8 +9,8 @@ public class BuildOptions(string projectName)
 
     public readonly string ProjectName = projectName;
     
-    public string DirectoryQueryRegex = "^[a-zA-Z_][a-zA-Z0-9_]*$";
-    public string ScriptQueryRegex = "^[A-Za-z_][A-Za-z0-9_]*(?:\\.(?:a|abs))?$";
+    public string DirectoryQueryRegex = "^[A-Za-z][A-Za-z0-9_]*$";
+    public string ScriptQueryRegex = "^[A-Za-z][A-Za-z0-9_]*\\.tq$";
     
     // Debug options
     public bool Verbose = false;

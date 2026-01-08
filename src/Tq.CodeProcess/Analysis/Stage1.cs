@@ -333,6 +333,7 @@ public partial class Analyzer
 
             "extern" => BuiltinAttributes.Extern,
             "export" => BuiltinAttributes.Export,
+            "dotnetImport" => BuiltinAttributes.DotnetImport,
             
             "inline" => BuiltinAttributes.Inline,
             "noinline" => BuiltinAttributes.Noinline,

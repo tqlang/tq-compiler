@@ -157,8 +157,7 @@ public static class Builder
             foreach (var d in directories)
             {
                 var i = Path.GetFileName(d);
-                if (Regex.IsMatch(i, directorySearchPattern, _regexOptions, _regexTimeout))
-                    queue.Enqueue(d);
+                if (Regex.IsMatch(i, directorySearchPattern, _regexOptions, _regexTimeout)) queue.Enqueue(d);
             }
             
             var files = Directory.GetFiles(parent);
@@ -167,7 +166,7 @@ public static class Builder
                 where Regex.IsMatch(i, fileSearchPattern, _regexOptions, _regexTimeout)
                 select f;
             
-            scripts.AddRange((parent, files));
+            scripts.AddRange((parent, [.. match]));
         }
         
         return [.. scripts];

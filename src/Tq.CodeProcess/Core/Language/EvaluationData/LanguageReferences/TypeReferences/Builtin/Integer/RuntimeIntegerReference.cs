@@ -6,6 +6,8 @@ public class RuntimeIntegerTypeReference : IntegerTypeReference
     public readonly bool PtrSized;
     public readonly byte BitSize = 0;
 
+    public override Alignment Length => PtrSized ? new Alignment(0, 1) : new Alignment(BitSize, 0);
+    public override Alignment Alignment => PtrSized ? new Alignment(0, 1) : new Alignment(BitSize, 0);
     
     public RuntimeIntegerTypeReference(bool signed, byte size)
     {

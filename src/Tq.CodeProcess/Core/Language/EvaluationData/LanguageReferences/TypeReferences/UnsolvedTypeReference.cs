@@ -5,5 +5,7 @@ namespace Abstract.CodeProcess.Core.Language.EvaluationData.LanguageReferences.T
 public class UnsolvedTypeReference(ExpressionNode node) : TypeReference
 {
     public readonly ExpressionNode syntaxNode = node;
+    public override Alignment Length => 0;
+    public override Alignment Alignment => 0;
     public override string ToString() => $"UType<{syntaxNode}>";
 }

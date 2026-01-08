@@ -81,8 +81,10 @@ public partial class Analyzer
                     var value = id.Value;
                     switch (value)
                     {
-                        case "iptr": return new RuntimeIntegerTypeReference(true);
-                        case "uptr": return new RuntimeIntegerTypeReference(false);
+                        case "int": return new RuntimeIntegerTypeReference(true);
+                        case "uint": return new RuntimeIntegerTypeReference(false);
+                        case "byte": return new RuntimeIntegerTypeReference(false, 8);
+                        
                         case "bool": return new BooleanTypeReference();
                         case "void": return new VoidTypeReference();
                         case "type": return new TypeTypeReference();
@@ -232,6 +234,9 @@ public partial class Analyzer
                     && (strArg.Encoding == StringEncoding.Undefined
                         || strArg.Encoding == stringParam.Encoding)) return Suitability.Perfect;
                 return Suitability.None;
+
+            case BooleanTypeReference:
+                return typeFrom is BooleanTypeReference ? Suitability.Perfect : Suitability.None;
 
             case ReferenceTypeReference @refe:
                 return typeFrom is ReferenceTypeReference @refArg 

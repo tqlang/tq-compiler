@@ -6,6 +6,7 @@ public class FunctionTypeReference(TypeReference a, TypeReference[] b) : BuiltIn
 {
     public readonly TypeReference Returns = a;
     public readonly TypeReference[] Parameters = b;
-
+    public override Alignment Length => 0;
+    public override Alignment Alignment => 0;
     public override string ToString() => $"fn({string.Join(", ", Parameters.Select(e => e.ToString()))}) {Returns}";
 }

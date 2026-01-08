@@ -1,3 +1,4 @@
+using System.Runtime.CompilerServices;
 using Abstract.CodeProcess.Core.Language.EvaluationData.LanguageReferences.AttributeReferences;
 using Abstract.CodeProcess.Core.Language.SyntaxNodes.Control;
 
@@ -43,6 +44,7 @@ public abstract class LangObject(string[] global, string name)
         _children.Add(child);
         child._parent = this;
     }
+
 
     public abstract override string ToString();
 }

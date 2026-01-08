@@ -1,0 +1,7 @@
+###    TQ STANDARD LIBRARY SCRIPT    ###
+
+@dotnetImport("System.Runtime", "System.Environment", "Exit") func internal_exit(i32 status) void
+
+@public func exit(uint status) noreturn {
+    internal_exit(status as i32)
+}

@@ -24,6 +24,9 @@ public class FieldObject(string[] g, string n, TopLevelVariableNode synnode, Typ
     
     public readonly TopLevelVariableNode syntaxNode = synnode;
 
+    public Alignment? Offset { get; set; }
+    public Alignment Length => Type.Length;
+    public Alignment Alignment => Type.Alignment;
 
     public IrExpression? Value = null;
     
@@ -31,6 +34,7 @@ public class FieldObject(string[] g, string n, TopLevelVariableNode synnode, Typ
     {
         var sb = new StringBuilder();
         
+        if (Offset.HasValue) sb.AppendLine($"; offset={Offset.Value}");
         sb.Append(Public ? "public " : "private ");
         sb.Append(Static ? "static " : "instance ");
         if (Internal) sb.Append("internal ");

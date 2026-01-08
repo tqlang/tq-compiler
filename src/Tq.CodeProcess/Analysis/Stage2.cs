@@ -97,11 +97,9 @@ public partial class Analyzer
                     
                     if (node.Children.Length != 3) throw new Exception("'Extern' expected arguments");
                     var args = (node.Children[2] as ArgumentCollectionNode)!.Arguments;
-
-
+                    
                     switch (args.Length)
                     {
-
                         case 2:
                         {
                             if (args[0] is not StringLiteralNode @strlit1)
@@ -133,6 +131,40 @@ public partial class Analyzer
                     exportModifier.Export = strlit1.RawContent;
                 } break;
 
+                case BuiltinAttributes.DotnetImport:
+                {
+                    var node = builtInAttribute.syntaxNode;
+                    
+                    if (reference is not IDotnetImportModifier @dotnetImportModifier)
+                        throw new Exception($"Attribute {attr} is not suitable to {reference.GetType().Name}");
+                    
+                    if (node.Children.Length != 3) throw new Exception("'dotnetImport' expected arguments");
+                    var args = (node.Children[2] as ArgumentCollectionNode)!.Arguments;
+                    
+                    switch (args.Length)
+                    {
+                        case 3:
+                        {
+                            if (args[0] is not StringLiteralNode @strlit1)
+                                throw new Exception("'dotnetImport' expected argument 0 as ComptimeString");
+                            if (args[1] is not StringLiteralNode @strlit2)
+                                throw new Exception("'dotnetImport' expected argument 1 as ComptimeString");
+                            if (args[2] is not StringLiteralNode @strlit3)
+                                throw new Exception("'dotnetImport' expected argument 2 as ComptimeString");
+                            
+                            dotnetImportModifier.DotnetImport = new DotnetImportData
+                            {
+                                AssemblyName = strlit1.RawContent,
+                                ClassName = strlit2.RawContent,
+                                MethodName = strlit3.RawContent
+                            };
+                            break;
+                        }
+                        default: throw new Exception($"'dotnetImport' expected 3 arguments, found {args.Length}");
+                    }
+                    
+                } break;
+                
                 // TODO builtin attributes
                 case BuiltinAttributes.Comptime:
                 case BuiltinAttributes.Getter:
@@ -188,13 +220,12 @@ public partial class Analyzer
         {
             var extendsImplements = new Queue<SyntaxNode>(((ExtendsImplementsNode)node.Children[2]).Children);
 
-            AccessNode? extendsVal = null;
-            List<AccessNode> implementsVal = [];
+            ExpressionNode? extendsVal = null;
+            List<ExpressionNode> implementsVal = [];
 
             if (extendsImplements.Count > 0 && extendsImplements.Dequeue() is TokenNode { Value: "extends" })
             {
-                var identifier = (AccessNode)extendsImplements.Dequeue();
-                if (identifier.Incomplete) throw new Exception($"Cannot complete identifier {identifier}");
+                var identifier = (ExpressionNode)extendsImplements.Dequeue();
                 extendsVal = identifier;
             }
 

@@ -19,6 +19,7 @@ public class FunctionObject(string[] g, string n, FunctionDeclarationNode synnod
         IOverrideAttribute,
         IExternModifier,
         IExportModifier,
+        IDotnetImportModifier,
         IParametrizable,
         IFormattable
 {
@@ -32,6 +33,7 @@ public class FunctionObject(string[] g, string n, FunctionDeclarationNode synnod
     public bool Generic { get; set; } = false;
     public bool ConstExp { get; set; } = false;
     public (string nmsp, string name)? Extern { get; set; } = null;
+    public DotnetImportData? DotnetImport { get; set; }
 
     
     public TypeReference ReturnType = null!;
@@ -62,6 +64,7 @@ public class FunctionObject(string[] g, string n, FunctionDeclarationNode synnod
             p.index = lastidx++;
         }
     }
+    
     
     public override string ToString()
     {

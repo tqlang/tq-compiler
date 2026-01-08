@@ -124,8 +124,11 @@ public partial class Analyzer
 
     private void StructureSemaAnal(StructObject structure)
     {
+        uint currentOffset = 0;
         foreach (var i in structure.Children.OfType<FieldObject>())
+        {
             FieldSemaAnal(i);
+        }
     }
     private void FieldSemaAnal(FieldObject field)
     {
@@ -322,17 +325,38 @@ public partial class Analyzer
         node.Left = (IrExpression)NodeSemaAnal(node.Left, ctx);
         node.Right = (IrExpression)NodeSemaAnal(node.Right, ctx);
         var leftTypeRef = GetEffectiveTypeReference(node.Left);
+        TypeReference ftype = new VoidTypeReference();
         
         // TODO solve operator overloading
 
-        if (node.Operator is not (IRBinaryExp.Operators.LeftShift or IRBinaryExp.Operators.RightShift))
-            node.Right = SolveTypeCast(leftTypeRef, node.Right);
-        else
-            node.Right = SolveTypeCast(new RuntimeIntegerTypeReference(false), node.Right);
-        
-        var ltype = GetEffectiveTypeReference(node.Left);
+        switch (node.Operator)
+        {
+
+            case IRBinaryExp.Operators.LeftShift:
+            case IRBinaryExp.Operators.RightShift:
+                node.Right = SolveTypeCast(new RuntimeIntegerTypeReference(false), node.Right);
+                break;
+            
+            case IRBinaryExp.Operators.Equality: 
+            case IRBinaryExp.Operators.Inequality:
+            case IRBinaryExp.Operators.LessThan:
+            case IRBinaryExp.Operators.LessThanOrEqual:
+            case IRBinaryExp.Operators.GreaterThan:
+            case IRBinaryExp.Operators.GreaterThanOrEqual:
+            case IRBinaryExp.Operators.LogicalAnd:
+            case IRBinaryExp.Operators.LogicalOr:
+                node.ResultType = new BooleanTypeReference();
+                node.Right = SolveTypeCast(leftTypeRef, node.Right);
+                goto skipTypeCheck;
+                
+            default:
+                node.Right = SolveTypeCast(leftTypeRef, node.Right);
+                break;
+        }
+
+        var ltype = ftype = GetEffectiveTypeReference(node.Left);
         var rtype = GetEffectiveTypeReference(node.Right);
-        TypeReference ftype = ltype;
+        
         
         switch (ltype)
         {
@@ -375,37 +399,45 @@ public partial class Analyzer
 
         node.ResultType = ftype;
         
+        skipTypeCheck:
         // Operate literals at comptime
-        switch (node)
+        return node switch
         {
-            case { Left: IrIntegerLiteral @leftInt, Right: IrIntegerLiteral @rightInt }:
-                return new IrIntegerLiteral(node.Origin, node.Operator switch {
+            { Left: IrIntegerLiteral @leftInt, Right: IrIntegerLiteral @rightInt } => node.Operator switch
+            {
+                IRBinaryExp.Operators.Equality => new IRBooleanLiteral(node.Origin, leftInt.Value == rightInt.Value),
+                IRBinaryExp.Operators.Inequality => new IRBooleanLiteral(node.Origin, leftInt.Value != rightInt.Value),
+                IRBinaryExp.Operators.LessThan => new IRBooleanLiteral(node.Origin, leftInt.Value < rightInt.Value),
+                IRBinaryExp.Operators.LessThanOrEqual => new IRBooleanLiteral(node.Origin, leftInt.Value <= rightInt.Value),
+                IRBinaryExp.Operators.GreaterThan => new IRBooleanLiteral(node.Origin, leftInt.Value > rightInt.Value),
+                IRBinaryExp.Operators.GreaterThanOrEqual => new IRBooleanLiteral(node.Origin, leftInt.Value >= rightInt.Value),
                 
-                    IRBinaryExp.Operators.Add => leftInt.Value + rightInt.Value,
-                    IRBinaryExp.Operators.Subtract => leftInt.Value - rightInt.Value,
-                    IRBinaryExp.Operators.Multiply => leftInt.Value * rightInt.Value,
-                    IRBinaryExp.Operators.Divide => leftInt.Value / rightInt.Value,
-                    IRBinaryExp.Operators.Reminder => leftInt.Value % rightInt.Value,
-                
-                    IRBinaryExp.Operators.BitwiseAnd => leftInt.Value & rightInt.Value,
-                    IRBinaryExp.Operators.BitwiseOr => leftInt.Value | rightInt.Value,
-                    IRBinaryExp.Operators.BitwiseXor => leftInt.Value ^ rightInt.Value,
-                    IRBinaryExp.Operators.LeftShift => leftInt.Value << (int)rightInt.Value,
-                    IRBinaryExp.Operators.RightShift => leftInt.Value >> (int)rightInt.Value,
-                
-                    _ => throw new NotImplementedException(),
-                }, (IntegerTypeReference)ftype);
-            
-            case { Left: IRStringLiteral @leftStr, Right: IRStringLiteral @rightStr }:
-                return new IRStringLiteral(node.Origin, node.Operator switch
+                _ => new IrIntegerLiteral(node.Origin, node.Operator switch
                     {
-                        IRBinaryExp.Operators.Add => leftStr.Data + rightStr.Data,
-                        _ => throw new UnreachableException()
-                    }
-                );
-        }
-        
-        return node;
+                        IRBinaryExp.Operators.Add => leftInt.Value + rightInt.Value,
+                        IRBinaryExp.Operators.Subtract => leftInt.Value - rightInt.Value,
+                        IRBinaryExp.Operators.Multiply => leftInt.Value * rightInt.Value,
+                        IRBinaryExp.Operators.Divide => leftInt.Value / rightInt.Value,
+                        IRBinaryExp.Operators.Reminder => leftInt.Value % rightInt.Value,
+
+                        IRBinaryExp.Operators.BitwiseAnd => leftInt.Value & rightInt.Value,
+                        IRBinaryExp.Operators.BitwiseOr => leftInt.Value | rightInt.Value,
+                        IRBinaryExp.Operators.BitwiseXor => leftInt.Value ^ rightInt.Value,
+                        IRBinaryExp.Operators.LeftShift => leftInt.Value << (int)rightInt.Value,
+                        IRBinaryExp.Operators.RightShift => leftInt.Value >> (int)rightInt.Value,
+
+                        _ => throw new NotImplementedException(),
+                    }, (IntegerTypeReference)ftype),
+            },
+            
+            { Left: IRStringLiteral @leftStr, Right: IRStringLiteral @rightStr } => new IRStringLiteral(node.Origin,
+                node.Operator switch
+                {
+                    IRBinaryExp.Operators.Add => leftStr.Data + rightStr.Data,
+                    _ => throw new UnreachableException()
+                }),
+            _ => node
+        };
     }
     private IRNode NodeSemaAnal_UnExp(IRUnaryExp node, IrBlockExecutionContextData ctx)
     {
@@ -576,6 +608,18 @@ public partial class Analyzer
                     curr = curr.Parent;
                 }
                 
+                // Search in inherited tree
+                if (parent is StructObject { Extends: SolvedStructTypeReference } @structObject)
+                {
+                    LangObject? curr2 = ((SolvedStructTypeReference)structObject.Extends).Struct;
+                    while (curr2 != null && curr2 is not NamespaceObject)
+                    {
+                        var r3 = curr2.Children.FirstOrDefault(e => e.Name == idnode.Value);
+                        if (r3 != null) return new IRSolvedReference(syntaxNode, GetObjectReference(r3));
+                        curr2 = curr2.Parent;
+                    }
+                }
+
                 // Search inside namespace
                 var r4 = parent.Namespace.Children.FirstOrDefault(e => e.Name == idnode.Value);
                 if (r4 != null) return new IRSolvedReference(syntaxNode, GetObjectReference(r4));
