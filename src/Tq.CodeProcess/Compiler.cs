@@ -11,6 +11,7 @@ using Abstract.CodeProcess.Core.Language.EvaluationData.LanguageObjects;
 using Abstract.CodeProcess.Core.Language.EvaluationData.LanguageReferences.CodeReferences;
 using Abstract.CodeProcess.Core.Language.EvaluationData.LanguageReferences.FieldReferences;
 using Abstract.CodeProcess.Core.Language.EvaluationData.LanguageReferences.FunctionReferences;
+using Abstract.CodeProcess.Core.Language.EvaluationData.LanguageReferences.TypedefReferences;
 using Abstract.CodeProcess.Core.Language.EvaluationData.LanguageReferences.TypeReferences;
 using Abstract.CodeProcess.Core.Language.EvaluationData.LanguageReferences.TypeReferences.Builtin;
 using Abstract.CodeProcess.Core.Language.EvaluationData.LanguageReferences.TypeReferences.Builtin.Integer;
@@ -318,25 +319,29 @@ public class Compiler
             var name = k.Name;
             
             var attributes = TypeAttributes.AnsiClass
-                             //| TypeAttributes.ExplicitLayout
+                             | TypeAttributes.ExplicitLayout
                              | TypeAttributes.Sealed
                              | TypeAttributes.Serializable
                              | TypeAttributes.SpecialName;
             
-            var enumType = new TypeDefinition(nmsp, name, attributes, _coreLib["Enum"].t.ToTypeDefOrRef());
+            var enumType = new TypeDefinition(nmsp, name, attributes, _coreLib["Enum"].t.ToTypeDefOrRef())
+                { ClassLayout = new ClassLayout(8, 8) };
             _module.TopLevelTypes.Add(enumType);
             
             var valueField = new FieldDefinition(
                 "value__",
                 FieldAttributes.Public | FieldAttributes.SpecialName | FieldAttributes.RuntimeSpecialName,
                 _corLibFactory.UInt64
-            );
+            ) { FieldOffset = 0 };
             enumType.Fields.Add(valueField);
 
+            var enumdata = new EnumData(enumType, valueField);
+            _enumsMap[k] = enumdata;
+            
             ulong i = 0;
             foreach (var value in k.Children.OfType<TypedefItemObject>())
             {
-                var zeroField = new FieldDefinition(
+                var itemField = new FieldDefinition(
                     value.Name,
                     FieldAttributes.Public | FieldAttributes.Static | FieldAttributes.Literal
                     | FieldAttributes.HasDefault,
@@ -344,12 +349,13 @@ public class Compiler
                 );
                 var bytes = new byte[8];
                 BinaryPrimitives.WriteUInt64LittleEndian(bytes.AsSpan(), i);
-                zeroField.Constant = new Constant(_corLibFactory.UInt64.ElementType, new DataBlobSignature(bytes));
-                enumType.Fields.Add(zeroField);
+                itemField.Constant = new Constant(_corLibFactory.UInt64.ElementType, new DataBlobSignature(bytes));
+                enumType.Fields.Add(itemField);
+                enumdata.Items.Add(value, itemField);
                 i++;
             }
             
-            _enumsMap[k] = new EnumData(enumType, valueField);
+            
         }
     }
 
@@ -677,6 +683,18 @@ public class Compiler
                         stack.Add(_fieldsMap[fr.Field].Signature!.FieldType);
                     } break;
 
+                    case SolvedTypedefNamedFieldReference @tn:
+                    {
+                        var item = tn.Item;
+                        var typedef = (TypedefObject)item.Parent;
+                        
+                        var enumdata = _enumsMap[typedef];
+                        var enumfield = enumdata.GetItem(item);
+
+                        gen.Add(CilOpCodes.Ldsfld, enumfield);
+                        stack.Add(enumfield.Signature!.FieldType);
+                    } break;
+                    
                     default: throw new UnreachableException();
                 }
             } break;
@@ -1254,8 +1272,8 @@ public class Compiler
             case NoReturnTypeReference:
             case VoidTypeReference: return _corLibFactory.Void;
 
-            case SolvedStructTypeReference @i:
-                return _typesMap[i.Struct].ToTypeSignature();
+            case SolvedStructTypeReference @i: return _typesMap[i.Struct].ToTypeSignature();
+            case SolvedTypedefTypeReference @t: return _enumsMap[t.Typedef].ToTypeSignature();
             
             default: throw new UnreachableException();
         }
@@ -1280,5 +1298,9 @@ public class Compiler
     {
         public readonly TypeDefinition Type = typedef;
         public readonly FieldDefinition Field = valueField;
+        public Dictionary<TypedefItemObject, FieldDefinition> Items = [];
+        
+        public TypeSignature ToTypeSignature() => Type.ToTypeSignature();
+        public FieldDefinition GetItem(TypedefItemObject item) => Items[item];
     }
 }

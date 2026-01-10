@@ -573,7 +573,7 @@ public partial class Analyzer
 
                 throw new NotImplementedException();
             } break;
-
+            
             case LocalReference @local:
             {
                 node.B = local.Local.Type switch
@@ -607,7 +607,9 @@ public partial class Analyzer
                     _ => throw new UnreachableException()
                 };
             } break;
-
+            case SolvedTypedefTypeReference @typedef:
+                return SolveReferenceLazy((IRUnknownReference)node.B, null, typedef.Typedef);
+            
             default: throw new UnreachableException();
         }
 

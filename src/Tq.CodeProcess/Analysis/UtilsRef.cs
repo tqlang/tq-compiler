@@ -2,6 +2,7 @@ using Abstract.CodeProcess.Core.Language.EvaluationData.LanguageObjects;
 using Abstract.CodeProcess.Core.Language.EvaluationData.LanguageReferences;
 using Abstract.CodeProcess.Core.Language.EvaluationData.LanguageReferences.FieldReferences;
 using Abstract.CodeProcess.Core.Language.EvaluationData.LanguageReferences.FunctionReferences;
+using Abstract.CodeProcess.Core.Language.EvaluationData.LanguageReferences.TypedefReferences;
 using Abstract.CodeProcess.Core.Language.EvaluationData.LanguageReferences.TypeReferences;
 using Abstract.CodeProcess.Core.Language.EvaluationData.LanguageReferences.TypeReferences.Builtin;
 
@@ -21,6 +22,7 @@ public partial class Analyzer
             TypedefObject @t => new SolvedTypedefTypeReference(t),
             
             FieldObject @v => new SolvedFieldReference(v),
+            TypedefItemObject @i => new SolvedTypedefNamedFieldReference(i),
 
             NamespaceObject @n => new NamespaceReference(n),
             

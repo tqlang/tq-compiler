@@ -449,6 +449,7 @@ public partial class Analyzer
             }
             
             case AccessNode @identc: return SolveReferenceChain(identc, ctx, null);
+            case ImplicitAccessNode @impl: return SolveReferenceChain(impl, ctx, null);
             case IdentifierNode @ident: return SolveReferenceChain(ident, ctx, null);
 
             case IntegerLiteralNode @intlit:
