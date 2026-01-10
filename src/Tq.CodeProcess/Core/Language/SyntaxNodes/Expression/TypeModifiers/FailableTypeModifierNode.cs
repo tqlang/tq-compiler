@@ -2,5 +2,5 @@
 
 public class FailableTypeModifierNode : ExpressionNode
 {
-    public TypeExpressionNode Type => (TypeExpressionNode)_children[1];
+    public ExpressionNode Type => (ExpressionNode)_children[1];
 }

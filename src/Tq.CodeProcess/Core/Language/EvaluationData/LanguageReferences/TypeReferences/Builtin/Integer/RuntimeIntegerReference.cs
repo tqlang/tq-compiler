@@ -3,24 +3,22 @@ namespace Abstract.CodeProcess.Core.Language.EvaluationData.LanguageReferences.T
 public class RuntimeIntegerTypeReference : IntegerTypeReference
 {
     public readonly bool Signed;
-    public readonly bool PtrSized;
-    public readonly byte BitSize = 0;
+    public readonly Alignment BitSize;
 
-    public override Alignment Length => PtrSized ? new Alignment(0, 1) : new Alignment(BitSize, 0);
-    public override Alignment Alignment => PtrSized ? new Alignment(0, 1) : new Alignment(BitSize, 0);
+    public override Alignment Length => BitSize;
+    public override Alignment Alignment => BitSize;
     
     public RuntimeIntegerTypeReference(bool signed, byte size)
     {
         Signed = signed;
-        PtrSized = false;
-        BitSize = size;
+        BitSize = new Alignment(size, 0);
     }
     public RuntimeIntegerTypeReference(bool signed)
     {
         Signed = signed;
-        PtrSized = true;
+        BitSize = new Alignment(0, 1);
     }
 
     
-    public override string ToString() => (Signed ? 'i' : 'u') + (PtrSized ? "ptr" : $"{BitSize}");
+    public override string ToString() => (Signed ? 'i' : 'u') + $"{BitSize.Bits}";
 }

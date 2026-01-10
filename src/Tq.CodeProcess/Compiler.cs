@@ -4,7 +4,7 @@ using System.Numerics;
 using System.Text;
 using Abstract.CodeProcess.Core.Language.EvaluationData;
 using Abstract.CodeProcess.Core.Language.EvaluationData.IntermediateTree;
-using Abstract.CodeProcess.Core.Language.EvaluationData.IntermediateTree.Expresions;
+using Abstract.CodeProcess.Core.Language.EvaluationData.IntermediateTree.Expressions;
 using Abstract.CodeProcess.Core.Language.EvaluationData.IntermediateTree.Statements;
 using Abstract.CodeProcess.Core.Language.EvaluationData.IntermediateTree.Values;
 using Abstract.CodeProcess.Core.Language.EvaluationData.LanguageObjects;
@@ -14,12 +14,10 @@ using Abstract.CodeProcess.Core.Language.EvaluationData.LanguageReferences.Funct
 using Abstract.CodeProcess.Core.Language.EvaluationData.LanguageReferences.TypeReferences;
 using Abstract.CodeProcess.Core.Language.EvaluationData.LanguageReferences.TypeReferences.Builtin;
 using Abstract.CodeProcess.Core.Language.EvaluationData.LanguageReferences.TypeReferences.Builtin.Integer;
-using Abstract.CodeProcess.Core.Language.SyntaxNodes.Control;
 using AsmResolver.DotNet;
 using AsmResolver.PE.DotNet.Cil;
 using AsmResolver.DotNet.Code.Cil;
 using AsmResolver.DotNet.Collections;
-using AsmResolver.DotNet.Serialized;
 using AsmResolver.DotNet.Signatures;
 using AsmResolver.DotNet.Signatures.Types;
 using AssemblyDefinition = AsmResolver.DotNet.AssemblyDefinition;
@@ -31,7 +29,6 @@ using ModuleDefinition = AsmResolver.DotNet.ModuleDefinition;
 using TypeAttributes = AsmResolver.PE.DotNet.Metadata.Tables.Rows.TypeAttributes;
 using TypeDefinition = AsmResolver.DotNet.TypeDefinition;
 using TypeReference = Abstract.CodeProcess.Core.Language.EvaluationData.LanguageReferences.TypeReferences.TypeReference;
-using TRef = AsmResolver.DotNet.TypeReference;
 
 namespace Abstract.CodeProcess;
 
@@ -239,6 +236,16 @@ public class Compiler
         }
         methods.TrimExcess();
         _coreLib.Add(type.Name!, (self, methods));
+        
+        methods = [];
+        self = cl.String;
+        type = _module.DefaultImporter.ImportType(self.ToTypeDefOrRef());
+        {
+            methods.Add("Concat", CreateMethodRef(type, "Concat", MethodSignature.CreateStatic(cl.String.MakeArrayType(1))));
+        }
+        methods.TrimExcess();
+        _coreLib.Add(type.Name!, (self, methods));
+        
     }
     
     private void SearchRecursive(LangObject obj)
@@ -379,12 +386,12 @@ public class Compiler
                 var body = new CilMethodBody(ctor);
                 ctor.CilMethodBody = body;
 
-                var typeRef = v.Type.BaseType!;
-                var subctor = CreateMethodRef(typeRef, ".ctor",
-                    MethodSignature.CreateInstance(_corLibFactory.Void));
+                //var typeRef = v.Type.BaseType!;
+                //var subctor = CreateMethodRef(typeRef, ".ctor",
+                //    MethodSignature.CreateInstance(_corLibFactory.Void));
                 
                 body.Instructions.Add(CilOpCodes.Ldarg_0);
-                body.Instructions.Add(CilOpCodes.Call, subctor);
+                body.Instructions.Add(CilOpCodes.Initobj, v.Type);
                 body.Instructions.Add(CilOpCodes.Ret);
                 
                 body.Instructions.OptimizeMacros();
@@ -625,7 +632,25 @@ public class Compiler
                 gen.Add(CilOpCodes.Ldstr, strlit.Data);
                 stack.Add(_corLibFactory.String);
                 break;
+            case IrCollectionLiteral @collit:
+            {
+                var elmtype = TypeFromRef(collit.ElementType);
                 
+                gen.Add(CilInstruction.CreateLdcI4(collit.Length));
+                gen.Add(CilOpCodes.Newarr, elmtype.ToTypeDefOrRef());
+                stack.Add(TypeFromRef(collit.Type));
+
+                var index = 0;
+                foreach (var i in collit.Items)
+                {
+                    gen.Add(CilOpCodes.Dup);
+                    gen.Add(CilInstruction.CreateLdcI4(index++));
+                    CompileIrNodeLoad(i,  gen, stack, args, locals);
+                    gen.Add(CilOpCodes.Stelem, elmtype.ToTypeDefOrRef());
+                    stack.RemoveAt(stack.Count - 1);
+                }
+            } break;
+            
             case IRSolvedReference @solv:
             {
                 switch (solv.Reference)
@@ -671,103 +696,108 @@ public class Compiler
                 foreach (var i in iv.Arguments) CompileIrNodeLoad(i, gen, stack, args, locals);
                 CompileIrNodeCall(iv.Target, gen, stack, args, locals);
             } break;
-    
-            case IRIntCast ic:
-            {
-                CompileIrNodeLoad(ic.Expression, gen, stack, args, locals);
-                stack.RemoveAt(stack.Count - 1);
-                
-                var srt = (RuntimeIntegerTypeReference)ic.TargetType;
-                var srs = srt.Signed;
-                var srbitsize = srt.PtrSized ? 0 : srt.BitSize;
-    
-                var targt = (RuntimeIntegerTypeReference)ic.Type!;
-                var s = targt.Signed;
-                var bitsize = targt.PtrSized ? 0 : targt.BitSize;
-
-                if (srbitsize == 128)
-                {
-                    var baset = srs ? _coreLib["Int128"] : _coreLib["UInt128"];
-                    switch (bitsize)
-                    {
-                        case <= 8:
-                            gen.Add(CilOpCodes.Call, baset.m[s ? "Conv_to_i8" : "Conv_to_u8"]);
-                            stack.Add(s ? _corLibFactory.SByte :  _corLibFactory.Byte);
-                            break;
-                        case <= 16:
-                            gen.Add(CilOpCodes.Call, baset.m[s ? "Conv_to_i16" : "Conv_to_u16"]);
-                            stack.Add(s ? _corLibFactory.Int16 : _corLibFactory.UInt16);
-                            break;
-                        case <= 32:
-                            gen.Add(CilOpCodes.Call, baset.m[s ? "Conv_to_i32" : "Conv_to_u32"]);
-                            stack.Add(s ? _corLibFactory.Int32 : _corLibFactory.UInt32);
-                            break;
-                        case <= 64:
-                            gen.Add(CilOpCodes.Call, baset.m[s ? "Conv_to_i64" : "Conv_to_u64"]);
-                            stack.Add(s ? _corLibFactory.Int64 : _corLibFactory.UInt64);
-                            break;
-                        default: throw new UnreachableException();
-                    }
-                    return;
-                }
-                
-                switch (bitsize)
-                {
-                    case 0:
-                        gen.Add(s ? CilOpCodes.Conv_I : CilOpCodes.Conv_U);
-                        stack.Add(s ? _corLibFactory.IntPtr : _corLibFactory.UIntPtr);
-                        break;
-                    
-                    case <= 8:
-                        gen.Add(s ? CilOpCodes.Conv_I1 : CilOpCodes.Conv_U1);
-                        stack.Add(s ? _corLibFactory.SByte : _corLibFactory.Byte);
-                        break;
-                    case <= 16:
-                        gen.Add(s ? CilOpCodes.Conv_I2 : CilOpCodes.Conv_U2);
-                        stack.Add(s ? _corLibFactory.Int16 : _corLibFactory.UInt16);
-                        break;
-                    case <= 32:
-                        gen.Add(s ? CilOpCodes.Conv_I4 : CilOpCodes.Conv_U4);
-                        stack.Add(s ? _corLibFactory.Int32 : _corLibFactory.UInt32);
-                        break;
-                    case <= 64:
-                        gen.Add(s ? CilOpCodes.Conv_I8 : CilOpCodes.Conv_U8);
-                        stack.Add(s ? _corLibFactory.Int64 : _corLibFactory.UInt64);
-                        break;
-
-                    case <= 128:
-                    {
-                        var baset = srs ? _coreLib["Int128"] : _coreLib["UInt128"];
-                        
-                        switch (srbitsize)
-                        {
-                            case <= 8:gen.Add(CilOpCodes.Call, baset.m[s ? "Conv_from_i8" : "Conv_from_u8"]); break;
-                            case <= 16: gen.Add(CilOpCodes.Call, baset.m[s ? "Conv_from_i16" : "Conv_from_u16"]); break;
-                            case <= 32: gen.Add(CilOpCodes.Call, baset.m[s ? "Conv_from_i32" : "Conv_from_u32"]); break;
-                            case <= 64: gen.Add(CilOpCodes.Call, baset.m[s ? "Conv_from_i64" : "Conv_from_u64"]); break;
-                            default: throw new UnreachableException();
-                        }
-
-                        stack.Add(baset.t);
-                        break;
-                    }
-
-                    default: throw new UnreachableException();
-                }
-            } break;
+            
             case IrConv @c:
             {
                 var fromType = c.OriginType;
                 var toType = c.Type;
 
-                if (toType is StringTypeReference)
+                switch (toType)
                 {
-                    var baseTypeRef = TypeFromRef(fromType);
-                    CompileIrNodeLoad(c.Expression, gen, stack, args, locals);
-                    stack.RemoveAt(stack.Count - 1);
-                    gen.Add(CilOpCodes.Box, baseTypeRef.ToTypeDefOrRef());
-                    gen.Add(CilOpCodes.Callvirt, _coreLib["Object"].m["ToString"]);
-                    stack.Add(_corLibFactory.String);
+                    case StringTypeReference:
+                    {
+                        var baseTypeRef = TypeFromRef(fromType);
+                        CompileIrNodeLoad(c.Expression, gen, stack, args, locals);
+                        stack.RemoveAt(stack.Count - 1);
+                        gen.Add(CilOpCodes.Box, baseTypeRef.ToTypeDefOrRef());
+                        gen.Add(CilOpCodes.Callvirt, _coreLib["Object"].m["ToString"]);
+                        stack.Add(_corLibFactory.String);
+                    } break;
+
+                    case RuntimeIntegerTypeReference @targt:
+                    {
+                        CompileIrNodeLoad(c.Expression, gen, stack, args, locals);
+                        stack.RemoveAt(stack.Count - 1);
+                        
+                        var srt = (RuntimeIntegerTypeReference)fromType;
+                        var srs = srt.Signed;
+                        var srbitsize = srt.BitSize.Bits;
+                        
+                        var s = targt.Signed;
+                        var bitsize = targt.BitSize.Bits;
+
+                        if (srbitsize == 128)
+                        {
+                            var baset = srs ? _coreLib["Int128"] : _coreLib["UInt128"];
+                            switch (bitsize)
+                            {
+                                case <= 8:
+                                    gen.Add(CilOpCodes.Call, baset.m[s ? "Conv_to_i8" : "Conv_to_u8"]);
+                                    stack.Add(s ? _corLibFactory.SByte :  _corLibFactory.Byte);
+                                    break;
+                                case <= 16:
+                                    gen.Add(CilOpCodes.Call, baset.m[s ? "Conv_to_i16" : "Conv_to_u16"]);
+                                    stack.Add(s ? _corLibFactory.Int16 : _corLibFactory.UInt16);
+                                    break;
+                                case <= 32:
+                                    gen.Add(CilOpCodes.Call, baset.m[s ? "Conv_to_i32" : "Conv_to_u32"]);
+                                    stack.Add(s ? _corLibFactory.Int32 : _corLibFactory.UInt32);
+                                    break;
+                                case <= 64:
+                                    gen.Add(CilOpCodes.Call, baset.m[s ? "Conv_to_i64" : "Conv_to_u64"]);
+                                    stack.Add(s ? _corLibFactory.Int64 : _corLibFactory.UInt64);
+                                    break;
+                                default: throw new UnreachableException();
+                            }
+                            return;
+                        }
+                        
+                        switch (bitsize)
+                        {
+                            case 0:
+                                gen.Add(s ? CilOpCodes.Conv_I : CilOpCodes.Conv_U);
+                                stack.Add(s ? _corLibFactory.IntPtr : _corLibFactory.UIntPtr);
+                                break;
+                            
+                            case <= 8:
+                                gen.Add(s ? CilOpCodes.Conv_I1 : CilOpCodes.Conv_U1);
+                                stack.Add(s ? _corLibFactory.SByte : _corLibFactory.Byte);
+                                break;
+                            case <= 16:
+                                gen.Add(s ? CilOpCodes.Conv_I2 : CilOpCodes.Conv_U2);
+                                stack.Add(s ? _corLibFactory.Int16 : _corLibFactory.UInt16);
+                                break;
+                            case <= 32:
+                                gen.Add(s ? CilOpCodes.Conv_I4 : CilOpCodes.Conv_U4);
+                                stack.Add(s ? _corLibFactory.Int32 : _corLibFactory.UInt32);
+                                break;
+                            case <= 64:
+                                gen.Add(s ? CilOpCodes.Conv_I8 : CilOpCodes.Conv_U8);
+                                stack.Add(s ? _corLibFactory.Int64 : _corLibFactory.UInt64);
+                                break;
+
+                            case <= 128:
+                            {
+                                var baset = srs ? _coreLib["Int128"] : _coreLib["UInt128"];
+                                
+                                switch (srbitsize)
+                                {
+                                    case <= 8:gen.Add(CilOpCodes.Call, baset.m[s ? "Conv_from_i8" : "Conv_from_u8"]); break;
+                                    case <= 16: gen.Add(CilOpCodes.Call, baset.m[s ? "Conv_from_i16" : "Conv_from_u16"]); break;
+                                    case <= 32: gen.Add(CilOpCodes.Call, baset.m[s ? "Conv_from_i32" : "Conv_from_u32"]); break;
+                                    case <= 64: gen.Add(CilOpCodes.Call, baset.m[s ? "Conv_from_i64" : "Conv_from_u64"]); break;
+                                    default: throw new UnreachableException();
+                                }
+
+                                stack.Add(baset.t);
+                                break;
+                            }
+
+                            default: throw new UnreachableException();
+                        }
+                    } break;
+                    
+                    default: throw new UnreachableException();
                 }
             } break;
             
@@ -792,7 +822,7 @@ public class Compiler
                     case IRUnaryExp.UnaryOperation.PreIncrement:
                         CompileIrNodeLoad(ue.Value, gen, stack, args, locals);
                         var it = (RuntimeIntegerTypeReference)ue.Value.Type;
-                        var bs = it.PtrSized ? 0 : it.BitSize;
+                        var bs = it.BitSize.Bits;
                         switch (bs)
                         {
                             case <= 32: CilInstruction.CreateLdcI4(1); break;
@@ -967,6 +997,15 @@ public class Compiler
                 }
                 
                 stack.Add(_corLibFactory.Boolean);
+            } break;
+            case IrIndex @idx:
+            {
+                var elmtype = TypeFromRef(idx.ResultType);
+                CompileIrNodeLoad(idx.Value, gen, stack, args, locals);
+                CompileIrNodeLoad(idx.Indices[0], gen, stack, args, locals);
+                gen.Add(CilOpCodes.Ldelem, elmtype.ToTypeDefOrRef());
+                stack.RemoveAt(stack.Count - 1);
+                stack[^1] = elmtype;
             } break;
             
             case IRIf @if:
@@ -1143,6 +1182,16 @@ public class Compiler
                 CompileIrNodeLoadAsRef(@access.A, gen, stack, args, locals);
                 CompileIrNodeStore(access.B, value, gen, stack, args, locals);
             } break;
+
+            case IrIndex @idx:
+            {
+                var elmtype = TypeFromRef(idx.ResultType);
+                CompileIrNodeLoad(idx.Value, gen, stack, args, locals);
+                CompileIrNodeLoad(idx.Indices[0], gen, stack, args, locals);
+                CompileIrNodeLoad(value!, gen, stack, args, locals);
+                gen.Add(CilOpCodes.Stelem, elmtype.ToTypeDefOrRef());
+                stack.RemoveRange(stack.Count - 4, 3);
+            } break;
             
             default: throw new UnreachableException();
         }
@@ -1182,11 +1231,13 @@ public class Compiler
             case ReferenceTypeReference @r:
                 return TypeFromRef(r.InternalType).MakeByReferenceType();
             
+            case SliceTypeReference @s:
+                return TypeFromRef(s.InternalType).MakeArrayType(1);
+            
+            
             case RuntimeIntegerTypeReference @i:
             {
-                if (i.PtrSized) return i.Signed ? _corLibFactory.IntPtr : _corLibFactory.UIntPtr;
-
-                return i.BitSize switch
+                return i.BitSize.Bits switch
                 {
                     <= 8 => i.Signed ? _corLibFactory.SByte : _corLibFactory.Byte,
                     <= 16 => i.Signed ? _corLibFactory.Int16 : _corLibFactory.UInt16,

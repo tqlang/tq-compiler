@@ -3,7 +3,7 @@ using Abstract.CodeProcess.Core.Language.EvaluationData.LanguageReferences.TypeR
 using Abstract.CodeProcess.Core.Language.EvaluationData.LanguageReferences.TypeReferences.Builtin;
 using Abstract.CodeProcess.Core.Language.SyntaxNodes.Expression;
 
-namespace Abstract.CodeProcess.Core.Language.EvaluationData.IntermediateTree.Expresions;
+namespace Abstract.CodeProcess.Core.Language.EvaluationData.IntermediateTree.Expressions;
 
 public class IRCompareExp(
     BinaryExpressionNode origin,

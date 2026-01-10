@@ -2,7 +2,7 @@ using System.Text;
 using Abstract.CodeProcess.Core.Language.EvaluationData.LanguageReferences.TypeReferences;
 using Abstract.CodeProcess.Core.Language.SyntaxNodes.Expression;
 
-namespace Abstract.CodeProcess.Core.Language.EvaluationData.IntermediateTree.Expresions;
+namespace Abstract.CodeProcess.Core.Language.EvaluationData.IntermediateTree.Expressions;
 
 public class IRBinaryExp(
     BinaryExpressionNode origin,

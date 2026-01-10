@@ -1,6 +1,6 @@
 using System.Diagnostics;
 using Abstract.CodeProcess.Core.Language.EvaluationData.IntermediateTree;
-using Abstract.CodeProcess.Core.Language.EvaluationData.IntermediateTree.Expresions;
+using Abstract.CodeProcess.Core.Language.EvaluationData.IntermediateTree.Expressions;
 using Abstract.CodeProcess.Core.Language.EvaluationData.IntermediateTree.Values;
 using Abstract.CodeProcess.Core.Language.EvaluationData.LanguageReferences.CodeReferences;
 using Abstract.CodeProcess.Core.Language.EvaluationData.LanguageReferences.FieldReferences;
@@ -22,8 +22,8 @@ public partial class Analyzer
     {
         return expr switch
         {
-            IrIntegerLiteral => new ComptimeIntegerTypeReference(),
-            IRStringLiteral => new StringTypeReference(StringEncoding.Undefined),
+            IrIntegerLiteral @lit => lit.Type,
+            IRStringLiteral @lit => lit.Type,
             IRSolvedReference @solvedFuck => solvedFuck.Reference switch
             {
                 IntegerTypeReference @intt => intt,
@@ -31,7 +31,7 @@ public partial class Analyzer
                 SolvedFieldReference field => field.Field.Type,
                 SolvedFunctionReference @func => new FunctionTypeReference(
                     func.Function.ReturnType, func.Function.Parameters.Select(e => e.Type).ToArray()),
-
+        
                 LocalReference @local => local.Local.Type,
                 ParameterReference @param => param.Parameter.Type,
                 
@@ -40,15 +40,14 @@ public partial class Analyzer
             IRAccess @access => GetEffectiveTypeReference(access.B),
             IRInvoke @invoke => invoke.Type,
             
-            IRBinaryExp @exp => exp.Type,
-            
+            IRBinaryExp @exp => exp.ResultType,
             IRUnaryExp @unexp => unexp.Operation != IRUnaryExp.UnaryOperation.Reference
                 ? GetEffectiveTypeReference(unexp.Value)
                 : new ReferenceTypeReference(GetEffectiveTypeReference(@unexp.Value)),
+            IrIndex @idx => idx.ResultType,
             
             IrConv @conv => conv.Type,
-            IRIntCast @tcast => tcast.Type,
-            
+
             _ => throw new NotImplementedException()
             
         } ?? throw new UnreachableException("This function should not be called when this value is null");
@@ -66,12 +65,6 @@ public partial class Analyzer
         {
             switch (node)
             {
-                case TypeExpressionNode @texp:
-                    if (texp.Children.Length > 1)
-                        throw new UnreachableException("Wtf i didn't even knew this was possible");
-                    node = texp.Children[0];
-                    continue;
-
                 case AccessNode @idc:
                     if (idc.Children.Length != 1) return new UnsolvedTypeReference(idc);
                     node = idc.Children[0];
@@ -127,7 +120,7 @@ public partial class Analyzer
     /// <param name="explicit"> explicit flag </param>
     /// <returns></returns>
     private IrExpression SolveTypeCast(TypeReference typeTo, IrExpression value, bool @explicit = false)
-        => SolveTypeCast(typeTo, value, value, @explicit);
+        => SolveTypeCast(typeTo, value, null!, @explicit);
     
     /// <summary>
     /// With a desired type and a value node,
@@ -142,43 +135,93 @@ public partial class Analyzer
     /// <returns></returns>
     private IrExpression SolveTypeCast(TypeReference typeTo, IrExpression value, IrExpression origin, bool @explicit = false)
     {
-        var a = typeTo;
-        var b = value;
-        
-        switch (typeTo)
+        switch (value)
         {
-            case RuntimeIntegerTypeReference typetoRi when value is IrIntegerLiteral @lit:
-                return new IrIntegerLiteral(lit.Origin, lit.Value, typetoRi);
-            
-            case RuntimeIntegerTypeReference typetoRi:
+            case IrIntegerLiteral @lit:
             {
-                var valType = GetEffectiveTypeReference(value);
-                if (valType is RuntimeIntegerTypeReference valueRi)
-                {
-                    // If same type, do nothing
-                    if (typetoRi.BitSize == valueRi.BitSize
-                        && typetoRi.Signed == valueRi.Signed) {}
-                
-                    // If pointer sized, delegate check for backend
-                    else if (valueRi.PtrSized || typetoRi.PtrSized)
-                        return new IRIntCast(value.Origin, value, typetoRi);
+                if (lit.Type is ComptimeIntegerTypeReference && typeTo is RuntimeIntegerTypeReference rint1)
+                    return new IrIntegerLiteral(lit.Origin, lit.Value, rint1);
 
+                if (lit.Type is RuntimeIntegerTypeReference @typetoRi && typeTo is RuntimeIntegerTypeReference rint2)
+                {
+                    var valType = GetEffectiveTypeReference(value);
+                    if (valType is not RuntimeIntegerTypeReference valueRi) return value;
+                    
+                    // If same type, do nothing
+                    if (rint2.BitSize == valueRi.BitSize && typetoRi.Signed == valueRi.Signed) return value;
+                    
                     var val = valueRi;
                     var tar = typetoRi;
                     var o = value.Origin;
-
+                    
                     if (val.Signed == tar.Signed && val.BitSize == tar.BitSize) return value;
-                    return new IRIntCast(o, value, tar);
+                    return new IrConv(o, value, tar);
                 }
 
-                break;
+                return origin;
+                throw new UnreachableException();
             }
-
-            default: return origin;
             
-        }
+            case IrCollectionLiteral clit when typeTo is SliceTypeReference @s:
+            {
+                var elmtype = s.InternalType;
+                var items = clit.Items.Select(e => SolveTypeCast(elmtype, e)).ToArray();
+                return new IrCollectionLiteral(clit.Origin, elmtype, items);
+            }
+            
+            // FIXME ignored for now
+            case IRStringLiteral:
+            case IRBinaryExp:
+            case IRAccess:
+            case IRReference:
+            case IrConv:
+            case IrIndex:
+                return origin ?? value;
+            
+            default: throw new UnreachableException();
+    }
         
-        return value;
+        // switch (typeTo)
+        // {
+        //     case RuntimeIntegerTypeReference typetoRi when value is IrIntegerLiteral @lit:
+        //         return new IrIntegerLiteral(lit.Origin, lit.Value, typetoRi);
+        //     
+        //     case RuntimeIntegerTypeReference typetoRi:
+        //     {
+        //         var valType = GetEffectiveTypeReference(value);
+        //         if (valType is not RuntimeIntegerTypeReference valueRi) return value;
+        //         
+        //         // If same type, do nothing
+        //         if (typetoRi.BitSize == valueRi.BitSize && typetoRi.Signed == valueRi.Signed) return value;
+        //         
+        //         // If pointer sized, delegate check for backend
+        //         else if (valueRi.PtrSized || typetoRi.PtrSized)
+        //             return new IRIntCast(value.Origin, value, typetoRi);
+        //
+        //         var val = valueRi;
+        //         var tar = typetoRi;
+        //         var o = value.Origin;
+        //
+        //         if (val.Signed == tar.Signed && val.BitSize == tar.BitSize) return value;
+        //         return new IRIntCast(o, value, tar);
+        //     }
+        //
+        //     case StringTypeReference typetoSr:
+        //     {
+        //         if (value is IRStringLiteral @sr)
+        //             return new IRStringLiteral(sr.Origin, typetoSr.Encoding, sr.Data);
+        //
+        //         else throw new Exception("TODO see how to handle this shit");
+        //     }
+        //     
+        //     case SliceTypeReference @s when value is IrCollectionLiteral @clit:
+        //     {
+        //         var elmtype = s.InternalType;
+        //         var items = clit.Items.Select(e => SolveTypeCast(elmtype, e)).ToArray();
+        //         return new IrCollectionLiteral(clit.Origin, elmtype, items);
+        //     }
+        // }
+        return origin ?? throw new UnreachableException();
     }
     
     private Suitability CalculateTypeSuitability(TypeReference typeTo, TypeReference typeFrom, bool allowImplicit)
@@ -193,14 +236,6 @@ public partial class Analyzer
                     case ComptimeIntegerTypeReference: return Suitability.Perfect;
                     case RuntimeIntegerTypeReference intArg:
                     {
-                        if (intParam.PtrSized && intArg.PtrSized)
-                        {
-                            if (intParam.Signed == intArg.Signed) return Suitability.Perfect;
-                            if (allowImplicit) return Suitability.NeedsSoftCast;
-                        }
-                    
-                        if (intParam.PtrSized || intArg.PtrSized) return Suitability.NeedsSoftCast;
-                    
                         if (intParam.BitSize == intArg.BitSize
                             && intParam.Signed == intArg.Signed) return Suitability.Perfect;
 

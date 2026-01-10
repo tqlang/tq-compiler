@@ -3,7 +3,7 @@ using Abstract.CodeProcess.Core;
 using Abstract.CodeProcess.Core.Language;
 using Abstract.CodeProcess.Core.Language.EvaluationData;
 using Abstract.CodeProcess.Core.Language.EvaluationData.IntermediateTree;
-using Abstract.CodeProcess.Core.Language.EvaluationData.IntermediateTree.Expresions;
+using Abstract.CodeProcess.Core.Language.EvaluationData.IntermediateTree.Expressions;
 using Abstract.CodeProcess.Core.Language.EvaluationData.IntermediateTree.Statements;
 using Abstract.CodeProcess.Core.Language.EvaluationData.IntermediateTree.Values;
 using Abstract.CodeProcess.Core.Language.EvaluationData.LanguageObjects;
@@ -13,6 +13,8 @@ using Abstract.CodeProcess.Core.Language.EvaluationData.LanguageReferences.TypeR
 using Abstract.CodeProcess.Core.Language.EvaluationData.LanguageReferences.TypeReferences.Builtin.Integer;
 using Abstract.CodeProcess.Core.Language.SyntaxNodes.Base;
 using Abstract.CodeProcess.Core.Language.SyntaxNodes.Expression;
+using Abstract.CodeProcess.Core.Language.SyntaxNodes.Expression.TypeModifiers;
+using Abstract.CodeProcess.Core.Language.SyntaxNodes.Misc;
 using Abstract.CodeProcess.Core.Language.SyntaxNodes.Statement;
 using Abstract.CodeProcess.Core.Language.SyntaxNodes.Value;
 
@@ -430,7 +432,15 @@ public partial class Analyzer
                     },
                     UnwrapExecutionContext_Expression(uexp.Expression, ctx));
             }
-
+            case IndexExpressionNode @iexp:
+            {
+                return new IrIndex(
+                    iexp,
+                    UnwrapExecutionContext_Expression(iexp.Target, ctx),
+                    iexp.Indexer.Expressions
+                        .Select(e => UnwrapExecutionContext_Expression(e, ctx)).ToArray());
+            }
+            
             case TypeCastNode @tcast:
             {
                 return new IrConv(tcast,
@@ -475,7 +485,13 @@ public partial class Analyzer
                     [..asisgns]);
                 
                 return ctor;
-            } break;
+            }
+
+            case CollectionExpressionNode @c:
+            {
+                var items = c.Items.Select(i => UnwrapExecutionContext_Expression(i, ctx)).ToArray();
+                return new IrCollectionLiteral(c, new UnsolvedTypeReference(null!), items);
+            }
             
             case ParenthesisExpressionNode @pa: return UnwrapExecutionContext_Expression(pa.Content, ctx);
             

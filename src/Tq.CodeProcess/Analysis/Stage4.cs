@@ -3,7 +3,7 @@ using System.Numerics;
 using Abstract.CodeProcess.Core;
 using Abstract.CodeProcess.Core.Language.EvaluationData;
 using Abstract.CodeProcess.Core.Language.EvaluationData.IntermediateTree;
-using Abstract.CodeProcess.Core.Language.EvaluationData.IntermediateTree.Expresions;
+using Abstract.CodeProcess.Core.Language.EvaluationData.IntermediateTree.Expressions;
 using Abstract.CodeProcess.Core.Language.EvaluationData.IntermediateTree.Statements;
 using Abstract.CodeProcess.Core.Language.EvaluationData.IntermediateTree.Values;
 using Abstract.CodeProcess.Core.Language.EvaluationData.LanguageObjects;
@@ -15,6 +15,7 @@ using Abstract.CodeProcess.Core.Language.EvaluationData.LanguageReferences.TypeR
 using Abstract.CodeProcess.Core.Language.EvaluationData.LanguageReferences.TypeReferences.Builtin;
 using Abstract.CodeProcess.Core.Language.EvaluationData.LanguageReferences.TypeReferences.Builtin.Integer;
 using Abstract.CodeProcess.Core.Language.SyntaxNodes.Base;
+using Abstract.CodeProcess.Core.Language.SyntaxNodes.Expression;
 using Abstract.CodeProcess.Core.Language.SyntaxNodes.Value;
 
 namespace Abstract.CodeProcess;
@@ -153,6 +154,7 @@ public partial class Analyzer
             IRCompareExp @ce => NodeSemaAnal_CmpExp(ce, ctx),
             IRBinaryExp @be => NodeSemaAnal_BinExp(be, ctx),
             IRUnaryExp @ue => NodeSemaAnal_UnExp(ue, ctx),
+            IrIndex @ix => NodeSemaAnal_Index(ix, ctx),
             IrConv @tc =>NodeSemaAnal_Conv(tc, ctx),
             IRNewObject @no => NodeSemaAnal_NewObj(no, ctx),
             IRReturn @re => NodeSemaAnal_Return(re, ctx),
@@ -165,6 +167,7 @@ public partial class Analyzer
                 or IRNullLiteral => node,
             
             IRAccess @s => NodeSemaAnal_Access(s, ctx),
+            IrCollectionLiteral @c => NodeSemaAnal_Collection(c, ctx),
             IRUnknownReference @u => SolveReferenceLazy(u, ctx, null),
             
             _ => throw new NotImplementedException(),
@@ -257,15 +260,22 @@ public partial class Analyzer
         var a = node;
         node.Target = (IrExpression)NodeSemaAnal(node.Target, ctx);
         node.Value = (IrExpression)NodeSemaAnal(node.Value, ctx);
-
-        // TODO type target inference
-
+        
+        // TODO if target is declaration, try type target inference
+        
         if (node.Value is IRNewObject @newobj)
+        {
+            // Object instantiation is just a call with its memory as
+            // the first argument
             return new IRNewObject(
                 node.Origin,
                 newobj.InstanceType,
                 [node.Target, ..newobj.Arguments],
                 newobj.InlineAssignments);
+        }
+        
+        var typeto = GetEffectiveTypeReference(node.Target);
+        node.Value = SolveTypeCast(typeto, node.Value);
         
         node.Value = SolveTypeCast(GetEffectiveTypeReference(node.Target), node.Value);
         
@@ -462,7 +472,30 @@ public partial class Analyzer
         
         return node;
     }
+    private IRNode NodeSemaAnal_Index(IrIndex node, IrBlockExecutionContextData ctx)
+    {
+        node.Value = (IrExpression)NodeSemaAnal(node.Value, ctx);
+        for (var i = 0; i < node.Indices.Length; i++)
+            node.Indices[i] = (IrExpression)NodeSemaAnal(node.Indices[i], ctx);
+        
+        var expTypeRef = GetEffectiveTypeReference(node.Value);
 
+        switch (expTypeRef)
+        { 
+            case SliceTypeReference @s:
+            {
+                // FIXME put message here
+                if (node.Indices.Length != 1) throw new Exception("too much indices for this op");
+                node.Indices[0] = SolveTypeCast(new RuntimeIntegerTypeReference(false), node.Indices[0]);
+                node.ResultType = s.InternalType;
+            } break;
+            
+            default: throw new UnreachableException();
+        }
+        
+        return node;
+    }
+    
     private IRNode NodeSemaAnal_Conv(IrConv node, IrBlockExecutionContextData ctx)
     {
         node.Expression = (IrExpression)NodeSemaAnal(node.Expression, ctx);
@@ -513,7 +546,7 @@ public partial class Analyzer
         return node;
     }
 
-    public IRNode NodeSemaAnal_While(IRWhile node, IrBlockExecutionContextData ctx)
+    private IRNode NodeSemaAnal_While(IRWhile node, IrBlockExecutionContextData ctx)
     {
         if (node.Define != null) BlockSemaAnal(node.Define, ctx, false);
         node.Condition = (IrExpression)NodeSemaAnal(node.Condition, ctx);
@@ -523,7 +556,7 @@ public partial class Analyzer
         return node;
     }
 
-    public IRNode NodeSemaAnal_Access(IRAccess node, IrBlockExecutionContextData ctx)
+    private IRNode NodeSemaAnal_Access(IRAccess node, IrBlockExecutionContextData ctx)
     {
         node.A = (IrExpression)NodeSemaAnal(node.A, ctx);
         LanguageReference baseRef = ReferenceOf(node.A);
@@ -580,8 +613,14 @@ public partial class Analyzer
 
         return node;
     }
+    private IRNode NodeSemaAnal_Collection(IrCollectionLiteral node, IrBlockExecutionContextData ctx)
+    {
+        var items = node.Items.Select(i => (IrExpression)NodeSemaAnal(i, ctx)).ToArray();
+        return new IrCollectionLiteral(node.Origin, node.ElementType, items);
+    }
     
-    public IRSolvedReference SolveReferenceLazy(IRUnknownReference node, IrBlockExecutionContextData? ctx, LangObject? parent)
+    
+    private IRSolvedReference SolveReferenceLazy(IRUnknownReference node, IrBlockExecutionContextData? ctx, LangObject? parent)
     {
         var syntaxNode = node.Origin;
         if (ctx == null && parent == null) throw new UnreachableException();

@@ -476,15 +476,26 @@ public class Parser(ErrorHandler errHandler)
         }
         else node = ParseValue(recursive);
 
-        if (!Taste(
+        if (Taste(
                 TokenType.IncrementOperator, // ++,
                 TokenType.DecrementOperator // --
-            )) return node;
-        
-        var n = new UnaryPostfixExpressionNode();
-        n.AppendChild(node);
-        n.AppendChild(EatAsNode());
-        node = n;
+            ))
+        {
+            var n = new UnaryPostfixExpressionNode();
+            n.AppendChild(node);
+            n.AppendChild(EatAsNode());
+            node = n;
+        }
+
+        else if (Taste(
+                TokenType.LeftSquareBracketChar // [
+            ))
+        {
+            var n = new IndexExpressionNode();
+            n.AppendChild(node);
+            n.AppendChild(ParseIndexing());
+            node = n;
+        }
 
         return node;
     }    
@@ -695,9 +706,9 @@ public class Parser(ErrorHandler errHandler)
         return node;
     }
 
-    private GenericCollectionExpressionNode ParseGenericCollection()
+    private CollectionExpressionNode ParseGenericCollection()
     {
-        var collection = new GenericCollectionExpressionNode();
+        var collection = new CollectionExpressionNode();
         collection.AppendChild(DietAsNode(TokenType.LeftSquareBracketChar,
             (e) => throw new Exception($"Unexpected token '{Bite()}'")));
 
@@ -801,21 +812,37 @@ public class Parser(ErrorHandler errHandler)
         TryEndLine();
 
         if (!IsEOF() && Bite().type != TokenType.RightParenthesisChar)
-        {
             do
             {
                 try { collection.AppendChild(ParseExpression()); }
                 catch (Exception ex) { _errHandler.RegisterError(ex); }
             }
             while(TryEat(TokenType.CommaChar, out _));
-        }
 
         collection.AppendChild(DietAsNode(TokenType.RightParenthesisChar,
             (t) => throw new Exception($"Expected token ')', found {t}")));
 
         return collection;
     }
-
+    private IndexingOperatorNode ParseIndexing()
+    {
+        var indexer = new IndexingOperatorNode();
+        indexer.AppendChild(DietAsNode(TokenType.LeftSquareBracketChar,
+            (t) => throw new Exception($"Unexpected token {Bite()}")));
+        
+        if (!IsEOF() && Bite().type != TokenType.RightSquareBracketChar)
+            do
+            {
+                try { indexer.AppendChild(ParseExpression()); }
+                catch (Exception ex) { _errHandler.RegisterError(ex); }
+            }
+            while(TryEat(TokenType.CommaChar, out _));
+        
+        indexer.AppendChild(DietAsNode(TokenType.RightSquareBracketChar,
+            (t) => throw new Exception($"Expected token ']', found {t}")));
+        return indexer;
+    }
+    
 
     private ExpressionNode ParseType()
     {

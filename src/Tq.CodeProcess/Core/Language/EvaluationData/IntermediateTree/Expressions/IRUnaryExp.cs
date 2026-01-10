@@ -1,7 +1,7 @@
 using Abstract.CodeProcess.Core.Language.EvaluationData.LanguageReferences.TypeReferences;
 using Abstract.CodeProcess.Core.Language.SyntaxNodes.Base;
 
-namespace Abstract.CodeProcess.Core.Language.EvaluationData.IntermediateTree.Expresions;
+namespace Abstract.CodeProcess.Core.Language.EvaluationData.IntermediateTree.Expressions;
 
 public class IRUnaryExp(SyntaxNode origin, IRUnaryExp.UnaryOperation op, IrExpression value) : IrExpression(origin)
 {
