@@ -1,0 +1,15 @@
+
+@dotnetImport("System.Runtime", "System.IO.FileStream")
+struct Csharp_FileStream {
+
+	@dotnetImport @public func Flush() void
+	@dotnetImport @public func Flush(bool flushToDisk) void
+	@dotnetImport @public func Seek(i64 offset, Csharp_SeekOrigin origin) i64
+}
+
+@dotnetImport("System.Runtime", "System.IO.SeekOrigin")
+typedef Csharp_SeekOrigin {
+	Begin,
+	Current,
+	End,
+}

@@ -1,0 +1,21 @@
+from Std.Console import
+from Std.Process import
+
+let uint src
+let uint debug
+
+@export("main") func main() void {
+	
+	let argv = getProgramArguments()
+	let argc = argv.len as int
+
+	let i = 1
+	if ((argc - i) > 0 and argv[i][0] == '-' and argv[i] == "-s") src = i++
+	if ((argc - i) > 0 and argv[i][0] == '-' and argv[i] == "-d") debug = i++
+	if ((argc - i) < 1) {
+		writeln("usage: c4 [-s] [-d] file ...")
+		exit(1)
+	}
+
+	writeln(src)
+}
