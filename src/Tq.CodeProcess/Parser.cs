@@ -1,4 +1,3 @@
-using System.Diagnostics;
 using Abstract.CodeProcess.Core;
 using Abstract.CodeProcess.Core.Language;
 using Abstract.CodeProcess.Core.Language.SyntaxNodes.Base;
@@ -301,7 +300,7 @@ public class Parser(ErrorHandler errHandler)
 
                 node = new ReturnStatementNode();
                 node.AppendChild(EatAsNode()); // return
-                if (!Taste(TokenType.LineFeedChar))
+                if (!Taste(TokenType.EndOfStatement))
                     node.AppendChild(ParseExpression()); // <value>
                 
             } catch { DiscardLine(); throw; }
@@ -327,7 +326,7 @@ public class Parser(ErrorHandler errHandler)
     
     private ExpressionNode ParseAssignmentExpression(bool recursive)
     {
-        var node = ParseAdditiveExpression(recursive);
+        var node = ParseBooleanOperationExpression(recursive);
 
         if (!Taste(
                 TokenType.EqualsChar, // =
@@ -342,6 +341,24 @@ public class Parser(ErrorHandler errHandler)
         n.AppendChild(node);
         n.AppendChild(EatAsNode());
         n.AppendChild(ParseAssignmentExpression(recursive));
+        node = n;
+
+        return node;
+    }
+    
+    private ExpressionNode ParseBooleanOperationExpression(bool recursive)
+    {
+        var node = ParseAdditiveExpression(recursive);
+
+        if (!Taste(
+                TokenType.AndOperator, // and
+                TokenType.OrOperator // or
+            )) return node;
+        
+        var n = new BooleanOperationExpressionNode();
+        n.AppendChild(node);
+        n.AppendChild(EatAsNode());
+        n.AppendChild(ParseBooleanOperationExpression(recursive));
         node = n;
 
         return node;
@@ -372,7 +389,7 @@ public class Parser(ErrorHandler errHandler)
     
     private ExpressionNode ParseMultiplicativeExpression(bool recursive)
     {
-        var node = ParseBooleanOperationExpression(recursive);
+        var node = ParseComparisonExpression(recursive);
 
         if (!Taste(
                 TokenType.StarChar, // *
@@ -392,7 +409,7 @@ public class Parser(ErrorHandler errHandler)
         return node;
     }
 
-    private ExpressionNode ParseBooleanOperationExpression(bool recursive)
+    private ExpressionNode ParseComparisonExpression(bool recursive)
     {
         var node = ParseBitwiseOperationExpression(recursive);
 
@@ -407,16 +424,13 @@ public class Parser(ErrorHandler errHandler)
             TokenType.RightAngleChar, // >
             
             TokenType.LessEqualsOperator, // <=
-            TokenType.GreatEqualsOperator, // >=
-            
-            TokenType.AndOperator, // and
-            TokenType.OrOperator // or
+            TokenType.GreatEqualsOperator // >=
         )) return node;
         
         var n = new BooleanOperationExpressionNode();
         n.AppendChild(node);
         n.AppendChild(EatAsNode());
-        n.AppendChild(ParseBooleanOperationExpression(recursive));
+        n.AppendChild(ParseComparisonExpression(recursive));
         node = n;
 
         return node;
@@ -487,7 +501,7 @@ public class Parser(ErrorHandler errHandler)
             node = n;
         }
 
-        else if (Taste(
+        while (Taste(
                 TokenType.LeftSquareBracketChar // [
             ))
         {
@@ -533,11 +547,23 @@ public class Parser(ErrorHandler errHandler)
             // to be parsed here
             case TokenType.LetKeyword or
             TokenType.ConstKeyword:
-            try{
+            try
+            {
+                var i = 0;
+                while (!TasteMore(++i, TokenType.EndOfStatement, TokenType.EqualsChar)) ;
 
-                node = new LocalVariableNode();
-                node.AppendChild(EatAsNode()); // let / const
-                node.AppendChild(ParseTypedIdentifier()); // <type> <identifier>
+                if (i == 2)
+                {
+                    node = new LocalVariableNode();
+                    node.AppendChild(EatAsNode()); // let / const
+                    node.AppendChild(ParseSingleIdentifier()); // <identifier>
+                }
+                else
+                {
+                    node = new LocalVariableNode();
+                    node.AppendChild(EatAsNode()); // let / const
+                    node.AppendChild(ParseTypedIdentifier()); // <type> <identifier>
+                }
 
             } catch { DiscardLine(); throw; }
             break;
@@ -609,9 +635,7 @@ public class Parser(ErrorHandler errHandler)
             // Parenthesis enclosed expression
             case TokenType.LeftPerenthesisChar:
             try {
-
                 node = new ParenthesisExpressionNode();
-
                 node.AppendChild(DietAsNode(TokenType.LeftPerenthesisChar, (t) => throw new Exception($"Unexpected token '{Bite()}'")));
                 node.AppendChild(ParseExpression());
                 node.AppendChild(DietAsNode(TokenType.RightParenthesisChar, (t) => throw new Exception($"Unexpected token '{Bite()}'")));
@@ -655,7 +679,7 @@ public class Parser(ErrorHandler errHandler)
                     }
 
                     else if (Taste(TokenType.CharacterLiteral))
-                        node.AppendChild(new CharacterLiteralNode(Eat()) { insideString = true });
+                        node.AppendChild(new CharacterLiteralNode(Eat(), true));
 
                     else if (Taste(TokenType.DoubleQuotes)) break;
 
@@ -666,6 +690,13 @@ public class Parser(ErrorHandler errHandler)
 
                 break;
 
+            // Char
+            case TokenType.SingleQuotes:
+                Eat();
+                node = new CharacterLiteralNode(Eat());
+                Diet(TokenType.SingleQuotes, (e) => throw new Exception($"Unexpected token '{Bite()}'"));
+                break;
+            
             // collections (or type arrays)
             case TokenType.LeftSquareBracketChar:
                 int index = 0;
@@ -1017,9 +1048,9 @@ public class Parser(ErrorHandler errHandler)
     }
 
     private bool IsEOF() => _tokens_cursor >= _tokens.Length || _tokens[_tokens_cursor].type == TokenType.EofChar;
-    private bool IsEndOfLine() => _tokens_cursor >= _tokens.Length || _tokens[_tokens_cursor].type == TokenType.LineFeedChar;
+    private bool IsEndOfLine() => _tokens_cursor >= _tokens.Length || _tokens[_tokens_cursor].type == TokenType.EndOfStatement;
 
-    private void TryEndLine() => TryEat(TokenType.LineFeedChar, out _);
+    private void TryEndLine() => TryEat(TokenType.EndOfStatement, out _);
     private void EndLine()
     {
         if (IsEndOfLine()) Eat();
@@ -1032,7 +1063,7 @@ public class Parser(ErrorHandler errHandler)
     }
     private void DiscardUntil(TokenType t)
     {
-        while (!TryEat(t, out _)) ;
+        while (!Taste(t) || IsEOF()) Eat();
     }
     #endregion
 

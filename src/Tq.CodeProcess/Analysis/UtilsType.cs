@@ -22,8 +22,6 @@ public partial class Analyzer
     {
         return expr switch
         {
-            IrIntegerLiteral @lit => lit.Type,
-            IRStringLiteral @lit => lit.Type,
             IRSolvedReference @solvedFuck => solvedFuck.Reference switch
             {
                 IntegerTypeReference @intt => intt,
@@ -38,17 +36,8 @@ public partial class Analyzer
                 _ => throw new NotImplementedException()
             },
             IRAccess @access => GetEffectiveTypeReference(access.B),
-            IRInvoke @invoke => invoke.Type,
             
-            IRBinaryExp @exp => exp.ResultType,
-            IRUnaryExp @unexp => unexp.Operation != IRUnaryExp.UnaryOperation.Reference
-                ? GetEffectiveTypeReference(unexp.Value)
-                : new ReferenceTypeReference(GetEffectiveTypeReference(@unexp.Value)),
-            IrIndex @idx => idx.ResultType,
-            
-            IrConv @conv => conv.Type,
-
-            _ => throw new NotImplementedException()
+            _ => expr.Type
             
         } ?? throw new UnreachableException("This function should not be called when this value is null");
     }
@@ -170,12 +159,18 @@ public partial class Analyzer
             }
             
             // FIXME ignored for now
-            case IRStringLiteral:
+            case IrStringLiteral:
+            case IrCharLiteral:
             case IRBinaryExp:
             case IRAccess:
             case IRReference:
             case IrConv:
             case IrIndex:
+            case IRInvoke:
+            case IrLenOf:
+            case IRCompareExp:
+            case IRUnaryExp:
+            case IrLogicalExp:
                 return origin ?? value;
             
             default: throw new UnreachableException();

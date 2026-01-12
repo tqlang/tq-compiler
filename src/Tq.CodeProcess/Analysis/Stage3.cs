@@ -10,16 +10,12 @@ using Abstract.CodeProcess.Core.Language.EvaluationData.LanguageObjects;
 using Abstract.CodeProcess.Core.Language.EvaluationData.LanguageObjects.CodeObjects;
 using Abstract.CodeProcess.Core.Language.EvaluationData.LanguageReferences.CodeReferences;
 using Abstract.CodeProcess.Core.Language.EvaluationData.LanguageReferences.TypeReferences;
+using Abstract.CodeProcess.Core.Language.EvaluationData.LanguageReferences.TypeReferences.Builtin;
 using Abstract.CodeProcess.Core.Language.EvaluationData.LanguageReferences.TypeReferences.Builtin.Integer;
 using Abstract.CodeProcess.Core.Language.SyntaxNodes.Base;
 using Abstract.CodeProcess.Core.Language.SyntaxNodes.Expression;
-using Abstract.CodeProcess.Core.Language.SyntaxNodes.Expression.TypeModifiers;
-using Abstract.CodeProcess.Core.Language.SyntaxNodes.Misc;
 using Abstract.CodeProcess.Core.Language.SyntaxNodes.Statement;
 using Abstract.CodeProcess.Core.Language.SyntaxNodes.Value;
-
-using ReferenceTypeReference = Abstract.CodeProcess.Core.Language.EvaluationData.LanguageReferences.TypeReferences.Builtin.ReferenceTypeReference;
-using SliceTypeReference = Abstract.CodeProcess.Core.Language.EvaluationData.LanguageReferences.TypeReferences.Builtin.SliceTypeReference;
 using TypeReference = Abstract.CodeProcess.Core.Language.EvaluationData.LanguageReferences.TypeReferences.TypeReference;
 
 namespace Abstract.CodeProcess;
@@ -54,7 +50,7 @@ public partial class Analyzer
         foreach (var i in _globalReferenceTable.Values.OfType<StructObject>())
         {
             if (i.Extends == null) continue;
-            i.Extends = SolveTypeLazy2(i.Extends, null, i);
+            i.Extends = SolveTypeLazy(i.Extends, null, i);
             if (i.Extends is UnsolvedTypeReference) throw new Exception($"Cannot solve type {i.syntaxNode:pos}");
             if (i.Extends is not SolvedStructTypeReference) throw new Exception("Non-struct types cannot be inherited");
             if (i.Extends is SolvedStructTypeReference { Struct.Static: true }) throw new Exception("Cannot extends static type");
@@ -68,6 +64,24 @@ public partial class Analyzer
     
     private void ScanNamespaceMeta(NamespaceObject nmsp)
     {
+        foreach (var a in nmsp.Imports)
+        {
+            foreach (var raw in a.Raw)
+            {
+                if (raw[^1] == "*")
+                {
+                    var refe = _globalReferenceTable[raw[..^1]];
+                    if (refe is not NamespaceObject @namespaceObject) throw new Exception("Not a namespace");
+                    
+                    foreach (var i in namespaceObject.Children) a.References.Add(i);
+                }
+                else
+                {
+                    var refe = _globalReferenceTable[raw[..^1]];
+                    a.References.Add(refe);
+                }
+            }
+        }
     }
     private void ScanStructureMeta(StructObject structure)
     {
@@ -113,7 +127,8 @@ public partial class Analyzer
                     foreach (var i2 in funcgroup.Overloads)
                     {
                         ScanFunctionExecutionBody(i2);
-                        foreach (var l in i2.Locals) l.Type = SolveTypeLazy(l.Type, null, i2);
+                        foreach (var l in i2.Locals)
+                            if (l.Type != null) l.Type = SolveTypeLazy(l.Type, null, i2);
                     }
                     break;
                 }
@@ -329,16 +344,17 @@ public partial class Analyzer
         {
             case LocalVariableNode @localvar:
             {
-                var name = localvar.TypedIdentifier.Identifier.Value;
+                var identifier = localvar.IsImplicitTyped ? localvar.Identifier : localvar.TypedIdentifier.Identifier; 
+                var name = identifier.Value;
                 
                 if (ctx.Locals.Any(e => e.Name == name))
                     throw new Exception($"{localvar:pos} shadows \'{name}\' declaration");
                 
-                var newLocal = new LocalVariableObject(
-                    SolveTypeLazy(new UnsolvedTypeReference(localvar.TypedIdentifier.Type), ctx, null), name);
+                var newLocal = new LocalVariableObject(localvar.IsImplicitTyped ? null
+                    : SolveTypeLazy(new UnsolvedTypeReference(localvar.TypedIdentifier.Type), ctx, null), name);
                 
                 ctx.AppendLocal(newLocal);
-                return new IRSolvedReference(localvar.TypedIdentifier.Identifier, new LocalReference(newLocal));
+                return new IRSolvedReference(identifier, new LocalReference(newLocal));
             }
 
             case FunctionCallExpressionNode @funccal:
@@ -363,45 +379,46 @@ public partial class Analyzer
                     UnwrapExecutionContext_Expression(bexp.Left, ctx),
                     UnwrapExecutionContext_Expression(bexp.Right, ctx));
 
-                return new IRBinaryExp(bexp,
-                    bexp.Operator switch
+                var l = UnwrapExecutionContext_Expression(bexp.Left, ctx);
+                var r = UnwrapExecutionContext_Expression(bexp.Right, ctx);
+                
+                return bexp.Operator switch
                     {
-                        "+" => IRBinaryExp.Operators.Add,
-                        "+%" => IRBinaryExp.Operators.AddWarpAround,
-                        "+|" => IRBinaryExp.Operators.AddOnBounds,
+                        "+" => new IRBinaryExp(bexp, IRBinaryExp.Operators.Add, l, r),
+                        "+%" => new IRBinaryExp(bexp, IRBinaryExp.Operators.AddWarpAround, l, r),
+                        "+|" => new IRBinaryExp(bexp, IRBinaryExp.Operators.AddOnBounds, l, r),
                         
-                        "-" => IRBinaryExp.Operators.Subtract,
-                        "-%" =>  IRBinaryExp.Operators.SubtractWarpAround,
-                        "-|" => IRBinaryExp.Operators.SubtractOnBounds,
+                        "-" => new IRBinaryExp(bexp, IRBinaryExp.Operators.Subtract, l, r),
+                        "-%" =>  new IRBinaryExp(bexp, IRBinaryExp.Operators.SubtractWarpAround, l, r),
+                        "-|" => new IRBinaryExp(bexp, IRBinaryExp.Operators.SubtractOnBounds, l, r),
                         
-                        "*" => IRBinaryExp.Operators.Multiply,
+                        "*" => new IRBinaryExp(bexp, IRBinaryExp.Operators.Multiply, l, r),
                         
-                        "/" => IRBinaryExp.Operators.Divide,
-                        "/_" => IRBinaryExp.Operators.DivideFloor,
-                        "/^" => IRBinaryExp.Operators.DivideCeil,
+                        "/" => new IRBinaryExp(bexp, IRBinaryExp.Operators.Divide, l, r),
+                        "/_" => new IRBinaryExp(bexp, IRBinaryExp.Operators.DivideFloor, l, r),
+                        "/^" => new IRBinaryExp(bexp, IRBinaryExp.Operators.DivideCeil, l, r),
                         
-                        "%" => IRBinaryExp.Operators.Reminder,
+                        "%" => new IRBinaryExp(bexp, IRBinaryExp.Operators.Reminder, l, r),
 
-                        "AND" => IRBinaryExp.Operators.BitwiseAnd,
-                        "OR" => IRBinaryExp.Operators.BitwiseOr,
-                        "XOR" => IRBinaryExp.Operators.BitwiseXor,
+                        "AND" => new IRBinaryExp(bexp, IRBinaryExp.Operators.BitwiseAnd, l, r),
+                        "OR" => new IRBinaryExp(bexp, IRBinaryExp.Operators.BitwiseOr, l, r),
+                        "XOR" => new IRBinaryExp(bexp, IRBinaryExp.Operators.BitwiseXor, l, r),
 
-                        "<<" => IRBinaryExp.Operators.LeftShift,
-                        ">>" => IRBinaryExp.Operators.RightShift,
+                        "<<" => new IRBinaryExp(bexp, IRBinaryExp.Operators.LeftShift, l, r),
+                        ">>" => new IRBinaryExp(bexp, IRBinaryExp.Operators.RightShift, l, r),
                         
-                        "==" => IRBinaryExp.Operators.Equality,
-                        "!=" => IRBinaryExp.Operators.Inequality,
-                        "<" => IRBinaryExp.Operators.LessThan,
-                        "<=" => IRBinaryExp.Operators.LessThanOrEqual,
-                        ">" => IRBinaryExp.Operators.GreaterThan,
-                        ">=" => IRBinaryExp.Operators.GreaterThanOrEqual,
-                        "or" => IRBinaryExp.Operators.LogicalOr,
-                        "and" => IRBinaryExp.Operators.LogicalAnd,
+                        "==" => new IRCompareExp(bexp, IRCompareExp.Operators.Equality, l, r),
+                        "!=" => new IRCompareExp(bexp, IRCompareExp.Operators.Inequality, l, r),
+                        "<" => new IRCompareExp(bexp, IRCompareExp.Operators.LessThan, l, r),
+                        "<=" => new IRCompareExp(bexp, IRCompareExp.Operators.LessThanOrEqual, l, r),
+                        ">" => new IRCompareExp(bexp, IRCompareExp.Operators.GreaterThan, l, r),
+                        ">=" => new IRCompareExp(bexp, IRCompareExp.Operators.GreaterThanOrEqual, l, r),
+                        
+                        "or" => new IrLogicalExp(bexp, IrLogicalExp.Operators.Or, l, r),
+                        "and" => new IrLogicalExp(bexp, IrLogicalExp.Operators.And, l, r),
 
                         _ => throw new UnreachableException(),
-                    },
-                    UnwrapExecutionContext_Expression(bexp.Left, ctx),
-                    UnwrapExecutionContext_Expression(bexp.Right, ctx));
+                    };
             }
             case UnaryPrefixExpressionNode @uexp:
             {
@@ -456,9 +473,11 @@ public partial class Analyzer
                 return new IrIntegerLiteral(intlit, intlit.Value, new ComptimeIntegerTypeReference());
             case StringLiteralNode @strlit:
             {
-                if (strlit.IsSimple) return new IRStringLiteral(strlit, strlit.RawContent);
+                if (strlit.IsSimple) return new IrStringLiteral(strlit, strlit.RawContent);
                 throw new NotImplementedException();
             }
+            case CharacterLiteralNode @charlit:
+                return new IrCharLiteral(charlit, charlit.Value[0]);
             case BooleanLiteralNode @boollit:
                 return new IrIntegerLiteral(boollit, boollit.Value ? 1 : 0, new RuntimeIntegerTypeReference(false, 1));
             case NullLiteralNode @nulllit: 
@@ -546,7 +565,7 @@ public partial class Analyzer
         
         foreach (var field in fields)
         {
-            field.Type = SolveTypeLazy(field.Type, null, field);
+            if (!IsSolved(field.Type)) field.Type = SolveTypeLazy(field.Type, null, field);
             var flen = Alignment.Align(field.Type.Length, field.Type.Alignment);
             bestAlignment = Alignment.Max(bestAlignment, flen);
             field.Offset = fieldOffset;
@@ -605,31 +624,72 @@ public partial class Analyzer
     
     private TypeReference SolveTypeLazy(TypeReference typeref, ExecutionContextData? ctx, LangObject? obj)
     {
-        var i = 0;
-        while (true)
+        switch (typeref)
         {
-            i++;
-            switch (typeref)
-            {
-                case UnsolvedTypeReference @unsolved:
-                {
-                    var node = unsolved.syntaxNode;
-                    if (i == 1)
-                    {
-                        typeref = SolveShallowType(node);
-                        if (IsSolved(typeref)) return typeref;
-                        if (ctx == null) return new UnsolvedTypeReference(node);
-                        continue;
-                    }
-
-                    return new UnsolvedTypeReference(node);
-                }
-                case SliceTypeReference @slice: slice.InternalType = SolveTypeLazy(@slice.InternalType, ctx, obj); break;
-                case ReferenceTypeReference @refer: refer.InternalType = SolveTypeLazy(@refer.InternalType, ctx, obj); break;
-            }
-
-            return typeref;
+            case ReferenceTypeReference @r:
+                r.InternalType = SolveTypeLazy(r.InternalType, ctx, obj);
+                return r;
+            
         }
+        
+        var trySolveShallow = SolveShallowType(((UnsolvedTypeReference)typeref).syntaxNode);
+        if (trySolveShallow is not UnsolvedTypeReference @unsolv) return trySolveShallow;
+        
+        var syntaxNode = unsolv.syntaxNode;
+        var parent = obj;
+        LangObject langObj;
+
+        switch (syntaxNode)
+        {
+            case IdentifierNode @idnode:
+            {
+                // Search in parent tree
+                var curr = parent;
+                while (curr != null && curr is not NamespaceObject)
+                {
+                    var r3 = curr.Children.FirstOrDefault(e => e.Name == idnode.Value);
+                    if (r3 != null) return (TypeReference)GetObjectReference(r3);
+                    curr = curr.Parent;
+                }
+                
+                // Search in inherited tree
+                if (parent is StructObject { Extends: SolvedStructTypeReference } @structObject)
+                {
+                    LangObject? curr2 = ((SolvedStructTypeReference)structObject.Extends).Struct;
+                    while (curr2 != null && curr2 is not NamespaceObject)
+                    {
+                        var r3 = curr2.Children.FirstOrDefault(e => e.Name == idnode.Value);
+                        if (r3 != null) return (TypeReference)GetObjectReference(r3);
+                        curr2 = curr2.Parent;
+                    }
+                }
+
+                // Search inside namespace
+                var r4 = parent?.Namespace?.Children.FirstOrDefault(e => e.Name == idnode.Value);
+                if (r4 != null) return (TypeReference)GetObjectReference(r4);
+
+                // Search inside imports
+                var r5 = parent?.Imports?.References.FirstOrDefault(e => e.Name == idnode.Value);
+                if (r5 != null) return (TypeReference)GetObjectReference(r5);
+                
+                // Search global references
+                var r6 = _globalReferenceTable.FirstOrDefault(e => e.Key.Length == 1 && e.Key[0] == idnode.Value);
+                if (r6.Key != null) return (TypeReference)GetObjectReference(r6.Value);
+
+                if (parent is NamespaceObject @nmsp)
+                {
+                    string[] name = [.. nmsp.Global, idnode.Value];
+                    var r7 = _globalReferenceTable.FirstOrDefault(e => IdentifierComparer.IsEquals(e.Key, name));
+                    if (r7.Key != null) return (TypeReference)GetObjectReference(r7.Value);
+                }
+                
+                throw new Exception($"Cannot find reference to {idnode:pos}");
+            }
+            
+            default: throw new UnreachableException(); break;
+        }
+        
+        throw new NotImplementedException();
     }
 
     

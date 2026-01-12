@@ -1,0 +1,16 @@
+from Std.Io import
+
+
+@public struct File {
+
+    let *Csharp_FileStream _filestream
+    
+}
+
+@public struct FileReader extends Reader {
+
+}
+
+@public struct FileWriter extends Writer {
+
+}

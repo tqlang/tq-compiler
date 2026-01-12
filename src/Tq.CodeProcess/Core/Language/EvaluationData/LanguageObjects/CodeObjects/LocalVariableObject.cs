@@ -2,10 +2,10 @@ using Abstract.CodeProcess.Core.Language.EvaluationData.LanguageReferences.TypeR
 
 namespace Abstract.CodeProcess.Core.Language.EvaluationData.LanguageObjects.CodeObjects;
 
-public class LocalVariableObject(TypeReference typeref, string name)//: LangObject(null!)
+public class LocalVariableObject(TypeReference? typeref, string name)//: LangObject(null!)
 {
     public int index;
-    public TypeReference Type { get; set; } = typeref;
+    public TypeReference? Type = typeref;
     public readonly string Name = name;
 
 

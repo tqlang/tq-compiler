@@ -1,6 +1,5 @@
 using Abstract.CodeProcess.Core.Language.EvaluationData.LanguageObjects;
 using Abstract.CodeProcess.Core.Language.EvaluationData.LanguageReferences.TypeReferences;
-using Abstract.CodeProcess.Core.Language.SyntaxNodes.Control;
 
 namespace Abstract.CodeProcess.Core.Language.EvaluationData.LanguageReferences.TypedefReferences;
 
@@ -11,5 +10,5 @@ public class SolvedTypedefNamedFieldReference(TypedefItemObject item) : TypeRefe
     
     public readonly TypedefItemObject Item = item;
     
-    public override string ToString() => $"{Item.Name}";
+    public override string ToString() => $"{string.Join('.', Item.Parent.Global)}.{Item.Name}";
 }

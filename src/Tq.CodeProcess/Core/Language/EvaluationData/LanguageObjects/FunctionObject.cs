@@ -1,4 +1,3 @@
-using System.Reflection.Metadata;
 using System.Text;
 using Abstract.CodeProcess.Core.Language.EvaluationData.IntermediateTree;
 using Abstract.CodeProcess.Core.Language.EvaluationData.LanguageObjects.Attributes;
@@ -19,7 +18,7 @@ public class FunctionObject(string[] g, string n, FunctionDeclarationNode synnod
         IOverrideAttribute,
         IExternModifier,
         IExportModifier,
-        IDotnetImportModifier,
+        IDotnetImportMethodModifier,
         IParametrizable,
         IFormattable
 {
@@ -33,7 +32,7 @@ public class FunctionObject(string[] g, string n, FunctionDeclarationNode synnod
     public bool Generic { get; set; } = false;
     public bool ConstExp { get; set; } = false;
     public (string nmsp, string name)? Extern { get; set; } = null;
-    public DotnetImportData? DotnetImport { get; set; }
+    public DotnetImportMethodData? DotnetImport { get; set; }
 
     
     public TypeReference ReturnType = null!;

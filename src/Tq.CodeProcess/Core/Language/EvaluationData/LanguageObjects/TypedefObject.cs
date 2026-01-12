@@ -9,12 +9,14 @@ public class TypedefObject(string[] g, string n, TypeDefinitionNode synnode)
         IPublicModifier,
         IStaticModifier,
         IInternalModifier,
-        IAbstractModifier
+        IAbstractModifier,
+        IDotnetImportTypeModifier
 {
     bool IPublicModifier.Public { get; set; } = false;
     bool IStaticModifier.Static { get; set; } = false;
     bool IInternalModifier.Internal { get; set; } = false;
     bool IAbstractModifier.Abstract { get; set; } = false;
+    public DotnetImportTypeData? DotnetImport { get; set; }
     
     public bool Flags { get; set; } = false;
     

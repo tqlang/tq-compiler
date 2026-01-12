@@ -1,4 +1,3 @@
-using System.Text;
 using Abstract.CodeProcess.Core.Language.EvaluationData.LanguageReferences.TypeReferences;
 using Abstract.CodeProcess.Core.Language.SyntaxNodes.Expression;
 
@@ -18,7 +17,7 @@ public class IRBinaryExp(
 
     public override TypeReference Type => ResultType;
 
-    public override string ToString() => $"{Operator}({Left}, {Right})";
+    public override string ToString() => $"{Operator} {Left}, {Right}";
     
     public enum Operators
     {
@@ -39,14 +38,5 @@ public class IRBinaryExp(
         BitwiseXor,
         LeftShift,
         RightShift,
-        
-        Equality,
-        Inequality,
-        LessThan,
-        LessThanOrEqual,
-        GreaterThan,
-        GreaterThanOrEqual,
-        LogicalAnd,
-        LogicalOr,
     }
 }

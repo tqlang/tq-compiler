@@ -10,7 +10,8 @@ public class StructObject(string[] g, string n, StructureDeclarationNode synnode
         IPublicModifier,
         IStaticModifier,
         IInternalModifier,
-        IAbstractModifier
+        IAbstractModifier,
+        IDotnetImportTypeModifier
 {
     public bool Public { get; set; } = false;
     public bool Static { get; set; } = false;
@@ -18,6 +19,7 @@ public class StructObject(string[] g, string n, StructureDeclarationNode synnode
     public bool Abstract { get; set; } = false;
     public bool Interface { get; set; } =  false;
     public bool Final { get; set; } =  false;
+    public DotnetImportTypeData? DotnetImport { get; set; }
     
     public TypeReference? Extends { get; set; }
     public (FunctionObject parent, FunctionObject? overrided, bool isSealed)[]? VirtualTable { get; set; }

@@ -15,7 +15,7 @@ public struct Token
     public readonly override string ToString() => $"'{ValueString()}' ({type}) at {line+1}:{start}";
     public readonly string ValueString() => type switch
         {
-            TokenType.LineFeedChar => "\n",
+            TokenType.EndOfStatement => "\n",
             TokenType.EofChar => "[\\EOF]",
             _ => value.ToString(),
         };
@@ -146,6 +146,6 @@ public enum TokenType : byte
     DotChar,                // .
 
     EofChar,                // \EOF
-    LineFeedChar,           // \n
+    EndOfStatement,         // \n or ;
     EspaceChar,             //  
 }

@@ -29,7 +29,7 @@ public partial class Analyzer
             _ => throw new NotImplementedException(),
         };
     }
-
+    
     private static bool IsSolved(TypeReference typeref) => IsSolved(typeref, out _);
     private static bool IsSolved(TypeReference typeref, out UnsolvedTypeReference unsolved)
     {

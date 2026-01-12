@@ -1,13 +1,23 @@
 namespace Abstract.CodeProcess.Core.Language.EvaluationData.LanguageObjects.Attributes;
 
-public interface IDotnetImportModifier
+public interface IDotnetImportMethodModifier
 {
-    public DotnetImportData? DotnetImport { get; set; }
+    public DotnetImportMethodData? DotnetImport { get; set; }
+}
+public interface IDotnetImportTypeModifier
+{
+    public DotnetImportTypeData? DotnetImport { get; set; }
 }
 
-public struct DotnetImportData
+
+public struct DotnetImportMethodData
+{
+    public string? AssemblyName { get; set; }
+    public string? ClassName { get; set; }
+    public string MethodName { get; set; }
+}
+public struct DotnetImportTypeData
 {
     public string AssemblyName { get; set; }
     public string ClassName { get; set; }
-    public string MethodName { get; set; }
 }

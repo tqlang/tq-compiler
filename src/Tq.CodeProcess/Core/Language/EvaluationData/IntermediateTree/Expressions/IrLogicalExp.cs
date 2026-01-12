@@ -4,9 +4,9 @@ using Abstract.CodeProcess.Core.Language.SyntaxNodes.Expression;
 
 namespace Abstract.CodeProcess.Core.Language.EvaluationData.IntermediateTree.Expressions;
 
-public class IRCompareExp(
+public class IrLogicalExp(
     BinaryExpressionNode origin,
-    IRCompareExp.Operators ope,
+    IrLogicalExp.Operators ope,
     IrExpression left,
     IrExpression right) : IrExpression(origin)
 {
@@ -16,15 +16,11 @@ public class IRCompareExp(
     public IrExpression Left { get; set; } = left;
     public IrExpression Right { get; set; } = right;
 
-    public override string ToString() => $"cmp {Operator} {Left} {Right}";
+    public override string ToString() => $"{Operator.ToString().ToLower()} {Left}, {Right}";
     
     public enum Operators
     {
-        Equality,
-        Inequality,
-        GreaterThan,
-        LessThan,
-        GreaterThanOrEqual,
-        LessThanOrEqual,
+        And,
+        Or,
     }
 }

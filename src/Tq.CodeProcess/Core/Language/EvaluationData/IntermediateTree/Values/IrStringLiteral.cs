@@ -4,7 +4,7 @@ using Abstract.CodeProcess.Core.Language.SyntaxNodes.Base;
 
 namespace Abstract.CodeProcess.Core.Language.EvaluationData.IntermediateTree.Values;
 
-public class IRStringLiteral : IrExpression
+public class IrStringLiteral : IrExpression
 {
     private TypeReference _type;
     public readonly string Data;
@@ -12,16 +12,16 @@ public class IRStringLiteral : IrExpression
     public override TypeReference Type => _type;
     public StringEncoding Encoding => ((StringTypeReference)Type!).Encoding;
 
-    public IRStringLiteral(SyntaxNode origin, StringEncoding encoding, string data) : base(origin)
+    public IrStringLiteral(SyntaxNode origin, StringEncoding encoding, string data) : base(origin)
     {
         _type = new StringTypeReference(encoding);
         Data = data;
     }
-    public IRStringLiteral(SyntaxNode origin, string data) : base(origin)
+    public IrStringLiteral(SyntaxNode origin, string data) : base(origin)
     {
         _type = new StringTypeReference(StringEncoding.Undefined);
         Data = data;
     }
 
-    public override string ToString() => $"({((StringTypeReference)Type!).Encoding} \"{Data}\")";
+    public override string ToString() => $"({((StringTypeReference)Type!).Encoding}) \"{Data}\"";
 }

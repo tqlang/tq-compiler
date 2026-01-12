@@ -9,13 +9,11 @@ using Abstract.CodeProcess.Core.Language.EvaluationData.IntermediateTree.Values;
 using Abstract.CodeProcess.Core.Language.EvaluationData.LanguageObjects;
 using Abstract.CodeProcess.Core.Language.EvaluationData.LanguageReferences;
 using Abstract.CodeProcess.Core.Language.EvaluationData.LanguageReferences.CodeReferences;
-using Abstract.CodeProcess.Core.Language.EvaluationData.LanguageReferences.FieldReferences;
 using Abstract.CodeProcess.Core.Language.EvaluationData.LanguageReferences.FunctionReferences;
 using Abstract.CodeProcess.Core.Language.EvaluationData.LanguageReferences.TypeReferences;
 using Abstract.CodeProcess.Core.Language.EvaluationData.LanguageReferences.TypeReferences.Builtin;
 using Abstract.CodeProcess.Core.Language.EvaluationData.LanguageReferences.TypeReferences.Builtin.Integer;
 using Abstract.CodeProcess.Core.Language.SyntaxNodes.Base;
-using Abstract.CodeProcess.Core.Language.SyntaxNodes.Expression;
 using Abstract.CodeProcess.Core.Language.SyntaxNodes.Value;
 
 namespace Abstract.CodeProcess;
@@ -37,7 +35,7 @@ public partial class Analyzer
         {
             switch (i)
             {
-                case NamespaceObject nmsp: NamespaceSenaAnal(nmsp); break;
+                case NamespaceObject nmsp: NamespaceSemaAnal(nmsp); break;
                 case FunctionGroupObject group: funclist.AddRange(group.Overloads); break;
                 case FunctionObject f: funclist.Add(f); break;
                 case FieldObject f: fldlist.Add(f); break;
@@ -83,26 +81,8 @@ public partial class Analyzer
         }
     }
 
-    private void NamespaceSenaAnal(NamespaceObject nmsp)
+    private void NamespaceSemaAnal(NamespaceObject nmsp)
     {
-        foreach (var a in nmsp.Imports)
-        {
-            foreach (var raw in a.Raw)
-            {
-                if (raw[^1] == "*")
-                {
-                    var refe = _globalReferenceTable[raw[..^1]];
-                    if (refe is not NamespaceObject @namespaceObject) throw new Exception("Not a namespace");
-                    
-                    foreach (var i in namespaceObject.Children) a.References.Add(i);
-                }
-                else
-                {
-                    var refe = _globalReferenceTable[raw[..^1]];
-                    a.References.Add(refe);
-                }
-            }
-        }
     }
     private void FunctionSemaAnal(FunctionObject function)
     {
@@ -118,7 +98,7 @@ public partial class Analyzer
 
         foreach (var i in function.Locals)
         {
-            if (IsSolved(i.Type)) continue;
+            if (i.Type == null || IsSolved(i.Type)) continue;
             i.Type = SolveTypeLazy2(i.Type, null, function);
         }
     }
@@ -151,9 +131,10 @@ public partial class Analyzer
         {
             IRInvoke @iv => NodeSemaAnal_Invoke(iv, ctx),
             IRAssign @ass => NodeSemaAnal_Assign(ass, ctx),
-            IRCompareExp @ce => NodeSemaAnal_CmpExp(ce, ctx),
-            IRBinaryExp @be => NodeSemaAnal_BinExp(be, ctx),
             IRUnaryExp @ue => NodeSemaAnal_UnExp(ue, ctx),
+            IRBinaryExp @be => NodeSemaAnal_BinExp(be, ctx),
+            IRCompareExp @ce => NodeSemaAnal_CmpExp(ce, ctx),
+            IrLogicalExp @ce => NodeSemaAnal_LogicalExp(ce, ctx),
             IrIndex @ix => NodeSemaAnal_Index(ix, ctx),
             IrConv @tc =>NodeSemaAnal_Conv(tc, ctx),
             IRNewObject @no => NodeSemaAnal_NewObj(no, ctx),
@@ -162,7 +143,8 @@ public partial class Analyzer
             IRWhile @iwhile => NodeSemaAnal_While(iwhile, ctx),
             
             IRSolvedReference
-                or IRStringLiteral
+                or IrCharLiteral
+                or IrStringLiteral
                 or IrIntegerLiteral 
                 or IRNullLiteral => node,
             
@@ -260,8 +242,18 @@ public partial class Analyzer
         var a = node;
         node.Target = (IrExpression)NodeSemaAnal(node.Target, ctx);
         node.Value = (IrExpression)NodeSemaAnal(node.Value, ctx);
-        
-        // TODO if target is declaration, try type target inference
+
+        if (node.Target is IRSolvedReference { Reference: LocalReference { Type: null } @l })
+        {
+            var typefrom = GetEffectiveTypeReference(node.Value);
+            if (typefrom is ComptimeIntegerTypeReference) typefrom = new RuntimeIntegerTypeReference(true);
+            
+            l.Local.Type = typefrom;
+        }
+
+        var typeto = GetEffectiveTypeReference(node.Target);
+        node.Value = SolveTypeCast(typeto, node.Value);
+        node.Value = SolveTypeCast(GetEffectiveTypeReference(node.Target), node.Value);
         
         if (node.Value is IRNewObject @newobj)
         {
@@ -274,58 +266,28 @@ public partial class Analyzer
                 newobj.InlineAssignments);
         }
         
-        var typeto = GetEffectiveTypeReference(node.Target);
-        node.Value = SolveTypeCast(typeto, node.Value);
-        
-        node.Value = SolveTypeCast(GetEffectiveTypeReference(node.Target), node.Value);
-        
         return node;
     }
 
-    private IRNode NodeSemaAnal_CmpExp(IRCompareExp node, IrBlockExecutionContextData ctx)
+    private IRNode NodeSemaAnal_UnExp(IRUnaryExp node, IrBlockExecutionContextData ctx)
     {
-        node.Left = (IrExpression)NodeSemaAnal(node.Left, ctx);
-        var leftTypeRef = GetEffectiveTypeReference(node.Left);
-        node.Right = SolveTypeCast(leftTypeRef, (IrExpression)NodeSemaAnal(node.Right, ctx));
+        node.Value = (IrExpression)NodeSemaAnal(node.Value, ctx);
 
-        var ltype = GetEffectiveTypeReference(node.Left);
-        var rtype = GetEffectiveTypeReference(node.Right);
-        TypeReference ftype = ltype;
-        
-        if (ltype is RuntimeIntegerTypeReference @left &&
-            rtype is RuntimeIntegerTypeReference @right)
+        if (node is { Value: IrIntegerLiteral @valInt })
         {
-            if (left.BitSize >= right.BitSize) ftype = left;
-            else if (left.BitSize < right.BitSize) ftype = right;
-        }
-        
-        else if (ltype is RuntimeIntegerTypeReference @left2 &&
-                 rtype is ComptimeIntegerTypeReference)
-        {
-            ftype = left2;
-            node.Right = new IrIntegerLiteral(node.Right.Origin, ((IrIntegerLiteral)node.Right).Value, left2);
-        }
-        
-        else if (ltype is ComptimeIntegerTypeReference @left3 &&
-                 rtype is RuntimeIntegerTypeReference @right3)
-        {
-            node.Left = new IrIntegerLiteral(node.Left.Origin, ((IrIntegerLiteral)node.Left).Value, right3);
-            ftype = right3;
-        }
-        
-        else throw new NotImplementedException();
-        
-        switch (node)
-        {
-            case { Left: IrIntegerLiteral @leftInt, Right: IrIntegerLiteral @rightInt }:
-                return new IrIntegerLiteral(node.Origin, node.Operator switch
-                {
-                    IRCompareExp.Operators.GreaterThan => leftInt.Value > rightInt.Value,
-                    IRCompareExp.Operators.LessThan => leftInt.Value < rightInt.Value,
-                    IRCompareExp.Operators.LessThanOrEqual => leftInt.Value <= rightInt.Value,
-                    IRCompareExp.Operators.GreaterThanOrEqual => leftInt.Value >= rightInt.Value,
-                    _ => throw new UnreachableException()
-                } ? 1 : 0, (IntegerTypeReference)ftype);
+            return new IrIntegerLiteral(node.Origin, node.Operation switch
+            {
+                IRUnaryExp.UnaryOperation.Plus => valInt.Value,
+                IRUnaryExp.UnaryOperation.Minus => BigInteger.Negate(valInt.Value),
+                IRUnaryExp.UnaryOperation.Not => ~valInt.Value,
+                
+                IRUnaryExp.UnaryOperation.PreIncrement => valInt.Value + BigInteger.One,
+                IRUnaryExp.UnaryOperation.PreDecrement => valInt.Value - BigInteger.One,
+                IRUnaryExp.UnaryOperation.PostIncrement or
+                    IRUnaryExp.UnaryOperation.PostDecrement => valInt.Value,
+                
+                _ => throw new UnreachableException(),
+            }, (IntegerTypeReference)GetEffectiveTypeReference(node.Value));
         }
         
         return node;
@@ -347,18 +309,6 @@ public partial class Analyzer
                 node.Right = SolveTypeCast(new RuntimeIntegerTypeReference(false), node.Right);
                 break;
             
-            case IRBinaryExp.Operators.Equality: 
-            case IRBinaryExp.Operators.Inequality:
-            case IRBinaryExp.Operators.LessThan:
-            case IRBinaryExp.Operators.LessThanOrEqual:
-            case IRBinaryExp.Operators.GreaterThan:
-            case IRBinaryExp.Operators.GreaterThanOrEqual:
-            case IRBinaryExp.Operators.LogicalAnd:
-            case IRBinaryExp.Operators.LogicalOr:
-                node.ResultType = new BooleanTypeReference();
-                node.Right = SolveTypeCast(leftTypeRef, node.Right);
-                goto skipTypeCheck;
-                
             default:
                 node.Right = SolveTypeCast(leftTypeRef, node.Right);
                 break;
@@ -415,13 +365,6 @@ public partial class Analyzer
         {
             { Left: IrIntegerLiteral @leftInt, Right: IrIntegerLiteral @rightInt } => node.Operator switch
             {
-                IRBinaryExp.Operators.Equality => new IRBooleanLiteral(node.Origin, leftInt.Value == rightInt.Value),
-                IRBinaryExp.Operators.Inequality => new IRBooleanLiteral(node.Origin, leftInt.Value != rightInt.Value),
-                IRBinaryExp.Operators.LessThan => new IRBooleanLiteral(node.Origin, leftInt.Value < rightInt.Value),
-                IRBinaryExp.Operators.LessThanOrEqual => new IRBooleanLiteral(node.Origin, leftInt.Value <= rightInt.Value),
-                IRBinaryExp.Operators.GreaterThan => new IRBooleanLiteral(node.Origin, leftInt.Value > rightInt.Value),
-                IRBinaryExp.Operators.GreaterThanOrEqual => new IRBooleanLiteral(node.Origin, leftInt.Value >= rightInt.Value),
-                
                 _ => new IrIntegerLiteral(node.Origin, node.Operator switch
                     {
                         IRBinaryExp.Operators.Add => leftInt.Value + rightInt.Value,
@@ -440,7 +383,7 @@ public partial class Analyzer
                     }, (IntegerTypeReference)ftype),
             },
             
-            { Left: IRStringLiteral @leftStr, Right: IRStringLiteral @rightStr } => new IRStringLiteral(node.Origin,
+            { Left: IrStringLiteral @leftStr, Right: IrStringLiteral @rightStr } => new IrStringLiteral(node.Origin,
                 node.Operator switch
                 {
                     IRBinaryExp.Operators.Add => leftStr.Data + rightStr.Data,
@@ -449,35 +392,56 @@ public partial class Analyzer
             _ => node
         };
     }
-    private IRNode NodeSemaAnal_UnExp(IRUnaryExp node, IrBlockExecutionContextData ctx)
+    private IRNode NodeSemaAnal_CmpExp(IRCompareExp node, IrBlockExecutionContextData ctx)
     {
-        node.Value = (IrExpression)NodeSemaAnal(node.Value, ctx);
-
-        if (node is { Value: IrIntegerLiteral @valInt })
+        node.Left = (IrExpression)NodeSemaAnal(node.Left, ctx);
+        var leftTypeRef = GetEffectiveTypeReference(node.Left);
+        node.Right = SolveTypeCast(leftTypeRef, (IrExpression)NodeSemaAnal(node.Right, ctx));
+        
+        switch (node)
         {
-            return new IrIntegerLiteral(node.Origin, node.Operation switch
-            {
-                IRUnaryExp.UnaryOperation.Plus => valInt.Value,
-                IRUnaryExp.UnaryOperation.Minus => BigInteger.Negate(valInt.Value),
-                IRUnaryExp.UnaryOperation.Not => ~valInt.Value,
-                
-                IRUnaryExp.UnaryOperation.PreIncrement => valInt.Value + BigInteger.One,
-                IRUnaryExp.UnaryOperation.PreDecrement => valInt.Value - BigInteger.One,
-                IRUnaryExp.UnaryOperation.PostIncrement or
-                IRUnaryExp.UnaryOperation.PostDecrement => valInt.Value,
-                
-                _ => throw new UnreachableException(),
-            }, (IntegerTypeReference)GetEffectiveTypeReference(node.Value));
+            case { Left: IrIntegerLiteral @leftInt, Right: IrIntegerLiteral @rightInt }:
+                return new IRBooleanLiteral(node.Origin, node.Operator switch
+                {
+                    IRCompareExp.Operators.GreaterThan => leftInt.Value > rightInt.Value,
+                    IRCompareExp.Operators.LessThan => leftInt.Value < rightInt.Value,
+                    IRCompareExp.Operators.LessThanOrEqual => leftInt.Value <= rightInt.Value,
+                    IRCompareExp.Operators.GreaterThanOrEqual => leftInt.Value >= rightInt.Value,
+                    _ => throw new UnreachableException()
+                });
         }
         
         return node;
     }
+    private IRNode NodeSemaAnal_LogicalExp(IrLogicalExp node, IrBlockExecutionContextData ctx)
+    {
+        node.Left = (IrExpression)NodeSemaAnal(node.Left, ctx);
+        var leftTypeRef = GetEffectiveTypeReference(node.Left);
+        node.Right = SolveTypeCast(leftTypeRef, (IrExpression)NodeSemaAnal(node.Right, ctx));
+        
+        switch (node)
+        {
+            case { Left: IRBooleanLiteral @leftBool, Right: IRBooleanLiteral @rightBool }:
+                return new IRBooleanLiteral(node.Origin, node.Operator switch
+                {
+                    IrLogicalExp.Operators.And => leftBool.Value && rightBool.Value,
+                    IrLogicalExp.Operators.Or => leftBool.Value || rightBool.Value,
+                    _ => throw new UnreachableException()
+                });
+        }
+
+        return node;
+    }
+    
     private IRNode NodeSemaAnal_Index(IrIndex node, IrBlockExecutionContextData ctx)
     {
         node.Value = (IrExpression)NodeSemaAnal(node.Value, ctx);
         for (var i = 0; i < node.Indices.Length; i++)
-            node.Indices[i] = (IrExpression)NodeSemaAnal(node.Indices[i], ctx);
-        
+        {
+            node.Indices[i] = SolveTypeCast(new RuntimeIntegerTypeReference(false),
+                (IrExpression)NodeSemaAnal(node.Indices[i], ctx));
+        }
+
         var expTypeRef = GetEffectiveTypeReference(node.Value);
 
         switch (expTypeRef)
@@ -489,6 +453,10 @@ public partial class Analyzer
                 node.Indices[0] = SolveTypeCast(new RuntimeIntegerTypeReference(false), node.Indices[0]);
                 node.ResultType = s.InternalType;
             } break;
+            
+            case StringTypeReference:
+                node.ResultType = new CharTypeReference();
+                break;
             
             default: throw new UnreachableException();
         }
@@ -558,70 +526,26 @@ public partial class Analyzer
 
     private IRNode NodeSemaAnal_Access(IRAccess node, IrBlockExecutionContextData ctx)
     {
-        node.A = (IrExpression)NodeSemaAnal(node.A, ctx);
-        LanguageReference baseRef = ReferenceOf(node.A);
-
-        switch (baseRef)
-        {
-            case NamespaceReference @nmsp:
-                return SolveReferenceLazy((IRUnknownReference)node.B, null, nmsp.NamespaceObject);
-
-            case TypeTypeReference @ohboy:
-            {
-                var origin = node.B.Origin;
-                var key = ((IdentifierNode)origin).Value;
-
-                throw new NotImplementedException();
-            } break;
-            
-            case LocalReference @local:
-            {
-                node.B = local.Local.Type switch
-                {
-                    SolvedStructTypeReference @s => SolveReferenceLazy((IRUnknownReference)node.B, null, s.Struct),
-                    _ => throw new UnreachableException()
-                };
-            } break;
-            case ParameterReference @arg:
-            {
-                node.B = arg.Parameter.Type switch
-                {
-                    SolvedStructTypeReference @s => SolveReferenceLazy((IRUnknownReference)node.B, null, s.Struct),
-                    
-                    ReferenceTypeReference @r => SolveReferenceLazy((IRUnknownReference)node.B, null, r.InternalType switch
-                    {
-                        SolvedStructTypeReference s => s.Struct,
-                        _ => throw new UnreachableException()
-                    }),
-                    
-                    BooleanTypeReference => new IRSolvedReference(null!, arg.Parameter.Type),
-                    
-                    _ => throw new UnreachableException()
-                };
-            } break;
-            case SolvedFieldReference @field:
-            {
-                node.B = field.Field.Type switch
-                {
-                    SolvedStructTypeReference @s => SolveReferenceLazy((IRUnknownReference)node.B, null, s.Struct),
-                    _ => throw new UnreachableException()
-                };
-            } break;
-            case SolvedTypedefTypeReference @typedef:
-                return SolveReferenceLazy((IRUnknownReference)node.B, null, typedef.Typedef);
-            
-            default: throw new UnreachableException();
-        }
-
-        return node;
+        return SolveAccessInExpression(node.Origin, (IrExpression)NodeSemaAnal(node.A, ctx), (IRUnknownReference)node.B);
     }
     private IRNode NodeSemaAnal_Collection(IrCollectionLiteral node, IrBlockExecutionContextData ctx)
     {
         var items = node.Items.Select(i => (IrExpression)NodeSemaAnal(i, ctx)).ToArray();
         return new IrCollectionLiteral(node.Origin, node.ElementType, items);
     }
-    
-    
+
+
+    private IrExpression SolveAccessInExpression(SyntaxNode origin, IrExpression accessBase, IRUnknownReference accessMember)
+    {
+        var baseRef = ReferenceOf(accessBase);
+        var typeref = baseRef.Type;
+
+        return typeref switch
+        {
+            SliceTypeReference @sliceBuiltin => new IrLenOf(origin, accessBase),
+            _ => throw new UnreachableException(),
+        };
+    }
     private IRSolvedReference SolveReferenceLazy(IRUnknownReference node, IrBlockExecutionContextData? ctx, LangObject? parent)
     {
         var syntaxNode = node.Origin;
@@ -693,17 +617,6 @@ public partial class Analyzer
             IRSolvedReference @sr => sr.Reference,
             IRInvoke @iv => iv.Type!,
             _ => throw new UnreachableException(),
-        };
-    private TypeReference? TypeRefOf(LangObject obj) => obj switch
-        {
-            StructObject @st => new SolvedStructTypeReference(st),
-            TypedefObject @td => new SolvedTypedefTypeReference(td),
-            FieldObject @fi => fi.Type,
-            
-            NamespaceObject or
-            FunctionGroupObject => null,
-            
-            _ => throw new UnreachableException()
         };
     
     private TypeReference SolveTypeLazy2(TypeReference typeref, IrBlockExecutionContextData? ctx, LangObject? obj)

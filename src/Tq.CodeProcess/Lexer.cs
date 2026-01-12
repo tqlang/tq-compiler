@@ -1,5 +1,4 @@
-﻿using System.Diagnostics;
-using Abstract.CodeProcess.Core.Language;
+﻿using Abstract.CodeProcess.Core.Language;
 
 namespace Abstract.CodeProcess;
 
@@ -131,7 +130,7 @@ public class Lexer
             switch (c)
             {
                 // Check single characters
-                case '\n': tokens.Add(Tokenize(TokenType.LineFeedChar, src.GetSlice())); break;
+                case '\n': tokens.Add(Tokenize(TokenType.EndOfStatement, src.GetSlice())); break;
 
                 case '(': tokens.Add(Tokenize(TokenType.LeftPerenthesisChar, src.GetSlice())); break;
                 case ')': tokens.Add(Tokenize(TokenType.RightParenthesisChar, src.GetSlice())); break;
@@ -292,11 +291,24 @@ public class Lexer
                             : Tokenize(TokenType.Identifier, value));
                     }
 
+                    // Build char tokens
+                    else if (c == '\'')
+                    {
+                        tokens.Add(Tokenize(TokenType.SingleQuotes, src.GetSlice()));
+                        while (!src.IsEof())
+                        {
+                            if (src.NextIs('\'')) break;
+                            if (src.Peek() == '\\') src.Next();
+                            src.Next();
+                            tokens.Add(Tokenize(TokenType.CharacterLiteral, src.GetSlice()));
+                        }
+                        tokens.Add(Tokenize(TokenType.SingleQuotes, src.GetSlice()));
+                    }
+                    
                     // Build string tokens
                     else if (c == '"')
                     {
                         tokens.Add(Tokenize(TokenType.DoubleQuotes, src.GetSlice()));
-
                         while (!src.IsEof())
                         {
                             // test escape
@@ -357,7 +369,7 @@ public class Lexer
 
     private void VerifyEndOfStatements(List<Token> tokensList)
     {
-        while (tokensList[0].type == TokenType.LineFeedChar) tokensList.RemoveAt(0);
+        while (tokensList[0].type == TokenType.EndOfStatement) tokensList.RemoveAt(0);
         
         var indexesToRemove = new List<int>();
         
@@ -370,7 +382,7 @@ public class Lexer
             {
                 for (int i = index - 1; i >= 0; i--)
                 {
-                    if (tokensList[i].type == TokenType.LineFeedChar)
+                    if (tokensList[i].type == TokenType.EndOfStatement)
                     {
                         indexesToRemove.Add(i);
                     }
@@ -383,7 +395,7 @@ public class Lexer
             {
                 for (int i = index + 1; i < tokensList.Count; i++)
                 {
-                    if (tokensList[i].type == TokenType.LineFeedChar)
+                    if (tokensList[i].type == TokenType.EndOfStatement)
                     {
                         indexesToRemove.Add(i);
                     }
@@ -397,8 +409,8 @@ public class Lexer
         
         for (int i = tokensList.Count - 2; i >= 0; i--)
         {
-            if (tokensList[i].type == TokenType.LineFeedChar &&
-                tokensList[i + 1].type == TokenType.LineFeedChar)
+            if (tokensList[i].type == TokenType.EndOfStatement &&
+                tokensList[i + 1].type == TokenType.EndOfStatement)
             {
                 tokensList.RemoveAt(i + 1);
             }
