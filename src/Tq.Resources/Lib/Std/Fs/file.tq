@@ -3,8 +3,11 @@ from Std.Io import
 
 @public struct File {
 
-    let *Csharp_FileStream _filestream
+    let *CSharp_FileStream _filestream
     
+    constructor(*CSharp_FileStream stream) {
+        _filestream = stream
+    }
 }
 
 @public struct FileReader extends Reader {

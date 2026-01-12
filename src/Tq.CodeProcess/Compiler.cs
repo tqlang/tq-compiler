@@ -137,11 +137,11 @@ public partial class Compiler
             var newfield = DeclareField(k, _namespacesMap[k.Namespace!]);
             _fieldsMap[k] = newfield;
         }
-        
+
         foreach (var (k, v) in _typesMap)
         {
             if (v.Type is not TypeDefinition @typedef) continue;
-            
+
             if (k.Extends != null)
             {
                 FieldAttributes attributes = FieldAttributes.Public | FieldAttributes.SpecialName;
@@ -149,77 +149,45 @@ public partial class Compiler
                 var f = new FieldDefinition("base", attributes, sig) { FieldOffset = 0 };
                 typedef.Fields.Add(f);
             }
-            
-            {
-                var signature = MethodSignature.CreateInstance(_corLibFactory.Void);
-                var ctor = new MethodDefinition(".ctor",
-                    MethodAttributes.Public
-                    | MethodAttributes.HideBySig
-                    | MethodAttributes.SpecialName
-                    | MethodAttributes.RuntimeSpecialName,
-                    signature);
-
-                typedef.Methods.Add(ctor);
-                v.PrimaryCtor = ctor;
-
-                var body = new CilMethodBody(ctor);
-                ctor.CilMethodBody = body;
-
-                //var typeRef = v.Type.BaseType!;
-                //var subctor = CreateMethodRef(typeRef, ".ctor",
-                //    MethodSignature.CreateInstance(_corLibFactory.Void));
-                
-                body.Instructions.Add(CilOpCodes.Ldarg_0);
-                body.Instructions.Add(CilOpCodes.Initobj, v.Type);
-                body.Instructions.Add(CilOpCodes.Ret);
-                
-                body.Instructions.OptimizeMacros();
-                body.ComputeMaxStack();
-            }
-            
-            if (!typedef.IsValueType) {
-                var signature = MethodSignature.CreateInstance(_coreLib["Object"].t);
-                var clone = new MethodDefinition("<clone>",
-                    MethodAttributes.Public
-                    | MethodAttributes.HideBySig,
-                    signature);
-
-                typedef.Methods.Add(clone);
-                v.Clone = clone;
-
-                var body = new CilMethodBody(clone);
-                clone.CilMethodBody = body;
-                
-                body.Instructions.Add(CilOpCodes.Ldarg_0);
-                body.Instructions.Add(CilOpCodes.Call, _coreLib["Object"].m["MemberwiseClone"]);
-                body.Instructions.Add(CilOpCodes.Ret);
-                
-                body.Instructions.OptimizeMacros();
-                body.ComputeMaxStack();
-            }
 
             foreach (var i in k.Children)
             {
                 switch (i)
                 {
                     case FieldObject @a:
-                    { 
+                    {
                         var f = DeclareField(a, typedef);
                         _fieldsMap.Add(a, f);
-                    } break;
-                    
+                    }
+                        break;
+
                     case FunctionGroupObject @fg:
                     {
-                        foreach (var j in fg.Overloads)
+                        switch (fg.Name)
                         {
-                            var f = DeclareFunction(j, typedef);
-                            _functionsMap.Add(j, f);
+                            case ".ctor.":
+                                foreach (var j in fg.Overloads)
+                                {
+                                    var f = DeclareCtor(j, typedef);
+                                    _functionsMap.Add(j, f);
+                                }
+                                break;
+                            
+                            default:
+                                foreach (var j in fg.Overloads)
+                                {
+                                    var f = DeclareFunction(j, typedef);
+                                    _functionsMap.Add(j, f);
+                                }
+                                break;
                         }
-                    } break;
-                    
+                    }
+                        break;
+
                     default: throw new UnreachableException();
                 }
             }
+
         }
     }
 
@@ -357,6 +325,62 @@ public partial class Compiler
         }
     }
 
+    private FunctionData DeclareCtor(FunctionObject funcobj, TypeDefinition parent)
+    {
+        if (funcobj.DotnetImport != null)
+        {
+            TypeDefinition? baseType;
+            if (funcobj.DotnetImport.Value.AssemblyName == null && funcobj.DotnetImport.Value.ClassName == null)
+            {
+                baseType = parent;
+            }
+            else
+            {
+                var asmName = funcobj.DotnetImport.Value.AssemblyName;
+                var typeName = funcobj.DotnetImport.Value.ClassName;
+                var lastDot = typeName.LastIndexOf('.');
+            
+                var asmRef = SolveAssemblyReference(asmName!);
+                baseType = SolveTypeReference(asmRef, typeName[0..lastDot], typeName[(lastDot + 1)..]).Resolve()!;
+            }
+            
+            var returnType = TypeFromRef(funcobj.ReturnType);
+            var parameters = funcobj.Parameters.Select(e => TypeFromRef(e.Type)); 
+            var signature = funcobj.Static
+                ? MethodSignature.CreateStatic(returnType, parameters)
+                : MethodSignature.CreateInstance(returnType, parameters);
+            signature = _module.DefaultImporter.ImportMethodSignature(signature);
+
+            var baset = baseType;
+            var method = baset.CreateMemberReference(".ctor", signature);
+            IMethodDefOrRef? methoddef = _module.DefaultImporter.ImportMethod(method).Resolve();
+            methoddef = _module.DefaultImporter.ImportMethod(methoddef);
+            
+            return methoddef == null
+                ? throw new Exception($"Extern constructor reference could not be solved: {baseType.CreateMemberReference(".ctor", signature)}")
+                : new FunctionData(methoddef);
+        }
+
+        var nmsp = string.Join('.', funcobj.Global[0..^1]);
+        var name = ".ctor";
+
+        MethodAttributes attributes = MethodAttributes.HideBySig
+                                      | MethodAttributes.SpecialName
+                                      | MethodAttributes.RuntimeSpecialName;
+        if (funcobj.Public) attributes |= MethodAttributes.Public;
+        
+        var argTypes = funcobj.Parameters.Select(p => TypeFromRef(p.Type));
+        var argDefs = funcobj.Parameters
+            .Select((p, i) => new ParameterDefinition((ushort)(i + 1), p.Name, 0));
+
+        MethodSignature sig = MethodSignature.CreateInstance(TypeFromRef(funcobj.ReturnType), argTypes);
+        
+        var m = new MethodDefinition(name, attributes, sig);
+        foreach (var i in argDefs) m.ParameterDefinitions.Add(i);
+        parent.Methods.Add(m);
+        
+        return new FunctionData(m);
+    }
     private FunctionData DeclareFunction(FunctionObject funcobj, TypeDefinition parent)
     {
         if (funcobj.DotnetImport != null)
@@ -396,7 +420,7 @@ public partial class Compiler
         }
 
         var nmsp = string.Join('.', funcobj.Global[0..^1]);
-        var name = funcobj.Name;
+        var name = funcobj.Name == ".ctor." ? ".ctor" : funcobj.Name;
 
         MethodAttributes attributes = 0;
 
@@ -483,7 +507,6 @@ public partial class Compiler
         protected override AssemblyDefinition? ResolveImpl(AssemblyDescriptor assembly)
         {
             var path = ProbeRuntimeDirectories(assembly);
-            Console.WriteLine($"Resolving {assembly.Name} ({path})");
             return path == null ? null : LoadAssemblyFromFile(path);
         }
     }

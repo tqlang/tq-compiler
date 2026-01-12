@@ -9,6 +9,7 @@ public class SolvedTypedefNamedFieldReference(TypedefItemObject item) : TypeRefe
     public override Alignment Alignment => 0;
     
     public readonly TypedefItemObject Item = item;
+    public override TypeReference Type => new SolvedTypedefTypeReference((TypedefObject)Item.Parent);
     
     public override string ToString() => $"{string.Join('.', Item.Parent.Global)}.{Item.Name}";
 }

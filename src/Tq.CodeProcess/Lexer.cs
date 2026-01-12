@@ -51,6 +51,8 @@ public class Lexer
         { "extends", TokenType.ExtendsKeyword },
         { "packet", TokenType.PacketKeyword },
         { "typedef", TokenType.TypedefKeyword },
+        { "constructor", TokenType.ConstructorKeyword },
+        { "destructor", TokenType.DestructorKeyword },
 
         { "switch", TokenType.SwitchKeyword },
         { "match", TokenType.MatchKeyword },

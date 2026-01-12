@@ -1,5 +1,4 @@
 using System.Diagnostics;
-using Abstract.CodeProcess.Core.Language;
 using Abstract.CodeProcess.Core.Language.EvaluationData.LanguageObjects;
 using Abstract.CodeProcess.Core.Language.EvaluationData.LanguageReferences.AttributeReferences;
 using Abstract.CodeProcess.Core.Language.Module;
@@ -98,6 +97,8 @@ public partial class Analyzer
             StructureDeclarationNode @structnode => RegisterStructure(parent, structnode, imports),
             TypeDefinitionNode @typedefnode => RegisterTypedef(parent, typedefnode, imports),
             TopLevelVariableNode @fieldnode => RegisterField(parent, fieldnode, imports),
+            ConstructorDeclarationNode @ctor => RegisterCtor(parent, ctor, imports),
+            DestructorDeclarationNode @dtor => RegisterDtor(parent, dtor, imports),
             
             _ => throw new NotImplementedException()
         };
@@ -297,7 +298,47 @@ public partial class Analyzer
 
         return vari;
     }
+    private FunctionObject RegisterCtor(LangObject? parent, ConstructorDeclarationNode ctor, ImportObject imports)
+    {
+        string[] g = parent != null
+            ? [..parent.Global, ".ctor."]
+            : [".ctor."];
+        
+        FunctionGroupObject? funcg = null;
+        if (!_globalReferenceTable.TryGetValue(g, out var a))
+        {
+            funcg = new FunctionGroupObject(g, ".ctor.");
+            parent?.AppendChild(funcg);
+            _globalReferenceTable.Add(g, funcg);
+        }
+        var peepoop = funcg ?? (FunctionGroupObject)a!;
 
+        FunctionObject f = new(g, ".ctor.", ctor) { Imports = imports };
+        peepoop.AddOverload(f);
+        
+        return f;
+    }
+    private FunctionObject RegisterDtor(LangObject? parent, DestructorDeclarationNode dtor, ImportObject imports)
+    {
+        string[] g = parent != null
+            ? [..parent.Global, ".dtor."]
+            : [".dtor."];
+        
+        FunctionGroupObject? funcg = null;
+        if (!_globalReferenceTable.TryGetValue(g, out var a))
+        {
+            funcg = new FunctionGroupObject(g, ".dtor.");
+            parent?.AppendChild(funcg);
+            _globalReferenceTable.Add(g, funcg);
+        }
+        var peepoop = funcg ?? (FunctionGroupObject)a!;
+
+        FunctionObject f = new(g, ".dtor.", dtor) { Imports = imports };
+        peepoop.AddOverload(f);
+        
+        return f;
+    }
+    
     
     private void RegisterAlias(LangObject? parent, LangObject target, string alias)
     {

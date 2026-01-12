@@ -41,6 +41,8 @@ public enum TokenType : byte
     ExtendsKeyword,         // extends
     PacketKeyword,          // packet
     TypedefKeyword,         // typedef
+    ConstructorKeyword,     // constructor
+    DestructorKeyword,      // destructor
 
     SwitchKeyword,          // switch
     MatchKeyword,           // match

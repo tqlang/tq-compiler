@@ -13,6 +13,7 @@ using Abstract.CodeProcess.Core.Language.EvaluationData.LanguageReferences.TypeR
 using Abstract.CodeProcess.Core.Language.EvaluationData.LanguageReferences.TypeReferences.Builtin;
 using Abstract.CodeProcess.Core.Language.EvaluationData.LanguageReferences.TypeReferences.Builtin.Integer;
 using Abstract.CodeProcess.Core.Language.SyntaxNodes.Base;
+using Abstract.CodeProcess.Core.Language.SyntaxNodes.Control;
 using Abstract.CodeProcess.Core.Language.SyntaxNodes.Expression;
 using Abstract.CodeProcess.Core.Language.SyntaxNodes.Statement;
 using Abstract.CodeProcess.Core.Language.SyntaxNodes.Value;
@@ -122,6 +123,7 @@ public partial class Analyzer
                     ScanFunctionExecutionBody(funcobj);
                     foreach (var l in funcobj.Locals) l.Type = SolveTypeLazy(l.Type, null, funcobj);
                 } break;
+                
                 case FunctionGroupObject @funcgroup:
                 {
                     foreach (var i2 in funcgroup.Overloads)
@@ -148,7 +150,12 @@ public partial class Analyzer
     }
     private void ScanFunctionExecutionBody(FunctionObject function)
     {
-        var body = function.syntaxNode.GetFunctionBody();
+        var body = function.syntaxNode switch
+        {
+            FunctionDeclarationNode @fd => fd.GetFunctionBody(),
+            ConstructorDeclarationNode @cd => cd.Body,
+            DestructorDeclarationNode @dd => dd.Body,
+        };
         if (body == null) return;
 
         var ctx = new ExecutionContextData(function);

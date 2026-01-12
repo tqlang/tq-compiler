@@ -1,15 +1,35 @@
 
 @dotnetImport("System.Runtime", "System.IO.FileStream")
-struct Csharp_FileStream {
+struct CSharp_FileStream {
+
+	constructor(string path, CSharp_FileMode fileMode, CSharp_FileAccess fileAccess)
 
 	@dotnetImport @public func Flush() void
 	@dotnetImport @public func Flush(bool flushToDisk) void
-	@dotnetImport @public func Seek(i64 offset, Csharp_SeekOrigin origin) i64
+	@dotnetImport @public func Seek(i64 offset, CSharp_SeekOrigin origin) i64
+	@dotnetImport @public func Close() void
 }
 
 @dotnetImport("System.Runtime", "System.IO.SeekOrigin")
-typedef Csharp_SeekOrigin {
+typedef CSharp_SeekOrigin {
 	Begin,
 	Current,
 	End,
+}
+
+@dotnetImport("System.Runtime", "System.IO.FileMode")
+typedef CSharp_FileMode {
+	CreateNew,
+	Create,
+	Open,
+	OpenOrCreate,
+	Truncate,
+	Append,
+}
+
+@dotnetImport("System.Runtime", "System.IO.FileAccess")
+typedef CSharp_FileAccess {
+	Read,
+	Write,
+	ReadWrite,
 }

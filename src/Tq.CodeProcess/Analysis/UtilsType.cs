@@ -5,6 +5,7 @@ using Abstract.CodeProcess.Core.Language.EvaluationData.IntermediateTree.Values;
 using Abstract.CodeProcess.Core.Language.EvaluationData.LanguageReferences.CodeReferences;
 using Abstract.CodeProcess.Core.Language.EvaluationData.LanguageReferences.FieldReferences;
 using Abstract.CodeProcess.Core.Language.EvaluationData.LanguageReferences.FunctionReferences;
+using Abstract.CodeProcess.Core.Language.EvaluationData.LanguageReferences.TypedefReferences;
 using Abstract.CodeProcess.Core.Language.EvaluationData.LanguageReferences.TypeReferences;
 using Abstract.CodeProcess.Core.Language.EvaluationData.LanguageReferences.TypeReferences.Builtin;
 using Abstract.CodeProcess.Core.Language.EvaluationData.LanguageReferences.TypeReferences.Builtin.Integer;
@@ -26,6 +27,7 @@ public partial class Analyzer
             {
                 IntegerTypeReference @intt => intt,
                 SolvedStructTypeReference @structt => structt,
+                SolvedTypedefNamedFieldReference @tdff => tdff.Type,
                 SolvedFieldReference field => field.Field.Type,
                 SolvedFunctionReference @func => new FunctionTypeReference(
                     func.Function.ReturnType, func.Function.Parameters.Select(e => e.Type).ToArray()),
@@ -77,8 +79,7 @@ public partial class Analyzer
 
                     if (value.Length > 1 && value[0] is 'i' or 'u' && value[1..].All(char.IsNumber))
                         return new RuntimeIntegerTypeReference(value[0] == 'i', byte.Parse(value[1..]));
-
-
+                    
                     return new UnsolvedTypeReference(id);
 
                 case ArrayTypeModifierNode @ar:
@@ -280,11 +281,16 @@ public partial class Analyzer
                 return Suitability.None;
             
             case SolvedTypedefTypeReference @solvedTypedef:
+                // FIXME numbers are a little more complex inside typedefs
                 if (typeFrom is ComptimeIntegerTypeReference) return Suitability.Perfect;
-                if (typeFrom is not SolvedTypedefTypeReference @solvedTypedefarg) return Suitability.None;
-                return solvedTypedef.Typedef == solvedTypedefarg.Typedef ? Suitability.Perfect : Suitability.None;
+                if (typeFrom is RuntimeIntegerTypeReference) return Suitability.NeedsSoftCast;
+                
+                if (typeFrom is not SolvedTypedefTypeReference @solvedTypedefArg) return Suitability.None;
+                
+                return solvedTypedef.Typedef == solvedTypedefArg.Typedef ? Suitability.Perfect : Suitability.None;
+            
+            default: throw new UnreachableException();
         }
-        throw new UnreachableException();
     }
 
     private enum Suitability

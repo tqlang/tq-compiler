@@ -76,7 +76,9 @@ public class Parser(ErrorHandler errHandler)
                 node.AppendChild(EatAsNode()); // func
                 node.AppendChild(ParseSingleIdentifier()); // <identifier>
                 node.AppendChild(ParseParameterCollection()); // (..., ...)
-                node.AppendChild(ParseType()); // <type>
+                
+                if (!Taste(TokenType.LeftBracketChar))
+                    node.AppendChild(ParseType()); // <type>
                 
                 TryEndLine();
                 if (Taste(TokenType.LeftBracketChar))
@@ -189,10 +191,27 @@ public class Parser(ErrorHandler errHandler)
             } catch { DiscardLine(); throw; }
             break;
 
-            // TODO constructors and destructors
+            case TokenType.ConstructorKeyword:
+            case TokenType.DestructorKeyword:
+            try
+            {
+                node = Taste(TokenType.ConstructorKeyword)
+                    ? new ConstructorDeclarationNode()
+                    : new DestructorDeclarationNode();
+                
+                node.AppendChild(EatAsNode()); // constructor/destructor
+                node.AppendChild(ParseParameterCollection()); // (..., ...)
+                
+                TryEndLine();
+                if (Taste(TokenType.LeftBracketChar))
+                {
+                    node.AppendChild(ParseBlock((BlockNode n, ref bool _)
+                        => n.AppendChild(ParseFunctionBody()))); // {...}
+                }
+                break;
+            } catch { DiscardLine(); throw; }
 
-            default: throw new Exception(
-                $"Unexpected token {Bite()} at position {_tokens_cursor}");
+            default: throw new Exception($"Unexpected token {Bite()} at position {_tokens_cursor}");
         }
 
         TryEndLine();

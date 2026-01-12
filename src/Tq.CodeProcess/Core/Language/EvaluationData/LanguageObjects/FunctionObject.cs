@@ -3,12 +3,12 @@ using Abstract.CodeProcess.Core.Language.EvaluationData.IntermediateTree;
 using Abstract.CodeProcess.Core.Language.EvaluationData.LanguageObjects.Attributes;
 using Abstract.CodeProcess.Core.Language.EvaluationData.LanguageObjects.CodeObjects;
 using Abstract.CodeProcess.Core.Language.EvaluationData.LanguageObjects.Metadata;
-using Abstract.CodeProcess.Core.Language.SyntaxNodes.Control;
+using Abstract.CodeProcess.Core.Language.SyntaxNodes.Base;
 using TypeReference = Abstract.CodeProcess.Core.Language.EvaluationData.LanguageReferences.TypeReferences.TypeReference;
 
 namespace Abstract.CodeProcess.Core.Language.EvaluationData.LanguageObjects;
 
-public class FunctionObject(string[] g, string n, FunctionDeclarationNode synnode)
+public class FunctionObject(string[] g, string n, SyntaxNode synnode)
     : LangObject(g, n),
         IPublicModifier,
         IStaticModifier,
@@ -41,7 +41,7 @@ public class FunctionObject(string[] g, string n, FunctionDeclarationNode synnod
     public IRBlock? Body = null;
     
 
-    public readonly FunctionDeclarationNode syntaxNode = synnode;
+    public readonly SyntaxNode syntaxNode = synnode;
     private List<ParameterObject> _parameters = [];
     private List<LocalVariableObject> _locals = [];
 
@@ -82,7 +82,7 @@ public class FunctionObject(string[] g, string n, FunctionDeclarationNode synnod
         foreach (var p in _parameters) sb.AppendLine($"\t{p}");
         foreach (var l in _locals) sb.AppendLine($"\t{l}");
 
-        if (Body == null) sb.AppendLine("\t[Bodyless]");
+        if (Body == null) sb.AppendLine("\t[header_only]");
         else
         {
             var lines = Body.ToString().Split(Environment.NewLine);

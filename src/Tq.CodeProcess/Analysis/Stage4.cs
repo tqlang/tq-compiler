@@ -10,6 +10,7 @@ using Abstract.CodeProcess.Core.Language.EvaluationData.LanguageObjects;
 using Abstract.CodeProcess.Core.Language.EvaluationData.LanguageReferences;
 using Abstract.CodeProcess.Core.Language.EvaluationData.LanguageReferences.CodeReferences;
 using Abstract.CodeProcess.Core.Language.EvaluationData.LanguageReferences.FunctionReferences;
+using Abstract.CodeProcess.Core.Language.EvaluationData.LanguageReferences.TypedefReferences;
 using Abstract.CodeProcess.Core.Language.EvaluationData.LanguageReferences.TypeReferences;
 using Abstract.CodeProcess.Core.Language.EvaluationData.LanguageReferences.TypeReferences.Builtin;
 using Abstract.CodeProcess.Core.Language.EvaluationData.LanguageReferences.TypeReferences.Builtin.Integer;
@@ -185,12 +186,11 @@ public partial class Analyzer
     private IRReference NodeSemaAnal_Invoke_GetFunctionOverload(
         FunctionGroupObject group, IrExpression[] arguments, SyntaxNode origin)
     {
-        // Node is a function group and must be analysed to point
+        // Node is a function group and must be analyzed to point
         // to the correct or most optimal overload
 
         var overloads = group.Overloads;
         FunctionObject? betterFound = null;
-        var betterFoundInstance = false;
         var betterFoundSum = 0;
 
         var instanceableStruct = group.Parent is StructObject { Static: false };
@@ -222,19 +222,15 @@ public partial class Analyzer
             if (sum <= betterFoundSum) continue;
             betterFound = ov;
             betterFoundSum = sum;
-            betterFoundInstance = instanceFunc;
 
             NoSuitability: ;
         }
 
-        if (betterFound == null)
-            throw new Exception($"CompError: No overload that matches function call {origin}");
+        if (betterFound == null) throw new Exception($"CompError: No overload that matches function call {origin}");
         
-
-        for (var i = 0; i < arguments.Length; i++)
-            arguments[i] = SolveTypeCast(betterFound.Parameters[i].Type, arguments[i]);
-        
+        for (var i = 0; i < arguments.Length; i++) arguments[i] = SolveTypeCast(betterFound.Parameters[i].Type, arguments[i]);
         var newref = new IRSolvedReference(origin, new SolvedFunctionReference(betterFound));
+        
         return newref;
     }
     private IRNode NodeSemaAnal_Assign(IRAssign node, IrBlockExecutionContextData ctx)
@@ -538,11 +534,13 @@ public partial class Analyzer
     private IrExpression SolveAccessInExpression(SyntaxNode origin, IrExpression accessBase, IRUnknownReference accessMember)
     {
         var baseRef = ReferenceOf(accessBase);
+        var accessName = ((IdentifierNode)accessMember.Origin).Value;
         var typeref = baseRef.Type;
 
         return typeref switch
         {
             SliceTypeReference @sliceBuiltin => new IrLenOf(origin, accessBase),
+            SolvedTypedefTypeReference @solvedTypedef => new IRSolvedReference(origin, new SolvedTypedefNamedFieldReference((TypedefItemObject)solvedTypedef.Typedef.Children.First(e => e.Name == accessName))),
             _ => throw new UnreachableException(),
         };
     }

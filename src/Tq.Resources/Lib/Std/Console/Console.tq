@@ -31,7 +31,6 @@ func writeln(i128 value) void {
 func writeln(u128 value) void {
     Console_WriteLine(value as string)
 }
-
 func writeln(string value) void {
     Console_WriteLine(value)
 }

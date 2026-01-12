@@ -6,6 +6,7 @@ using Abstract.CodeProcess.Core.Language.EvaluationData.LanguageReferences.Attri
 using Abstract.CodeProcess.Core.Language.EvaluationData.LanguageReferences.TypeReferences;
 using Abstract.CodeProcess.Core.Language.EvaluationData.LanguageReferences.TypeReferences.Builtin;
 using Abstract.CodeProcess.Core.Language.SyntaxNodes.Base;
+using Abstract.CodeProcess.Core.Language.SyntaxNodes.Control;
 using Abstract.CodeProcess.Core.Language.SyntaxNodes.Expression;
 using Abstract.CodeProcess.Core.Language.SyntaxNodes.Misc;
 using Abstract.CodeProcess.Core.Language.SyntaxNodes.Value;
@@ -235,7 +236,17 @@ public partial class Analyzer
     private void UnwrapFunctionMeta(FunctionObject function)
     {
         var node = function.syntaxNode;
-        var paramc = node.ParameterCollection;
+        var paramc = node switch
+        {
+            FunctionDeclarationNode @fd => fd.ParameterCollection,
+            ConstructorDeclarationNode @cd => cd.ParameterCollection,
+            DestructorDeclarationNode @dd => dd.ParameterCollection,
+        };
+        var returnType = node switch
+        {
+            FunctionDeclarationNode @fd => fd.ReturnType,
+            _ => null
+        }; 
 
         foreach (var i in paramc.Items)
         {
@@ -249,9 +260,7 @@ public partial class Analyzer
             function.AddParameter(new ParameterObject(typeref, name));
         }
 
-        function.ReturnType = node.ReturnType == null
-            ? new VoidTypeReference()
-            : SolveShallowType(node.ReturnType);
+        function.ReturnType = returnType == null ? new VoidTypeReference() : SolveShallowType(returnType);
         
     }
     private void UnwrapStructureMeta(StructObject structure)

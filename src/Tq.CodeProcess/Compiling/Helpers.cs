@@ -96,6 +96,8 @@ public partial class Compiler
             case NoReturnTypeReference:
             case VoidTypeReference: return _corLibFactory.Void;
 
+            case AnytypeTypeReference: return _corLibFactory.Object;
+            
             case SolvedStructTypeReference @i: return _typesMap[i.Struct].ToTypeSignature();
             case SolvedTypedefTypeReference @t: return _enumsMap[t.Typedef].ToTypeSignature();
             
