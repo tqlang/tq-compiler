@@ -22,6 +22,8 @@ namespace Abstract.CodeProcess;
 public partial class Compiler
 {
     private Dictionary<NamespaceObject, TypeDefinition> _namespacesMap = [];
+    private Dictionary<ConstructorObject, FunctionData> _ctorMap = [];
+    private Dictionary<DestructorObject, FunctionData> _dtorMap = [];
     private Dictionary<FunctionObject, FunctionData> _functionsMap = [];
     private Dictionary<StructObject, StructData> _typesMap = [];
     private Dictionary<TypedefObject, EnumData> _enumsMap = [];
@@ -66,7 +68,7 @@ public partial class Compiler
         switch (obj)
         {
             case ModuleObject @a:
-                foreach (var i in a.Children) SearchRecursive(i);
+                foreach (var i in a.Namespaces) SearchRecursive(i);
                 break;
 
             case NamespaceObject @a:
@@ -85,7 +87,10 @@ public partial class Compiler
                 _module.TopLevelTypes.Add(moduledef);
                 _namespacesMap.Add(a, moduledef);
                 
-                foreach (var i in a.Children) SearchRecursive(i);
+                foreach (var i in a.Fields) SearchRecursive(i);
+                foreach (var i in a.Structs) SearchRecursive(i);
+                foreach (var i in a.Typedefs) SearchRecursive(i);
+                foreach (var i in a.Functions) SearchRecursive(i);
             } break;
 
             case FieldObject @a:
@@ -150,44 +155,31 @@ public partial class Compiler
                 typedef.Fields.Add(f);
             }
 
-            foreach (var i in k.Children)
+            foreach (var i in k.Fields)
             {
-                switch (i)
-                {
-                    case FieldObject @a:
-                    {
-                        var f = DeclareField(a, typedef);
-                        _fieldsMap.Add(a, f);
-                    }
-                        break;
-
-                    case FunctionGroupObject @fg:
-                    {
-                        switch (fg.Name)
-                        {
-                            case ".ctor.":
-                                foreach (var j in fg.Overloads)
-                                {
-                                    var f = DeclareCtor(j, typedef);
-                                    _functionsMap.Add(j, f);
-                                }
-                                break;
-                            
-                            default:
-                                foreach (var j in fg.Overloads)
-                                {
-                                    var f = DeclareFunction(j, typedef);
-                                    _functionsMap.Add(j, f);
-                                }
-                                break;
-                        }
-                    }
-                        break;
-
-                    default: throw new UnreachableException();
-                }
+                var f = DeclareField(i, typedef);
+                _fieldsMap.Add(i, f);
+            }
+            
+            foreach (var i in k.Constructors)
+            {
+                var f = DeclareCtor(i, typedef);
+                _ctorMap.Add(i, f);
+            }
+            
+            foreach (var i in k.Destructors)
+            {
+                // TODO
             }
 
+            foreach (var i in k.Functions)
+            {
+                foreach (var j in i.Overloads)
+                {
+                    var f = DeclareFunction(j, typedef);
+                    _functionsMap.Add(j, f);
+                }
+            }
         }
     }
 
@@ -271,7 +263,7 @@ public partial class Compiler
             
             var enumdata = new EnumData(typedef, valueField);
 
-            foreach (var value in typedefobj.Children.OfType<TypedefItemObject>())
+            foreach (var value in typedefobj.NamedValues)
             {
                 var f = typedef.Fields.FirstOrDefault(e => e.Name == value.Name);
                 if (f == null) throw new Exception("Extern enum member not found: " + value.Name);
@@ -305,11 +297,13 @@ public partial class Compiler
             var enumdata = new EnumData(enumType, valueField);
 
             ulong i = 0;
-            foreach (var value in typedefobj.Children.OfType<TypedefItemObject>())
+            foreach (var value in typedefobj.NamedValues)
             {
                 var itemField = new FieldDefinition(
                     value.Name,
-                    FieldAttributes.Public | FieldAttributes.Static | FieldAttributes.Literal
+                    FieldAttributes.Public
+                    | FieldAttributes.Static
+                    | FieldAttributes.Literal
                     | FieldAttributes.HasDefault,
                     enumType.ToTypeSignature()
                 );
@@ -325,35 +319,32 @@ public partial class Compiler
         }
     }
 
-    private FunctionData DeclareCtor(FunctionObject funcobj, TypeDefinition parent)
+    private FunctionData DeclareCtor(ConstructorObject ctorobj, TypeDefinition parent)
     {
-        if (funcobj.DotnetImport != null)
+        if (ctorobj.DotnetImport != null)
         {
             TypeDefinition? baseType;
-            if (funcobj.DotnetImport.Value.AssemblyName == null && funcobj.DotnetImport.Value.ClassName == null)
+            if (ctorobj.DotnetImport.Value.AssemblyName == null && ctorobj.DotnetImport.Value.ClassName == null)
             {
                 baseType = parent;
             }
             else
             {
-                var asmName = funcobj.DotnetImport.Value.AssemblyName;
-                var typeName = funcobj.DotnetImport.Value.ClassName;
+                var asmName = ctorobj.DotnetImport.Value.AssemblyName!;
+                var typeName = ctorobj.DotnetImport.Value.ClassName!;
                 var lastDot = typeName.LastIndexOf('.');
             
                 var asmRef = SolveAssemblyReference(asmName!);
                 baseType = SolveTypeReference(asmRef, typeName[0..lastDot], typeName[(lastDot + 1)..]).Resolve()!;
             }
             
-            var returnType = TypeFromRef(funcobj.ReturnType);
-            var parameters = funcobj.Parameters.Select(e => TypeFromRef(e.Type)); 
-            var signature = funcobj.Static
-                ? MethodSignature.CreateStatic(returnType, parameters)
-                : MethodSignature.CreateInstance(returnType, parameters);
+            var parameters = ctorobj.Parameters.Select(e => TypeFromRef(e.Type)); 
+            var signature = MethodSignature.CreateInstance(_corLibFactory.Void, parameters);
             signature = _module.DefaultImporter.ImportMethodSignature(signature);
 
             var baset = baseType;
             var method = baset.CreateMemberReference(".ctor", signature);
-            IMethodDefOrRef? methoddef = _module.DefaultImporter.ImportMethod(method).Resolve();
+            IMethodDefOrRef methoddef = _module.DefaultImporter.ImportMethod(method).Resolve()!;
             methoddef = _module.DefaultImporter.ImportMethod(methoddef);
             
             return methoddef == null
@@ -361,19 +352,18 @@ public partial class Compiler
                 : new FunctionData(methoddef);
         }
 
-        var nmsp = string.Join('.', funcobj.Global[0..^1]);
+        var nmsp = string.Join('.', ctorobj.Global[0..^1]);
         var name = ".ctor";
 
         MethodAttributes attributes = MethodAttributes.HideBySig
                                       | MethodAttributes.SpecialName
                                       | MethodAttributes.RuntimeSpecialName;
-        if (funcobj.Public) attributes |= MethodAttributes.Public;
         
-        var argTypes = funcobj.Parameters.Select(p => TypeFromRef(p.Type));
-        var argDefs = funcobj.Parameters
+        var argTypes = ctorobj.Parameters.Select(p => TypeFromRef(p.Type));
+        var argDefs = ctorobj.Parameters
             .Select((p, i) => new ParameterDefinition((ushort)(i + 1), p.Name, 0));
 
-        MethodSignature sig = MethodSignature.CreateInstance(TypeFromRef(funcobj.ReturnType), argTypes);
+        MethodSignature sig = MethodSignature.CreateInstance(_corLibFactory.Void, argTypes);
         
         var m = new MethodDefinition(name, attributes, sig);
         foreach (var i in argDefs) m.ParameterDefinitions.Add(i);
@@ -397,7 +387,7 @@ public partial class Compiler
                 var lastDot = typeName.LastIndexOf('.');
             
                 var asmRef = SolveAssemblyReference(asmName!);
-                baseType = SolveTypeReference(asmRef, typeName[0..lastDot], typeName[(lastDot + 1)..]).Resolve()!;
+                baseType = SolveTypeReference(asmRef, typeName[0..lastDot], typeName[(lastDot + 1)..]).Resolve() ?? throw new NullReferenceException();
             }
             
             var methodName = funcobj.DotnetImport.Value.MethodName;
@@ -411,7 +401,7 @@ public partial class Compiler
 
             var baset = baseType;
             var method = baset.CreateMemberReference(methodName, signature);
-            IMethodDefOrRef? methoddef = _module.DefaultImporter.ImportMethod(method).Resolve();
+            IMethodDefOrRef? methoddef = _module.DefaultImporter.ImportMethod(method).Resolve() ?? throw new NullReferenceException();
             methoddef = _module.DefaultImporter.ImportMethod(methoddef);
             
             return methoddef == null

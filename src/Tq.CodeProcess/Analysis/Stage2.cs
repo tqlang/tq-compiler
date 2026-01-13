@@ -6,7 +6,6 @@ using Abstract.CodeProcess.Core.Language.EvaluationData.LanguageReferences.Attri
 using Abstract.CodeProcess.Core.Language.EvaluationData.LanguageReferences.TypeReferences;
 using Abstract.CodeProcess.Core.Language.EvaluationData.LanguageReferences.TypeReferences.Builtin;
 using Abstract.CodeProcess.Core.Language.SyntaxNodes.Base;
-using Abstract.CodeProcess.Core.Language.SyntaxNodes.Control;
 using Abstract.CodeProcess.Core.Language.SyntaxNodes.Expression;
 using Abstract.CodeProcess.Core.Language.SyntaxNodes.Misc;
 using Abstract.CodeProcess.Core.Language.SyntaxNodes.Value;
@@ -31,10 +30,7 @@ public partial class Analyzer
             var langObj = reference.Value;
 
             if (langObj is FunctionGroupObject @funcg)
-            {
-                foreach (var o in funcg.Overloads)
-                    ProcessHeader(o);
-            }
+                foreach (var o in funcg.Overloads) ProcessHeader(o);
             else ProcessHeader(langObj);
         }
     }
@@ -44,13 +40,20 @@ public partial class Analyzer
         {
             case FunctionObject @a: UnwrapFunctionMeta(a); break;
             case StructObject @a: UnwrapStructureMeta(a); break;
+            case FieldObject @a: UnwrapFieldMeta(a); break;
+            case ConstructorObject @a: UnwrapCtorMeta(a); break;
+            case DestructorObject @a: UnwrapDtorMeta(a); break;
         }
         
         // Handling quick inheritance
-        if (reference is IStaticModifier @refStatic and not StructObject
-            && reference.Parent is IStaticModifier @parentStatic)
+        if (reference is IStaticModifier @refStatic and not StructObject)
         {
-            refStatic.Static = parentStatic.Static;
+            refStatic.Static = reference.Parent switch
+            {
+                ModuleObject or NamespaceObject => true,
+                IStaticModifier @parentStatic => parentStatic.Static,
+                _ => refStatic.Static
+            };
         }
         
         // Handling builtin attributes
@@ -71,24 +74,6 @@ public partial class Analyzer
                 case BuiltinAttributes.Override: if (reference is IOverrideAttribute @o) o.Override = true; break;
                 case BuiltinAttributes.ConstExp: if (reference is FunctionObject @c) c.ConstExp = true; break;
                 
-                case BuiltinAttributes.DefineGlobal:
-                {
-                    var node = builtInAttribute.syntaxNode;
-                    // attribute node structure:
-                    // <@/> <identifier/> <(> <args.../> <)/>
-                    
-                    if (node.Children.Length != 3) throw new Exception("'DefineGlobal' expected 1+ arguments");
-                    var args = (node.Children[2] as ArgumentCollectionNode)!.Arguments;
-                    
-                    for (var argi = 0; argi < args.Length; argi++)
-                    {
-                        if (args[argi] is not StringLiteralNode @strlit)
-                            throw new Exception($"'DefineGlobal' expected argument {argi} as ComptimeString");
-                        
-                        RegisterAlias(null, reference, strlit.RawContent);
-                    }
-                } break;
-
                 case BuiltinAttributes.Extern:
                 {
                     var node = builtInAttribute.syntaxNode;
@@ -236,17 +221,8 @@ public partial class Analyzer
     private void UnwrapFunctionMeta(FunctionObject function)
     {
         var node = function.syntaxNode;
-        var paramc = node switch
-        {
-            FunctionDeclarationNode @fd => fd.ParameterCollection,
-            ConstructorDeclarationNode @cd => cd.ParameterCollection,
-            DestructorDeclarationNode @dd => dd.ParameterCollection,
-        };
-        var returnType = node switch
-        {
-            FunctionDeclarationNode @fd => fd.ReturnType,
-            _ => null
-        }; 
+        var paramc = node.ParameterCollection;
+        var returnType = node.ReturnType;
 
         foreach (var i in paramc.Items)
         {
@@ -265,7 +241,7 @@ public partial class Analyzer
     }
     private void UnwrapStructureMeta(StructObject structure)
     {
-        var node = structure.syntaxNode;
+        var node = structure.SyntaxNode;
 
         if (node.Children.Length == 4)
         {
@@ -287,6 +263,19 @@ public partial class Analyzer
 
             structure.Extends = extendsVal == null ? null : new UnsolvedTypeReference(extendsVal);
         }
+        
+    }
+    private void UnwrapFieldMeta(FieldObject field)
+    {
+        var node = field.SyntaxNode;
+        field.Type = SolveShallowType(node.Type);
+    }
+    private void UnwrapCtorMeta(ConstructorObject ctor)
+    {
+        
+    }
+    private void UnwrapDtorMeta(DestructorObject dtor)
+    {
         
     }
 }

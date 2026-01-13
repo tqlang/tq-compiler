@@ -27,7 +27,7 @@ public partial class Analyzer
             {
                 IntegerTypeReference @intt => intt,
                 SolvedStructTypeReference @structt => structt,
-                SolvedTypedefNamedFieldReference @tdff => tdff.Type,
+                SolvedTypedefNamedValueReference @tdff => tdff.Type,
                 SolvedFieldReference field => field.Field.Type,
                 SolvedFunctionReference @func => new FunctionTypeReference(
                     func.Function.ReturnType, func.Function.Parameters.Select(e => e.Type).ToArray()),

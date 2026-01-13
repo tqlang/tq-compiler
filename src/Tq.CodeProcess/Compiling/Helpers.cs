@@ -148,10 +148,10 @@ public partial class Compiler
         public readonly TypeDefinition Def = typedef.Resolve() ?? throw new ArgumentNullException();
         
         public readonly FieldDefinition Field = valueField;
-        public Dictionary<TypedefItemObject, FieldDefinition> Items = [];
+        public Dictionary<TypedefNamedValue, FieldDefinition> Items = [];
         
         public TypeSignature ToTypeSignature() => Type.ToTypeSignature();
-        public FieldDefinition GetItem(TypedefItemObject item) => Items[item];
+        public FieldDefinition GetItem(TypedefNamedValue namedValue) => Items[namedValue];
     }
     private class FunctionData(IMethodDefOrRef methoddef)
     {

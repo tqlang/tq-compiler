@@ -157,9 +157,9 @@ public partial class Compiler
                         ctx.StackPush(_fieldsMap[fr.Field].Signature!.FieldType);
                     } break;
 
-                    case SolvedTypedefNamedFieldReference @tn:
+                    case SolvedTypedefNamedValueReference @tn:
                     {
-                        var item = tn.Item;
+                        var item = tn.NamedValue;
                         var typedef = (TypedefObject)item.Parent;
                         
                         var enumdata = _enumsMap[typedef];

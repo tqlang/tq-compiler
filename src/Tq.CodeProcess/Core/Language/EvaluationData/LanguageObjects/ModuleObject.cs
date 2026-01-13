@@ -1,23 +1,23 @@
 using System.Text;
-using Abstract.CodeProcess.Core.Language.EvaluationData.LanguageObjects.Attributes;
+using Abstract.CodeProcess.Core.Language.EvaluationData.LanguageObjects.Containers;
 
 namespace Abstract.CodeProcess.Core.Language.EvaluationData.LanguageObjects;
 
-public class ModuleObject(string n) : LangObject([n], n), IStaticModifier {
+public class ModuleObject(string n) : LangObject(n),
+    INamespaceContainer
+{
     
-    public bool Static { get => true; set {} }
+    public List<NamespaceObject> Namespaces { get; } = [];
 
     public override string ToString()
     {
         var sb = new StringBuilder();
-        sb.AppendLine($"Module '{Name}':");
+        sb.AppendLine($"module {Name} {{");
         
-        foreach (var c in Children)
-        {
-            var lines = c.ToString()!.Split(Environment.NewLine);
-            foreach (var l in lines) sb.AppendLine($"\t{l}");
-        }
+        foreach (var i in Namespaces) sb.AppendLine(i.ToString().TabAll());
         
+        sb.AppendLine("}");
         return sb.ToString();
     }
+    public override string ToSignature() => $"module {Name}";
 }

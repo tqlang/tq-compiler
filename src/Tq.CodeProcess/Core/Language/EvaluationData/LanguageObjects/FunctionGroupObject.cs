@@ -2,29 +2,17 @@ using System.Text;
 
 namespace Abstract.CodeProcess.Core.Language.EvaluationData.LanguageObjects;
 
-public class FunctionGroupObject(string[] g, string n): LangObject(g, n)
+public class FunctionGroupObject(string n): LangObject(n)
 {
-    private List<FunctionObject> _overloads = [];
-    public FunctionObject[] Overloads => [.. _overloads];
-
-    public void AddOverload(FunctionObject overload)
-    {
-        _overloads.Add(overload);
-        overload.Parent = Parent;
-    }
+    public readonly List<FunctionObject> Overloads = [];
     
     public override string ToString()
     {
         var sb = new StringBuilder();
-        
-        sb.AppendLine($"FunctionGroup '{Name}' ('{string.Join('.', Global)}') ");
-
-        foreach (var i in Overloads)
-        {
-            var lines = i.ToString().Split(Environment.NewLine);
-            foreach (var l in lines) sb.AppendLine($"\t{l}");
-        }
-        
+        sb.AppendLine($"; funcgroup {Name}");
+        foreach (var i in Overloads) sb.AppendLine(i.ToString());
         return sb.ToString();
     }
+
+    public override string ToSignature() => $"funcgroup {Name}";
 }

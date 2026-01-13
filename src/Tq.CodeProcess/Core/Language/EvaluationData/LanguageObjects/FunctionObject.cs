@@ -3,13 +3,12 @@ using Abstract.CodeProcess.Core.Language.EvaluationData.IntermediateTree;
 using Abstract.CodeProcess.Core.Language.EvaluationData.LanguageObjects.Attributes;
 using Abstract.CodeProcess.Core.Language.EvaluationData.LanguageObjects.CodeObjects;
 using Abstract.CodeProcess.Core.Language.EvaluationData.LanguageObjects.Metadata;
-using Abstract.CodeProcess.Core.Language.SyntaxNodes.Base;
+using Abstract.CodeProcess.Core.Language.SyntaxNodes.Control;
 using TypeReference = Abstract.CodeProcess.Core.Language.EvaluationData.LanguageReferences.TypeReferences.TypeReference;
 
 namespace Abstract.CodeProcess.Core.Language.EvaluationData.LanguageObjects;
 
-public class FunctionObject(string[] g, string n, SyntaxNode synnode)
-    : LangObject(g, n),
+public class FunctionObject(string n, FunctionDeclarationNode synnode) : LangObject(n),
         IPublicModifier,
         IStaticModifier,
         IInternalModifier,
@@ -19,8 +18,7 @@ public class FunctionObject(string[] g, string n, SyntaxNode synnode)
         IExternModifier,
         IExportModifier,
         IDotnetImportMethodModifier,
-        IParametrizable,
-        IFormattable
+        IParametrizable
 {
     public bool Public { get; set; } = false;
     public bool Static { get; set; } = false;
@@ -41,7 +39,7 @@ public class FunctionObject(string[] g, string n, SyntaxNode synnode)
     public IRBlock? Body = null;
     
 
-    public readonly SyntaxNode syntaxNode = synnode;
+    public readonly FunctionDeclarationNode syntaxNode = synnode;
     private List<ParameterObject> _parameters = [];
     private List<LocalVariableObject> _locals = [];
 
@@ -77,24 +75,17 @@ public class FunctionObject(string[] g, string n, SyntaxNode synnode)
         if (Extern == null) sb.Append($"extern(\"{Extern}\") ");
         if (Generic) sb.Append("generic ");
 
-        sb.AppendLine($"Function {Name} -> {ReturnType}:");
-
-        foreach (var p in _parameters) sb.AppendLine($"\t{p}");
-        foreach (var l in _locals) sb.AppendLine($"\t{l}");
-
-        if (Body == null) sb.AppendLine("\t[header_only]");
-        else
+        sb.Append($"func {Name}({string.Join(", ", _parameters.Select(e => e.Type))}) {ReturnType}");
+        if (Body != null)
         {
-            var lines = Body.ToString().Split(Environment.NewLine);
-            foreach (var l in lines) sb.AppendLine($"\t{l}");
+            sb.AppendLine(" {");
+            foreach (var l in _locals) sb.AppendLine($"\t{l}");
+            sb.AppendLine(Body.ToString().TabAll());
+            sb.AppendLine("}");
         }
+        else sb.AppendLine();
         
         return sb.ToString();
     }
-    public string ToSignatureString() => $"{ReturnType} {Name} ({string.Join(", ", Parameters.Select(e => e.Type))})";
-    public string ToString(string? format, IFormatProvider? formatProvider) =>format switch
-        {
-            "sig" => ToSignatureString(),
-            _ => ToString()
-        };
+    public override string ToSignature() => $"{Name}({string.Join(", ", Parameters.Select(e => e.Type))}) {ReturnType}";
 }

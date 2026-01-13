@@ -1,14 +1,12 @@
 using System.Text;
 using Abstract.CodeProcess.Core.Language.EvaluationData.IntermediateTree;
-using Abstract.CodeProcess.Core.Language.EvaluationData.IntermediateTree.Expressions;
 using Abstract.CodeProcess.Core.Language.EvaluationData.LanguageObjects.Attributes;
 using Abstract.CodeProcess.Core.Language.EvaluationData.LanguageReferences.TypeReferences;
 using Abstract.CodeProcess.Core.Language.SyntaxNodes.Control;
 
 namespace Abstract.CodeProcess.Core.Language.EvaluationData.LanguageObjects;
 
-public class FieldObject(string[] g, string n, TopLevelVariableNode synnode, TypeReference t)
-    : LangObject(g, n),
+public class FieldObject(string n, TopLevelVariableNode synNode, TypeReference t) : LangObject(n),
         IPublicModifier,
         IStaticModifier,
         IInternalModifier,
@@ -22,7 +20,7 @@ public class FieldObject(string[] g, string n, TopLevelVariableNode synnode, Typ
     
     public TypeReference Type { get; set; } = t;
     
-    public readonly TopLevelVariableNode syntaxNode = synnode;
+    public readonly TopLevelVariableNode SyntaxNode = synNode;
 
     public Alignment? Offset { get; set; }
     public Alignment Length => Type.Length;
@@ -40,8 +38,8 @@ public class FieldObject(string[] g, string n, TopLevelVariableNode synnode, Typ
         if (Internal) sb.Append("internal ");
         sb.Append(Abstract ? "abstract " : "concrete ");
 
-        sb.Append(Constant ? "Constant " : "Variable ");
-        sb.AppendLine($"'{Name}' ('{string.Join('.', Global)}') : {Type}");
+        sb.Append(Constant ? "const " : "var ");
+        sb.AppendLine($"'{Name}' {Type:sig}");
 
         if (Value != null)
         {
@@ -50,4 +48,6 @@ public class FieldObject(string[] g, string n, TopLevelVariableNode synnode, Typ
         
         return sb.ToString();
     }
+
+    public override string ToSignature() => $"field {Type:sig} {Name}";
 }

@@ -1,19 +1,26 @@
-using System.Runtime.CompilerServices;
 using Abstract.CodeProcess.Core.Language.EvaluationData.LanguageReferences.AttributeReferences;
-using Abstract.CodeProcess.Core.Language.SyntaxNodes.Control;
 
 namespace Abstract.CodeProcess.Core.Language.EvaluationData.LanguageObjects;
 
-public abstract class LangObject(string[] global, string name)
+public abstract class LangObject(string name) : IFormattable
 {
     private readonly List<AttributeReference> _attributes = [];
-    private LangObject _parent = null!;
-    private readonly List<LangObject> _children = [];
- 
-    public readonly string[] Global = global;
-    public readonly string Name = name;
-    public LangObject Parent { get =>_parent; set => _parent = value; }
+    private LangObject? _parent = null!;
 
+    public string[] Global => string.IsNullOrEmpty(Name) ? [.._parent?.Global ?? []] : [.._parent?.Global ?? [], Name];
+
+    public readonly string Name = name;
+    public LangObject Parent { get =>_parent!; set => _parent = value; }
+
+    public ContainerObject? Container
+    {
+        get
+        {
+            if (_parent == null) return null;
+            if (_parent is ContainerObject @container) return @container;
+            return _parent.Container;
+        }
+    }
     public NamespaceObject? Namespace
     {
         get
@@ -34,18 +41,21 @@ public abstract class LangObject(string[] global, string name)
     }
     public ImportObject? Imports = null;
     
-    public LangObject[] Children => [.. _children];
     public AttributeReference[] Attributes => [.. _attributes];
     
     public void AppendAttributes(params AttributeReference[] attrs) => _attributes.AddRange(attrs);
 
-    public void AppendChild(LangObject child)
+    public virtual LangObject? SearchChild(string name) => null;
+    
+    public string ToString(string? format, IFormatProvider? formatProvider)
     {
-        _children.Add(child);
-        child._parent = this;
+        return format switch
+        {
+            "sig" => ToSignature(),
+            _ => ToString(),
+        };
     }
-
-
     public abstract override string ToString();
+    public abstract string ToSignature();
 }
 

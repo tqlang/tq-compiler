@@ -10,7 +10,6 @@ using Abstract.CodeProcess.Core.Language.EvaluationData.LanguageObjects;
 using Abstract.CodeProcess.Core.Language.EvaluationData.LanguageReferences;
 using Abstract.CodeProcess.Core.Language.EvaluationData.LanguageReferences.CodeReferences;
 using Abstract.CodeProcess.Core.Language.EvaluationData.LanguageReferences.FunctionReferences;
-using Abstract.CodeProcess.Core.Language.EvaluationData.LanguageReferences.TypedefReferences;
 using Abstract.CodeProcess.Core.Language.EvaluationData.LanguageReferences.TypeReferences;
 using Abstract.CodeProcess.Core.Language.EvaluationData.LanguageReferences.TypeReferences.Builtin;
 using Abstract.CodeProcess.Core.Language.EvaluationData.LanguageReferences.TypeReferences.Builtin.Integer;
@@ -106,16 +105,12 @@ public partial class Analyzer
 
     private void StructureSemaAnal(StructObject structure)
     {
-        uint currentOffset = 0;
-        foreach (var i in structure.Children.OfType<FieldObject>())
-        {
-            FieldSemaAnal(i);
-        }
+        foreach (var i in structure.Fields) FieldSemaAnal(i);
     }
     private void FieldSemaAnal(FieldObject field)
     {
         if (IsSolved(field.Type)) return;
-        field.Type = SolveTypeLazy2(field.Type, null, field);
+        field.Type = SolveTypeLazy2(field.Type, null, field.Container);
     }
 
     
@@ -540,7 +535,11 @@ public partial class Analyzer
         return typeref switch
         {
             SliceTypeReference @sliceBuiltin => new IrLenOf(origin, accessBase),
-            SolvedTypedefTypeReference @solvedTypedef => new IRSolvedReference(origin, new SolvedTypedefNamedFieldReference((TypedefItemObject)solvedTypedef.Typedef.Children.First(e => e.Name == accessName))),
+            
+            SolvedTypedefTypeReference @solvedTypedef => solvedTypedef.Typedef.SearchChild(accessName) is {} @refe
+                ? new IRSolvedReference(origin, GetObjectReference(refe))
+                : new IRUnknownReference(origin),
+            
             _ => throw new UnreachableException(),
         };
     }
@@ -549,7 +548,7 @@ public partial class Analyzer
         var syntaxNode = node.Origin;
         if (ctx == null && parent == null) throw new UnreachableException();
         if (parent == null && ctx != null) parent = ctx.Parent;
-
+        
         switch (syntaxNode)
         {
             case IdentifierNode @idnode:
@@ -566,7 +565,7 @@ public partial class Analyzer
                 var curr = parent;
                 while (curr != null && curr is not NamespaceObject)
                 {
-                    var r3 = curr.Children.FirstOrDefault(e => e.Name == idnode.Value);
+                    var r3 = curr.SearchChild(idnode.Value);
                     if (r3 != null) return new IRSolvedReference(syntaxNode, GetObjectReference(r3));
                     curr = curr.Parent;
                 }
@@ -577,18 +576,18 @@ public partial class Analyzer
                     LangObject? curr2 = ((SolvedStructTypeReference)structObject.Extends).Struct;
                     while (curr2 != null && curr2 is not NamespaceObject)
                     {
-                        var r3 = curr2.Children.FirstOrDefault(e => e.Name == idnode.Value);
+                        var r3 = curr2.SearchChild(idnode.Value);
                         if (r3 != null) return new IRSolvedReference(syntaxNode, GetObjectReference(r3));
                         curr2 = curr2.Parent;
                     }
                 }
 
                 // Search inside namespace
-                var r4 = parent.Namespace.Children.FirstOrDefault(e => e.Name == idnode.Value);
+                var r4 = parent?.Namespace?.SearchChild(idnode.Value);
                 if (r4 != null) return new IRSolvedReference(syntaxNode, GetObjectReference(r4));
 
                 // Search inside imports
-                var r5 = parent.Imports?.References.FirstOrDefault(e => e.Name == idnode.Value);
+                var r5 = parent?.Imports?.References.FirstOrDefault(e => e.Name == idnode.Value);
                 if (r5 != null) return new IRSolvedReference(syntaxNode, GetObjectReference(r5));
                 
                 // Search global references

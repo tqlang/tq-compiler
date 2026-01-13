@@ -22,7 +22,7 @@ public partial class Analyzer
             TypedefObject @t => new SolvedTypedefTypeReference(t),
             
             FieldObject @v => new SolvedFieldReference(v),
-            TypedefItemObject @i => new SolvedTypedefNamedFieldReference(i),
+            TypedefNamedValue @i => new SolvedTypedefNamedValueReference(i),
 
             NamespaceObject @n => new NamespaceReference(n),
             
@@ -46,17 +46,5 @@ public partial class Analyzer
             }
         }
     }
-
-    private IEnumerable<FunctionObject> EnumerateFunctions(IEnumerable<LangObject> list)
-    {
-        foreach (var i in list)
-        {
-            switch (i)
-            {
-                case FunctionObject f: yield return f; break;
-                case FunctionGroupObject g: foreach (var inner in g.Overloads) yield return inner; break;
-            }
-        }
-    }
-
+    
 }

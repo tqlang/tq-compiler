@@ -6,7 +6,6 @@ public enum BuiltinAttributes
         
     // General
     Static,
-    DefineGlobal,
     Align,
     ConstExp,
         

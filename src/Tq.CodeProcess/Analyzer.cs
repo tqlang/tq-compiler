@@ -1,6 +1,5 @@
 using System.Text;
 using Abstract.CodeProcess.Core;
-using Abstract.CodeProcess.Core.Language;
 using Abstract.CodeProcess.Core.Language.EvaluationData;
 using Abstract.CodeProcess.Core.Language.EvaluationData.LanguageObjects;
 using Abstract.CodeProcess.Core.Language.EvaluationData.LanguageReferences.AttributeReferences;
@@ -66,11 +65,9 @@ public partial class Analyzer(ErrorHandler handler)
                 FunctionGroupObject => "FnGp",
                 FunctionObject => "Func",
                 StructObject => "Type",
-                PacketObject => "Pack",
                 TypedefObject => "TDef",
-                TypedefItemObject => "DefV",
+                TypedefNamedValue => "DefN",
                 FieldObject @fld => fld.Static ? "SFld" : "LFld",
-                AliasedObject => "Alia",
                 _ => throw new NotImplementedException()
             };
             sb.AppendLine($"{kind}\t{string.Join('.', i.Key)}");

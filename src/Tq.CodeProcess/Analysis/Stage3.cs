@@ -13,7 +13,6 @@ using Abstract.CodeProcess.Core.Language.EvaluationData.LanguageReferences.TypeR
 using Abstract.CodeProcess.Core.Language.EvaluationData.LanguageReferences.TypeReferences.Builtin;
 using Abstract.CodeProcess.Core.Language.EvaluationData.LanguageReferences.TypeReferences.Builtin.Integer;
 using Abstract.CodeProcess.Core.Language.SyntaxNodes.Base;
-using Abstract.CodeProcess.Core.Language.SyntaxNodes.Control;
 using Abstract.CodeProcess.Core.Language.SyntaxNodes.Expression;
 using Abstract.CodeProcess.Core.Language.SyntaxNodes.Statement;
 using Abstract.CodeProcess.Core.Language.SyntaxNodes.Value;
@@ -52,7 +51,7 @@ public partial class Analyzer
         {
             if (i.Extends == null) continue;
             i.Extends = SolveTypeLazy(i.Extends, null, i);
-            if (i.Extends is UnsolvedTypeReference) throw new Exception($"Cannot solve type {i.syntaxNode:pos}");
+            if (i.Extends is UnsolvedTypeReference) throw new Exception($"Cannot solve type {i.SyntaxNode:pos}");
             if (i.Extends is not SolvedStructTypeReference) throw new Exception("Non-struct types cannot be inherited");
             if (i.Extends is SolvedStructTypeReference { Struct.Static: true }) throw new Exception("Cannot extends static type");
             Console.WriteLine(i.Extends);
@@ -74,7 +73,10 @@ public partial class Analyzer
                     var refe = _globalReferenceTable[raw[..^1]];
                     if (refe is not NamespaceObject @namespaceObject) throw new Exception("Not a namespace");
                     
-                    foreach (var i in namespaceObject.Children) a.References.Add(i);
+                    foreach (var i in namespaceObject.Fields) a.References.Add(i);
+                    foreach (var i in namespaceObject.Structs) a.References.Add(i);
+                    foreach (var i in namespaceObject.Typedefs) a.References.Add(i);
+                    foreach (var i in namespaceObject.Functions) a.References.Add(i);
                 }
                 else
                 {
@@ -86,30 +88,18 @@ public partial class Analyzer
     }
     private void ScanStructureMeta(StructObject structure)
     {
-        
-        foreach (var i in structure.Children)
+        foreach (var i in structure.Fields)
         {
-            switch (i)
-            {
-                case FieldObject field:
-                    if (!IsSolved(field.Type)) field.Type = SolveTypeLazy(field.Type, null, structure);
-                    break;
-                
-                case FunctionGroupObject group:
-                case FunctionObject function:
-                    break; // Not handled here!
-
-                default: throw new UnreachableException();
-            }
+            if (!IsSolved(i.Type)) i.Type = SolveTypeLazy(i.Type, null, structure);
         }
     }
     private void ScanFunctionMeta(FunctionObject function)
     {
         foreach (var t in function.Parameters)
-            if (!IsSolved(t.Type)) t.Type = SolveTypeLazy(t.Type, null, function);
+            if (!IsSolved(t.Type)) t.Type = SolveTypeLazy(t.Type, null, function.Container);
         
         if (!IsSolved(function.ReturnType))
-            function.ReturnType = SolveTypeLazy(function.ReturnType, null, function);
+            function.ReturnType = SolveTypeLazy(function.ReturnType, null, function.Container);
     }
     
     private void ScanObjectBodies()
@@ -141,7 +131,7 @@ public partial class Analyzer
 
     private void ScanFieldValueBody(FieldObject field)
     {
-        var nodes = field.syntaxNode.Children;
+        var nodes = field.SyntaxNode.Children;
 
         if (nodes is not [_, _, TokenNode { Token.type: TokenType.EqualsChar }, ExpressionNode @value]) return;
         
@@ -150,12 +140,7 @@ public partial class Analyzer
     }
     private void ScanFunctionExecutionBody(FunctionObject function)
     {
-        var body = function.syntaxNode switch
-        {
-            FunctionDeclarationNode @fd => fd.GetFunctionBody(),
-            ConstructorDeclarationNode @cd => cd.Body,
-            DestructorDeclarationNode @dd => dd.Body,
-        };
+        var body = function.syntaxNode.GetFunctionBody();
         if (body == null) return;
 
         var ctx = new ExecutionContextData(function);
@@ -534,7 +519,7 @@ public partial class Analyzer
         // was already scanned!
         
         var parent = (structure.Extends as SolvedStructTypeReference)?.Struct;
-        var virtualCount = EnumerateFunctions(structure.Children).Count(e => e.Abstract || e.Virtual);
+        var virtualCount = structure.Functions.SelectMany(e => e.Overloads).Count(e => e.Abstract || e.Virtual);
         virtualCount += parent?.VirtualTable?.Length ?? 0;
 
         structure.VirtualTable = new (FunctionObject, FunctionObject?, bool)[virtualCount];
@@ -547,7 +532,7 @@ public partial class Analyzer
         var virtualStartAt = parent?.VirtualTable?.Length ?? 0;
 
         uint i = 0;
-        foreach (var func in EnumerateFunctions(structure.Children))
+        foreach (var func in structure.Functions.SelectMany(e => e.Overloads))
         {
             // Checking if it is virtual, so a new entries
             // Should be allocated in the vtable
@@ -567,7 +552,7 @@ public partial class Analyzer
         Alignment bestAlignment = parent != null ? parent.Alignment!.Value : 0;
 
         // Sorting the fields by alignment order
-        var fields = structure.Children.OfType<FieldObject>().ToArray();
+        var fields = structure.Fields.ToArray();
         fields.Sort((a, b) => b.Alignment.Bits - a.Alignment.Bits);
         
         foreach (var field in fields)
@@ -629,21 +614,21 @@ public partial class Analyzer
         };
     }
     
-    private TypeReference SolveTypeLazy(TypeReference typeref, ExecutionContextData? ctx, LangObject? obj)
+    private TypeReference SolveTypeLazy(TypeReference typeRef, ExecutionContextData? ctx, LangObject? scope)
     {
-        switch (typeref)
+        switch (typeRef)
         {
             case ReferenceTypeReference @r:
-                r.InternalType = SolveTypeLazy(r.InternalType, ctx, obj);
+                r.InternalType = SolveTypeLazy(r.InternalType, ctx, scope);
                 return r;
             
         }
         
-        var trySolveShallow = SolveShallowType(((UnsolvedTypeReference)typeref).syntaxNode);
+        var trySolveShallow = SolveShallowType(((UnsolvedTypeReference)typeRef).syntaxNode);
         if (trySolveShallow is not UnsolvedTypeReference @unsolv) return trySolveShallow;
         
         var syntaxNode = unsolv.syntaxNode;
-        var parent = obj;
+        var parent = scope;
         LangObject langObj;
 
         switch (syntaxNode)
@@ -654,7 +639,7 @@ public partial class Analyzer
                 var curr = parent;
                 while (curr != null && curr is not NamespaceObject)
                 {
-                    var r3 = curr.Children.FirstOrDefault(e => e.Name == idnode.Value);
+                    var r3 = curr.SearchChild(idnode.Value);
                     if (r3 != null) return (TypeReference)GetObjectReference(r3);
                     curr = curr.Parent;
                 }
@@ -665,14 +650,14 @@ public partial class Analyzer
                     LangObject? curr2 = ((SolvedStructTypeReference)structObject.Extends).Struct;
                     while (curr2 != null && curr2 is not NamespaceObject)
                     {
-                        var r3 = curr2.Children.FirstOrDefault(e => e.Name == idnode.Value);
+                        var r3 = curr2.SearchChild(idnode.Value);
                         if (r3 != null) return (TypeReference)GetObjectReference(r3);
                         curr2 = curr2.Parent;
                     }
                 }
 
                 // Search inside namespace
-                var r4 = parent?.Namespace?.Children.FirstOrDefault(e => e.Name == idnode.Value);
+                var r4 = parent?.Namespace?.SearchChild(idnode.Value);
                 if (r4 != null) return (TypeReference)GetObjectReference(r4);
 
                 // Search inside imports
