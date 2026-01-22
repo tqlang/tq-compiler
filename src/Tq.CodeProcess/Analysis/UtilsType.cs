@@ -1,14 +1,14 @@
 using System.Diagnostics;
-using Abstract.CodeProcess.Core.Language.EvaluationData.IntermediateTree;
-using Abstract.CodeProcess.Core.Language.EvaluationData.IntermediateTree.Expressions;
-using Abstract.CodeProcess.Core.Language.EvaluationData.IntermediateTree.Values;
-using Abstract.CodeProcess.Core.Language.EvaluationData.LanguageReferences.CodeReferences;
-using Abstract.CodeProcess.Core.Language.EvaluationData.LanguageReferences.FieldReferences;
-using Abstract.CodeProcess.Core.Language.EvaluationData.LanguageReferences.FunctionReferences;
-using Abstract.CodeProcess.Core.Language.EvaluationData.LanguageReferences.TypedefReferences;
-using Abstract.CodeProcess.Core.Language.EvaluationData.LanguageReferences.TypeReferences;
-using Abstract.CodeProcess.Core.Language.EvaluationData.LanguageReferences.TypeReferences.Builtin;
-using Abstract.CodeProcess.Core.Language.EvaluationData.LanguageReferences.TypeReferences.Builtin.Integer;
+using Abstract.CodeProcess.Core.EvaluationData.IntermediateTree;
+using Abstract.CodeProcess.Core.EvaluationData.IntermediateTree.Expressions;
+using Abstract.CodeProcess.Core.EvaluationData.IntermediateTree.Values;
+using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.CodeReferences;
+using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.FieldReferences;
+using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.FunctionReferences;
+using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.TypedefReferences;
+using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.TypeReferences;
+using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.TypeReferences.Builtin;
+using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.TypeReferences.Builtin.Integer;
 using Abstract.CodeProcess.Core.Language.SyntaxNodes.Base;
 using Abstract.CodeProcess.Core.Language.SyntaxNodes.Expression;
 using Abstract.CodeProcess.Core.Language.SyntaxNodes.Expression.TypeModifiers;
@@ -16,7 +16,7 @@ using Abstract.CodeProcess.Core.Language.SyntaxNodes.Value;
 
 namespace Abstract.CodeProcess;
 
-public partial class Analyzer
+public partial class Analyser
 {
 
     private static TypeReference GetEffectiveTypeReference(IrExpression expr)
@@ -25,17 +25,16 @@ public partial class Analyzer
         {
             IRSolvedReference @solvedFuck => solvedFuck.Reference switch
             {
-                IntegerTypeReference @intt => intt,
                 SolvedStructTypeReference @structt => structt,
                 SolvedTypedefNamedValueReference @tdff => tdff.Type,
                 SolvedFieldReference field => field.Field.Type,
-                SolvedFunctionReference @func => new FunctionTypeReference(
-                    func.Function.ReturnType, func.Function.Parameters.Select(e => e.Type).ToArray()),
+                SolvedCallableReference @func => new FunctionTypeReference(
+                    func.Callable.ReturnType, func.Callable.Parameters.Select(e => e.Type).ToArray()),
         
                 LocalReference @local => local.Local.Type,
                 ParameterReference @param => param.Parameter.Type,
                 
-                _ => throw new NotImplementedException()
+                _ => solvedFuck.Type
             },
             IRAccess @access => GetEffectiveTypeReference(access.B),
             
@@ -71,7 +70,7 @@ public partial class Analyzer
                         
                         case "bool": return new BooleanTypeReference();
                         case "void": return new VoidTypeReference();
-                        case "type": return new TypeTypeReference();
+                        case "type": return new TypeTypeReference(null!);
                         case "string": return new StringTypeReference(StringEncoding.Undefined);
                         case "anytype": return new AnytypeTypeReference();
                         case "noreturn": return new NoReturnTypeReference();
@@ -129,27 +128,33 @@ public partial class Analyzer
         {
             case IrIntegerLiteral @lit:
             {
-                if (lit.Type is ComptimeIntegerTypeReference && typeTo is RuntimeIntegerTypeReference rint1)
-                    return new IrIntegerLiteral(lit.Origin, lit.Value, rint1);
-
-                if (lit.Type is RuntimeIntegerTypeReference @typetoRi && typeTo is RuntimeIntegerTypeReference rint2)
+                switch (lit.Type)
                 {
-                    var valType = GetEffectiveTypeReference(value);
-                    if (valType is not RuntimeIntegerTypeReference valueRi) return value;
+                    case ComptimeIntegerTypeReference when typeTo is RuntimeIntegerTypeReference rint1:
+                        return new IrIntegerLiteral(lit.Origin, lit.Value, rint1);
                     
-                    // If same type, do nothing
-                    if (rint2.BitSize == valueRi.BitSize && typetoRi.Signed == valueRi.Signed) return value;
+                    case RuntimeIntegerTypeReference @typetoRi when typeTo is RuntimeIntegerTypeReference rint2:
+                    {
+                        var valType = GetEffectiveTypeReference(value);
+                        if (valType is not RuntimeIntegerTypeReference valueRi) return value;
                     
-                    var val = valueRi;
-                    var tar = typetoRi;
-                    var o = value.Origin;
+                        // If same type, do nothing
+                        if (rint2.BitSize == valueRi.BitSize && typetoRi.Signed == valueRi.Signed) return value;
                     
-                    if (val.Signed == tar.Signed && val.BitSize == tar.BitSize) return value;
-                    return new IrConv(o, value, tar);
+                        var val = valueRi;
+                        var tar = typetoRi;
+                        var o = value.Origin;
+                    
+                        if (val.Signed == tar.Signed && val.BitSize == tar.BitSize) return value;
+                        return new IrConv(o, value, tar);
+                    }
+                    
+                    case ComptimeIntegerTypeReference when typeTo is ComptimeIntegerTypeReference:
+                        throw new UnreachableException();
+                    
+                    default:
+                        return origin;
                 }
-
-                return origin;
-                throw new UnreachableException();
             }
             
             case IrCollectionLiteral clit when typeTo is SliceTypeReference @s:
@@ -164,14 +169,15 @@ public partial class Analyzer
             case IrCharLiteral:
             case IRBinaryExp:
             case IRAccess:
-            case IRReference:
+            case IrReference:
             case IrConv:
             case IrIndex:
-            case IRInvoke:
+            case IrInvoke:
             case IrLenOf:
             case IRCompareExp:
             case IRUnaryExp:
             case IrLogicalExp:
+            case IrNewObject:
                 return origin ?? value;
             
             default: throw new UnreachableException();
@@ -288,6 +294,9 @@ public partial class Analyzer
                 if (typeFrom is not SolvedTypedefTypeReference @solvedTypedefArg) return Suitability.None;
                 
                 return solvedTypedef.Typedef == solvedTypedefArg.Typedef ? Suitability.Perfect : Suitability.None;
+            
+            case TypeTypeReference:
+                return typeFrom is TypeTypeReference ? Suitability.Perfect : Suitability.None;
             
             default: throw new UnreachableException();
         }

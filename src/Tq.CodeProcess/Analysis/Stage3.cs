@@ -1,22 +1,22 @@
 using System.Diagnostics;
 using Abstract.CodeProcess.Core;
+using Abstract.CodeProcess.Core.EvaluationData;
+using Abstract.CodeProcess.Core.EvaluationData.IntermediateTree;
+using Abstract.CodeProcess.Core.EvaluationData.IntermediateTree.Expressions;
+using Abstract.CodeProcess.Core.EvaluationData.IntermediateTree.Statements;
+using Abstract.CodeProcess.Core.EvaluationData.IntermediateTree.Values;
+using Abstract.CodeProcess.Core.EvaluationData.LanguageObjects;
+using Abstract.CodeProcess.Core.EvaluationData.LanguageObjects.CodeObjects;
+using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.CodeReferences;
+using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.TypeReferences;
+using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.TypeReferences.Builtin;
+using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.TypeReferences.Builtin.Integer;
 using Abstract.CodeProcess.Core.Language;
-using Abstract.CodeProcess.Core.Language.EvaluationData;
-using Abstract.CodeProcess.Core.Language.EvaluationData.IntermediateTree;
-using Abstract.CodeProcess.Core.Language.EvaluationData.IntermediateTree.Expressions;
-using Abstract.CodeProcess.Core.Language.EvaluationData.IntermediateTree.Statements;
-using Abstract.CodeProcess.Core.Language.EvaluationData.IntermediateTree.Values;
-using Abstract.CodeProcess.Core.Language.EvaluationData.LanguageObjects;
-using Abstract.CodeProcess.Core.Language.EvaluationData.LanguageObjects.CodeObjects;
-using Abstract.CodeProcess.Core.Language.EvaluationData.LanguageReferences.CodeReferences;
-using Abstract.CodeProcess.Core.Language.EvaluationData.LanguageReferences.TypeReferences;
-using Abstract.CodeProcess.Core.Language.EvaluationData.LanguageReferences.TypeReferences.Builtin;
-using Abstract.CodeProcess.Core.Language.EvaluationData.LanguageReferences.TypeReferences.Builtin.Integer;
 using Abstract.CodeProcess.Core.Language.SyntaxNodes.Base;
 using Abstract.CodeProcess.Core.Language.SyntaxNodes.Expression;
 using Abstract.CodeProcess.Core.Language.SyntaxNodes.Statement;
 using Abstract.CodeProcess.Core.Language.SyntaxNodes.Value;
-using TypeReference = Abstract.CodeProcess.Core.Language.EvaluationData.LanguageReferences.TypeReferences.TypeReference;
+using TypeReference = Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.TypeReferences.TypeReference;
 
 namespace Abstract.CodeProcess;
 
@@ -29,7 +29,7 @@ namespace Abstract.CodeProcess;
  *  high-level optimizations.
  */
 
-public partial class Analyzer
+public partial class Analyser
 {
     private void ScanObjectHeaders()
     {
@@ -40,6 +40,7 @@ public partial class Analyzer
                 case NamespaceObject @nmsp: ScanNamespaceMeta(nmsp); break;
                 case FunctionObject @funcobj: ScanFunctionMeta(funcobj); break;
                 case StructObject @structobj: ScanStructureMeta(structobj); break;
+                case ConstructorObject @c: ScanCtorMeta(c); break;
                 
                 case FunctionGroupObject @funcgroup:
                     foreach (var i2 in funcgroup.Overloads) ScanFunctionMeta(i2);
@@ -47,7 +48,7 @@ public partial class Analyzer
             }
         }
 
-        foreach (var i in _globalReferenceTable.Values.OfType<StructObject>())
+        foreach (var i in Enumerable.OfType<StructObject>(_globalReferenceTable.Values))
         {
             if (i.Extends == null) continue;
             i.Extends = SolveTypeLazy(i.Extends, null, i);
@@ -57,7 +58,7 @@ public partial class Analyzer
             Console.WriteLine(i.Extends);
         }
         
-        var structsSortedList = TopologicalSort(_globalReferenceTable.Values.OfType<StructObject>());
+        var structsSortedList = TopologicalSort(Enumerable.OfType<StructObject>(_globalReferenceTable.Values));
         foreach (var structs in structsSortedList) LazyScanStructureMeta(structs);
     }
     
@@ -96,10 +97,18 @@ public partial class Analyzer
     private void ScanFunctionMeta(FunctionObject function)
     {
         foreach (var t in function.Parameters)
-            if (!IsSolved(t.Type)) t.Type = SolveTypeLazy(t.Type, null, function.Container);
+            if (!IsSolved(t.Type)) t.Type = SolveTypeLazy(t.Type, null, function);
         
         if (!IsSolved(function.ReturnType))
-            function.ReturnType = SolveTypeLazy(function.ReturnType, null, function.Container);
+            function.ReturnType = SolveTypeLazy(function.ReturnType, null, function);
+    }
+    private void ScanCtorMeta(ConstructorObject ctor)
+    {
+        foreach (var t in ctor.Parameters)
+            if (!IsSolved(t.Type)) t.Type = SolveTypeLazy(t.Type, null, ctor);
+        
+        if (!IsSolved(ctor.ReturnTypeOverride))
+            ctor.ReturnTypeOverride = SolveTypeLazy(ctor.ReturnType, null, ctor);
     }
     
     private void ScanObjectBodies()
@@ -108,12 +117,6 @@ public partial class Analyzer
         {
             switch (i.Value)
             {
-                case FunctionObject @funcobj:
-                {
-                    ScanFunctionExecutionBody(funcobj);
-                    foreach (var l in funcobj.Locals) l.Type = SolveTypeLazy(l.Type, null, funcobj);
-                } break;
-                
                 case FunctionGroupObject @funcgroup:
                 {
                     foreach (var i2 in funcgroup.Overloads)
@@ -124,7 +127,14 @@ public partial class Analyzer
                     }
                     break;
                 }
+                
                 case FieldObject @fld: ScanFieldValueBody(fld); break;
+
+                case StructObject @st:
+                {
+                    foreach (var j in st.Constructors) ScanCtorExecutionBody(j);
+                    foreach (var j in st.Destructors) ScanDtorExecutionBody(j);
+                } break;
             }
         }
     }
@@ -140,17 +150,35 @@ public partial class Analyzer
     }
     private void ScanFunctionExecutionBody(FunctionObject function)
     {
-        var body = function.syntaxNode.GetFunctionBody();
+        var body = function.SyntaxNode.GetFunctionBody();
         if (body == null) return;
 
         var ctx = new ExecutionContextData(function);
         function.Body = UnwrapExecutionContext_Block(ctx, body);
     }
 
-    
-    private IRBlock UnwrapExecutionContext_Block(ExecutionContextData ctx, BlockNode block)
+    private void ScanCtorExecutionBody(ConstructorObject ctor)
     {
-        var rootBlock = new IRBlock(block);
+        var body = ctor.SyntaxNode.Body;
+        if (body == null) return;
+
+        var ctx = new ExecutionContextData(ctor);
+        ctor.Body = UnwrapExecutionContext_Block(ctx, body);
+    }
+
+    private void ScanDtorExecutionBody(DestructorObject dtor)
+    {
+        var body = dtor.SyntaxNode.Body;
+        if (body == null) return;
+
+        var ctx = new ExecutionContextData(dtor);
+        dtor.Body = UnwrapExecutionContext_Block(ctx, body);
+    }
+    
+    
+    private IrBlock UnwrapExecutionContext_Block(ExecutionContextData ctx, BlockNode block)
+    {
+        var rootBlock = new IrBlock(block);
 
         ctx.PushBlock(rootBlock);
         foreach (var i in block.Content)
@@ -164,7 +192,7 @@ public partial class Analyzer
 
         return rootBlock;
     }
-    private (IRNode? node, bool include) UnwrapExecutionContext_Statement(SyntaxNode node, ExecutionContextData ctx)
+    private (IrNode? node, bool include) UnwrapExecutionContext_Statement(SyntaxNode node, ExecutionContextData ctx)
     {
         switch (node)
         {
@@ -227,7 +255,7 @@ public partial class Analyzer
                 if (ctx.Last is not IRIf @irif)
                     throw new Exception("else blocks only allowed after if or elif statements");
                 
-                IRBlock then = new IRBlock(_else.Then);
+                IrBlock then = new IrBlock(_else.Then);
                 ctx.PushBlock(then);
 
                 if (_else.Then is BlockNode @block) then = UnwrapExecutionContext_Block(ctx, block);
@@ -247,9 +275,9 @@ public partial class Analyzer
             {
                 var clen = @while.Children.Length;
                 
-                IRBlock? def = null;
-                IRBlock? step = null;
-                IRBlock then;
+                IrBlock? def = null;
+                IrBlock? step = null;
+                IrBlock then;
                 
                 var defidx  = clen switch
                 {
@@ -278,14 +306,14 @@ public partial class Analyzer
                 
                 if (defidx != -1)
                 {
-                    def = new IRBlock(@while.Children[defidx]);
+                    def = new IrBlock(@while.Children[defidx]);
                     ctx.PushBlock(def);
                     var res = UnwrapExecutionContext_Statement(@while.Children[defidx], ctx);
                     if (res.include && res.node != null) def.Content.Add(res.node);
                 }
                 if (stepidx != -1)
                 {
-                    step = new IRBlock(@while.Children[stepidx]);
+                    step = new IrBlock(@while.Children[stepidx]);
                     step.Content.Add(UnwrapExecutionContext_Expression(@while.Children[stepidx], ctx));
                 }
                 
@@ -295,7 +323,7 @@ public partial class Analyzer
                 if (content is BlockNode @bn) then = UnwrapExecutionContext_Block(ctx, bn);
                 else
                 {
-                    then = new IRBlock(content);
+                    then = new IrBlock(content);
                     var n = UnwrapExecutionContext_Statement(content, ctx);
                     if (n is { include: true, node: not null }) then.Content.Add(n.node);
                 }
@@ -307,7 +335,7 @@ public partial class Analyzer
             case ReturnStatementNode @ret:
             {
                 var exp = ret.HasExpression ? UnwrapExecutionContext_Expression(ret.Expression, ctx) : null;
-                return (new IRReturn(ret, exp), true);
+                return (new IrReturn(ret, exp), true);
             }
             
             default: return (UnwrapExecutionContext_Expression(node, ctx), true);
@@ -316,7 +344,7 @@ public partial class Analyzer
         IRIf ParseIfElif(SyntaxNode origin, SyntaxNode origin_then, SyntaxNode cond)
         {
             var condition = UnwrapExecutionContext_Expression(cond, ctx);
-            IRBlock then = new IRBlock(origin_then);
+            IrBlock then = new IrBlock(origin_then);
             
             ctx.PushBlock(then);
             if (origin_then is BlockNode @block) then = UnwrapExecutionContext_Block(ctx, block);
@@ -351,7 +379,7 @@ public partial class Analyzer
 
             case FunctionCallExpressionNode @funccal:
             {
-                return new IRInvoke(funccal,
+                return new IrInvoke(funccal,
                     UnwrapExecutionContext_Expression(funccal.FunctionReference, ctx),
                     funccal.Arguments.Select(i
                         => UnwrapExecutionContext_Expression(i, ctx)).ToArray());
@@ -478,9 +506,7 @@ public partial class Analyzer
             case NewObjectNode @newobj:
             {
                 List<IRAssign> asisgns = [];
-
-                var typer = SolveTypeLazy(new UnsolvedTypeReference(newobj.Type), ctx, null);
-
+                
                 if (newobj.Inlined != null)
                 {
                     foreach (var i in newobj.Inlined.Content)
@@ -492,7 +518,9 @@ public partial class Analyzer
                     }
                 }
 
-                var ctor = new IRNewObject(newobj, typer,
+                var ctor = new IrNewObject(
+                    newobj,
+                    (UnwrapExecutionContext_Expression(newobj.Type, ctx) as IrReference) ?? throw new NullReferenceException(),
                     newobj.Arguments.Select(i => UnwrapExecutionContext_Expression(i, ctx)).ToArray(),
                     [..asisgns]);
                 
@@ -511,8 +539,7 @@ public partial class Analyzer
         };
     }
 
-
-
+    
     private void LazyScanStructureMeta(StructObject structure)
     {
         // This functions ensures that the structure's dependency tree
@@ -575,13 +602,13 @@ public partial class Analyzer
             var basefunc = e.parent;
             
             // I Suppose it is impossible to override a already
-            // overrided function in the same structure, so skipping
+            // overwritten function in the same structure, so skipping
             // here will be quicker
             if (e.overrided != null) continue;
             if (func.Name != basefunc.Name) continue;
-            if (func.Parameters.Length != basefunc.Parameters.Length) continue;
+            if (func.Parameters.Count != basefunc.Parameters.Count) continue;
 
-            for (var j = 0; j < func.Parameters.Length; j++)
+            for (var j = 0; j < func.Parameters.Count; j++)
             {
                 if (CalculateTypeSuitability(func.Parameters[j].Type, basefunc.Parameters[j].Type, false)
                     != Suitability.Perfect) continue;
@@ -614,12 +641,15 @@ public partial class Analyzer
         };
     }
     
-    private TypeReference SolveTypeLazy(TypeReference typeRef, ExecutionContextData? ctx, LangObject? scope)
+    private TypeReference SolveTypeLazy(TypeReference typeRef, ExecutionContextData? ctx, LangObject? obj)
     {
+        var scope = obj ?? ctx?.Parent;
+        var parent = scope?.Parent ?? ctx?.Parent;
+        
         switch (typeRef)
         {
             case ReferenceTypeReference @r:
-                r.InternalType = SolveTypeLazy(r.InternalType, ctx, scope);
+                r.InternalType = SolveTypeLazy(r.InternalType, ctx, obj);
                 return r;
             
         }
@@ -628,13 +658,19 @@ public partial class Analyzer
         if (trySolveShallow is not UnsolvedTypeReference @unsolv) return trySolveShallow;
         
         var syntaxNode = unsolv.syntaxNode;
-        var parent = scope;
         LangObject langObj;
 
         switch (syntaxNode)
         {
             case IdentifierNode @idnode:
             {
+                // Search generics
+                if (scope is ICallable { IsGeneric: true } callable)
+                {
+                    var param = callable.Parameters.FirstOrDefault(e => e.Name == idnode.Value);
+                    if (param != null) return new GenericTypeReference(param);
+                }
+                
                 // Search in parent tree
                 var curr = parent;
                 while (curr != null && curr is not NamespaceObject)
@@ -657,21 +693,21 @@ public partial class Analyzer
                 }
 
                 // Search inside namespace
-                var r4 = parent?.Namespace?.SearchChild(idnode.Value);
+                var r4 = obj?.Namespace?.SearchChild(idnode.Value);
                 if (r4 != null) return (TypeReference)GetObjectReference(r4);
 
                 // Search inside imports
-                var r5 = parent?.Imports?.References.FirstOrDefault(e => e.Name == idnode.Value);
+                var r5 = obj?.Imports?.References.FirstOrDefault(e => e.Name == idnode.Value);
                 if (r5 != null) return (TypeReference)GetObjectReference(r5);
                 
                 // Search global references
-                var r6 = _globalReferenceTable.FirstOrDefault(e => e.Key.Length == 1 && e.Key[0] == idnode.Value);
+                var r6 = Enumerable.FirstOrDefault<KeyValuePair<string[], LangObject>>(_globalReferenceTable, e => e.Key.Length == 1 && e.Key[0] == idnode.Value);
                 if (r6.Key != null) return (TypeReference)GetObjectReference(r6.Value);
 
                 if (parent is NamespaceObject @nmsp)
                 {
                     string[] name = [.. nmsp.Global, idnode.Value];
-                    var r7 = _globalReferenceTable.FirstOrDefault(e => IdentifierComparer.IsEquals(e.Key, name));
+                    var r7 = Enumerable.FirstOrDefault<KeyValuePair<string[], LangObject>>(_globalReferenceTable, e => IdentifierComparer.IsEquals(e.Key, name));
                     if (r7.Key != null) return (TypeReference)GetObjectReference(r7.Value);
                 }
                 

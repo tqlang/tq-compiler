@@ -17,7 +17,7 @@ public partial class Compiler
         TypeSignature self;
         
         methods = [];
-        type = _module.DefaultImporter.ImportType(cl.CorLibScope.CreateTypeReference("System", "ValueType"));
+        type = _module.DefaultImporter.ImportType(TypeDescriptorExtensions.CreateTypeReference(cl.CorLibScope, "System", "ValueType"));
         self = _module.DefaultImporter.ImportTypeSignature(type.ToTypeSignature());
         {
             
@@ -36,7 +36,7 @@ public partial class Compiler
         _coreLib.Add(type.Name!, (self, methods));
         
         methods = [];
-        type = _module.DefaultImporter.ImportType(cl.CorLibScope.CreateTypeReference("System", "Enum"));
+        type = _module.DefaultImporter.ImportType(TypeDescriptorExtensions.CreateTypeReference(cl.CorLibScope, "System", "Enum"));
         self = _module.DefaultImporter.ImportTypeSignature(type.ToTypeSignature());
         {
             
@@ -46,12 +46,12 @@ public partial class Compiler
         
         
         methods = [];
-        type = _module.DefaultImporter.ImportType(cl.CorLibScope.CreateTypeReference("System", "Int128"));
+        type = _module.DefaultImporter.ImportType(TypeDescriptorExtensions.CreateTypeReference(cl.CorLibScope, "System", "Int128"));
         self = _module.DefaultImporter.ImportTypeSignature(type.ToTypeSignature());
         {
             methods.Add("new", CreateMethodRef(type, ".ctor", MethodSignature.CreateInstance(cl.Void, cl.UInt64, cl.UInt64)));
             
-            methods.Add("Parse", CreateMethodRef(type, "Parse", MethodSignature.CreateStatic(self, cl.String)));
+            methods.Add("Parse", CreateMethodRef(type, "Parse", MethodSignature.CreateStatic(self, [cl.String])));
             methods.Add("Add_ovf", CreateMethodRef(type, "op_Addition", MethodSignature.CreateStatic(self, self, self)));
             methods.Add("Add", CreateMethodRef(type, "op_CheckedAddition", MethodSignature.CreateStatic(self, self, self)));
             methods.Add("Sub_ovf", CreateMethodRef(type, "op_Subtraction", MethodSignature.CreateStatic(self, self, self)));
@@ -67,14 +67,14 @@ public partial class Compiler
             methods.Add("LeftShift", CreateMethodRef(type, "op_LeftShift", MethodSignature.CreateStatic(self, self, cl.Int32)));
             methods.Add("RightShift", CreateMethodRef(type, "op_RightShift", MethodSignature.CreateStatic(self, self, cl.Int32)));
             
-            methods.Add("Conv_from_i8", CreateMethodRef(type, "op_Implicit", MethodSignature.CreateStatic(self, cl.SByte)));
-            methods.Add("Conv_from_u8", CreateMethodRef(type, "op_Implicit", MethodSignature.CreateStatic(self, cl.Byte)));
-            methods.Add("Conv_from_i16", CreateMethodRef(type, "op_Implicit", MethodSignature.CreateStatic(self, cl.Int16)));
-            methods.Add("Conv_from_u16", CreateMethodRef(type, "op_Implicit", MethodSignature.CreateStatic(self, cl.UInt16)));
-            methods.Add("Conv_from_i32", CreateMethodRef(type, "op_Implicit", MethodSignature.CreateStatic(self, cl.Int32)));
-            methods.Add("Conv_from_u32", CreateMethodRef(type, "op_Implicit", MethodSignature.CreateStatic(self, cl.UInt32)));
-            methods.Add("Conv_from_i64", CreateMethodRef(type, "op_Implicit", MethodSignature.CreateStatic(self, cl.Int64)));
-            methods.Add("Conv_from_u64", CreateMethodRef(type, "op_Implicit", MethodSignature.CreateStatic(self, cl.UInt64)));
+            methods.Add("Conv_from_i8", CreateMethodRef(type, "op_Implicit", MethodSignature.CreateStatic(self, [cl.SByte])));
+            methods.Add("Conv_from_u8", CreateMethodRef(type, "op_Implicit", MethodSignature.CreateStatic(self, [cl.Byte])));
+            methods.Add("Conv_from_i16", CreateMethodRef(type, "op_Implicit", MethodSignature.CreateStatic(self, [cl.Int16])));
+            methods.Add("Conv_from_u16", CreateMethodRef(type, "op_Implicit", MethodSignature.CreateStatic(self, [cl.UInt16])));
+            methods.Add("Conv_from_i32", CreateMethodRef(type, "op_Implicit", MethodSignature.CreateStatic(self, [cl.Int32])));
+            methods.Add("Conv_from_u32", CreateMethodRef(type, "op_Implicit", MethodSignature.CreateStatic(self, [cl.UInt32])));
+            methods.Add("Conv_from_i64", CreateMethodRef(type, "op_Implicit", MethodSignature.CreateStatic(self, [cl.Int64])));
+            methods.Add("Conv_from_u64", CreateMethodRef(type, "op_Implicit", MethodSignature.CreateStatic(self, [cl.UInt64])));
             
             methods.Add("Conv_to_i8", CreateMethodRef(type, "op_Explicit", MethodSignature.CreateStatic(cl.SByte, self)));
             methods.Add("Conv_to_u8", CreateMethodRef(type, "op_Explicit", MethodSignature.CreateStatic(cl.Byte, self)));
@@ -89,12 +89,12 @@ public partial class Compiler
         _coreLib.Add(type.Name!, (self, methods));
         
         methods = [];
-        type = _module.DefaultImporter.ImportType(cl.CorLibScope.CreateTypeReference("System", "UInt128"));
+        type = _module.DefaultImporter.ImportType(TypeDescriptorExtensions.CreateTypeReference(cl.CorLibScope, "System", "UInt128"));
         self = _module.DefaultImporter.ImportTypeSignature(type.ToTypeSignature());
         {
             methods.Add("new", CreateMethodRef(type, ".ctor", MethodSignature.CreateInstance(cl.Void, cl.UInt64, cl.UInt64)));
             
-            methods.Add("Parse", CreateMethodRef(type, "Parse", MethodSignature.CreateStatic(self, cl.String)));
+            methods.Add("Parse", CreateMethodRef(type, "Parse", MethodSignature.CreateStatic(self, [cl.String])));
             methods.Add("Add_ovf", CreateMethodRef(type, "op_Addition", MethodSignature.CreateStatic(self, self, self)));
             methods.Add("Add", CreateMethodRef(type, "op_CheckedAddition", MethodSignature.CreateStatic(self, self, self)));
             methods.Add("Sub_ovf", CreateMethodRef(type, "op_Subtraction", MethodSignature.CreateStatic(self, self, self)));
@@ -110,14 +110,14 @@ public partial class Compiler
             methods.Add("LeftShift", CreateMethodRef(type, "op_LeftShift", MethodSignature.CreateStatic(self, self, cl.Int32)));
             methods.Add("RightShift", CreateMethodRef(type, "op_RightShift", MethodSignature.CreateStatic(self, self, cl.Int32)));
             
-            methods.Add("Conv_from_i8", CreateMethodRef(type, "op_Explicit", MethodSignature.CreateStatic(self, cl.SByte)));
-            methods.Add("Conv_from_u8", CreateMethodRef(type, "op_Implicit", MethodSignature.CreateStatic(self, cl.Byte)));
-            methods.Add("Conv_from_i16", CreateMethodRef(type, "op_Explicit", MethodSignature.CreateStatic(self, cl.Int16)));
-            methods.Add("Conv_from_u16", CreateMethodRef(type, "op_Implicit", MethodSignature.CreateStatic(self, cl.UInt16)));
-            methods.Add("Conv_from_i32", CreateMethodRef(type, "op_Explicit", MethodSignature.CreateStatic(self, cl.Int32)));
-            methods.Add("Conv_from_u32", CreateMethodRef(type, "op_Implicit", MethodSignature.CreateStatic(self, cl.UInt32)));
-            methods.Add("Conv_from_i64", CreateMethodRef(type, "op_Explicit", MethodSignature.CreateStatic(self, cl.Int64)));
-            methods.Add("Conv_from_u64", CreateMethodRef(type, "op_Implicit", MethodSignature.CreateStatic(self, cl.UInt64)));
+            methods.Add("Conv_from_i8", CreateMethodRef(type, "op_Explicit", MethodSignature.CreateStatic(self, [cl.SByte])));
+            methods.Add("Conv_from_u8", CreateMethodRef(type, "op_Implicit", MethodSignature.CreateStatic(self, [cl.Byte])));
+            methods.Add("Conv_from_i16", CreateMethodRef(type, "op_Explicit", MethodSignature.CreateStatic(self, [cl.Int16])));
+            methods.Add("Conv_from_u16", CreateMethodRef(type, "op_Implicit", MethodSignature.CreateStatic(self, [cl.UInt16])));
+            methods.Add("Conv_from_i32", CreateMethodRef(type, "op_Explicit", MethodSignature.CreateStatic(self, [cl.Int32])));
+            methods.Add("Conv_from_u32", CreateMethodRef(type, "op_Implicit", MethodSignature.CreateStatic(self, [cl.UInt32])));
+            methods.Add("Conv_from_i64", CreateMethodRef(type, "op_Explicit", MethodSignature.CreateStatic(self, [cl.Int64])));
+            methods.Add("Conv_from_u64", CreateMethodRef(type, "op_Implicit", MethodSignature.CreateStatic(self, [cl.UInt64])));
             
             methods.Add("Conv_to_i8", CreateMethodRef(type, "op_Explicit", MethodSignature.CreateStatic(cl.SByte, self)));
             methods.Add("Conv_to_u8", CreateMethodRef(type, "op_Explicit", MethodSignature.CreateStatic(cl.Byte, self)));
@@ -135,8 +135,8 @@ public partial class Compiler
         self = cl.String;
         type = _module.DefaultImporter.ImportType(self.ToTypeDefOrRef());
         {
-            methods.Add("charAt", CreateMethodRef(type, "get_Chars", MethodSignature.CreateInstance(cl.Char, cl.Int32)));
-            methods.Add("Concat", CreateMethodRef(type, "Concat", MethodSignature.CreateStatic(cl.String.MakeArrayType(1))));
+            methods.Add("charAt", CreateMethodRef(type, "get_Chars", MethodSignature.CreateInstance((TypeSignature)cl.Char, [cl.Int32])));
+            methods.Add("Concat", CreateMethodRef(type, "Concat", MethodSignature.CreateStatic(TypeDescriptorExtensions.MakeArrayType(cl.String, 1))));
             methods.Add("Equals", CreateMethodRef(type, "Equals", MethodSignature.CreateStatic(cl.Boolean, cl.String, cl.String)));
         }
         methods.TrimExcess();

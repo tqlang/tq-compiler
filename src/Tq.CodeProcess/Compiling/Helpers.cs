@@ -1,9 +1,9 @@
 using System.Diagnostics;
 using System.Text;
-using Abstract.CodeProcess.Core.Language.EvaluationData.LanguageObjects;
-using Abstract.CodeProcess.Core.Language.EvaluationData.LanguageReferences.TypeReferences;
-using Abstract.CodeProcess.Core.Language.EvaluationData.LanguageReferences.TypeReferences.Builtin;
-using Abstract.CodeProcess.Core.Language.EvaluationData.LanguageReferences.TypeReferences.Builtin.Integer;
+using Abstract.CodeProcess.Core.EvaluationData.LanguageObjects;
+using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.TypeReferences;
+using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.TypeReferences.Builtin;
+using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.TypeReferences.Builtin.Integer;
 using AsmResolver.DotNet;
 using AsmResolver.DotNet.Code.Cil;
 using AsmResolver.DotNet.Signatures;
@@ -14,7 +14,7 @@ using Parameter = AsmResolver.DotNet.Collections.Parameter;
 using FieldDefinition = AsmResolver.DotNet.FieldDefinition;
 using MethodDefinition = AsmResolver.DotNet.MethodDefinition;
 using TypeDefinition = AsmResolver.DotNet.TypeDefinition;
-using TypeReference = Abstract.CodeProcess.Core.Language.EvaluationData.LanguageReferences.TypeReferences.TypeReference;
+using TypeReference = Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.TypeReferences.TypeReference;
 
 namespace Abstract.CodeProcess;
 
@@ -43,7 +43,7 @@ public partial class Compiler
                 sb.Append("\n\tmethod ");
                 sb.Append(method.IsPublic ? "public " : "private ");
                 sb.Append(method.IsStatic ? "static " : "instance ");
-                sb.Append($"{method.Name} ({string.Join(", ", method.Parameters)}) ");
+                sb.Append($"{method.Name} ({string.Join<Parameter>(", ", method.Parameters)}) ");
                 sb.Append($"{method.Signature!.ReturnType} ");
                 sb.AppendLine("{");
                 if (method.CilMethodBody != null)
@@ -67,6 +67,8 @@ public partial class Compiler
         if (typeRef == null) return _corLibFactory.Void;
         switch (typeRef)
         {
+            case UnsolvedTypeReference: throw new Exception("Type reference is unsolved!");
+            
             case ReferenceTypeReference @r:
             {
                 var b = TypeFromRef(r.InternalType);
@@ -137,21 +139,23 @@ public partial class Compiler
         public readonly ITypeDefOrRef Type = typedef ?? throw new ArgumentNullException();
         public readonly TypeDefinition Def = typedef.Resolve() ?? throw new ArgumentNullException();
         
+        public bool IsValueType => Def.IsValueType;
+        
         public MethodDefinition PrimaryCtor = null!;
         public MethodDefinition Clone = null!;
         
         public TypeSignature ToTypeSignature() => Type.ToTypeSignature();
     }
-    private class EnumData(ITypeDefOrRef typedef, FieldDefinition valueField)
+    private class EnumData(ITypeDefOrRef typedef, IFieldDescriptor valueField)
     {
         public readonly ITypeDefOrRef Type = typedef ?? throw new ArgumentNullException();
         public readonly TypeDefinition Def = typedef.Resolve() ?? throw new ArgumentNullException();
         
-        public readonly FieldDefinition Field = valueField;
+        public readonly IFieldDescriptor Field = valueField;
         public Dictionary<TypedefNamedValue, FieldDefinition> Items = [];
         
         public TypeSignature ToTypeSignature() => Type.ToTypeSignature();
-        public FieldDefinition GetItem(TypedefNamedValue namedValue) => Items[namedValue];
+        public IFieldDescriptor GetItem(TypedefNamedValue namedValue) => Items[namedValue];
     }
     private class FunctionData(IMethodDefOrRef methoddef)
     {
@@ -164,14 +168,17 @@ public partial class Compiler
         public TypeDefinition? InstanceType => IsStatic ? null : Def.DeclaringType;
     }
     
-    private class Context(CilInstructionCollection gen, Parameter[] args, CilLocalVariable[] locals)
+    private class Context(ITypeDefOrRef? selfType, CilMethodBody body, Parameter[] args, CilLocalVariable[] locals)
     {
-        public CilInstructionCollection Gen = gen;
+        public readonly ITypeDefOrRef? SelfType = selfType;
+        public CilMethodBody Body = body;
+        public CilInstructionCollection Gen = body.Instructions;
         public List<TypeSignature> Stack = [];
         public Stack<ContextFrame> Frame = [];
         
         private Parameter[] _args = args;
         private CilLocalVariable[] _locals = locals;
+        private Dictionary<TypeSignature, CilLocalVariable> _tmp = [];
 
         public void MarkLabel(CilInstructionLabel label) => label.Instruction = Gen.Add(CilOpCodes.Nop);
         
@@ -185,6 +192,16 @@ public partial class Compiler
         
         public Parameter GetArg(int i) => _args[i];
         public CilLocalVariable GetLoc(int i) => _locals[i];
+
+        public CilLocalVariable AllocTmp(TypeSignature type)
+        {
+            if (_tmp.TryGetValue(type, out var tmp)) return tmp;
+            
+            var l = new CilLocalVariable(type);
+            Body.LocalVariables.Add(l);
+            _tmp.Add(type, l);
+            return l;
+        }
     }
     
     private abstract class ContextFrame {}

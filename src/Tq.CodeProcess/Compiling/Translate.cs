@@ -1,32 +1,33 @@
+using System.Buffers.Binary;
 using System.Diagnostics;
 using System.Numerics;
-using Abstract.CodeProcess.Core.Language.EvaluationData.IntermediateTree;
-using Abstract.CodeProcess.Core.Language.EvaluationData.IntermediateTree.Expressions;
-using Abstract.CodeProcess.Core.Language.EvaluationData.IntermediateTree.Statements;
-using Abstract.CodeProcess.Core.Language.EvaluationData.IntermediateTree.Values;
-using Abstract.CodeProcess.Core.Language.EvaluationData.LanguageObjects;
-using Abstract.CodeProcess.Core.Language.EvaluationData.LanguageReferences.CodeReferences;
-using Abstract.CodeProcess.Core.Language.EvaluationData.LanguageReferences.FieldReferences;
-using Abstract.CodeProcess.Core.Language.EvaluationData.LanguageReferences.FunctionReferences;
-using Abstract.CodeProcess.Core.Language.EvaluationData.LanguageReferences.TypedefReferences;
-using Abstract.CodeProcess.Core.Language.EvaluationData.LanguageReferences.TypeReferences;
-using Abstract.CodeProcess.Core.Language.EvaluationData.LanguageReferences.TypeReferences.Builtin;
-using Abstract.CodeProcess.Core.Language.EvaluationData.LanguageReferences.TypeReferences.Builtin.Integer;
+using Abstract.CodeProcess.Core.EvaluationData.IntermediateTree;
+using Abstract.CodeProcess.Core.EvaluationData.IntermediateTree.Expressions;
+using Abstract.CodeProcess.Core.EvaluationData.IntermediateTree.Statements;
+using Abstract.CodeProcess.Core.EvaluationData.IntermediateTree.Values;
+using Abstract.CodeProcess.Core.EvaluationData.LanguageObjects;
+using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.CodeReferences;
+using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.FieldReferences;
+using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.FunctionReferences;
+using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.TypedefReferences;
+using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.TypeReferences.Builtin;
+using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.TypeReferences.Builtin.Integer;
 using AsmResolver.DotNet;
 using AsmResolver.DotNet.Code.Cil;
 using AsmResolver.DotNet.Signatures.Types;
 using AsmResolver.PE.DotNet.Cil;
+using AsmResolver.PE.DotNet.Metadata.Tables.Rows;
 
 namespace Abstract.CodeProcess;
 
 public partial class Compiler
 {
-    private void CompileIr(IRBlock block, Context ctx)
+    private void CompileIr(IrBlock block, Context ctx)
     {
         foreach (var node in block.Content) CompileIrNodeLoad(node, ctx);
     }
     
-    private void CompileIrNodeLoad(IRNode node, Context ctx)
+    private void CompileIrNodeLoad(IrNode node, Context ctx)
     {
         switch (node)
         {
@@ -34,25 +35,26 @@ public partial class Compiler
                 CompileIrNodeStore(ass.Target, ass.Value, ctx);
                 break;
 
-            case IRNewObject @nobj:
+            case IrNewObject @nobj:
             {
-                var type = _typesMap[((SolvedStructTypeReference)nobj.InstanceType).Struct];
-                var ctor = type.Def.Methods.First(e => e.Name == ".ctor");
-
-                if (type.Def.IsValueType)
+                var type = _typesMap[nobj.InstanceType];
+                var typeSignature = type.ToTypeSignature();
+                
+                if (type.IsValueType)
                 {
-                    CompileIrNodeLoadAsRef(nobj.Arguments[0], ctx);
-                    foreach (var i in nobj.Arguments[1..]) CompileIrNodeLoad(i, ctx);
-                    ctx.Gen.Add(CilOpCodes.Call, ctor);
-                    ctx.StackPop(nobj.Arguments.Length);
+                    var local = ctx.AllocTmp(typeSignature);
+                    ctx.Gen.Add(CilOpCodes.Ldloca, local);
+                    foreach (var i in nobj.Arguments) CompileIrNodeLoad(i, ctx);
+                    CompileIrNodeCall(nobj.Target, ctx);
+                    ctx.Gen.Add(CilOpCodes.Ldloc, local);
                 }
                 else
                 {
-                    foreach (var i in nobj.Arguments[1..]) CompileIrNodeLoad(i, ctx);
-                    ctx.Gen.Add(CilOpCodes.Newobj, ctor);
-                    ctx.StackPop(nobj.Arguments.Length);
-                    CompileIrNodeStore(nobj.Arguments[0], null, ctx);
+                    foreach (var i in nobj.Arguments) CompileIrNodeLoad(i, ctx);
+                    CompileIrNodeCall(nobj.Target, ctx, true);
                 }
+                
+                ctx.StackPush(typeSignature);
             } break;
 
             case IrIntegerLiteral @intlit:
@@ -77,13 +79,13 @@ public partial class Compiler
                             var tmp = new CilLocalVariable(largeType.t);
                             ctx.Gen.Owner.LocalVariables.Add(tmp);
                             ctx.Gen.Add(CilOpCodes.Ldloca, tmp);
-                            ctx.Gen.Add(CilOpCodes.Initobj, largeType.t.ToTypeDefOrRef());
+                            ctx.Gen.Add(CilOpCodes.Initobj, (ITypeDefOrRef)largeType.t.ToTypeDefOrRef());
                             ctx.Gen.Add(CilOpCodes.Ldloc, tmp);
                         }
                         else if (intlit.Value <= ulong.MaxValue)
                         {
                             ctx.Gen.Add(CilOpCodes.Ldc_I8, (long)intlit.Value);
-                            ctx.Gen.Add(CilOpCodes.Call, largeType.m[intlit.Value.Sign < 0 ? "Conv_from_i64" : "Conv_from_u64"]);
+                            ctx.Gen.Add(CilOpCodes.Call, (IMethodDescriptor)largeType.m[intlit.Value.Sign < 0 ? "Conv_from_i64" : "Conv_from_u64"]);
                         }
                         else
                         {
@@ -95,7 +97,7 @@ public partial class Compiler
                             var lo = (ulong)(intlit.Value & mask);
                             ctx.Gen.Add(CilOpCodes.Ldc_I8, unchecked((long)hi));
                             ctx.Gen.Add(CilOpCodes.Ldc_I8, unchecked((long)lo));
-                            ctx.Gen.Add(CilOpCodes.Call, largeType.m["new"]);
+                            ctx.Gen.Add(CilOpCodes.Call, (IMethodDescriptor)largeType.m["new"]);
                             ctx.Gen.Add(CilOpCodes.Ldloc, tmp);
                         }
                         ctx.StackPush(largeType.t);
@@ -141,18 +143,24 @@ public partial class Compiler
                         break;
     
                     case ParameterReference @pr:
-                        ctx.Gen.Add(CilOpCodes.Ldarg, ctx.GetArg(pr.Parameter.index));
-                        ctx.StackPush(ctx.GetArg(pr.Parameter.index).ParameterType);
+                        ctx.Gen.Add(CilOpCodes.Ldarg, ctx.GetArg(pr.Parameter.Index));
+                        ctx.StackPush(ctx.GetArg(pr.Parameter.Index).ParameterType);
                         break;
 
                     case SolvedFieldReference @fr:
                     {
                         var field = _fieldsMap[fr.Field];
+
+                        if (field.Constant != null)
+                        {
+                            CompileIrFieldConstant(field.Constant, ctx);
+                            return;
+                        }
                         
                         if (!field.IsStatic && !ctx.Stack[^1].IsAssignableTo(field.DeclaringType!.ToTypeSignature()))
                             ctx.Gen.Add(CilOpCodes.Conv_U);
                         
-                        ctx.Gen.Add(field.IsStatic ? CilOpCodes.Ldsfld : CilOpCodes.Ldfld, field);
+                        ctx.Gen.Add((CilOpCode)(field.IsStatic ? CilOpCodes.Ldsfld : CilOpCodes.Ldfld), (IFieldDescriptor)field);
                         if (!field.IsStatic) ctx.StackPop(); 
                         ctx.StackPush(_fieldsMap[fr.Field].Signature!.FieldType);
                     } break;
@@ -165,8 +173,7 @@ public partial class Compiler
                         var enumdata = _enumsMap[typedef];
                         var enumfield = enumdata.GetItem(item);
 
-                        ctx.Gen.Add(CilOpCodes.Ldsfld, enumfield);
-                        ctx.StackPush(enumfield.Signature!.FieldType);
+                        CompileIrFieldConstant(enumfield.Resolve()!.Constant!, ctx);
                     } break;
                     
                     default: throw new UnreachableException();
@@ -183,7 +190,7 @@ public partial class Compiler
                 ctx.StackPush(t);
             } break;
     
-            case IRInvoke @iv:
+            case IrInvoke @iv:
             {
                 foreach (var i in iv.Arguments) CompileIrNodeLoad(i, ctx);
                 CompileIrNodeCall(iv.Target, ctx);
@@ -202,7 +209,7 @@ public partial class Compiler
                         CompileIrNodeLoad(c.Expression, ctx);
                         ctx.StackPop();
                         ctx.Gen.Add(CilOpCodes.Box, baseTypeRef.ToTypeDefOrRef());
-                        ctx.Gen.Add(CilOpCodes.Callvirt, _coreLib["Object"].m["ToString"]);
+                        ctx.Gen.Add(CilOpCodes.Callvirt, (IMethodDescriptor)_coreLib["Object"].m["ToString"]);
                         ctx.StackPush(_corLibFactory.String);
                     } break;
 
@@ -224,19 +231,19 @@ public partial class Compiler
                             switch (bitsize)
                             {
                                 case <= 8:
-                                    ctx.Gen.Add(CilOpCodes.Call, baset.m[s ? "Conv_to_i8" : "Conv_to_u8"]);
+                                    ctx.Gen.Add(CilOpCodes.Call, (IMethodDescriptor)baset.m[s ? "Conv_to_i8" : "Conv_to_u8"]);
                                     ctx.StackPush(s ? _corLibFactory.SByte :  _corLibFactory.Byte);
                                     break;
                                 case <= 16:
-                                    ctx.Gen.Add(CilOpCodes.Call, baset.m[s ? "Conv_to_i16" : "Conv_to_u16"]);
+                                    ctx.Gen.Add(CilOpCodes.Call, (IMethodDescriptor)baset.m[s ? "Conv_to_i16" : "Conv_to_u16"]);
                                     ctx.StackPush(s ? _corLibFactory.Int16 : _corLibFactory.UInt16);
                                     break;
                                 case <= 32:
-                                    ctx.Gen.Add(CilOpCodes.Call, baset.m[s ? "Conv_to_i32" : "Conv_to_u32"]);
+                                    ctx.Gen.Add(CilOpCodes.Call, (IMethodDescriptor)baset.m[s ? "Conv_to_i32" : "Conv_to_u32"]);
                                     ctx.StackPush(s ? _corLibFactory.Int32 : _corLibFactory.UInt32);
                                     break;
                                 case <= 64:
-                                    ctx.Gen.Add(CilOpCodes.Call, baset.m[s ? "Conv_to_i64" : "Conv_to_u64"]);
+                                    ctx.Gen.Add(CilOpCodes.Call, (IMethodDescriptor)baset.m[s ? "Conv_to_i64" : "Conv_to_u64"]);
                                     ctx.StackPush(s ? _corLibFactory.Int64 : _corLibFactory.UInt64);
                                     break;
                                 default: throw new UnreachableException();
@@ -274,10 +281,10 @@ public partial class Compiler
                                 
                                 switch (srbitsize)
                                 {
-                                    case <= 8:ctx.Gen.Add(CilOpCodes.Call, baset.m[s ? "Conv_from_i8" : "Conv_from_u8"]); break;
-                                    case <= 16: ctx.Gen.Add(CilOpCodes.Call, baset.m[s ? "Conv_from_i16" : "Conv_from_u16"]); break;
-                                    case <= 32: ctx.Gen.Add(CilOpCodes.Call, baset.m[s ? "Conv_from_i32" : "Conv_from_u32"]); break;
-                                    case <= 64: ctx.Gen.Add(CilOpCodes.Call, baset.m[s ? "Conv_from_i64" : "Conv_from_u64"]); break;
+                                    case <= 8:ctx.Gen.Add(CilOpCodes.Call, (IMethodDescriptor)baset.m[s ? "Conv_from_i8" : "Conv_from_u8"]); break;
+                                    case <= 16: ctx.Gen.Add(CilOpCodes.Call, (IMethodDescriptor)baset.m[s ? "Conv_from_i16" : "Conv_from_u16"]); break;
+                                    case <= 32: ctx.Gen.Add(CilOpCodes.Call, (IMethodDescriptor)baset.m[s ? "Conv_from_i32" : "Conv_from_u32"]); break;
+                                    case <= 64: ctx.Gen.Add(CilOpCodes.Call, (IMethodDescriptor)baset.m[s ? "Conv_from_i64" : "Conv_from_u64"]); break;
                                     default: throw new UnreachableException();
                                 }
 
@@ -310,7 +317,7 @@ public partial class Compiler
                         var is128 = ((RuntimeIntegerTypeReference)ue.Type!).BitSize == 128;
                         
                         CompileIrNodeLoad(ue.Value, ctx);
-                        if (is128) ctx.Gen.Add(CilOpCodes.Call, _coreLib[isSigned ? "Int128" : "UInt128"].m["BitwiseNot"]);
+                        if (is128) ctx.Gen.Add(CilOpCodes.Call, (IMethodDescriptor)_coreLib[isSigned ? "Int128" : "UInt128"].m["BitwiseNot"]);
                         else ctx.Gen.Add(CilOpCodes.Not); ;
                     } break;
 
@@ -368,70 +375,70 @@ public partial class Compiler
                         switch (bin.Operator)
                         {
                             case IRBinaryExp.Operators.Add:
-                                if (is128) ctx.Gen.Add(CilOpCodes.Call, _coreLib[isSigned ? "Int128" : "UInt128"].m["Add"]);
+                                if (is128) ctx.Gen.Add(CilOpCodes.Call, (IMethodDescriptor)_coreLib[isSigned ? "Int128" : "UInt128"].m["Add"]);
                                 else ctx.Gen.Add(CilOpCodes.Add);
                                 break;
 
                             case IRBinaryExp.Operators.AddWarpAround:
-                                if (is128) ctx.Gen.Add(CilOpCodes.Call, _coreLib[isSigned ? "Int128" : "UInt128"].m["AddOvf"]);
+                                if (is128) ctx.Gen.Add(CilOpCodes.Call, (IMethodDescriptor)_coreLib[isSigned ? "Int128" : "UInt128"].m["AddOvf"]);
                                 else ctx.Gen.Add(isSigned ? CilOpCodes.Add_Ovf : CilOpCodes.Add_Ovf_Un);
                                 break;
 
 
                             case IRBinaryExp.Operators.Subtract:
-                                if (is128) ctx.Gen.Add(CilOpCodes.Call, _coreLib[isSigned ? "Int128" : "UInt128"].m["Sub"]);
+                                if (is128) ctx.Gen.Add(CilOpCodes.Call, (IMethodDescriptor)_coreLib[isSigned ? "Int128" : "UInt128"].m["Sub"]);
                                 else ctx.Gen.Add(CilOpCodes.Sub);
                                 break;
 
                             case IRBinaryExp.Operators.SubtractWarpAround:
-                                if (is128) ctx.Gen.Add(CilOpCodes.Call, _coreLib[isSigned ? "Int128" : "UInt128"].m["SubOvf"]);
+                                if (is128) ctx.Gen.Add(CilOpCodes.Call, (IMethodDescriptor)_coreLib[isSigned ? "Int128" : "UInt128"].m["SubOvf"]);
                                 else ctx.Gen.Add(isSigned ? CilOpCodes.Sub_Ovf : CilOpCodes.Sub_Ovf_Un);
                                 break;
 
                             case IRBinaryExp.Operators.Multiply:
-                                if (is128) ctx.Gen.Add(CilOpCodes.Call, _coreLib[isSigned ? "Int128" : "UInt128"].m["Mul"]);
+                                if (is128) ctx.Gen.Add(CilOpCodes.Call, (IMethodDescriptor)_coreLib[isSigned ? "Int128" : "UInt128"].m["Mul"]);
                                 else ctx.Gen.Add(isSigned ? CilOpCodes.Mul_Ovf : CilOpCodes.Mul_Ovf_Un);
                                 break;
 
                             case IRBinaryExp.Operators.Divide:
-                                if (is128) ctx.Gen.Add(CilOpCodes.Call, _coreLib[isSigned ? "Int128" : "UInt128"].m["Div"]);
+                                if (is128) ctx.Gen.Add(CilOpCodes.Call, (IMethodDescriptor)_coreLib[isSigned ? "Int128" : "UInt128"].m["Div"]);
                                 else ctx.Gen.Add(isSigned ? CilOpCodes.Div : CilOpCodes.Div_Un);
                                 break;
 
                             case IRBinaryExp.Operators.Reminder:
-                                if (is128) ctx.Gen.Add(CilOpCodes.Call, _coreLib[isSigned ? "Int128" : "UInt128"].m["Rem"]);
+                                if (is128) ctx.Gen.Add(CilOpCodes.Call, (IMethodDescriptor)_coreLib[isSigned ? "Int128" : "UInt128"].m["Rem"]);
                                 else ctx.Gen.Add(isSigned ? CilOpCodes.Rem : CilOpCodes.Rem_Un);
                                 break;
 
                             case IRBinaryExp.Operators.BitwiseAnd:
                                 if (is128)
-                                    ctx.Gen.Add(CilOpCodes.Call, _coreLib[isSigned ? "Int128" : "UInt128"].m["BitwiseAnd"]);
+                                    ctx.Gen.Add(CilOpCodes.Call, (IMethodDescriptor)_coreLib[isSigned ? "Int128" : "UInt128"].m["BitwiseAnd"]);
                                 else ctx.Gen.Add(CilOpCodes.And);
                                 break;
 
                             case IRBinaryExp.Operators.BitwiseOr:
                                 if (is128)
-                                    ctx.Gen.Add(CilOpCodes.Call, _coreLib[isSigned ? "Int128" : "UInt128"].m["BitwiseOr"]);
+                                    ctx.Gen.Add(CilOpCodes.Call, (IMethodDescriptor)_coreLib[isSigned ? "Int128" : "UInt128"].m["BitwiseOr"]);
                                 else ctx.Gen.Add(CilOpCodes.Or);
                                 break;
 
                             case IRBinaryExp.Operators.BitwiseXor:
                                 if (is128)
-                                    ctx.Gen.Add(CilOpCodes.Call, _coreLib[isSigned ? "Int128" : "UInt128"].m["BitwiseXor"]);
+                                    ctx.Gen.Add(CilOpCodes.Call, (IMethodDescriptor)_coreLib[isSigned ? "Int128" : "UInt128"].m["BitwiseXor"]);
                                 else ctx.Gen.Add(CilOpCodes.Xor);
                                 break;
 
                             case IRBinaryExp.Operators.LeftShift:
                                 //ctx.Gen.Add(CilOpCodes.Conv_I4);
                                 if (is128)
-                                    ctx.Gen.Add(CilOpCodes.Call, _coreLib[isSigned ? "Int128" : "UInt128"].m["LeftShift"]);
+                                    ctx.Gen.Add(CilOpCodes.Call, (IMethodDescriptor)_coreLib[isSigned ? "Int128" : "UInt128"].m["LeftShift"]);
                                 else ctx.Gen.Add(CilOpCodes.Shl);
                                 break;
 
                             case IRBinaryExp.Operators.RightShift:
                                 //ctx.Gen.Add(CilOpCodes.Conv_I4);
                                 if (is128)
-                                    ctx.Gen.Add(CilOpCodes.Call, _coreLib[isSigned ? "Int128" : "UInt128"].m["RightShift"]);
+                                    ctx.Gen.Add(CilOpCodes.Call, (IMethodDescriptor)_coreLib[isSigned ? "Int128" : "UInt128"].m["RightShift"]);
                                 else ctx.Gen.Add(CilOpCodes.Shr_Un);
                                 break;
                             
@@ -534,11 +541,11 @@ public partial class Compiler
                         switch (cmp.Operator)
                         {
                             case IRCompareExp.Operators.Equality:
-                                ctx.Gen.Add(CilOpCodes.Call, _coreLib["String"].m["Equals"]);
+                                ctx.Gen.Add(CilOpCodes.Call, (IMethodDescriptor)_coreLib["String"].m["Equals"]);
                                 break;
 
                             case IRCompareExp.Operators.Inequality:
-                                ctx.Gen.Add(CilOpCodes.Call, _coreLib["String"].m["Equals"]);
+                                ctx.Gen.Add(CilOpCodes.Call, (IMethodDescriptor)_coreLib["String"].m["Equals"]);
                                 ctx.Gen.Add(CilOpCodes.Ldc_I4_0);
                                 ctx.Gen.Add(CilOpCodes.Ceq);
                                 break;
@@ -624,7 +631,7 @@ public partial class Compiler
                 {
                     if (ctx.Stack[^1] is CorLibTypeSignature @clts && IsExplicitInteger(clts, out var sig, out var len))
                         if (len > 4) ctx.Gen.Add(CilOpCodes.Conv_I4);
-                    ctx.Gen.Add(CilOpCodes.Call, _coreLib["String"].m["charAt"]);
+                    ctx.Gen.Add(CilOpCodes.Call, (IMethodDescriptor)_coreLib["String"].m["charAt"]);
                 }
                 else throw new UnreachableException();
                 
@@ -719,7 +726,7 @@ public partial class Compiler
                 checkLabel.Instruction = ctx.Gen[lastIdx];
             } break;
             
-            case IRReturn @ret:
+            case IrReturn @ret:
                 if (ret.Value != null)
                 {
                     CompileIrNodeLoad(ret.Value, ctx);
@@ -732,7 +739,7 @@ public partial class Compiler
         }
     }
     
-    private void CompileIrNodeLoadAsRef(IRNode node,  Context ctx)
+    private void CompileIrNodeLoadAsRef(IrNode node, Context ctx)
     {
         switch (node)
         {
@@ -740,6 +747,11 @@ public partial class Compiler
             {
                 switch (sr.Reference)
                 {
+                    case SelfReference @s:
+                        ctx.Gen.Add(CilOpCodes.Ldarg_0);
+                        ctx.StackPush(ctx.SelfType?.ToTypeSignature() ?? throw new UnreachableException());
+                        break;
+                    
                     case LocalReference @l:
                     {
                         var t = ctx.GetLoc(l.Local.index).VariableType;
@@ -750,9 +762,9 @@ public partial class Compiler
 
                     case ParameterReference @p:
                     {
-                        var t = ctx.GetArg(p.Parameter.index).ParameterType;
+                        var t = ctx.GetArg(p.Parameter.Index).ParameterType;
                         var byRef = t.IsValueType;
-                        ctx.Gen.Add(byRef ? CilOpCodes.Ldarga : CilOpCodes.Ldarg, ctx.GetArg(p.Parameter.index));
+                        ctx.Gen.Add(byRef ? CilOpCodes.Ldarga : CilOpCodes.Ldarg, ctx.GetArg(p.Parameter.Index));
                         ctx.StackPush(t.MakeByReferenceType());
                     } break;
 
@@ -764,9 +776,9 @@ public partial class Compiler
                         if (!fi.IsStatic && !ctx.Stack[^1].IsAssignableTo(fi.DeclaringType!.ToTypeSignature()))
                             ctx.Gen.Add(CilOpCodes.Conv_U);
                         
-                        ctx.Gen.Add(CilOpCodes.Ldflda, fi);
+                        ctx.Gen.Add(CilOpCodes.Ldflda, (IFieldDescriptor)fi);
                         if (fi.IsStatic) ctx.StackPop();
-                        ctx.StackPush(fi.Signature!.FieldType.MakeByReferenceType());
+                        ctx.StackPush(TypeDescriptorExtensions.MakeByReferenceType(fi.Signature!.FieldType));
                     } break;
 
                     default: throw new UnreachableException();
@@ -783,7 +795,7 @@ public partial class Compiler
         }
     }
     
-    private void CompileIrNodeStore(IRNode node, IRNode? value,  Context ctx)
+    private void CompileIrNodeStore(IrNode node, IrNode? value,  Context ctx)
     {
         switch (node)
         {
@@ -807,7 +819,7 @@ public partial class Compiler
                             ctx.Gen.Add(CilOpCodes.Conv_U);
                         
                         if (value != null) CompileIrNodeLoad(value, ctx);
-                        ctx.Gen.Add(isstat ? CilOpCodes.Stsfld : CilOpCodes.Stfld, t);
+                        ctx.Gen.Add((CilOpCode)(isstat ? CilOpCodes.Stsfld : CilOpCodes.Stfld), (IFieldDescriptor)t);
                         
                         if (!isstat) ctx.StackPop();
                         ctx.StackPop();
@@ -837,7 +849,7 @@ public partial class Compiler
         }
     }
     
-    private void CompileIrNodeCall(IRNode node,  Context ctx)
+    private void CompileIrNodeCall(IrNode node, Context ctx, bool useNewObj = false)
     {
         switch (node)
         {
@@ -845,17 +857,12 @@ public partial class Compiler
             {
                 switch (solvedReference.Reference)
                 {
-                    case SolvedFunctionReference sfr:
+                    case SolvedCallableReference sfr:
                     {
-                        var f = _functionsMap[sfr.Function];
-                        var pl = sfr.Function.Parameters.Length;
-
-                        if (f.InstanceType != null)
-                        {
-                            var currentInstanceTypeSig = ctx.Stack[^pl];
-                        }
+                        var f = _functionsMap[sfr.Callable];
+                        var pl = sfr.Callable.Parameters.Count;
                         
-                        ctx.Gen.Add(CilOpCodes.Call, f.Function);
+                        ctx.Gen.Add(useNewObj ? CilOpCodes.Newobj : CilOpCodes.Call, f.Function);
                         ctx.StackPop(pl);
                         
                         if (f.ReturnsValue) ctx.StackPush(f.ReturnType);
@@ -868,5 +875,43 @@ public partial class Compiler
             default: throw new UnreachableException();
         }
     }
-    
+
+    private void CompileIrFieldConstant(Constant c, Context ctx)
+    {
+        switch (c.Type)
+        {
+            case ElementType.I1:
+            case ElementType.U1:
+            {
+                var val = c.Value!.Data[0];
+                ctx.Gen.Add(CilInstruction.CreateLdcI4(val));
+            } break;
+            case ElementType.I2:
+            case ElementType.U2:
+            {
+                var bytes = c.Value!.Data;
+                var val = BinaryPrimitives.ReadInt16LittleEndian(bytes);
+                ctx.Gen.Add(CilInstruction.CreateLdcI4(val));
+            } break;
+                                
+            case ElementType.I4:
+            case ElementType.U4:
+            {
+                var bytes = c.Value!.Data;
+                var val = BinaryPrimitives.ReadInt32LittleEndian(bytes);
+                ctx.Gen.Add(CilInstruction.CreateLdcI4(val));
+            } break;
+
+            case ElementType.I8 or ElementType.U8:
+            {
+                var bytes = c.Value!.Data;
+                var val = BinaryPrimitives.ReadInt64LittleEndian(bytes);
+                ctx.Gen.Add(CilOpCodes.Ldc_I8, val);
+            } break;
+            
+            default: throw new NotImplementedException();
+        }
+        
+        ctx.StackPush(_corLibFactory.FromElementType(c.Type)!);
+    }
 }

@@ -1,7 +1,7 @@
 using System.Buffers.Binary;
 using System.Diagnostics;
-using Abstract.CodeProcess.Core.Language.EvaluationData;
-using Abstract.CodeProcess.Core.Language.EvaluationData.LanguageObjects;
+using Abstract.CodeProcess.Core.EvaluationData;
+using Abstract.CodeProcess.Core.EvaluationData.LanguageObjects;
 using AsmResolver.DotNet;
 using AsmResolver.DotNet.Code.Cil;
 using AsmResolver.DotNet.Signatures;
@@ -16,15 +16,14 @@ using MethodDefinition = AsmResolver.DotNet.MethodDefinition;
 using ModuleDefinition = AsmResolver.DotNet.ModuleDefinition;
 using TypeAttributes = AsmResolver.PE.DotNet.Metadata.Tables.Rows.TypeAttributes;
 using TypeDefinition = AsmResolver.DotNet.TypeDefinition;
+using TypeReference = AsmResolver.DotNet.TypeReference;
 
 namespace Abstract.CodeProcess;
 
 public partial class Compiler
 {
     private Dictionary<NamespaceObject, TypeDefinition> _namespacesMap = [];
-    private Dictionary<ConstructorObject, FunctionData> _ctorMap = [];
-    private Dictionary<DestructorObject, FunctionData> _dtorMap = [];
-    private Dictionary<FunctionObject, FunctionData> _functionsMap = [];
+    private Dictionary<ICallable, FunctionData> _functionsMap = [];
     private Dictionary<StructObject, StructData> _typesMap = [];
     private Dictionary<TypedefObject, EnumData> _enumsMap = [];
     private Dictionary<FieldObject, FieldDefinition> _fieldsMap = [];
@@ -133,7 +132,13 @@ public partial class Compiler
     {
         foreach (var (k, _) in _functionsMap)
         {
-            var fun = DeclareFunction(k, _namespacesMap[k.Namespace!]);
+            var parent = _namespacesMap[((LangObject)k).Namespace!];
+            var fun = k switch
+            {
+                FunctionObject @f => DeclareFunction(f, parent),
+                ConstructorObject @c => DeclareCtor(c, parent), 
+                _ => throw new NotImplementedException(),
+            };
             _functionsMap[k] = fun;
         }
 
@@ -145,9 +150,7 @@ public partial class Compiler
 
         foreach (var (k, v) in _typesMap)
         {
-            if (v.Type is not TypeDefinition @typedef) continue;
-
-            if (k.Extends != null)
+            if (v.Type is TypeDefinition typedef && k.Extends != null)
             {
                 FieldAttributes attributes = FieldAttributes.Public | FieldAttributes.SpecialName;
                 var sig = new FieldSignature(CallingConventionAttributes.Default, TypeFromRef(k.Extends));
@@ -157,14 +160,14 @@ public partial class Compiler
 
             foreach (var i in k.Fields)
             {
-                var f = DeclareField(i, typedef);
+                var f = DeclareField(i, v.Type);
                 _fieldsMap.Add(i, f);
             }
             
             foreach (var i in k.Constructors)
             {
-                var f = DeclareCtor(i, typedef);
-                _ctorMap.Add(i, f);
+                var f = DeclareCtor(i, v.Type);
+                _functionsMap.Add(i, f);
             }
             
             foreach (var i in k.Destructors)
@@ -176,7 +179,7 @@ public partial class Compiler
             {
                 foreach (var j in i.Overloads)
                 {
-                    var f = DeclareFunction(j, typedef);
+                    var f = DeclareFunction(j, v.Type);
                     _functionsMap.Add(j, f);
                 }
             }
@@ -187,13 +190,14 @@ public partial class Compiler
     {
         foreach (var (k, v) in _functionsMap)
         {
+            if (v == null!) continue;
             if (k.Body == null) continue;
             if (v.Def.HasMethodBody) continue;
             
             var body = new CilMethodBody(v.Def);
             v.Def.CilMethodBody = body;
             
-            var locals = new CilLocalVariable[k.Locals.Length];
+            var locals = new CilLocalVariable[k.Locals.Count];
             foreach (var local in k.Locals)
             {
                 var l = new CilLocalVariable(TypeFromRef(local.Type));
@@ -203,9 +207,10 @@ public partial class Compiler
             if (locals.Length > 0) body.InitializeLocals = true;
             
             var args = v.Def.Parameters.ToArray();
-            var stack = new List<TypeSignature>();
-
-            var ctx = new Context(body.Instructions, args, locals);
+            ITypeDefOrRef? selfType = !v.IsStatic ? v.Def.DeclaringType : null;
+            
+            var ctx = new Context(selfType, body, args, locals);
+            
             CompileIr(k.Body!, ctx);
             if (body.Instructions.Count == 0 || body.Instructions[^1].OpCode != CilOpCodes.Ret)
             {
@@ -214,6 +219,7 @@ public partial class Compiler
             }
             
             //if (ctx.Stack.Count != 0) throw new UnreachableException();
+            body.ComputeMaxStack();
             body.Instructions.CalculateOffsets();
         }
     }
@@ -258,19 +264,25 @@ public partial class Compiler
             var lastDot = typeName.LastIndexOf('.');
             
             var asmRef = SolveAssemblyReference(asmName);
-            var typedef = SolveTypeReference(asmRef, typeName[0..lastDot], typeName[(lastDot + 1)..]).Resolve()!;
-            var valueField = typedef.Fields.First(e => e.Name == "value__");
+            var importedType = SolveTypeReference(asmRef, typeName[0..lastDot], typeName[(lastDot + 1)..]);
+            var enumTypeSignature = importedType.ToTypeSignature();
             
-            var enumdata = new EnumData(typedef, valueField);
+            var valueFieldSignature = new FieldSignature(enumTypeSignature);
+            var vfr = importedType.CreateMemberReference("value__", valueFieldSignature);
+            var valueField = _module.DefaultImporter.ImportField(vfr);
+            
+            var enumData = new EnumData(importedType, valueField);
 
             foreach (var value in typedefobj.NamedValues)
             {
-                var f = typedef.Fields.FirstOrDefault(e => e.Name == value.Name);
-                if (f == null) throw new Exception("Extern enum member not found: " + value.Name);
-                enumdata.Items.Add(value, f);
+                var fieldSignature = new FieldSignature(enumTypeSignature);
+                var fr = importedType.CreateMemberReference(value.Name, fieldSignature);
+                var resolved = (FieldDefinition?)fr.Resolve();
+                if (resolved == null) throw new UnreachableException(); ;
+                enumData.Items.Add(value, _module.DefaultImporter.ImportField(resolved).Resolve()!);
             }
 
-            return enumdata;
+            return enumData;
         }
         else
         {
@@ -319,11 +331,11 @@ public partial class Compiler
         }
     }
 
-    private FunctionData DeclareCtor(ConstructorObject ctorobj, TypeDefinition parent)
+    private FunctionData DeclareCtor(ConstructorObject ctorobj, ITypeDefOrRef parent)
     {
         if (ctorobj.DotnetImport != null)
         {
-            TypeDefinition? baseType;
+            ITypeDefOrRef baseType;
             if (ctorobj.DotnetImport.Value.AssemblyName == null && ctorobj.DotnetImport.Value.ClassName == null)
             {
                 baseType = parent;
@@ -335,24 +347,22 @@ public partial class Compiler
                 var lastDot = typeName.LastIndexOf('.');
             
                 var asmRef = SolveAssemblyReference(asmName!);
-                baseType = SolveTypeReference(asmRef, typeName[0..lastDot], typeName[(lastDot + 1)..]).Resolve()!;
+                baseType = SolveTypeReference(asmRef, typeName[0..lastDot], typeName[(lastDot + 1)..]);
             }
             
             var parameters = ctorobj.Parameters.Select(e => TypeFromRef(e.Type)); 
             var signature = MethodSignature.CreateInstance(_corLibFactory.Void, parameters);
-            signature = _module.DefaultImporter.ImportMethodSignature(signature);
 
             var baset = baseType;
-            var method = baset.CreateMemberReference(".ctor", signature);
-            IMethodDefOrRef methoddef = _module.DefaultImporter.ImportMethod(method).Resolve()!;
-            methoddef = _module.DefaultImporter.ImportMethod(methoddef);
+            var method = baset!.CreateMemberReference(".ctor", signature);
+            if (method.Resolve() == null) throw new Exception("Extern constructor reference could not be solved: "
+                                                              + baseType!.CreateMemberReference(".ctor", signature));
+            var importedMethod = _module.DefaultImporter.ImportMethod(method);
             
-            return methoddef == null
-                ? throw new Exception($"Extern constructor reference could not be solved: {baseType.CreateMemberReference(".ctor", signature)}")
-                : new FunctionData(methoddef);
+            return new FunctionData(importedMethod);
         }
-
-        var nmsp = string.Join('.', ctorobj.Global[0..^1]);
+        if (parent is not TypeDefinition @parentTypedef) throw new ArgumentNullException(nameof(parent));
+        
         var name = ".ctor";
 
         MethodAttributes attributes = MethodAttributes.HideBySig
@@ -367,27 +377,24 @@ public partial class Compiler
         
         var m = new MethodDefinition(name, attributes, sig);
         foreach (var i in argDefs) m.ParameterDefinitions.Add(i);
-        parent.Methods.Add(m);
+        parentTypedef.Methods.Add(m);
         
         return new FunctionData(m);
     }
-    private FunctionData DeclareFunction(FunctionObject funcobj, TypeDefinition parent)
+    private FunctionData DeclareFunction(FunctionObject funcobj, ITypeDefOrRef parent)    
     {
         if (funcobj.DotnetImport != null)
         {
-            TypeDefinition? baseType;
-            if (funcobj.DotnetImport.Value.AssemblyName == null && funcobj.DotnetImport.Value.ClassName == null)
-            {
-                baseType = parent;
-            }
+            ITypeDefOrRef baseType;
+            if (funcobj.DotnetImport.Value.AssemblyName == null && funcobj.DotnetImport.Value.ClassName == null) baseType = parent;
             else
             {
                 var asmName = funcobj.DotnetImport.Value.AssemblyName;
-                var typeName = funcobj.DotnetImport.Value.ClassName;
+                var typeName = funcobj.DotnetImport.Value.ClassName!;
                 var lastDot = typeName.LastIndexOf('.');
             
                 var asmRef = SolveAssemblyReference(asmName!);
-                baseType = SolveTypeReference(asmRef, typeName[0..lastDot], typeName[(lastDot + 1)..]).Resolve() ?? throw new NullReferenceException();
+                baseType = SolveTypeReference(asmRef, typeName[0..lastDot], typeName[(lastDot + 1)..]);
             }
             
             var methodName = funcobj.DotnetImport.Value.MethodName;
@@ -398,46 +405,57 @@ public partial class Compiler
                 ? MethodSignature.CreateStatic(returnType, parameters)
                 : MethodSignature.CreateInstance(returnType, parameters);
             signature = _module.DefaultImporter.ImportMethodSignature(signature);
-
+            
             var baset = baseType;
             var method = baset.CreateMemberReference(methodName, signature);
-            IMethodDefOrRef? methoddef = _module.DefaultImporter.ImportMethod(method).Resolve() ?? throw new NullReferenceException();
-            methoddef = _module.DefaultImporter.ImportMethod(methoddef);
+            if (method.Resolve() == null) throw new Exception($"Extern method reference could not be solved"
+                                                              + baseType.CreateMemberReference(methodName, signature));
+            IMethodDefOrRef importedMethod = _module.DefaultImporter.ImportMethod(method);
             
-            return methoddef == null
-                ? throw new Exception($"Extern method reference could not be solved: {baseType.CreateMemberReference(methodName, signature)}")
-                : new FunctionData(methoddef);
+            return new FunctionData(importedMethod);
         }
-
-        var nmsp = string.Join('.', funcobj.Global[0..^1]);
-        var name = funcobj.Name == ".ctor." ? ".ctor" : funcobj.Name;
-
-        MethodAttributes attributes = 0;
-
-        if (funcobj.Abstract) attributes |= MethodAttributes.Abstract;
-        if (funcobj.Public) attributes |= MethodAttributes.Public;
-        if (funcobj.Static) attributes |= MethodAttributes.Static;
-        
-        var argTypes = funcobj.Parameters
-            .Select(p => TypeFromRef(p.Type));
-        var argDefs = funcobj.Parameters
-            .Select((p, i) => new ParameterDefinition((ushort)(i + 1), p.Name, 0));
-
-        MethodSignature sig = funcobj.Static switch
+        else
         {
-            true => MethodSignature.CreateStatic(TypeFromRef(funcobj.ReturnType), argTypes),
-            false => MethodSignature.CreateInstance(TypeFromRef(funcobj.ReturnType), argTypes),
-        };
-        
-        var m = new MethodDefinition(name, attributes, sig);
-        foreach (var i in argDefs) m.ParameterDefinitions.Add(i);
-        parent.Methods.Add(m);
+            if (parent is not TypeDefinition @parentTypedef) throw new ArgumentNullException(nameof(parent));
+            if (funcobj.IsGeneric) return null!;
+            
+            var name = funcobj.Name;
 
-        if (funcobj.Export == "main") _module.ManagedEntryPointMethod = m;
-        return new FunctionData(m);
+            MethodAttributes attributes = 0;
+
+            if (funcobj.Abstract) attributes |= MethodAttributes.Abstract;
+            if (funcobj.Public) attributes |= MethodAttributes.Public;
+            if (funcobj.Static) attributes |= MethodAttributes.Static;
+
+            List<TypeSignature> argTypes = [];
+            List<ParameterDefinition> argDefs = [];
+            TypeSignature returnType;
+            
+            foreach (var (i, p) in funcobj.Parameters.Index())
+            {
+                    argTypes.Add(TypeFromRef(p.Type));
+                    argDefs.Add(new ParameterDefinition((ushort)(argTypes.Count - 1), name, 0));
+            }
+            returnType = TypeFromRef(funcobj.ReturnType);
+            
+            var sig = funcobj.Static switch
+            {
+                true => MethodSignature.CreateStatic(returnType, argTypes),
+                false => MethodSignature.CreateInstance(returnType, argTypes),
+            };
+
+            var m = new MethodDefinition(name, attributes, sig);
+            foreach (var i in argDefs) m.ParameterDefinitions.Add(i);
+            parentTypedef.Methods.Add(m);
+
+            if (funcobj.Export == "main") _module.ManagedEntryPointMethod = m;
+            return new FunctionData(m);
+        }
     }
-    private FieldDefinition DeclareField(FieldObject fieldobj, TypeDefinition parent)
+    private FieldDefinition DeclareField(FieldObject fieldobj, ITypeDefOrRef parent)
     {
+        if (parent is not TypeDefinition @parentTypedef) throw new ArgumentNullException(nameof(parent));
+        
         FieldAttributes attributes = 0;
         
         if (fieldobj.Public) attributes |= FieldAttributes.Public;
@@ -446,31 +464,33 @@ public partial class Compiler
         var sig = new FieldSignature(CallingConventionAttributes.Default, TypeFromRef(fieldobj.Type));
         var f = new FieldDefinition(fieldobj.Name, attributes, sig);
         if (fieldobj.Offset.HasValue) f.FieldOffset = fieldobj.Offset!.Value.Bytes;
-        parent.Fields.Add(f);
+        parentTypedef.Fields.Add(f);
         return f;
     }
-
-
+    
     private AssemblyReference SolveAssemblyReference(string? asmName)
     {
         var asmRef = _module.AssemblyReferences.FirstOrDefault(e => e.Name == asmName);
         if (asmRef != null)return asmRef;
         
         asmRef = new AssemblyReference(asmName, ZeroVersion).ImportWith(_module.DefaultImporter);
-        if (asmRef.Resolve() == null) throw new Exception($"Could not resolve assembly reference '{asmName}'");
-        
-        return asmRef;
+        return asmRef.Resolve() == null ? throw new Exception($"Could not resolve assembly reference '{asmName}'") : asmRef;
     }
     private TypeReference SolveTypeReference(AssemblyReference assembly, string ns, string name)
     {
+        var asm = assembly.Resolve();
+        var a = asm.ManifestModule!.ExportedTypes.FirstOrDefault(e => e.Namespace == ns && e.Name == name);
+        
         var typeRef = assembly.CreateTypeReference(ns, name);
         typeRef = (TypeReference)_module.DefaultImporter.ImportType(typeRef);
-        return typeRef.Resolve() != null ? typeRef : throw new Exception($"Could not resolve type reference '[{assembly.Name}]{typeRef}'");
+        
+        if (typeRef.Resolve() == null) throw new Exception($"Could not resolve type reference '[{assembly.Name}]{typeRef}'");
+        return typeRef;
     }
 
     private class CustomAssemblyResolver : DotNetCoreAssemblyResolver
     {
-        private List<string> _resolvingDirectories = [];
+        private readonly List<string> _resolvingDirectories = [];
         
         public CustomAssemblyResolver(Version runtimeVersion)
             : base(UncachedFileService.Instance, runtimeVersion)

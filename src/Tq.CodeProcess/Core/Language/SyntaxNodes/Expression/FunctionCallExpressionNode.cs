@@ -8,5 +8,5 @@ public class FunctionCallExpressionNode : ExpressionNode
     public ExpressionNode[] Arguments => ((ArgumentCollectionNode)_children[1]).Arguments;
 
 
-    public override string ToString() => $"{_children[0]}{_children[1]}";
+    public override string ToString() => $"{FunctionReference}({string.Join(", ", Arguments)})";
 }

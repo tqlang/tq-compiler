@@ -192,24 +192,27 @@ public class Parser(ErrorHandler errHandler)
             break;
 
             case TokenType.ConstructorKeyword:
-            case TokenType.DestructorKeyword:
-            try
-            {
-                node = Taste(TokenType.ConstructorKeyword)
-                    ? new ConstructorDeclarationNode()
-                    : new DestructorDeclarationNode();
-                
-                node.AppendChild(EatAsNode()); // constructor/destructor
-                node.AppendChild(ParseParameterCollection()); // (..., ...)
-                
-                TryEndLine();
-                if (Taste(TokenType.LeftBracketChar))
+                try
                 {
-                    node.AppendChild(ParseBlock((BlockNode n, ref bool _)
-                        => n.AppendChild(ParseFunctionBody()))); // {...}
-                }
-                break;
-            } catch { DiscardLine(); throw; }
+                    node = new ConstructorDeclarationNode();
+                
+                    node.AppendChild(EatAsNode()); // constructor
+                    node.AppendChild(ParseParameterCollection()); // (..., ...)
+                
+                    if (!IsEndOfLine() && !Taste(TokenType.LeftBracketChar))
+                        node.AppendChild(ParseType());
+                    
+                    TryEndLine();
+                    if (Taste(TokenType.LeftBracketChar))
+                    {
+                        node.AppendChild(ParseBlock((BlockNode n, ref bool _)
+                            => n.AppendChild(ParseFunctionBody()))); // {...}
+                    }
+                    break;
+                } catch { DiscardLine(); throw; }
+                
+            case TokenType.DestructorKeyword:
+                throw new NotImplementedException();
 
             default: throw new Exception($"Unexpected token {Bite()} at position {_tokens_cursor}");
         }

@@ -1,0 +1,12 @@
+using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.TypeReferences;
+using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.TypeReferences.Builtin;
+using Abstract.CodeProcess.Core.Language.SyntaxNodes.Base;
+
+namespace Abstract.CodeProcess.Core.EvaluationData.IntermediateTree.Values;
+
+public class IRBooleanLiteral(SyntaxNode origin, bool value): IrExpression(origin)
+{
+    public override TypeReference Type => new BooleanTypeReference();
+    public readonly bool Value = value;
+    public override string ToString() => Value ? "true" : "false";
+}

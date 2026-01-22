@@ -1,10 +1,10 @@
 using System.Diagnostics;
-using Abstract.CodeProcess.Core.Language.EvaluationData.LanguageObjects;
-using Abstract.CodeProcess.Core.Language.EvaluationData.LanguageObjects.Attributes;
-using Abstract.CodeProcess.Core.Language.EvaluationData.LanguageObjects.CodeObjects;
-using Abstract.CodeProcess.Core.Language.EvaluationData.LanguageReferences.AttributeReferences;
-using Abstract.CodeProcess.Core.Language.EvaluationData.LanguageReferences.TypeReferences;
-using Abstract.CodeProcess.Core.Language.EvaluationData.LanguageReferences.TypeReferences.Builtin;
+using Abstract.CodeProcess.Core.EvaluationData.LanguageObjects;
+using Abstract.CodeProcess.Core.EvaluationData.LanguageObjects.Attributes;
+using Abstract.CodeProcess.Core.EvaluationData.LanguageObjects.CodeObjects;
+using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.AttributeReferences;
+using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.TypeReferences;
+using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.TypeReferences.Builtin;
 using Abstract.CodeProcess.Core.Language.SyntaxNodes.Base;
 using Abstract.CodeProcess.Core.Language.SyntaxNodes.Expression;
 using Abstract.CodeProcess.Core.Language.SyntaxNodes.Misc;
@@ -21,17 +21,30 @@ namespace Abstract.CodeProcess;
  *  more shit into `_globalReferenceTable`.
  */
 
-public partial class Analyzer
+public partial class Analyser
 {
     private void ScanHeadersMetadata()
     {
-        foreach (var reference in _globalReferenceTable.ToArray())
+        foreach (var reference in Enumerable.ToArray<KeyValuePair<string[], LangObject>>(_globalReferenceTable))
         {
             var langObj = reference.Value;
 
-            if (langObj is FunctionGroupObject @funcg)
-                foreach (var o in funcg.Overloads) ProcessHeader(o);
-            else ProcessHeader(langObj);
+            ProcessHeader(langObj);
+            
+            switch (langObj)
+            {
+                case FunctionGroupObject @funcg:
+                {
+                    foreach (var o in funcg.Overloads) ProcessHeader(o);
+                    break;
+                }
+                case StructObject @struc:
+                {
+                    foreach (var i in struc.Constructors) ProcessHeader(i);
+                    foreach (var i in struc.Destructors) ProcessHeader(i);
+                    break;
+                }
+            }
         }
     }
     private void ProcessHeader(LangObject reference)
@@ -220,7 +233,7 @@ public partial class Analyzer
 
     private void UnwrapFunctionMeta(FunctionObject function)
     {
-        var node = function.syntaxNode;
+        var node = function.SyntaxNode;
         var paramc = node.ParameterCollection;
         var returnType = node.ReturnType;
 
@@ -231,13 +244,12 @@ public partial class Analyzer
 
             if (typeref is
                 TypeTypeReference or
-                AnytypeTypeReference) function.Generic = true;
+                AnytypeTypeReference) function.IsGeneric = true;
             
             function.AddParameter(new ParameterObject(typeref, name));
         }
 
         function.ReturnType = returnType == null ? new VoidTypeReference() : SolveShallowType(returnType);
-        
     }
     private void UnwrapStructureMeta(StructObject structure)
     {
@@ -272,10 +284,20 @@ public partial class Analyzer
     }
     private void UnwrapCtorMeta(ConstructorObject ctor)
     {
+        var node = ctor.SyntaxNode;
+        var paramc = node.ParameterCollection;
         
+        foreach (var i in paramc.Items)
+        {
+            var typeref = SolveShallowType(i.Type);
+            var name = i.Identifier.Value;
+            ctor.AddParameter(new ParameterObject(typeref, name));
+        }
+        
+        if (node.Returns != null) ctor.ReturnTypeOverride = SolveShallowType(node.Returns);
     }
     private void UnwrapDtorMeta(DestructorObject dtor)
     {
-        
+        throw new NotImplementedException();
     }
 }

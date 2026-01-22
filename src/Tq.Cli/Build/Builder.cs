@@ -2,7 +2,6 @@ using System.Diagnostics;
 using System.Text.RegularExpressions;
 using Abstract.CodeProcess;
 using Abstract.CodeProcess.Core;
-using Abstract.CodeProcess.Core.Language;
 using Abstract.CodeProcess.Core.Language.Module;
 
 namespace Abstract.Cli.Build;
@@ -25,7 +24,7 @@ public static class Builder
         
         var lexer = new Lexer();
         var parser = new Parser(err);
-        var analyzer = new Analyzer(err);
+        var analyzer = new Analyser(err);
         var compiler = new Compiler();
         
         if (verbose) Console.WriteLine("Starting build...");

@@ -1,8 +1,8 @@
 using System.Diagnostics;
-using Abstract.CodeProcess.Core.Language.EvaluationData.LanguageObjects;
-using Abstract.CodeProcess.Core.Language.EvaluationData.LanguageObjects.Containers;
-using Abstract.CodeProcess.Core.Language.EvaluationData.LanguageReferences.AttributeReferences;
-using Abstract.CodeProcess.Core.Language.EvaluationData.LanguageReferences.TypeReferences;
+using Abstract.CodeProcess.Core.EvaluationData.LanguageObjects;
+using Abstract.CodeProcess.Core.EvaluationData.LanguageObjects.Containers;
+using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.AttributeReferences;
+using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.TypeReferences;
 using Abstract.CodeProcess.Core.Language.Module;
 using Abstract.CodeProcess.Core.Language.SyntaxNodes.Control;
 using Abstract.CodeProcess.Core.Language.SyntaxNodes.Expression;
@@ -18,7 +18,7 @@ namespace Abstract.CodeProcess;
  *  in a tree and dumped into `_globalReferenceTable`
  */
 
-public partial class Analyzer
+public partial class Analyser
 {
     private void SearchReferences(Module[] modules)
     {
@@ -281,7 +281,11 @@ public partial class Analyzer
             foreach (var i in gc.Functions)
             {
                 i.Parent = obj;
-                foreach (var j in i.Overloads) j.Parent = obj;
+                foreach (var j in i.Overloads)
+                {
+                    j.Parent = obj;
+                    j.ParentGroup = i;
+                }
                 LoadGlobalsRecursive(i);
             }
         

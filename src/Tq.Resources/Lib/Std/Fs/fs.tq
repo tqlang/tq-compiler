@@ -1,0 +1,4 @@
+@public func open(string path) File {
+	let filestream = new CSharp_FileStream(path, CSharp_FileMode.OpenOrCreate, CSharp_FileAccess.Read)
+	return new File(filestream)
+}
