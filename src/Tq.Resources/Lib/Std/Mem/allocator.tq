@@ -1,4 +1,12 @@
 
-@public struct Allocator {
-	
+@public @abstract struct Allocator {
+
+
+
+}
+
+struct CSharpAllocator extends Allocator {
+
+
+
 }

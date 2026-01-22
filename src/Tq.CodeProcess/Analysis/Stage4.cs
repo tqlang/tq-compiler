@@ -163,11 +163,20 @@ public partial class Analyser
         foreach (var i in structure.Fields) FieldSemaAnal(i);
         foreach (var i in structure.Constructors) CtorSemaAnal(i);
         foreach (var i in structure.Destructors) DtorSemaAnal(i);
+
+        if (structure is { Abstract: false, Constructors.Count: 0 })
+        {
+            var defaultCtor = new ConstructorObject(null!)
+            {
+                Body = new IrBlock(null!),
+            };
+            structure.Constructors.Add(defaultCtor);
+        }
     }
     private void FieldSemaAnal(FieldObject field)
     {
         if (IsSolved(field.Type)) return;
-        field.Type = SolveTypeLazy2(field.Type, null, field.Container);
+        field.Type = SolveTypeLazy2(field.Type, null, field);
     }
 
     
@@ -264,7 +273,7 @@ public partial class Analyser
         
         for (var i = 0; i < node.Arguments.Length; i++)
             node.Arguments[i] = (IrExpression)NodeSemaAnal(node.Arguments[i], ctx);
-
+        
         var (callableRef, argTypes) = SolveFunctionOverload(
             node.InstanceType.Constructors.ToArray<ICallable>(), node.Arguments, node.Origin);
         if (callableRef == null) throw new Exception($"Could not find suitable overload for '{node.Origin}'");

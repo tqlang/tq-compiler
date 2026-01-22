@@ -1,5 +1,6 @@
 from Std.Console import
 from Std.Process import
+from Std.Mem import
 from Std.Fs import
 
 let uint src
@@ -7,21 +8,6 @@ let uint debug
 
 @export("main") func main() void {
 	
-	let fuck1 = genericsTest1(u32, 10)
-	let fuck2 = genericsTest2(i8, i32, 10)
-}
-
-func genericsTest1(type T, uint shit) T {
-	return shit as T
-}
-
-func genericsTest2(type T1, type T2, T1 shit) T2 {
-	return shit as T1
-}
-
-
-func wip() void {
-
 	let argv = getProgramArguments()
 	let argc = argv.len as int
 
@@ -38,3 +24,5 @@ func wip() void {
 	writeln("Not bad untill here")
 
 }
+
+
