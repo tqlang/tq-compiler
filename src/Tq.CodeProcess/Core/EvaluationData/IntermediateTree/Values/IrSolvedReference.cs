@@ -4,7 +4,7 @@ using Abstract.CodeProcess.Core.Language.SyntaxNodes.Base;
 
 namespace Abstract.CodeProcess.Core.EvaluationData.IntermediateTree.Values;
 
-public class IRSolvedReference(SyntaxNode origin, LanguageReference refe) : IrReference(origin)
+public class IrSolvedReference(SyntaxNode origin, LanguageReference refe) : IrReference(origin)
 {
     public override TypeReference Type => refe.Type;
     public readonly LanguageReference Reference = refe;

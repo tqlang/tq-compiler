@@ -17,6 +17,7 @@ using AsmResolver.DotNet.Code.Cil;
 using AsmResolver.DotNet.Signatures.Types;
 using AsmResolver.PE.DotNet.Cil;
 using AsmResolver.PE.DotNet.Metadata.Tables.Rows;
+using TypeReference = Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.TypeReferences.TypeReference;
 
 namespace Abstract.CodeProcess;
 
@@ -51,7 +52,7 @@ public partial class Compiler
                 else
                 {
                     foreach (var i in nobj.Arguments) CompileIrNodeLoad(i, ctx);
-                    CompileIrNodeCall(nobj.Target, ctx, true);
+                    CompileIrNodeCall(nobj.Target, ctx, useNewObj: true);
                 }
                 
                 ctx.StackPush(typeSignature);
@@ -106,6 +107,10 @@ public partial class Compiler
                 }
                 
             } break;
+            case IRBooleanLiteral @boollit:
+                ctx.Gen.Add(boollit.Value ? CilOpCodes.Ldc_I4_1 : CilOpCodes.Ldc_I4_0);
+                ctx.StackPush(_corLibFactory.Boolean);
+                break;
             case IrCharLiteral @charlit:
                 ctx.Gen.Add(CilOpCodes.Ldc_I4_S, (short)charlit.Data);
                 ctx.StackPush(_corLibFactory.Char);
@@ -133,7 +138,7 @@ public partial class Compiler
                 }
             } break;
             
-            case IRSolvedReference @solv:
+            case IrSolvedReference @solv:
             {
                 switch (solv.Reference)
                 {
@@ -194,6 +199,11 @@ public partial class Compiler
             {
                 foreach (var i in iv.Arguments) CompileIrNodeLoad(i, ctx);
                 CompileIrNodeCall(iv.Target, ctx);
+            } break;
+            case IrDotnetInvoke @iv:
+            {
+                foreach (var i in iv.Arguments) CompileIrNodeLoad(i, ctx);
+                CompileIrNodeCall(iv.Target, ctx, generics: iv.Generics);
             } break;
             
             case IrConv @c:
@@ -743,7 +753,7 @@ public partial class Compiler
     {
         switch (node)
         {
-            case IRSolvedReference @sr:
+            case IrSolvedReference @sr:
             {
                 switch (sr.Reference)
                 {
@@ -799,7 +809,7 @@ public partial class Compiler
     {
         switch (node)
         {
-            case IRSolvedReference @solv:
+            case IrSolvedReference @solv:
             {
                 switch (solv.Reference)
                 {
@@ -849,11 +859,13 @@ public partial class Compiler
         }
     }
     
-    private void CompileIrNodeCall(IrNode node, Context ctx, bool useNewObj = false)
+    private void CompileIrNodeCall(IrNode node, Context ctx,
+        TypeReference[] generics = null!,
+        bool useNewObj = false)
     {
         switch (node)
         {
-            case IRSolvedReference solvedReference:
+            case IrSolvedReference solvedReference:
             {
                 switch (solvedReference.Reference)
                 {
@@ -861,11 +873,29 @@ public partial class Compiler
                     {
                         var f = _functionsMap[sfr.Callable];
                         var pl = sfr.Callable.Parameters.Count;
-                        
-                        ctx.Gen.Add(useNewObj ? CilOpCodes.Newobj : CilOpCodes.Call, f.Function);
+                        if (generics != null!) pl -= generics.Length;
+
+                        switch (f)
+                        {
+                            case ConcreteFunctionData @fd:
+                                ctx.Gen.Add(useNewObj ? CilOpCodes.Newobj : CilOpCodes.Call, fd.Function);
+                                if (f.ReturnsValue) ctx.StackPush(fd.ReturnType);
+                                break;
+
+                            case GenericFunctionData @fd:
+                            {
+                                var instanceMethod = fd.MethodRef.MakeGenericInstanceMethod([.. generics!.Select(e => TypeFromRef(e)!)]);
+                                //_module.DefaultImporter.ImportGenericInstanceMethodSignature(instanceMethod.Signature!);
+                                
+                                IMethodDefOrRef methodRef = instanceMethod.Resolve() ?? throw new Exception();
+                                _module.DefaultImporter.ImportMethod(methodRef);
+                                var shit = _module.DefaultImporter.ImportMethod(instanceMethod);
+                                
+                                ctx.Gen.Add(useNewObj ? CilOpCodes.Newobj : CilOpCodes.Call, shit);
+                                if (f.ReturnsValue) ctx.StackPush(methodRef.Signature!.ReturnType);
+                            } break;
+                        }
                         ctx.StackPop(pl);
-                        
-                        if (f.ReturnsValue) ctx.StackPush(f.ReturnType);
                     } break;
 
                     default: throw new UnreachableException();

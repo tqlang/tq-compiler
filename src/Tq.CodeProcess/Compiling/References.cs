@@ -89,7 +89,7 @@ public partial class Compiler
         _coreLib.Add(type.Name!, (self, methods));
         
         methods = [];
-        type = _module.DefaultImporter.ImportType(TypeDescriptorExtensions.CreateTypeReference(cl.CorLibScope, "System", "UInt128"));
+        type = _module.DefaultImporter.ImportType(cl.CorLibScope.CreateTypeReference("System", "UInt128"));
         self = _module.DefaultImporter.ImportTypeSignature(type.ToTypeSignature());
         {
             methods.Add("new", CreateMethodRef(type, ".ctor", MethodSignature.CreateInstance(cl.Void, cl.UInt64, cl.UInt64)));
@@ -135,9 +135,17 @@ public partial class Compiler
         self = cl.String;
         type = _module.DefaultImporter.ImportType(self.ToTypeDefOrRef());
         {
-            methods.Add("charAt", CreateMethodRef(type, "get_Chars", MethodSignature.CreateInstance((TypeSignature)cl.Char, [cl.Int32])));
-            methods.Add("Concat", CreateMethodRef(type, "Concat", MethodSignature.CreateStatic(TypeDescriptorExtensions.MakeArrayType(cl.String, 1))));
+            methods.Add("charAt", CreateMethodRef(type, "get_Chars", MethodSignature.CreateInstance(cl.Char, [cl.Int32])));
+            methods.Add("Concat", CreateMethodRef(type, "Concat", MethodSignature.CreateStatic(cl.String.MakeArrayType(1))));
             methods.Add("Equals", CreateMethodRef(type, "Equals", MethodSignature.CreateStatic(cl.Boolean, cl.String, cl.String)));
+        }
+        methods.TrimExcess();
+        _coreLib.Add(type.Name!, (self, methods));
+        
+        methods = [];
+        type = _module.DefaultImporter.ImportType(cl.CorLibScope.CreateTypeReference("System", "Type"));
+        self = _module.DefaultImporter.ImportTypeSignature(type.ToTypeSignature());
+        {
         }
         methods.TrimExcess();
         _coreLib.Add(type.Name!, (self, methods));

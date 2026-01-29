@@ -23,7 +23,7 @@ public partial class Analyser
     {
         return expr switch
         {
-            IRSolvedReference @solvedFuck => solvedFuck.Reference switch
+            IrSolvedReference @solvedFuck => solvedFuck.Reference switch
             {
                 SolvedStructTypeReference @structt => structt,
                 SolvedTypedefNamedValueReference @tdff => tdff.Type,
@@ -167,12 +167,14 @@ public partial class Analyser
             // FIXME ignored for now
             case IrStringLiteral:
             case IrCharLiteral:
+            case IRBooleanLiteral:
             case IRBinaryExp:
             case IRAccess:
             case IrReference:
             case IrConv:
             case IrIndex:
             case IrInvoke:
+            case IrDotnetInvoke:
             case IrLenOf:
             case IRCompareExp:
             case IRUnaryExp:

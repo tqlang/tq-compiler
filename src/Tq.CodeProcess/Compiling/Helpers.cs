@@ -20,7 +20,6 @@ namespace Abstract.CodeProcess;
 
 public partial class Compiler
 {
-    
     private void DumpModule()
     {
         var sb = new StringBuilder();
@@ -76,6 +75,8 @@ public partial class Compiler
             }
             case SliceTypeReference @s:
                 return new SzArrayTypeSignature(TypeFromRef(s.InternalType));
+            case GenericTypeReference @g:
+                return new GenericParameterSignature(GenericParameterType.Method, g.Parameter.Index);
             
             
             case RuntimeIntegerTypeReference @i:
@@ -99,6 +100,7 @@ public partial class Compiler
             case VoidTypeReference: return _corLibFactory.Void;
 
             case AnytypeTypeReference: return _corLibFactory.Object;
+            case TypeTypeReference: return _coreLib["Type"].t;
             
             case SolvedStructTypeReference @i: return _typesMap[i.Struct].ToTypeSignature();
             case SolvedTypedefTypeReference @t: return _enumsMap[t.Typedef].ToTypeSignature();
@@ -157,15 +159,25 @@ public partial class Compiler
         public TypeSignature ToTypeSignature() => Type.ToTypeSignature();
         public IFieldDescriptor GetItem(TypedefNamedValue namedValue) => Items[namedValue];
     }
-    private class FunctionData(IMethodDefOrRef methoddef)
+
+    private interface IFunctionData
     {
-        public readonly IMethodDefOrRef Function = methoddef ?? throw new ArgumentNullException();
-        public readonly MethodDefinition Def = methoddef.Resolve() ?? throw new ArgumentNullException();
+        public bool ReturnsValue { get; }
+    }
+    private class ConcreteFunctionData(IMethodDefOrRef methodDef) : IFunctionData 
+    {
+        public readonly IMethodDefOrRef Function = methodDef ?? throw new ArgumentNullException();
+        public readonly MethodDefinition Def = methodDef.Resolve()!; //?? throw new ArgumentNullException();
         
         public bool IsStatic => Def.IsStatic;
         public bool ReturnsValue => Function.Signature!.ReturnsValue;
         public TypeSignature ReturnType => Function.Signature!.ReturnType;
         public TypeDefinition? InstanceType => IsStatic ? null : Def.DeclaringType;
+    }
+    private class GenericFunctionData(MemberReference methodRef, bool returnsValue) : IFunctionData
+    {
+        public readonly MemberReference MethodRef = methodRef;
+        public  bool ReturnsValue { get; } = returnsValue;
     }
     
     private class Context(ITypeDefOrRef? selfType, CilMethodBody body, Parameter[] args, CilLocalVariable[] locals)

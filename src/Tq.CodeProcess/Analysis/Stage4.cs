@@ -15,6 +15,7 @@ using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.FunctionRefere
 using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.TypeReferences;
 using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.TypeReferences.Builtin;
 using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.TypeReferences.Builtin.Integer;
+using Abstract.CodeProcess.Core.EvaluationData.Misc;
 using Abstract.CodeProcess.Core.Language.SyntaxNodes.Base;
 using Abstract.CodeProcess.Core.Language.SyntaxNodes.Value;
 
@@ -192,6 +193,7 @@ public partial class Analyser
         return node switch
         {
             IrInvoke @iv => NodeSemaAnal_Invoke(iv, ctx),
+            IrDotnetInvoke @iv => NodeSemaAnal_DotnetInvoke(@iv, ctx),
             IRAssign @ass => NodeSemaAnal_Assign(ass, ctx),
             IRUnaryExp @ue => NodeSemaAnal_UnExp(ue, ctx),
             IRBinaryExp @be => NodeSemaAnal_BinExp(be, ctx),
@@ -203,12 +205,13 @@ public partial class Analyser
             IrReturn @re => NodeSemaAnal_Return(re, ctx),
             IRIf @iff => NodeSemaAnal_If(iff, ctx),
             IRWhile @iwhile => NodeSemaAnal_While(iwhile, ctx),
-            IRSolvedReference @re => NodeSemaAnal_SolvedRef(re, ctx),
+            IrSolvedReference @re => NodeSemaAnal_SolvedRef(re, ctx),
             
-                IrCharLiteral
-                or IrStringLiteral
-                or IrIntegerLiteral 
-                or IRNullLiteral => node,
+            IrCharLiteral
+            or IrStringLiteral
+            or IrIntegerLiteral 
+            or IRBooleanLiteral
+            or IRNullLiteral => node,
             
             IRAccess @s => NodeSemaAnal_Access(s, ctx),
             IrCollectionLiteral @c => NodeSemaAnal_Collection(c, ctx),
@@ -218,7 +221,7 @@ public partial class Analyser
         };
     }
 
-    private IrNode NodeSemaAnal_SolvedRef(IRSolvedReference re, IrBlockExecutionContextData ctx)
+    private IrNode NodeSemaAnal_SolvedRef(IrSolvedReference re, IrBlockExecutionContextData ctx)
     {
         switch (re.Reference)
         {
@@ -229,7 +232,6 @@ public partial class Analyser
             default: return re;       
         }
     }
-    
     private IrNode NodeSemaAnal_Invoke(IrInvoke node, IrBlockExecutionContextData ctx)
     {
         node.Target = (IrExpression)NodeSemaAnal(node.Target, ctx);
@@ -245,22 +247,62 @@ public partial class Analyser
         for (var i = 0; i < node.Arguments.Length; i++)
             node.Arguments[i] = (IrExpression)NodeSemaAnal(node.Arguments[i], ctx);
 
-        var (callableRef, argTypes) = SolveFunctionOverload(
+        var res = SolveFunctionOverload(
             fng.Overloads.ToArray<ICallable>(), node.Arguments, node.Origin);
-        if (callableRef == null) throw new Exception($"Could not find suitable overload for call '{node.Origin}'");
-
-        List<IrExpression> newArgs = [];
-        for (var i = 0; i < node.Arguments.Length; i++)
+        switch (res)
         {
-            if (argTypes[i] is IgnoreTypeReference) continue;
-            newArgs.Add(SolveTypeCast(argTypes[i], node.Arguments[i]));
-        }
+            case NoOverloadResult: throw new Exception($"Could not find suitable overload for call '{node.Origin}'");
 
-        node.Arguments = [.. newArgs];
-        node.Target = new IRSolvedReference(node.Target.Origin, new SolvedCallableReference(callableRef));
+            case SimpleOverloadResult @s:
+            {
+                var newArgs =  new IrExpression[s.Callable.Parameters.Count];
+                for (var i = 0; i < newArgs.Length; i++)
+                    newArgs[i] = SolveTypeCast(s.Callable.Parameters[i].Type, node.Arguments[0]);
+                
+                node.Arguments = newArgs;
+                node.Target = new IrSolvedReference(node.Target.Origin, new SolvedCallableReference(s.Callable));
+                if (instance != null) node.Arguments = [(IrExpression)NodeSemaAnal(instance, ctx), ..node.Arguments];
+                return node;
+            }
+
+            case GenericOverloadResult @g:
+            {
+                List<IrExpression> newArgs = [];
+                for (var i = 0; i < node.Arguments.Length; i++)
+                {
+                    if (g.Types[i] is IgnoreTypeReference) continue;
+                    newArgs.Add(SolveTypeCast(g.Types[i], node.Arguments[i]));
+                }
+
+                node.Arguments = [.. newArgs];
+                node.Target = new IrSolvedReference(node.Target.Origin, new SolvedCallableReference(g.Callable));
+                if (instance != null) node.Arguments = [(IrExpression)NodeSemaAnal(instance, ctx), ..node.Arguments];
+                return node;
+            }
+
+            case DotnetOverloadResult @d:
+            {
+                var args = new IrExpression[d.Parameters.Length];
+                for (var i = d.Generics.Length; i < node.Arguments.Length; i++)
+                    args[i - d.Generics.Length] = SolveTypeCast(d.Parameters[i - d.Generics.Length], node.Arguments[i]);
+                
+                return new IrDotnetInvoke(
+                    node.Target.Origin,
+                    new IrSolvedReference(node.Target.Origin, new SolvedCallableReference(d.Callable)),
+                    d.Generics,
+                    args);
+            }
+            
+            default: throw new NotImplementedException(res.ToString());
+        }
+    }
+    private IrNode NodeSemaAnal_DotnetInvoke(IrDotnetInvoke node, IrBlockExecutionContextData ctx)
+    {
+        node.Target = (IrExpression)NodeSemaAnal(node.Target, ctx);
         
-        if (instance != null) node.Arguments = [(IrExpression)NodeSemaAnal(instance, ctx), ..node.Arguments];
-        
+        for (var i = 0; i < node.Arguments.Length; i++)
+            node.Arguments[i] = (IrExpression)NodeSemaAnal(node.Arguments[i], ctx);
+
         return node;
     }
     private IrNode NodeSemaAnal_NewObj(IrNewObject node, IrBlockExecutionContextData ctx)
@@ -268,26 +310,44 @@ public partial class Analyser
         node.Target = (IrReference)NodeSemaAnal(node.Target, ctx);
         var instanceTypeRef = GetEffectiveTypeReference(node.Target);
         if (instanceTypeRef is UnsolvedTypeReference) throw new Exception($"Not able to resolve reference to '{node.Origin}'");
-        if (instanceTypeRef is not SolvedStructTypeReference @res) throw new Exception($"Cannot instantiate type {node.Origin} as an object");
-        node.InstanceType = res.Struct;
+        if (instanceTypeRef is not SolvedStructTypeReference @r) throw new Exception($"Cannot instantiate type {node.Origin} as an object");
+        node.InstanceType = r.Struct;
         
         for (var i = 0; i < node.Arguments.Length; i++)
             node.Arguments[i] = (IrExpression)NodeSemaAnal(node.Arguments[i], ctx);
         
-        var (callableRef, argTypes) = SolveFunctionOverload(
+        var res = SolveFunctionOverload(
             node.InstanceType.Constructors.ToArray<ICallable>(), node.Arguments, node.Origin);
-        if (callableRef == null) throw new Exception($"Could not find suitable overload for '{node.Origin}'");
-
-        List<IrExpression> newArgs = [];
-        for (var i = 0; i < argTypes.Length; i++)
+        switch (res)
         {
-            if (argTypes[i] is IgnoreTypeReference) continue;
-            newArgs.Add(SolveTypeCast(argTypes[i], node.Arguments[i]));
+            case NoOverloadResult: throw new Exception($"Could not find suitable overload for call '{node.Origin}'");
+
+            case SimpleOverloadResult @s:
+            {
+                var newArgs =  new IrExpression[s.Callable.Parameters.Count];
+                for (var i = 0; i < newArgs.Length; i++)
+                    newArgs[i] = SolveTypeCast(s.Callable.Parameters[i].Type, node.Arguments[0]);
+                
+                node.Arguments = newArgs;
+                node.Target = new IrSolvedReference(node.Target.Origin, new SolvedCallableReference(s.Callable));
+            } break;
+
+            case GenericOverloadResult @g:
+            {
+                List<IrExpression> newArgs = [];
+                for (var i = 0; i < node.Arguments.Length; i++)
+                {
+                    if (g.Types[i] is IgnoreTypeReference) continue;
+                    newArgs.Add(SolveTypeCast(g.Types[i], node.Arguments[i]));
+                }
+
+                node.Arguments = [.. newArgs];
+                node.Target = new IrSolvedReference(node.Target.Origin, new SolvedCallableReference(g.Callable));
+            } break;
+                
+            default: throw new NotImplementedException(res.ToString());
         }
 
-        node.Arguments = [.. newArgs];
-        node.Target = new IRSolvedReference(node.Origin, new SolvedCallableReference(callableRef));
-        
         for (var i = 0; i < node.InlineAssignments.Length; i++)
         {
             var v = node.InlineAssignments[i];
@@ -299,7 +359,7 @@ public partial class Analyser
             
             node.InlineAssignments[i] = v;
         }
-
+        
         return node;
     }
     private IrNode NodeSemaAnal_Assign(IRAssign node, IrBlockExecutionContextData ctx)
@@ -308,7 +368,7 @@ public partial class Analyser
         node.Target = (IrExpression)NodeSemaAnal(node.Target, ctx);
         node.Value = (IrExpression)NodeSemaAnal(node.Value, ctx);
 
-        if (node.Target is IRSolvedReference { Reference: LocalReference { Type: null } @l })
+        if (node.Target is IrSolvedReference { Reference: LocalReference { Type: null } @l })
         {
             var typefrom = GetEffectiveTypeReference(node.Value);
             if (typefrom is ComptimeIntegerTypeReference) typefrom = new RuntimeIntegerTypeReference(true);
@@ -352,7 +412,14 @@ public partial class Analyser
         node.Right = (IrExpression)NodeSemaAnal(node.Right, ctx);
         var leftTypeRef = GetEffectiveTypeReference(node.Left);
         TypeReference ftype = new VoidTypeReference();
-        
+
+        if (leftTypeRef is ComptimeIntegerTypeReference
+            && GetEffectiveTypeReference(node.Right) is ComptimeIntegerTypeReference)
+        {
+            ftype = new ComptimeIntegerTypeReference();
+            goto skipTypeCheck;
+        }
+
         // TODO solve operator overloading
 
         switch (node.Operator)
@@ -582,10 +649,11 @@ public partial class Analyser
     /// Item1 = better option found, null if no option;
     /// Item2 = final argument types or ignored arguments
     /// </returns>
-    private (ICallable?, TypeReference[]) SolveFunctionOverload(ICallable[] options, IrExpression[] arguments, SyntaxNode origin)
+    private ISolvedOverloadResult SolveFunctionOverload(ICallable[] options, IrExpression[] arguments, SyntaxNode origin)
     {
         ICallable? betterFound = null;
         var betterFoundSum = 0;
+        Dictionary<ParameterObject, TypeReference>? betterFoundGenerics = null;
         TypeReference[]? betterFoundArgTypes = null;
         
         foreach (var ov in options)
@@ -630,8 +698,6 @@ public partial class Analyser
                         suitability[i] = s;
                     } break;
                 }
-                
-                
             }
 
             var sum = (suitability.Sum() * 100) / parameters.Count;
@@ -639,13 +705,31 @@ public partial class Analyser
             betterFound = ov;
             betterFoundSum = sum;
             betterFoundArgTypes = argTypes;
+            betterFoundGenerics = generics;
 
             NoSuitability: ;
         }
 
-        if (betterFound == null || betterFoundArgTypes == null) return (null, []);
-        if (!betterFound.IsGeneric) return (betterFound, [.. betterFound.Parameters.Select(e => e.Type)]);
+        if (betterFound == null || betterFoundArgTypes == null) return new NoOverloadResult();
+        if (!betterFound.IsGeneric) return new SimpleOverloadResult(betterFound);
 
+        if (betterFound is FunctionObject { DotnetImport: not null } or ConstructorObject { DotnetImport: not null })
+        {
+            var generics = new List<TypeReference>();
+
+            for (var i = 0; i < arguments.Length; i++)
+            {
+                if (betterFound.Parameters[i].Type is TypeTypeReference)
+                    generics.Add(betterFoundGenerics![betterFound.Parameters[i]]);
+                else break;
+            }
+            
+            var firstParam = betterFound.Parameters.FindIndex(e => e.Type is not TypeTypeReference);
+            var argtypes = betterFound.Parameters[firstParam..].Select(e => e.Type);
+
+            return new DotnetOverloadResult(betterFound, [.. generics], [.. argtypes]);
+        }
+        
         var inputTypes = new TypeReference[betterFound.Parameters.Count];
         for (var i = 0; i < betterFound.Parameters.Count; i++)
         {
@@ -669,7 +753,7 @@ public partial class Analyser
             
             TypeTypeReference @tt => tt.ReferencedType switch {
                 SolvedTypedefTypeReference @solvedTypedef => solvedTypedef.Typedef.SearchChild(accessName) is {} @refe
-                    ? new IRSolvedReference(origin, GetObjectReference(refe))
+                    ? new IrSolvedReference(origin, GetObjectReference(refe))
                     : new IRUnknownReference(origin),
                 
                 _ => throw new NotImplementedException(),
@@ -693,10 +777,10 @@ public partial class Analyser
                 if (ctx != null)
                 {
                     var r = ctx.LocalVariables.FirstOrDefault(e => e.Name == idnode.Value);
-                    if (r != null) return new IRSolvedReference(syntaxNode, new LocalReference(r));
+                    if (r != null) return new IrSolvedReference(syntaxNode, new LocalReference(r));
                     
                     var r2 = (ctx.Parent as ICallable)?.Parameters.FirstOrDefault(e => e.Name == idnode.Value);
-                    if (r2 != null) return new IRSolvedReference(syntaxNode, new ParameterReference(r2));
+                    if (r2 != null) return new IrSolvedReference(syntaxNode, new ParameterReference(r2));
                 }
                 
                 // Search in inherited
@@ -708,9 +792,9 @@ public partial class Analyser
                         var r3 = curr2.SearchChild(idnode.Value);
                         if (r3 != null)
                         {
-                            var refeNode = new IRSolvedReference(syntaxNode, GetObjectReference(r3));
+                            var refeNode = new IrSolvedReference(syntaxNode, GetObjectReference(r3));
                             return r3 is IStaticModifier { Static: false }
-                                ? new IRAccess(syntaxNode, new IRSolvedReference(syntaxNode, new SelfReference()), refeNode) : refeNode;
+                                ? new IRAccess(syntaxNode, new IrSolvedReference(syntaxNode, new SelfReference()), refeNode) : refeNode;
                         }
                         curr2 = ((curr2 as StructObject)?.Extends as SolvedStructTypeReference)?.Struct;
                     } while (curr2 != null && curr2 is not NamespaceObject);
@@ -718,21 +802,21 @@ public partial class Analyser
                 
                 // Search inside namespace
                 var r4 = parent?.Namespace?.SearchChild(idnode.Value);
-                if (r4 != null) return new IRSolvedReference(syntaxNode, GetObjectReference(r4));
+                if (r4 != null) return new IrSolvedReference(syntaxNode, GetObjectReference(r4));
 
                 // Search inside imports
                 var r5 = parent?.Imports?.References.FirstOrDefault(e => e.Name == idnode.Value);
-                if (r5 != null) return new IRSolvedReference(syntaxNode, GetObjectReference(r5));
+                if (r5 != null) return new IrSolvedReference(syntaxNode, GetObjectReference(r5));
                 
                 // Search global references
-                var r6 = Enumerable.FirstOrDefault<KeyValuePair<string[], LangObject>>(_globalReferenceTable, e => e.Key.Length == 1 && e.Key[0] == idnode.Value);
-                if (r6.Key != null) return new IRSolvedReference(syntaxNode, GetObjectReference(r6.Value));
+                var r6 = _globalReferenceTable.FirstOrDefault(e => e.Key.Length == 1 && e.Key[0] == idnode.Value);
+                if (r6.Key != null) return new IrSolvedReference(syntaxNode, GetObjectReference(r6.Value));
 
                 if (parent is NamespaceObject @nmsp)
                 {
                     string[] name = [.. nmsp.Global, idnode.Value];
                     var r7 = Enumerable.FirstOrDefault<KeyValuePair<string[], LangObject>>(_globalReferenceTable, e => IdentifierComparer.IsEquals(e.Key, name));
-                    if (r7.Key != null) return new IRSolvedReference(syntaxNode, GetObjectReference(r7.Value));
+                    if (r7.Key != null) return new IrSolvedReference(syntaxNode, GetObjectReference(r7.Value));
                 }
                 
                 throw new Exception($"Cannot find reference to {idnode:pos}");
@@ -741,7 +825,7 @@ public partial class Analyser
             default: throw new UnreachableException();
         }
     }
-    private (ICallable, TypeReference[]) GenerateSolvedGenericCallable(ICallable baseCallable, TypeReference[] inputArgTypes)
+    private ISolvedOverloadResult GenerateSolvedGenericCallable(ICallable baseCallable, TypeReference[] inputArgTypes)
     {
         switch (baseCallable)
         {
@@ -760,6 +844,7 @@ public partial class Analyser
                 };
                 
                 var genericTypes = new List<TypeReference?>();
+                var parameters = new List<ParameterObject?>();
                 var argTypes = new List<TypeReference>();
                 
                 foreach (var i in function.Parameters)
@@ -770,12 +855,16 @@ public partial class Analyser
                          case TypeTypeReference:
                              genericTypes.Add(inputArgTypes[i.Index]);
                              argTypes.Add(new IgnoreTypeReference());
+                             parameters.Add(null);
                              continue;
                          
                          case GenericTypeReference @gen: p = new ParameterObject(inputArgTypes[gen.Parameter.Index], i.Name); break;
                          default: p = new ParameterObject(i.Type, i.Name); break;
                      }
+                     
                      newFunc.Parameters.Add(p);
+                     parameters.Add(p);
+                     
                      genericTypes.Add(null);
                      argTypes.Add(p.Type);
                 }
@@ -798,32 +887,37 @@ public partial class Analyser
                     newFunc.ReturnType = inputArgTypes[retGen.Parameter.Index];
                 else newFunc.ReturnType = function.ReturnType;
                 
-                newFunc.Body = (IrBlock)RebuildGenericImplTreeRecursive(
-                    function.Body!,
-                    [..genericTypes],
-                    [..newFunc.Locals]);
-
-                if (!_analyzedObjects.Contains(function))
-                {
-                    var ctx = new IrBlockExecutionContextData(newFunc);
-                    BlockSemaAnal(newFunc.Body, ctx);
-                }
-                _analyzedObjects.Add(newFunc);
-                
                 function.ParentGroup.Overloads.Add(newFunc);
                 newFunc.Parent = function.Parent;
                 newFunc.ParentGroup = function.ParentGroup;
+                newFunc.Imports = function.Imports;
                 
-                return (newFunc, [..argTypes]);
+                if (!_analyzedObjects.Contains(function))
+                {
+                    var ctx = new IrBlockExecutionContextData(function);
+                    BlockSemaAnal(function.Body!, ctx);
+                    _analyzedObjects.Add(function);
+                }
+                _analyzedObjects.Add(newFunc);
+                
+                newFunc.Body = (IrBlock)RebuildGenericImplTreeRecursive(
+                    function.Body!,
+                    [..genericTypes],
+                    [..parameters!],
+                    [..newFunc.Locals]);
+                
+                return new GenericOverloadResult(newFunc, [..argTypes]);
             }
             
             default: throw new NotImplementedException();
         }
     }
 
+    
     private IrNode RebuildGenericImplTreeRecursive(
         IrNode node,
         TypeReference?[] genericTypes,
+        ParameterObject[] parameters,
         LocalVariableObject[] locals)
     {
         switch (node)
@@ -832,13 +926,13 @@ public partial class Analyser
             {
                 var b = new IrBlock(block.Origin);
                 foreach (var i in block.Content)
-                    b.Content.Add(RebuildGenericImplTreeRecursive(i, genericTypes, locals));
+                    b.Content.Add(RebuildGenericImplTreeRecursive(i, genericTypes, parameters, locals));
                 return b;
             }
 
             case IrReturn @ret:
                 return new IrReturn(ret.Origin, ret.Value != null
-                    ? (IrExpression)RebuildGenericImplTreeRecursive(ret.Value, genericTypes, locals)
+                    ? (IrExpression)RebuildGenericImplTreeRecursive(ret.Value, genericTypes, parameters, locals)
                     : null);
 
             case IrConv @conv:
@@ -850,12 +944,38 @@ public partial class Analyser
                 };
                 
                 return new IrConv(conv.Origin,
-                    (IrExpression)RebuildGenericImplTreeRecursive(conv.Expression, genericTypes, locals),
+                    (IrExpression)RebuildGenericImplTreeRecursive(conv.Expression, genericTypes, parameters, locals),
                     ty);
             }
 
-            case IRUnknownReference @unk:
-                return new IRUnknownReference(unk.Origin);
+            case IrInvoke @invoke:
+            {
+             return new IrInvoke(invoke.Origin,
+                 (IrExpression)RebuildGenericImplTreeRecursive(invoke.Target, genericTypes, parameters, locals),
+                 invoke.Arguments.Select(e => (IrExpression)RebuildGenericImplTreeRecursive(e, genericTypes, parameters, locals)).ToArray());
+            }
+            case IrDotnetInvoke @invoke:
+            {
+                return new IrDotnetInvoke(invoke.Origin,
+                    (IrExpression)RebuildGenericImplTreeRecursive(invoke.Target, genericTypes, parameters, locals),
+                    invoke.Generics,
+                    invoke.Arguments.Select(e => (IrExpression)RebuildGenericImplTreeRecursive(e, genericTypes, parameters, locals)).ToArray());
+            }
+            
+            case IrSolvedReference @r:
+            {
+                return r.Reference switch
+                {
+                    LocalReference @a => new IrSolvedReference(r.Origin, new LocalReference(locals[a.Local.index])),
+                    ParameterReference @a => a.Type is TypeTypeReference
+                        ? new IrSolvedReference(r.Origin, new TypeTypeReference(a.Type))
+                        : new IrSolvedReference(r.Origin, new ParameterReference(parameters[a.Parameter.Index])),
+                    SolvedCallableReference @c => new IrSolvedReference(r.Origin, c),
+                    _ => throw new NotImplementedException()
+                };
+            } break;
+            
+            case IRBooleanLiteral @b: return new IRBooleanLiteral(b.Origin, b.Value);
             
             default: throw new NotImplementedException();
         }
@@ -865,7 +985,7 @@ public partial class Analyser
     private LanguageReference ReferenceOf(IrNode node) => node switch
         {
             IRAccess @acc => ReferenceOf(acc.B),
-            IRSolvedReference @sr => sr.Reference,
+            IrSolvedReference @sr => sr.Reference,
             IrInvoke @iv => iv.Type!,
             _ => throw new UnreachableException(),
         };

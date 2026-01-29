@@ -6,6 +6,8 @@ from Std.Fs import
 let uint src
 let uint debug
 
+let []byte sym
+
 @export("main") func main() void {
 	
 	let argv = getProgramArguments()
@@ -21,8 +23,11 @@ let uint debug
 
 	let file = open(argv[i])
 
+	writeln("ok...")
+
+	const poolsz = 256 * 1024
+	sym = alloc(byte, poolsz, Alignment._1)
+
 	writeln("Not bad untill here")
 
 }
-
-

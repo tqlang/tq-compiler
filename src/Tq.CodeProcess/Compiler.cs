@@ -2,6 +2,7 @@ using System.Buffers.Binary;
 using System.Diagnostics;
 using Abstract.CodeProcess.Core.EvaluationData;
 using Abstract.CodeProcess.Core.EvaluationData.LanguageObjects;
+using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.TypeReferences.Builtin;
 using AsmResolver.DotNet;
 using AsmResolver.DotNet.Code.Cil;
 using AsmResolver.DotNet.Signatures;
@@ -23,7 +24,7 @@ namespace Abstract.CodeProcess;
 public partial class Compiler
 {
     private Dictionary<NamespaceObject, TypeDefinition> _namespacesMap = [];
-    private Dictionary<ICallable, FunctionData> _functionsMap = [];
+    private Dictionary<ICallable, IFunctionData> _functionsMap = [];
     private Dictionary<StructObject, StructData> _typesMap = [];
     private Dictionary<TypedefObject, EnumData> _enumsMap = [];
     private Dictionary<FieldObject, FieldDefinition> _fieldsMap = [];
@@ -56,6 +57,7 @@ public partial class Compiler
         
         DeclareTypes();
         ResolveContent();
+        ImplementFieldInitializers();
         ImplementMethods();
         
         DumpModule();
@@ -79,7 +81,7 @@ public partial class Compiler
                                  | TypeAttributes.Abstract;
 
                 var isroot = string.IsNullOrEmpty(a.Name);
-                var name = isroot ? "Static" : a.Name;
+                var name = a.Name + "Static";
                 var nmsp = isroot ? obj.Module!.Name : string.Join('.', a.Global[0..^1]);
                 
                 var moduledef = new TypeDefinition(nmsp, name, attributes, _coreLib["Object"].t.ToTypeDefOrRef());
@@ -186,11 +188,45 @@ public partial class Compiler
         }
     }
 
+    private void ImplementFieldInitializers()
+    {
+        foreach (var (k, v) in _namespacesMap)
+        {
+            MethodDefinition staticCtor;
+            {
+                MethodAttributes attributes = MethodAttributes.HideBySig
+                                              | MethodAttributes.SpecialName
+                                              | MethodAttributes.RuntimeSpecialName
+                                              | MethodAttributes.Static;
+                
+                var sig = MethodSignature.CreateInstance(_corLibFactory.Void);
+                staticCtor = new MethodDefinition(".cctor", attributes, sig);
+            }
+            
+            var body = new CilMethodBody(staticCtor);
+            staticCtor.CilMethodBody = body;
+            
+            foreach (var i in k.Fields)
+            {
+                if (i.Value == null) continue;
+                var fieldDef = _fieldsMap[i];
+
+                fieldDef.HasDefault = true;
+                var ctx = new Context(null, body, [], []);
+                CompileIrNodeLoad(i.Value, ctx);
+                body.Instructions.Add(CilOpCodes.Stsfld, fieldDef);
+            }
+
+            if (body.Instructions.Count <= 0) continue;
+            body.Instructions.Add(CilOpCodes.Ret);
+            v.Methods.Add(staticCtor);
+        }
+    }
     private void ImplementMethods()
     {
-        foreach (var (k, v) in _functionsMap)
+        foreach (var (k, _v) in _functionsMap)
         {
-            if (v == null!) continue;
+            if (_v is not ConcreteFunctionData @v) continue;
             if (k.Body == null) continue;
             if (v.Def.HasMethodBody) continue;
             
@@ -217,6 +253,8 @@ public partial class Compiler
                 body.Instructions.Add(CilOpCodes.Ret);
                 if (v.ReturnsValue) ctx.StackPop();
             }
+
+            var arr = GC.AllocateArray<uint>(25);
             
             //if (ctx.Stack.Count != 0) throw new UnreachableException();
             body.ComputeMaxStack();
@@ -290,20 +328,16 @@ public partial class Compiler
             var name = typedefobj.Name;
 
             var attributes = TypeAttributes.AnsiClass
-                             | TypeAttributes.ExplicitLayout
-                             | TypeAttributes.Sealed
-                             | TypeAttributes.Serializable
-                             | TypeAttributes.SpecialName;
+                             | TypeAttributes.Sealed;
 
-            var enumType = new TypeDefinition(nmsp, name, attributes, _coreLib["Enum"].t.ToTypeDefOrRef())
-                { ClassLayout = new ClassLayout(8, 8) };
+            var enumType = new TypeDefinition(nmsp, name, attributes, _coreLib["Enum"].t.ToTypeDefOrRef());
             _module.TopLevelTypes.Add(enumType);
 
             var valueField = new FieldDefinition(
                 "value__",
                 FieldAttributes.Public | FieldAttributes.SpecialName | FieldAttributes.RuntimeSpecialName,
                 _corLibFactory.UInt64
-            ) { FieldOffset = 0 };
+            );
             enumType.Fields.Add(valueField);
 
             var enumdata = new EnumData(enumType, valueField);
@@ -331,7 +365,7 @@ public partial class Compiler
         }
     }
 
-    private FunctionData DeclareCtor(ConstructorObject ctorobj, ITypeDefOrRef parent)
+    private IFunctionData DeclareCtor(ConstructorObject ctorobj, ITypeDefOrRef parent)
     {
         if (ctorobj.DotnetImport != null)
         {
@@ -359,7 +393,7 @@ public partial class Compiler
                                                               + baseType!.CreateMemberReference(".ctor", signature));
             var importedMethod = _module.DefaultImporter.ImportMethod(method);
             
-            return new FunctionData(importedMethod);
+            return new ConcreteFunctionData(importedMethod);
         }
         if (parent is not TypeDefinition @parentTypedef) throw new ArgumentNullException(nameof(parent));
         
@@ -379,9 +413,9 @@ public partial class Compiler
         foreach (var i in argDefs) m.ParameterDefinitions.Add(i);
         parentTypedef.Methods.Add(m);
         
-        return new FunctionData(m);
+        return new ConcreteFunctionData(m);
     }
-    private FunctionData DeclareFunction(FunctionObject funcobj, ITypeDefOrRef parent)    
+    private IFunctionData DeclareFunction(FunctionObject funcobj, ITypeDefOrRef parent)    
     {
         if (funcobj.DotnetImport != null)
         {
@@ -398,23 +432,49 @@ public partial class Compiler
             }
             
             var methodName = funcobj.DotnetImport.Value.MethodName;
+            MethodSignature signature;
+            MemberReference method;
+            
+            if (funcobj.IsGeneric)
+            {
+                var returnType = TypeFromRef(funcobj.ReturnType);
+                var firstParameter = funcobj.Parameters.FindIndex(e => e.Type is not TypeTypeReference);
 
-            var returnType = TypeFromRef(funcobj.ReturnType);
-            var parameters = funcobj.Parameters.Select(e => TypeFromRef(e.Type)); 
-            var signature = funcobj.Static
-                ? MethodSignature.CreateStatic(returnType, parameters)
-                : MethodSignature.CreateInstance(returnType, parameters);
-            signature = _module.DefaultImporter.ImportMethodSignature(signature);
+                var generics = funcobj.Parameters[..firstParameter]
+                    .Select(e => TypeFromRef(((TypeTypeReference)e.Type).ReferencedType));
+                var parameters = funcobj.Parameters[firstParameter..]
+                    .Select(e => TypeFromRef(e.Type));
+
+                signature = new MethodSignature(
+                    CallingConventionAttributes.Generic,
+                    returnType,
+                    parameters)
+                { GenericParameterCount = firstParameter };
+                
+                method = baseType.CreateMemberReference(methodName, signature);
+                _module.DefaultImporter.ImportMethodSignature(signature);
+                _module.DefaultImporter.ImportMethod(method);
+                return new GenericFunctionData(method, signature.ReturnsValue);
+            }
+            else
+            {
+                var returnType = TypeFromRef(funcobj.ReturnType);
+                var parameters = funcobj.Parameters.Select(e => TypeFromRef(e.Type));
+                signature = funcobj.Static
+                    ? MethodSignature.CreateStatic(returnType, parameters)
+                    : MethodSignature.CreateInstance(returnType, parameters);
+                method = baseType.CreateMemberReference(methodName, signature);
+                
+                if (method.Resolve() == null)
+                    throw new Exception($"Extern method reference could not be solved "
+                                        + baseType.CreateMemberReference(methodName, signature));
+                
+                signature = _module.DefaultImporter.ImportMethodSignature(signature);
+                IMethodDefOrRef importedMethod = _module.DefaultImporter.ImportMethod(method);
             
-            var baset = baseType;
-            var method = baset.CreateMemberReference(methodName, signature);
-            if (method.Resolve() == null) throw new Exception($"Extern method reference could not be solved"
-                                                              + baseType.CreateMemberReference(methodName, signature));
-            IMethodDefOrRef importedMethod = _module.DefaultImporter.ImportMethod(method);
-            
-            return new FunctionData(importedMethod);
+                return new ConcreteFunctionData(importedMethod);
+            }
         }
-        else
         {
             if (parent is not TypeDefinition @parentTypedef) throw new ArgumentNullException(nameof(parent));
             if (funcobj.IsGeneric) return null!;
@@ -449,7 +509,7 @@ public partial class Compiler
             parentTypedef.Methods.Add(m);
 
             if (funcobj.Export == "main") _module.ManagedEntryPointMethod = m;
-            return new FunctionData(m);
+            return new ConcreteFunctionData(m);
         }
     }
     private FieldDefinition DeclareField(FieldObject fieldobj, ITypeDefOrRef parent)

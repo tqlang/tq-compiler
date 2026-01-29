@@ -374,7 +374,7 @@ public partial class Analyser
                     : SolveTypeLazy(new UnsolvedTypeReference(localvar.TypedIdentifier.Type), ctx, null), name);
                 
                 ctx.AppendLocal(newLocal);
-                return new IRSolvedReference(identifier, new LocalReference(newLocal));
+                return new IrSolvedReference(identifier, new LocalReference(newLocal));
             }
 
             case FunctionCallExpressionNode @funccal:
@@ -499,7 +499,7 @@ public partial class Analyser
             case CharacterLiteralNode @charlit:
                 return new IrCharLiteral(charlit, charlit.Value[0]);
             case BooleanLiteralNode @boollit:
-                return new IrIntegerLiteral(boollit, boollit.Value ? 1 : 0, new RuntimeIntegerTypeReference(false, 1));
+                return new IRBooleanLiteral(boollit, boollit.Value);
             case NullLiteralNode @nulllit: 
                 return new IRNullLiteral(nulllit);
             
@@ -635,7 +635,7 @@ public partial class Analyser
                 var a = SolveShallowType(ident);
                 return a is UnsolvedTypeReference
                     ? new IRUnknownReference(ident)
-                    : new IRSolvedReference(ident, a);
+                    : new IrSolvedReference(ident, a);
             })).Invoke(),
             _ => UnwrapExecutionContext_Expression(node, ctx),
         };
@@ -652,6 +652,9 @@ public partial class Analyser
                 r.InternalType = SolveTypeLazy(r.InternalType, ctx, obj);
                 return r;
             
+            case SliceTypeReference @s:
+                s.InternalType = SolveTypeLazy(s.InternalType, ctx, obj);
+                return s;
         }
         
         var trySolveShallow = SolveShallowType(((UnsolvedTypeReference)typeRef).syntaxNode);
