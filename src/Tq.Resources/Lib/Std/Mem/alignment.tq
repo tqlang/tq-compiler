@@ -1,0 +1,8 @@
+@public typedef Alignment {
+	_1,
+	_2,
+	_4,
+	_8,
+	_16,
+	_32,
+}
