@@ -257,7 +257,7 @@ public partial class Analyser
             {
                 var newArgs =  new IrExpression[s.Callable.Parameters.Count];
                 for (var i = 0; i < newArgs.Length; i++)
-                    newArgs[i] = SolveTypeCast(s.Callable.Parameters[i].Type, node.Arguments[0]);
+                    newArgs[i] = SolveTypeCast(s.Callable.Parameters[i].Type, node.Arguments[i]);
                 
                 node.Arguments = newArgs;
                 node.Target = new IrSolvedReference(node.Target.Origin, new SolvedCallableReference(s.Callable));
@@ -326,7 +326,7 @@ public partial class Analyser
             {
                 var newArgs =  new IrExpression[s.Callable.Parameters.Count];
                 for (var i = 0; i < newArgs.Length; i++)
-                    newArgs[i] = SolveTypeCast(s.Callable.Parameters[i].Type, node.Arguments[0]);
+                    newArgs[i] = SolveTypeCast(s.Callable.Parameters[i].Type, node.Arguments[i]);
                 
                 node.Arguments = newArgs;
                 node.Target = new IrSolvedReference(node.Target.Origin, new SolvedCallableReference(s.Callable));

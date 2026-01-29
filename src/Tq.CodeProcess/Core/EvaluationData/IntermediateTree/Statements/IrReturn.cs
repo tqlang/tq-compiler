@@ -12,9 +12,8 @@ public class IrReturn(SyntaxNode origin, IrExpression? val) : IRStatement(origin
         if (Value == null) return "(ret)";
         var sb = new StringBuilder();
 
-        sb.AppendLine($"(ret");
-        sb.AppendLine(Value.ToString().TabAll());
-        sb.Append(')');
+        sb.Append($"ret ");
+        sb.AppendLine(Value.ToString().TabAll()[1..]);
         
         return sb.ToString();
     }

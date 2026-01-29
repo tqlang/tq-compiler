@@ -28,6 +28,8 @@ let []byte sym
 	const uint poolsz = 256 * 1024
 	sym = alloc(byte, poolsz, Alignment._1)
 
+	write("allocation length is ")
+	writeln(sym.len)
 	writeln("Not bad untill here")
 
 }

@@ -112,9 +112,14 @@ class Program.Static extends System.Object {
 		IL_0180: ldc.i8 0
 		IL_0189: call System.Byte[] Std.MemStatic::alloc__impl(System.UInt64, Std.Mem.Alignment)
 		IL_018E: stsfld System.Byte[] Program.Static::sym
-		IL_0193: ldstr "Not bad untill here"
-		IL_0198: call System.Void Std.ConsoleStatic::writeln(System.String)
-		IL_019D: ret
+		IL_0193: ldstr "allocation length is "
+		IL_0198: call System.Void Std.ConsoleStatic::write(System.String)
+		IL_019D: ldsfld System.Byte[] Program.Static::sym
+		IL_01A2: ldlen
+		IL_01A3: call System.Void Std.ConsoleStatic::writeln(System.UInt64)
+		IL_01A8: ldstr "Not bad untill here"
+		IL_01AD: call System.Void Std.ConsoleStatic::writeln(System.String)
+		IL_01B2: ret
 	}
 }
 
@@ -260,15 +265,15 @@ class Std.FsStatic extends System.Object {
 		.locals init (System.IO.FileStream V_0)
 		.locals init (Std.Fs.File V_1)
 		IL_0000: ldarg System.String A_0
-		IL_0004: ldarg System.String A_0
-		IL_0008: ldarg System.String A_0
-		IL_000C: newobj System.Void System.IO.FileStream::.ctor(System.String, System.IO.FileMode, System.IO.FileAccess)
-		IL_0011: stloc V_0
-		IL_0015: ldloca V_1
-		IL_0019: ldloc V_0
-		IL_001D: call System.Void Std.Fs.File::.ctor(System.IO.FileStream)
-		IL_0022: ldloc V_1
-		IL_0026: ret
+		IL_0004: ldc.i4.4
+		IL_0005: ldc.i4.1
+		IL_0006: newobj System.Void System.IO.FileStream::.ctor(System.String, System.IO.FileMode, System.IO.FileAccess)
+		IL_000B: stloc V_0
+		IL_000F: ldloca V_1
+		IL_0013: ldloc V_0
+		IL_0017: call System.Void Std.Fs.File::.ctor(System.IO.FileStream)
+		IL_001C: ldloc V_1
+		IL_0020: ret
 	}
 }
 

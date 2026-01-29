@@ -33,6 +33,8 @@ module Program {
 			call Callable<Std.Console.writeln> ((Undefined) "ok...")
 			local.04 = (u64)262144
 			Field<Program.sym> = call Callable<Std.Mem.alloc__impl> (local.04, Alignment._1)
+			call Callable<Std.Console.write> ((Undefined) "allocation length is ")
+			call Callable<Std.Console.writeln> (lenof Field<Program.sym>)
 			call Callable<Std.Console.writeln> ((Undefined) "Not bad untill here")
 
 		}
@@ -66,9 +68,8 @@ module Std {
 
 		; funcgroup getProgramArguments
 		public static concrete extern("") func getProgramArguments() []string {
-			(ret
-				call Callable<Std.Process.internal_getArgs> ()
-			)
+			ret call Callable<Std.Process.internal_getArgs> ()
+
 
 		}
 
@@ -94,16 +95,14 @@ module Std {
 
 		; funcgroup alloc
 		public static concrete extern("") generic func alloc(type, u64, Typedef<Std.Mem.Alignment>) []T {
-			(ret
-				dotnet_call Callable<Std.Mem.csharp_GC_AllocateArray><T>(arg.01 as i32, false)
-			)
+			ret dotnet_call Callable<Std.Mem.csharp_GC_AllocateArray><T>(arg.01 as i32, false)
+
 
 		}
 
 		public static concrete extern("") func alloc__impl(u64, Typedef<Std.Mem.Alignment>) []u8 {
-			(ret
-				dotnet_call Callable<Std.Mem.csharp_GC_AllocateArray><u8>(arg.00 as i32, false)
-			)
+			ret dotnet_call Callable<Std.Mem.csharp_GC_AllocateArray><u8>(arg.00 as i32, false)
+
 
 		}
 
@@ -261,10 +260,9 @@ module Std {
 		; funcgroup open
 		public static concrete extern("") func open(string) Struct<Std.Fs.File> {
 			$(00) Local 'filestream': *Struct<Std.Fs.CSharp_FileStream>
-			local.00 = new Callable<Std.Fs.CSharp_FileStream.constructor>(arg.00, arg.00, arg.00)
-			(ret
-				new Callable<Std.Fs.File.constructor>(local.00)
-			)
+			local.00 = new Callable<Std.Fs.CSharp_FileStream.constructor>(arg.00, CSharp_FileMode.OpenOrCreate, CSharp_FileAccess.Read)
+			ret new Callable<Std.Fs.File.constructor>(local.00)
+
 
 		}
 
