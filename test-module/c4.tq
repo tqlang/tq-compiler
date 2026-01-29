@@ -25,7 +25,7 @@ let []byte sym
 
 	writeln("ok...")
 
-	const poolsz = 256 * 1024
+	const uint poolsz = 256 * 1024
 	sym = alloc(byte, poolsz, Alignment._1)
 
 	writeln("Not bad untill here")

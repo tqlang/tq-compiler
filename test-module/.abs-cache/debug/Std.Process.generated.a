@@ -1,0 +1,9 @@
+@dotnetImport("System.Runtime", "System.Environment", "Exit")
+func internal_exit (i32 status) void
+@dotnetImport("System.Runtime", "System.Environment", "GetCommandLineArgs")
+func internal_getArgs () []string
+@public()
+func getProgramArguments () []string { return internal_getArgs() }
+@public()
+func exit (uint status) noreturn { internal_exit(status as i32) }
+

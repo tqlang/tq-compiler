@@ -1,0 +1,49 @@
+
+Using input file '/home/mila/Documents/repos/tq-compiler/test-module/.abs-out/Program.dll'
+
+Using reference file '/usr/lib/dotnet/shared/Microsoft.NETCore.App/10.0.0/System.Runtime.dll'
+Using reference file '/usr/lib/dotnet/shared/Microsoft.NETCore.App/10.0.0/System.Console.dll'
+Using reference file '/usr/lib/dotnet/shared/Microsoft.NETCore.App/10.0.0/System.Private.CoreLib.dll'
+
+
+
+Verifying [Program.dll]Program.Static.main
+Verifying [Program.dll]Std.ProcessStatic.getProgramArguments
+Verifying [Program.dll]Std.ProcessStatic.exit
+Verifying [Program.dll]Std.MemStatic.alloc__impl
+Verifying [Program.dll]Std.TestStatic.testValue
+Verifying [Program.dll]Std.TestStatic.printStatusMessage
+Verifying [Program.dll]Std.ConsoleStatic.write
+Verifying [Program.dll]Std.ConsoleStatic.write
+Verifying [Program.dll]Std.ConsoleStatic.write
+Verifying [Program.dll]Std.ConsoleStatic.write
+Verifying [Program.dll]Std.ConsoleStatic.write
+Verifying [Program.dll]Std.ConsoleStatic.writeln
+Verifying [Program.dll]Std.ConsoleStatic.writeln
+Verifying [Program.dll]Std.ConsoleStatic.writeln
+Verifying [Program.dll]Std.ConsoleStatic.writeln
+Verifying [Program.dll]Std.ConsoleStatic.writeln
+Verifying [Program.dll]Std.FsStatic.open
+[IL]: Error [StackUnexpected]: [/home/mila/Documents/repos/tq-compiler/test-module/.abs-out/Program.dll : Std.FsStatic::open(string)][offset 0x0000000C][found ref 'string'][expected Int32] Unexpected type on the stack.
+[IL]: Error [StackUnexpected]: [/home/mila/Documents/repos/tq-compiler/test-module/.abs-out/Program.dll : Std.FsStatic::open(string)][offset 0x0000000C][found ref 'string'][expected Int32] Unexpected type on the stack.
+Verifying [Program.dll]Std.Io.Reader..ctor
+Verifying [Program.dll]Std.Io.Writer..ctor
+Verifying [Program.dll]Std.Fs.File..ctor
+Verifying [Program.dll]Std.Fs.FileReader..ctor
+Verifying [Program.dll]Std.Fs.FileWriter..ctor
+Verifying [Program.dll]<Module>
+Verifying [Program.dll]Program.Static
+Verifying [Program.dll]Std.Static
+Verifying [Program.dll]Std.IoStatic
+Verifying [Program.dll]Std.ProcessStatic
+Verifying [Program.dll]Std.MemStatic
+Verifying [Program.dll]Std.TestStatic
+Verifying [Program.dll]Std.ConsoleStatic
+Verifying [Program.dll]Std.FsStatic
+Verifying [Program.dll]Std.Io.Reader
+Verifying [Program.dll]Std.Io.Writer
+Verifying [Program.dll]Std.Fs.File
+Verifying [Program.dll]Std.Fs.FileReader
+Verifying [Program.dll]Std.Fs.FileWriter
+Verifying [Program.dll]Std.Mem.Alignment
+2 Error(s) Verifying /home/mila/Documents/repos/tq-compiler/test-module/.abs-out/Program.dll

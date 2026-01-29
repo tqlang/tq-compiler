@@ -1,0 +1,275 @@
+module Program {
+	Namespace '' ('Program') {
+		private static concrete var 'src' u64
+
+		private static concrete var 'debug' u64
+
+		private static concrete var 'sym' []u8
+
+		; funcgroup main
+		private static concrete extern("") func main() void {
+			$(00) Local 'argv': []string
+			$(01) Local 'argc': i64
+			$(02) Local 'i': i64
+			$(03) Local 'file': Struct<Std.Fs.File>
+			$(04) Local 'poolsz': u64
+			local.00 = call Callable<Std.Process.getProgramArguments> ()
+			local.01 = lenof local.00 as i64
+			local.02 = (i64)1
+			if (and cmp GreaterThan Subtract local.01, local.02 (i64)0, and cmp Equality local.00[local.02][(u64)0] (char) '-', cmp Equality local.00[local.02] (Undefined) "-s") {
+				Field<Program.src> = local.02++
+			}
+
+			if (and cmp GreaterThan Subtract local.01, local.02 (i64)0, and cmp Equality local.00[local.02][(u64)0] (char) '-', cmp Equality local.00[local.02] (Undefined) "-d") {
+				Field<Program.debug> = local.02++
+			}
+
+			if (cmp LessThan Subtract local.01, local.02 (i64)1) {
+				call Callable<Std.Console.writeln> ((Undefined) "usage: c4 [-s] [-d] file ...")
+				call Callable<Std.Process.exit> ((u64)1)
+			}
+
+			local.03 = call Callable<Std.Fs.open> (local.00[local.02])
+			call Callable<Std.Console.writeln> ((Undefined) "ok...")
+			local.04 = (u64)262144
+			Field<Program.sym> = call Callable<Std.Mem.alloc__impl> (local.04, Alignment._1)
+			call Callable<Std.Console.writeln> ((Undefined) "Not bad untill here")
+
+		}
+
+
+	}
+
+}
+
+module Std {
+	Namespace '' ('Std') {
+	}
+
+	Namespace 'Io' ('Std.Io') {
+		public instance concrete struct 'Reader' {
+		}
+
+		public instance concrete struct 'Writer' {
+		}
+
+	}
+
+	Namespace 'Process' ('Std.Process') {
+		; funcgroup internal_exit
+		private static concrete extern("") func internal_exit(i32) void
+
+
+		; funcgroup internal_getArgs
+		private static concrete extern("") func internal_getArgs() []string
+
+
+		; funcgroup getProgramArguments
+		public static concrete extern("") func getProgramArguments() []string {
+			(ret
+				call Callable<Std.Process.internal_getArgs> ()
+			)
+
+		}
+
+
+		; funcgroup exit
+		public static concrete extern("") func exit(u64) noreturn {
+			call Callable<Std.Process.internal_exit> (arg.00 as i32)
+
+		}
+
+
+	}
+
+	Namespace 'Mem' ('Std.Mem') {
+		typedef 'Alignment' {
+		_1,
+			_2,
+			_4,
+			_8,
+			_16,
+			_32
+		}
+
+		; funcgroup alloc
+		public static concrete extern("") generic func alloc(type, u64, Typedef<Std.Mem.Alignment>) []T {
+			(ret
+				dotnet_call Callable<Std.Mem.csharp_GC_AllocateArray><T>(arg.01 as i32, false)
+			)
+
+		}
+
+		public static concrete extern("") func alloc__impl(u64, Typedef<Std.Mem.Alignment>) []u8 {
+			(ret
+				dotnet_call Callable<Std.Mem.csharp_GC_AllocateArray><u8>(arg.00 as i32, false)
+			)
+
+		}
+
+
+		; funcgroup create
+		public static concrete extern("") generic func create(type, Typedef<Std.Mem.Alignment>) T {
+
+		}
+
+
+		; funcgroup csharp_GC_AllocateArray
+		private static concrete extern("") generic func csharp_GC_AllocateArray(type, i32, bool) []T
+
+
+	}
+
+	Namespace 'Test' ('Std.Test') {
+		; funcgroup testValue
+		public static concrete extern("") func testValue(u8, u8) void {
+			call Callable<Std.Test.printStatusMessage> (cmp Equality arg.00 arg.01)
+
+		}
+
+
+		; funcgroup printStatusMessage
+		private static concrete extern("") func printStatusMessage(bool) void {
+			if (arg.00) {
+				call Callable<Std.Console.writeln> ((Undefined) "TEST PASSED")
+			} else {
+				call Callable<Std.Console.write> ((Undefined) "TEST FAILED")
+			}
+
+
+		}
+
+
+	}
+
+	Namespace 'Console' ('Std.Console') {
+		; funcgroup Console_Write
+		private static concrete extern("") func Console_Write(string) void
+
+
+		; funcgroup Console_WriteLine
+		private static concrete extern("") func Console_WriteLine(string) void
+
+
+		; funcgroup write
+		private static concrete extern("") func write(i64) void {
+			call Callable<Std.Console.Console_Write> (arg.00 as string)
+
+		}
+
+		private static concrete extern("") func write(u64) void {
+			call Callable<Std.Console.Console_Write> (arg.00 as string)
+
+		}
+
+		private static concrete extern("") func write(i128) void {
+			call Callable<Std.Console.Console_Write> (arg.00 as string)
+
+		}
+
+		private static concrete extern("") func write(u128) void {
+			call Callable<Std.Console.Console_Write> (arg.00 as string)
+
+		}
+
+		private static concrete extern("") func write(string) void {
+			call Callable<Std.Console.Console_Write> (arg.00)
+
+		}
+
+
+		; funcgroup writeln
+		private static concrete extern("") func writeln(i64) void {
+			call Callable<Std.Console.Console_WriteLine> (arg.00 as string)
+
+		}
+
+		private static concrete extern("") func writeln(u64) void {
+			call Callable<Std.Console.Console_WriteLine> (arg.00 as string)
+
+		}
+
+		private static concrete extern("") func writeln(i128) void {
+			call Callable<Std.Console.Console_WriteLine> (arg.00 as string)
+
+		}
+
+		private static concrete extern("") func writeln(u128) void {
+			call Callable<Std.Console.Console_WriteLine> (arg.00 as string)
+
+		}
+
+		private static concrete extern("") func writeln(string) void {
+			call Callable<Std.Console.Console_WriteLine> (arg.00)
+
+		}
+
+
+	}
+
+	Namespace 'Fs' ('Std.Fs') {
+		public instance concrete struct 'File' {
+			; offset=0 * 0n
+			private instance concrete var '_filestream' *Struct<Std.Fs.CSharp_FileStream>
+
+		}
+
+		public instance concrete struct 'FileReader' extends Struct<Std.Io.Reader> {
+		}
+
+		public instance concrete struct 'FileWriter' extends Struct<Std.Io.Writer> {
+		}
+
+		private instance concrete struct 'CSharp_FileStream' {
+			; funcgroup Flush
+			public instance concrete extern("") func Flush() void
+
+			public instance concrete extern("") func Flush(bool) void
+
+
+			; funcgroup Seek
+			public instance concrete extern("") func Seek(i64, Typedef<Std.Fs.CSharp_SeekOrigin>) i64
+
+
+			; funcgroup Close
+			public instance concrete extern("") func Close() void
+
+
+		}
+
+		typedef 'CSharp_SeekOrigin' {
+		Begin,
+			Current,
+			End
+		}
+
+		typedef 'CSharp_FileMode' {
+		CreateNew,
+			Create,
+			Open,
+			OpenOrCreate,
+			Truncate,
+			Append
+		}
+
+		typedef 'CSharp_FileAccess' {
+		Read,
+			Write,
+			ReadWrite
+		}
+
+		; funcgroup open
+		public static concrete extern("") func open(string) Struct<Std.Fs.File> {
+			$(00) Local 'filestream': *Struct<Std.Fs.CSharp_FileStream>
+			local.00 = new Callable<Std.Fs.CSharp_FileStream.constructor>(arg.00, arg.00, arg.00)
+			(ret
+				new Callable<Std.Fs.File.constructor>(local.00)
+			)
+
+		}
+
+
+	}
+
+}
+

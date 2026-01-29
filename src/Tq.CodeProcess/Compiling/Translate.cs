@@ -884,15 +884,12 @@ public partial class Compiler
 
                             case GenericFunctionData @fd:
                             {
-                                var instanceMethod = fd.MethodRef.MakeGenericInstanceMethod([.. generics!.Select(e => TypeFromRef(e)!)]);
-                                //_module.DefaultImporter.ImportGenericInstanceMethodSignature(instanceMethod.Signature!);
-                                
-                                IMethodDefOrRef methodRef = instanceMethod.Resolve() ?? throw new Exception();
-                                _module.DefaultImporter.ImportMethod(methodRef);
-                                var shit = _module.DefaultImporter.ImportMethod(instanceMethod);
-                                
-                                ctx.Gen.Add(useNewObj ? CilOpCodes.Newobj : CilOpCodes.Call, shit);
-                                if (f.ReturnsValue) ctx.StackPush(methodRef.Signature!.ReturnType);
+                                var genericsSignatures = generics!.Select(e => TypeFromRef(e)!).ToArray();
+                                var instanceMethod = fd.MethodRef.MakeGenericInstanceMethod(genericsSignatures);
+                                ctx.Gen.Add(useNewObj ? CilOpCodes.Newobj : CilOpCodes.Call, instanceMethod);
+
+                                if (f.ReturnsValue) ctx.StackPush(ResolveReturnType(
+                                    ((IMethodDescriptor)instanceMethod).Signature!.ReturnType, genericsSignatures));
                             } break;
                         }
                         ctx.StackPop(pl);
@@ -943,5 +940,35 @@ public partial class Compiler
         }
         
         ctx.StackPush(_corLibFactory.FromElementType(c.Type)!);
+    }
+    TypeSignature ResolveReturnType(TypeSignature type, IReadOnlyList<TypeSignature> methodArgs)
+    {
+        return type switch
+        {
+            GenericParameterSignature { ParameterType: GenericParameterType.Method } gp => methodArgs[gp.Index],
+
+            SzArrayTypeSignature arr =>
+                new SzArrayTypeSignature(
+                    ResolveReturnType(arr.BaseType, methodArgs)
+                ),
+
+            ArrayTypeSignature arr =>
+                new ArrayTypeSignature(
+                    ResolveReturnType(arr.BaseType, methodArgs),
+                    arr.Rank
+                ),
+
+            PointerTypeSignature ptr =>
+                new PointerTypeSignature(
+                    ResolveReturnType(ptr.BaseType, methodArgs)
+                ),
+
+            ByReferenceTypeSignature br =>
+                new ByReferenceTypeSignature(
+                    ResolveReturnType(br.BaseType, methodArgs)
+                ),
+            
+            _ => type
+        };
     }
 }

@@ -2,6 +2,7 @@ using System.Diagnostics;
 using Abstract.CodeProcess.Core.EvaluationData.IntermediateTree;
 using Abstract.CodeProcess.Core.EvaluationData.IntermediateTree.Expressions;
 using Abstract.CodeProcess.Core.EvaluationData.IntermediateTree.Values;
+using Abstract.CodeProcess.Core.EvaluationData.LanguageObjects;
 using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.CodeReferences;
 using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.FieldReferences;
 using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.FunctionReferences;
@@ -19,28 +20,73 @@ namespace Abstract.CodeProcess;
 public partial class Analyser
 {
 
-    private static TypeReference GetEffectiveTypeReference(IrExpression expr)
+    private static TypeReference GetEffectiveTypeReference(IrExpression expr, LangObject? parent = null)
     {
-        return expr switch
+        TypeReference? result;
+        switch (expr)
         {
-            IrSolvedReference @solvedFuck => solvedFuck.Reference switch
-            {
-                SolvedStructTypeReference @structt => structt,
-                SolvedTypedefNamedValueReference @tdff => tdff.Type,
-                SolvedFieldReference field => field.Field.Type,
-                SolvedCallableReference @func => new FunctionTypeReference(
-                    func.Callable.ReturnType, func.Callable.Parameters.Select(e => e.Type).ToArray()),
-        
-                LocalReference @local => local.Local.Type,
-                ParameterReference @param => param.Parameter.Type,
-                
-                _ => solvedFuck.Type
-            },
-            IRAccess @access => GetEffectiveTypeReference(access.B),
-            
-            _ => expr.Type
-            
-        } ?? throw new UnreachableException("This function should not be called when this value is null");
+            case IrSolvedReference solved:
+                switch (solved.Reference)
+                {
+                    case TypeTypeReference ttr:
+                        result = ttr.ReferencedType;
+                        break;
+
+                    case SolvedStructTypeReference structt:
+                        result = structt;
+                        break;
+
+                    case SolvedTypedefNamedValueReference tdff:
+                        result = tdff.Type;
+                        break;
+
+                    case SolvedFieldReference field:
+                        result = field.Field.Type;
+                        break;
+
+                    case SolvedCallableReference func:
+                        result = new FunctionTypeReference(
+                            func.Callable.ReturnType,
+                            func.Callable.Parameters.Select(e => e.Type).ToArray()
+                        );
+                        break;
+
+                    case LocalReference local:
+                        result = local.Local.Type;
+                        break;
+
+                    case ParameterReference param:
+                    {
+                        if (parent is ICallable { IsGeneric: true } @callable)
+                        {
+                            var pidx = param.Parameter.Index;
+                            if (callable.Parameters[pidx].Type is TypeTypeReference)
+                            {
+                                result = new GenericTypeReference(callable.Parameters[pidx]);
+                                break;
+                            }
+                        }
+                        result = param.Parameter.Type;
+                    } break;
+
+                    default:
+                        result = solved.Type;
+                        break;
+                }
+                break;
+
+            case IRAccess access:
+                result = GetEffectiveTypeReference(access.B);
+                break;
+
+            default:
+                result = expr.Type;
+                break;
+        }
+
+        return result ?? throw new UnreachableException(
+            "This function should not be called when this value is null"
+        );
     }
     
     /// <summary>

@@ -123,7 +123,7 @@ public partial class Analyser
                     {
                         ScanFunctionExecutionBody(i2);
                         foreach (var l in i2.Locals)
-                            if (l.Type != null) l.Type = SolveTypeLazy(l.Type, null, i2);
+                            if (l.Type != null && !IsSolved(l.Type)) l.Type = SolveTypeLazy(l.Type, null, i2);
                     }
                     break;
                 }
@@ -657,10 +657,10 @@ public partial class Analyser
                 return s;
         }
         
-        var trySolveShallow = SolveShallowType(((UnsolvedTypeReference)typeRef).syntaxNode);
+        var trySolveShallow = SolveShallowType(((UnsolvedTypeReference)typeRef).SyntaxNode);
         if (trySolveShallow is not UnsolvedTypeReference @unsolv) return trySolveShallow;
         
-        var syntaxNode = unsolv.syntaxNode;
+        var syntaxNode = unsolv.SyntaxNode;
         LangObject langObj;
 
         switch (syntaxNode)

@@ -1,0 +1,5 @@
+from Std.Console import
+@public()
+func testValue (u8 value, u8 reference) void { printStatusMessage(value == reference) }
+func printStatusMessage (bool status) void { if (status) writeln("TEST PASSED") else write("TEST FAILED") }
+

@@ -1,0 +1,17 @@
+@public()
+typedef Alignment {
+	_1,
+	_2,
+	_4,
+	_8,
+	_16,
+	_32
+}
+
+@public()
+func alloc (type T, uint length, Alignment alignment) []T { return csharp_GC_AllocateArray(T, length as i32, False) }
+@public()
+func create (type T, Alignment alignment) T { }
+@dotnetImport("System.Runtime", "System.GC", "AllocateArray")
+func csharp_GC_AllocateArray (type T, i32 len, bool pinned) []T
+

@@ -669,24 +669,30 @@ public partial class Analyser
             
             var parameters = ov.Parameters;
             var argTypes = new TypeReference[parameters.Count];
-            var generics = new Dictionary<ParameterObject, TypeReference>();
+            var generics = new Dictionary<ParameterObject, TypeReference?>();
             var suitability = new int[parameters.Count];
 
             for (var i = 0; i < parameters.Count; i++)
             {
-                var argt = GetEffectiveTypeReference(arguments[i]);
+                var argt = GetEffectiveTypeReference(arguments[i], (LangObject)ov);
                 argTypes[i] = argt;
 
                 switch (parameters[i].Type)
                 {
-                    case TypeTypeReference:
+                    case TypeTypeReference when argt is not GenericTypeReference:
                         generics[parameters[i]] = ((TypeTypeReference)argt).ReferencedType;
                         suitability[i] = (int)Suitability.NeedsSoftCast;
                         break;
 
+                    case TypeTypeReference when argt is GenericTypeReference @argtg:
+                    {
+                        generics[parameters[i]] = argtg;
+                        suitability[i] = (int)Suitability.NeedsSoftCast;
+                    } break;
+                    
                     case GenericTypeReference @gen:
                     {
-                        var s = (int)CalculateTypeSuitability(generics[gen.Parameter], argt, true);
+                        var s = (int)CalculateTypeSuitability(generics[gen.Parameter]!, argt, true);
                         if (s == 0) goto NoSuitability;
                         suitability[i] = s;
                     } break;
@@ -720,7 +726,11 @@ public partial class Analyser
             for (var i = 0; i < arguments.Length; i++)
             {
                 if (betterFound.Parameters[i].Type is TypeTypeReference)
-                    generics.Add(betterFoundGenerics![betterFound.Parameters[i]]);
+                {
+                    generics.Add(betterFoundArgTypes[i] is TypeTypeReference @ttr
+                        ? ttr.ReferencedType ?? new TypeTypeReference(null)
+                        : betterFoundArgTypes[i]);
+                }
                 else break;
             }
             
@@ -735,7 +745,7 @@ public partial class Analyser
         {
             var srcType = betterFound.Parameters[i].Type;
             inputTypes[i] = srcType is TypeTypeReference
-                ? ((TypeTypeReference)betterFoundArgTypes[i]).ReferencedType
+                ? ((TypeTypeReference)betterFoundArgTypes[i]).ReferencedType!
                 : srcType;
         }
 
@@ -882,10 +892,7 @@ public partial class Analyser
                             break;
                     }
                 }
-                
-                if (function.ReturnType is GenericTypeReference @retGen)
-                    newFunc.ReturnType = inputArgTypes[retGen.Parameter.Index];
-                else newFunc.ReturnType = function.ReturnType;
+                newFunc.ReturnType = SolveGenericOrDefault(function.ReturnType, inputArgTypes);
                 
                 function.ParentGroup.Overloads.Add(newFunc);
                 newFunc.Parent = function.Parent;
@@ -907,6 +914,23 @@ public partial class Analyser
                     [..newFunc.Locals]);
                 
                 return new GenericOverloadResult(newFunc, [..argTypes]);
+
+                TypeReference SolveGenericOrDefault(TypeReference type, TypeReference?[] genTypes)
+                {
+                    switch (type)
+                    {
+                        case SliceTypeReference @slice:
+                            return new SliceTypeReference(SolveGenericOrDefault(slice.InternalType, genTypes));
+                        
+                        case ReferenceTypeReference @refe:
+                            return new ReferenceTypeReference(SolveGenericOrDefault(@refe.Type, genTypes));
+                    }
+                    
+                    if (type is GenericTypeReference @g)
+                        return genTypes[g.Parameter.Index]!;
+
+                    return type;
+                }
             }
             
             default: throw new NotImplementedException();
@@ -956,9 +980,17 @@ public partial class Analyser
             }
             case IrDotnetInvoke @invoke:
             {
+                var generics = new TypeReference[invoke.Generics.Length];
+                for (var i = 0; i < generics.Length; i++)
+                {
+                    if (invoke.Generics[i] is GenericTypeReference @gen)
+                        generics[i] = genericTypes[gen.Parameter.Index]!;
+                    else generics[i] = invoke.Generics[i];
+                }
+                
                 return new IrDotnetInvoke(invoke.Origin,
                     (IrExpression)RebuildGenericImplTreeRecursive(invoke.Target, genericTypes, parameters, locals),
-                    invoke.Generics,
+                    [.. generics],
                     invoke.Arguments.Select(e => (IrExpression)RebuildGenericImplTreeRecursive(e, genericTypes, parameters, locals)).ToArray());
             }
             
@@ -993,7 +1025,7 @@ public partial class Analyser
     {
         switch (typeref)
         {
-            case UnsolvedTypeReference @unsolved: typeref = SolveTypeLazy(new UnsolvedTypeReference(unsolved.syntaxNode), null, obj); break;
+            case UnsolvedTypeReference @unsolved: typeref = SolveTypeLazy(new UnsolvedTypeReference(unsolved.SyntaxNode), null, obj); break;
             case SliceTypeReference @slice: slice.InternalType = SolveTypeLazy2(@slice.InternalType, ctx, obj); break;
             case ReferenceTypeReference @refer: refer.InternalType = SolveTypeLazy2(@refer.InternalType, ctx, obj); break;
             case NullableTypeReference @nullable: nullable.InternalType = SolveTypeLazy2(@nullable.InternalType, ctx, obj); break;
