@@ -4,7 +4,111 @@ from Std.Mem import
 from Std.Fs import
 let uint src
 let uint debug
-let []byte sym
+let []byte symbols
+let []byte text
+let []byte data
+let []byte stack
+let uint srcPointer
+let uint currToken
+let []uint currIdentifier
 @export("main")
-func main () void { let argv = getProgramArguments() let argc = argv.len as int let i = 1 if ((argc - i) > 0 and argv[i][0] == '-' and argv[i] == "-s") src = i++ if ((argc - i) > 0 and argv[i][0] == '-' and argv[i] == "-d") debug = i++ if ((argc - i) < 1) { writeln("usage: c4 [-s] [-d] file ...") exit(1) } let file = open(argv[i]) writeln("ok...") const uint poolsz = 256 * 1024 sym = alloc(byte, poolsz, Alignment._1) write("allocation length is ") writeln(sym.len) writeln("Not bad untill here") }
+func main () void { let argv = getProgramArguments() let argc = argv.len as int let i = 1 if ((argc - i) > 0 and argv[i][0] == '-' and argv[i] == "-s") src = i++ if ((argc - i) > 0 and argv[i][0] == '-' and argv[i] == "-d") debug = i++ if ((argc - i) < 1) { writeln("usage: c4 [-s] [-d] file ...") exit(1) } let file = open(argv[i]) writeln("ok...") const uint poolsz = 256 * 1024 symbols = alloc(byte, poolsz, Alignment._1) text = alloc(byte, poolsz, Alignment._1) data = alloc(byte, poolsz, Alignment._1) stack = alloc(byte, poolsz, Alignment._1) let keywords = "char else enum if int return sizeof while " + "open read close printf malloc free memset memcmp exit void main" let idx1 = Tokens._char as uint while idx1 <= Tokens._while as uint : idx1++ do { next() currIdentifier[IdentifierOffsets.tk as uint] = idx1 } let idx2 = OpCodes.open as uint while idx2 <= OpCodes.exit as uint : idx2++ do { next() currIdentifier[IdentifierOffsets.class as uint] = idx2 } writeln("Not bad untill here") }
+func next () { let uint pp = 0 }
+typedef Tokens {
+	num,
+	fun,
+	sys,
+	glo,
+	loc,
+	id,
+	_char,
+	_else,
+	enum,
+	_if,
+	_int,
+	ret,
+	sizeof,
+	_while,
+	assign,
+	cond,
+	opLor,
+	opLan,
+	opOr,
+	opXor,
+	opAnd,
+	opEq,
+	opNe,
+	poLt,
+	opGt,
+	opLe,
+	opGe,
+	opShl,
+	opShr,
+	opAdd,
+	opSub,
+	opMul,
+	opDiv,
+	opMod,
+	opInc,
+	opDec,
+	_break
+}
+typedef OpCodes {
+	lea,
+	imm,
+	jmp,
+	jsr,
+	bz,
+	bnz,
+	ent,
+	adj,
+	lev,
+	li,
+	lc,
+	si,
+	sc,
+	psh,
+	_or,
+	xor,
+	_and,
+	eq,
+	ne,
+	lt,
+	gt,
+	le,
+	ge,
+	shl,
+	shr,
+	add,
+	sub,
+	mul,
+	div,
+	mod,
+	open,
+	read,
+	close,
+	printf,
+	malloc,
+	free,
+	memset,
+	memcmp,
+	exit
+}
+typedef CTypes {
+	_char,
+	_int,
+	ptr
+}
+typedef IdentifierOffsets {
+	tk,
+	hash,
+	name,
+	class,
+	_type,
+	val,
+	hClass,
+	hType,
+	hVal,
+	idsz
+}
 

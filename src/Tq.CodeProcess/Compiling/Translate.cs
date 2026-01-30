@@ -10,6 +10,7 @@ using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.CodeReferences
 using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.FieldReferences;
 using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.FunctionReferences;
 using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.TypedefReferences;
+using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.TypeReferences;
 using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.TypeReferences.Builtin;
 using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.TypeReferences.Builtin.Integer;
 using AsmResolver.DotNet;
@@ -226,84 +227,140 @@ public partial class Compiler
                     case RuntimeIntegerTypeReference @targt:
                     {
                         CompileIrNodeLoad(c.Expression, ctx);
-                        ctx.StackPop();
                         
-                        var srt = (RuntimeIntegerTypeReference)fromType;
-                        var srs = srt.Signed;
-                        var srbitsize = srt.BitSize.Bits;
-                        
-                        var s = targt.Signed;
-                        var bitsize = targt.BitSize.Bits;
-
-                        if (srbitsize == 128)
+                        switch (c.Expression.Type)
                         {
-                            var baset = srs ? _coreLib["Int128"] : _coreLib["UInt128"];
-                            switch (bitsize)
+                            case RuntimeIntegerTypeReference @srt:
                             {
-                                case <= 8:
-                                    ctx.Gen.Add(CilOpCodes.Call, (IMethodDescriptor)baset.m[s ? "Conv_to_i8" : "Conv_to_u8"]);
-                                    ctx.StackPush(s ? _corLibFactory.SByte :  _corLibFactory.Byte);
-                                    break;
-                                case <= 16:
-                                    ctx.Gen.Add(CilOpCodes.Call, (IMethodDescriptor)baset.m[s ? "Conv_to_i16" : "Conv_to_u16"]);
-                                    ctx.StackPush(s ? _corLibFactory.Int16 : _corLibFactory.UInt16);
-                                    break;
-                                case <= 32:
-                                    ctx.Gen.Add(CilOpCodes.Call, (IMethodDescriptor)baset.m[s ? "Conv_to_i32" : "Conv_to_u32"]);
-                                    ctx.StackPush(s ? _corLibFactory.Int32 : _corLibFactory.UInt32);
-                                    break;
-                                case <= 64:
-                                    ctx.Gen.Add(CilOpCodes.Call, (IMethodDescriptor)baset.m[s ? "Conv_to_i64" : "Conv_to_u64"]);
-                                    ctx.StackPush(s ? _corLibFactory.Int64 : _corLibFactory.UInt64);
-                                    break;
-                                default: throw new UnreachableException();
-                            }
-                            return;
-                        }
-                        
-                        switch (bitsize)
-                        {
-                            case 0:
-                                ctx.Gen.Add(s ? CilOpCodes.Conv_I : CilOpCodes.Conv_U);
-                                ctx.StackPush(s ? _corLibFactory.IntPtr : _corLibFactory.UIntPtr);
-                                break;
-                            
-                            case <= 8:
-                                ctx.Gen.Add(s ? CilOpCodes.Conv_I1 : CilOpCodes.Conv_U1);
-                                ctx.StackPush(s ? _corLibFactory.SByte : _corLibFactory.Byte);
-                                break;
-                            case <= 16:
-                                ctx.Gen.Add(s ? CilOpCodes.Conv_I2 : CilOpCodes.Conv_U2);
-                                ctx.StackPush(s ? _corLibFactory.Int16 : _corLibFactory.UInt16);
-                                break;
-                            case <= 32:
-                                ctx.Gen.Add(s ? CilOpCodes.Conv_I4 : CilOpCodes.Conv_U4);
-                                ctx.StackPush(s ? _corLibFactory.Int32 : _corLibFactory.UInt32);
-                                break;
-                            case <= 64:
-                                ctx.Gen.Add(s ? CilOpCodes.Conv_I8 : CilOpCodes.Conv_U8);
-                                ctx.StackPush(s ? _corLibFactory.Int64 : _corLibFactory.UInt64);
-                                break;
-
-                            case <= 128:
-                            {
-                                var baset = srs ? _coreLib["Int128"] : _coreLib["UInt128"];
+                                var srs = srt.Signed;
+                                var srbitsize = srt.BitSize.Bits;
                                 
-                                switch (srbitsize)
+                                var s = targt.Signed;
+                                var bitsize = targt.BitSize.Bits;
+
+                                ctx.StackPop();
+                                if (srbitsize == 128)
                                 {
-                                    case <= 8:ctx.Gen.Add(CilOpCodes.Call, (IMethodDescriptor)baset.m[s ? "Conv_from_i8" : "Conv_from_u8"]); break;
-                                    case <= 16: ctx.Gen.Add(CilOpCodes.Call, (IMethodDescriptor)baset.m[s ? "Conv_from_i16" : "Conv_from_u16"]); break;
-                                    case <= 32: ctx.Gen.Add(CilOpCodes.Call, (IMethodDescriptor)baset.m[s ? "Conv_from_i32" : "Conv_from_u32"]); break;
-                                    case <= 64: ctx.Gen.Add(CilOpCodes.Call, (IMethodDescriptor)baset.m[s ? "Conv_from_i64" : "Conv_from_u64"]); break;
+                                    var baset = srs ? _coreLib["Int128"] : _coreLib["UInt128"];
+                                    switch (bitsize)
+                                    {
+                                        case <= 8:
+                                            ctx.Gen.Add(CilOpCodes.Call, (IMethodDescriptor)baset.m[s ? "Conv_to_i8" : "Conv_to_u8"]);
+                                            ctx.StackPush(s ? _corLibFactory.SByte :  _corLibFactory.Byte);
+                                            break;
+                                        case <= 16:
+                                            ctx.Gen.Add(CilOpCodes.Call, (IMethodDescriptor)baset.m[s ? "Conv_to_i16" : "Conv_to_u16"]);
+                                            ctx.StackPush(s ? _corLibFactory.Int16 : _corLibFactory.UInt16);
+                                            break;
+                                        case <= 32:
+                                            ctx.Gen.Add(CilOpCodes.Call, (IMethodDescriptor)baset.m[s ? "Conv_to_i32" : "Conv_to_u32"]);
+                                            ctx.StackPush(s ? _corLibFactory.Int32 : _corLibFactory.UInt32);
+                                            break;
+                                        case <= 64:
+                                            ctx.Gen.Add(CilOpCodes.Call, (IMethodDescriptor)baset.m[s ? "Conv_to_i64" : "Conv_to_u64"]);
+                                            ctx.StackPush(s ? _corLibFactory.Int64 : _corLibFactory.UInt64);
+                                            break;
+                                        default: throw new UnreachableException();
+                                    }
+                                    return;
+                                }
+                                switch (bitsize)
+                                {
+                                    case 0:
+                                        ctx.Gen.Add(s ? CilOpCodes.Conv_I : CilOpCodes.Conv_U);
+                                        ctx.StackPush(s ? _corLibFactory.IntPtr : _corLibFactory.UIntPtr);
+                                        break;
+                                    
+                                    case <= 8:
+                                        ctx.Gen.Add(s ? CilOpCodes.Conv_I1 : CilOpCodes.Conv_U1);
+                                        ctx.StackPush(s ? _corLibFactory.SByte : _corLibFactory.Byte);
+                                        break;
+                                    case <= 16:
+                                        ctx.Gen.Add(s ? CilOpCodes.Conv_I2 : CilOpCodes.Conv_U2);
+                                        ctx.StackPush(s ? _corLibFactory.Int16 : _corLibFactory.UInt16);
+                                        break;
+                                    case <= 32:
+                                        ctx.Gen.Add(s ? CilOpCodes.Conv_I4 : CilOpCodes.Conv_U4);
+                                        ctx.StackPush(s ? _corLibFactory.Int32 : _corLibFactory.UInt32);
+                                        break;
+                                    case <= 64:
+                                        ctx.Gen.Add(s ? CilOpCodes.Conv_I8 : CilOpCodes.Conv_U8);
+                                        ctx.StackPush(s ? _corLibFactory.Int64 : _corLibFactory.UInt64);
+                                        break;
+
+                                    case <= 128:
+                                    {
+                                        var baset = srs ? _coreLib["Int128"] : _coreLib["UInt128"];
+                                        
+                                        switch (srbitsize)
+                                        {
+                                            case <= 8:ctx.Gen.Add(CilOpCodes.Call, (IMethodDescriptor)baset.m[s ? "Conv_from_i8" : "Conv_from_u8"]); break;
+                                            case <= 16: ctx.Gen.Add(CilOpCodes.Call, (IMethodDescriptor)baset.m[s ? "Conv_from_i16" : "Conv_from_u16"]); break;
+                                            case <= 32: ctx.Gen.Add(CilOpCodes.Call, (IMethodDescriptor)baset.m[s ? "Conv_from_i32" : "Conv_from_u32"]); break;
+                                            case <= 64: ctx.Gen.Add(CilOpCodes.Call, (IMethodDescriptor)baset.m[s ? "Conv_from_i64" : "Conv_from_u64"]); break;
+                                            default: throw new UnreachableException();
+                                        }
+
+                                        ctx.StackPush(baset.t);
+                                        break;
+                                    }
+
                                     default: throw new UnreachableException();
                                 }
+                            } break;
 
-                                ctx.StackPush(baset.t);
-                                break;
-                            }
+                            case SolvedTypedefTypeReference:
+                            {
+                                var fromTypeSig = ctx.Stack[^1];
+                                if (fromTypeSig is not CorLibTypeSignature @corlibsig
+                                    || !IsExplicitInteger(corlibsig, out var srs, out var srbitsize))
+                                    throw new UnreachableException();
+                                
+                                ctx.StackPop();
 
-                            default: throw new UnreachableException();
+                                if (srs == targt.Signed && srbitsize == targt.BitSize) goto forceEnd;
+                                switch (targt.BitSize.Bits)
+                                {
+                                    case <= 8:
+                                        ctx.Gen.Add(srs ? CilOpCodes.Conv_I1 : CilOpCodes.Conv_U1);
+                                        ctx.StackPush(srs ? _corLibFactory.SByte : _corLibFactory.Byte);
+                                        break;
+                                    case <= 16:
+                                        ctx.Gen.Add(srs ? CilOpCodes.Conv_I2 : CilOpCodes.Conv_U2);
+                                        ctx.StackPush(srs ? _corLibFactory.Int16 : _corLibFactory.UInt16);
+                                        break;
+                                    case <= 32:
+                                        ctx.Gen.Add(srs ? CilOpCodes.Conv_I4 : CilOpCodes.Conv_U4);
+                                        ctx.StackPush(srs ? _corLibFactory.Int32 : _corLibFactory.UInt32);
+                                        break;
+                                    case <= 64:
+                                        ctx.Gen.Add(srs ? CilOpCodes.Conv_I8 : CilOpCodes.Conv_U8);
+                                        ctx.StackPush(srs ? _corLibFactory.Int64 : _corLibFactory.UInt64);
+                                        break;
+                                    case <= 128:
+                                    {
+                                        var baseT = srs ? _coreLib["Int128"] : _coreLib["UInt128"];
+                                        switch (srbitsize)
+                                        {
+                                            case <= 8:ctx.Gen.Add(CilOpCodes.Call, (IMethodDescriptor)baseT.m[srs ? "Conv_from_i8" : "Conv_from_u8"]); break;
+                                            case <= 16: ctx.Gen.Add(CilOpCodes.Call, (IMethodDescriptor)baseT.m[srs ? "Conv_from_i16" : "Conv_from_u16"]); break;
+                                            case <= 32: ctx.Gen.Add(CilOpCodes.Call, (IMethodDescriptor)baseT.m[srs ? "Conv_from_i32" : "Conv_from_u32"]); break;
+                                            case <= 64: ctx.Gen.Add(CilOpCodes.Call, (IMethodDescriptor)baseT.m[srs ? "Conv_from_i64" : "Conv_from_u64"]); break;
+                                            default: throw new UnreachableException();
+                                        }
+                                        ctx.StackPush(baseT.t);
+                                        break;
+                                    }
+                                }
+                                
+                                forceEnd:
+                                ctx.StackPush(TypeFromRef(c.Type));
+                                
+                            } break;
+                            
+                            default: throw new NotImplementedException();
                         }
+                        
                     } break;
                     
                     default: throw new UnreachableException();

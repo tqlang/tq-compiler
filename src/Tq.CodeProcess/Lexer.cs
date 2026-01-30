@@ -352,7 +352,7 @@ public class Lexer
                     // unrecognized character
                     else
                     {
-                        throw new NotImplementedException();
+                        throw new NotImplementedException(c.ToString());
                         // FIXME implement error handlers
                         // try { throw new UnrecognizedCharacterException(c, i); }
                         // catch (SyntaxException e) { currentSrc.ThrowError(e); }

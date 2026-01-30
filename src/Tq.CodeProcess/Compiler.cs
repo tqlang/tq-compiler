@@ -257,7 +257,7 @@ public partial class Compiler
             var arr = GC.AllocateArray<uint>(25);
             
             //if (ctx.Stack.Count != 0) throw new UnreachableException();
-            body.ComputeMaxStack();
+            //body.ComputeMaxStack();
             body.Instructions.CalculateOffsets();
         }
     }

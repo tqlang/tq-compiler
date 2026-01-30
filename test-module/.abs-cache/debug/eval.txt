@@ -4,7 +4,120 @@ module Program {
 
 		private static concrete var 'debug' u64
 
-		private static concrete var 'sym' []u8
+		private static concrete var 'symbols' []u8
+
+		private static concrete var 'text' []u8
+
+		private static concrete var 'data' []u8
+
+		private static concrete var 'stack' []u8
+
+		private static concrete var 'srcPointer' u64
+
+		private static concrete var 'currToken' u64
+
+		private static concrete var 'currIdentifier' []u64
+
+		typedef 'Tokens' {
+		num,
+			fun,
+			sys,
+			glo,
+			loc,
+			id,
+			_char,
+			_else,
+			enum,
+			_if,
+			_int,
+			ret,
+			sizeof,
+			_while,
+			assign,
+			cond,
+			opLor,
+			opLan,
+			opOr,
+			opXor,
+			opAnd,
+			opEq,
+			opNe,
+			poLt,
+			opGt,
+			opLe,
+			opGe,
+			opShl,
+			opShr,
+			opAdd,
+			opSub,
+			opMul,
+			opDiv,
+			opMod,
+			opInc,
+			opDec,
+			_break
+		}
+
+		typedef 'OpCodes' {
+		lea,
+			imm,
+			jmp,
+			jsr,
+			bz,
+			bnz,
+			ent,
+			adj,
+			lev,
+			li,
+			lc,
+			si,
+			sc,
+			psh,
+			_or,
+			xor,
+			_and,
+			eq,
+			ne,
+			lt,
+			gt,
+			le,
+			ge,
+			shl,
+			shr,
+			add,
+			sub,
+			mul,
+			div,
+			mod,
+			open,
+			read,
+			close,
+			printf,
+			malloc,
+			free,
+			memset,
+			memcmp,
+			exit
+		}
+
+		typedef 'CTypes' {
+		_char,
+			_int,
+			ptr
+		}
+
+		typedef 'IdentifierOffsets' {
+		tk,
+			hash,
+			name,
+			class,
+			_type,
+			val,
+			hClass,
+			hType,
+			hVal,
+			idsz
+		}
 
 		; funcgroup main
 		private static concrete extern("") func main() void {
@@ -13,6 +126,9 @@ module Program {
 			$(02) Local 'i': i64
 			$(03) Local 'file': Struct<Std.Fs.File>
 			$(04) Local 'poolsz': u64
+			$(05) Local 'keywords': string
+			$(06) Local 'idx1': u64
+			$(07) Local 'idx2': u64
 			local.00 = call Callable<Std.Process.getProgramArguments> ()
 			local.01 = lenof local.00 as i64
 			local.02 = (i64)1
@@ -32,10 +148,34 @@ module Program {
 			local.03 = call Callable<Std.Fs.open> (local.00[local.02])
 			call Callable<Std.Console.writeln> ((Undefined) "ok...")
 			local.04 = (u64)262144
-			Field<Program.sym> = call Callable<Std.Mem.alloc__impl> (local.04, Alignment._1)
-			call Callable<Std.Console.write> ((Undefined) "allocation length is ")
-			call Callable<Std.Console.writeln> (lenof Field<Program.sym>)
+			Field<Program.symbols> = call Callable<Std.Mem.alloc__impl> (local.04, Alignment._1)
+			Field<Program.text> = call Callable<Std.Mem.alloc__impl> (local.04, Alignment._1)
+			Field<Program.data> = call Callable<Std.Mem.alloc__impl> (local.04, Alignment._1)
+			Field<Program.stack> = call Callable<Std.Mem.alloc__impl> (local.04, Alignment._1)
+			local.05 = (Undefined) "char else enum if int return sizeof while open read close printf malloc free memset memcmp exit void main"
+			local.06 = Tokens._char as u64
+			while (cmp LessThanOrEqual local.06 Tokens._while as u64) {
+				step { local.06++
+				 }	call Callable<Program.next> ()
+				Field<Program.currIdentifier>[IdentifierOffsets.tk as u64] = local.06
+			}
+
+			local.07 = OpCodes.open as u64
+			while (cmp LessThanOrEqual local.07 OpCodes.exit as u64) {
+				step { local.07++
+				 }	call Callable<Program.next> ()
+				Field<Program.currIdentifier>[IdentifierOffsets.class as u64] = local.07
+			}
+
 			call Callable<Std.Console.writeln> ((Undefined) "Not bad untill here")
+
+		}
+
+
+		; funcgroup next
+		private static concrete extern("") func next() void {
+			$(00) Local 'pp': u64
+			local.00 = (u64)0
 
 		}
 
@@ -96,6 +236,24 @@ module Std {
 		; funcgroup alloc
 		public static concrete extern("") generic func alloc(type, u64, Typedef<Std.Mem.Alignment>) []T {
 			ret dotnet_call Callable<Std.Mem.csharp_GC_AllocateArray><T>(arg.01 as i32, false)
+
+
+		}
+
+		public static concrete extern("") func alloc__impl(u64, Typedef<Std.Mem.Alignment>) []u8 {
+			ret dotnet_call Callable<Std.Mem.csharp_GC_AllocateArray><u8>(arg.00 as i32, false)
+
+
+		}
+
+		public static concrete extern("") func alloc__impl(u64, Typedef<Std.Mem.Alignment>) []u8 {
+			ret dotnet_call Callable<Std.Mem.csharp_GC_AllocateArray><u8>(arg.00 as i32, false)
+
+
+		}
+
+		public static concrete extern("") func alloc__impl(u64, Typedef<Std.Mem.Alignment>) []u8 {
+			ret dotnet_call Callable<Std.Mem.csharp_GC_AllocateArray><u8>(arg.00 as i32, false)
 
 
 		}
