@@ -4,6 +4,7 @@ using Abstract.CodeProcess.Core.EvaluationData;
 using Abstract.CodeProcess.Core.EvaluationData.LanguageObjects;
 using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.AttributeReferences;
 using Abstract.CodeProcess.Core.Language.Module;
+using Abstract.CodeProcess.Dotnet;
 
 namespace Abstract.CodeProcess;
 
@@ -15,15 +16,19 @@ public partial class Analyser(ErrorHandler handler)
     private readonly List<NamespaceObject> _namespaces = [];
     private readonly Dictionary<string[], LangObject> _globalReferenceTable = new(new IdentifierComparer());
     private readonly Stack<List<AttributeReference>> _onHoldAttributes = [];
-    
+    private AssemblyResolver _assemblyResolver = null!;
     
     public ProgramObject Analyze(
         Module[] modules,
+        string[] includes,
         bool dumpGlobalTable = false,
         bool dumpEvaluatedData = false)
     {
+        // Setting up
+        _assemblyResolver = new AssemblyResolver(new Version(10, 0,0 ,0));
+        
         // Stage 1
-        SearchReferences(modules);
+        SearchReferences(modules, includes);
         
         if (dumpEvaluatedData) DumpEvaluatedData();
         if (dumpGlobalTable) DumpGlobalTable();
@@ -48,7 +53,7 @@ public partial class Analyser(ErrorHandler handler)
         if (dumpEvaluatedData) DumpEvaluatedData();
         if (dumpGlobalTable) DumpGlobalTable();
 
-        return new ProgramObject([.. _modules], [.. _namespaces]);
+        return new ProgramObject(_assemblyResolver, [.. _modules], [.. _namespaces]);
     }
     
     

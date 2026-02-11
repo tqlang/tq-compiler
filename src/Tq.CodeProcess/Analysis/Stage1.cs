@@ -20,13 +20,14 @@ namespace Abstract.CodeProcess;
 
 public partial class Analyser
 {
-    private void SearchReferences(Module[] modules)
+    private void SearchReferences(Module[] modules, string[] includes)
     {
         _modules.Clear();
         _namespaces.Clear();
         _globalReferenceTable.Clear();
         _onHoldAttributes.Clear();
         
+        // Search tq references
         foreach (var m in modules)
         {
             var module = new ModuleObject(m.name);
@@ -43,6 +44,12 @@ public partial class Analyser
 
             LoadGlobalsRecursive(module);
             _modules.Add(module);
+        }
+        
+        // Search dotnet included references
+        foreach (var i in includes)
+        {
+            
         }
         
         _modules.TrimExcess();

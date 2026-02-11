@@ -99,6 +99,7 @@ public static class Builder
         var analysis = Stopwatch.StartNew();
         var progObj = analyzer.Analyze(
             [.. modules],
+            [.. options.Includes],
             dumpGlobalTable: options.DebugDumpAnalyzerIr,
             dumpEvaluatedData: options.DebugDumpAnalyzerIr);
         

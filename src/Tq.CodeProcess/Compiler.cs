@@ -7,7 +7,6 @@ using AsmResolver.DotNet;
 using AsmResolver.DotNet.Code.Cil;
 using AsmResolver.DotNet.Signatures;
 using AsmResolver.DotNet.Signatures.Types;
-using AsmResolver.IO;
 using AsmResolver.PE.DotNet.Cil;
 using AssemblyDefinition = AsmResolver.DotNet.AssemblyDefinition;
 using FieldAttributes = AsmResolver.PE.DotNet.Metadata.Tables.Rows.FieldAttributes;
@@ -34,7 +33,6 @@ public partial class Compiler
     
     private CorLibTypeFactory _corLibFactory;
     private Dictionary<string, (TypeSignature t, Dictionary<string, IMethodDescriptor> m)> _coreLib = [];
-    private static Version ZeroVersion = new Version(0, 0, 0, 0);
     
     public void Compile(ProgramObject program)
     {
@@ -42,13 +40,9 @@ public partial class Compiler
         
         _assembly = new AssemblyDefinition(programName + ".dll",
             new Version(1, 0, 0, 0));
-
-        var runtimeVersion = new Version(10, 0, 0, 0);
-        var systemCore = new AssemblyReference("System.Runtime", new Version(10, 0, 0, 0))
-        { PublicKeyOrToken = [ 0xb0, 0x3f, 0x5f, 0x7f, 0x11, 0xd5, 0x0a, 0x3a ] };
-
-        _module = new ModuleDefinition(programName, systemCore)
-        { MetadataResolver = new DefaultMetadataResolver(new CustomAssemblyResolver(runtimeVersion)) };
+        
+        _module = new ModuleDefinition(programName, program.AssemblyResolver.CorLibReference)
+        { MetadataResolver = new DefaultMetadataResolver(program.AssemblyResolver) };
         _assembly.Modules.Add(_module);
         
         LoadCoreLibResources();
@@ -533,8 +527,10 @@ public partial class Compiler
         var asmRef = _module.AssemblyReferences.FirstOrDefault(e => e.Name == asmName);
         if (asmRef != null)return asmRef;
         
-        asmRef = new AssemblyReference(asmName, ZeroVersion).ImportWith(_module.DefaultImporter);
-        return asmRef.Resolve() == null ? throw new Exception($"Could not resolve assembly reference '{asmName}'") : asmRef;
+        asmRef = new AssemblyReference(asmName, new Version()).ImportWith(_module.DefaultImporter);
+        return _module.MetadataResolver.AssemblyResolver.Resolve(asmRef) == null
+                ? throw new Exception($"Could not resolve assembly reference '{asmName}'")
+                : asmRef;
     }
     private TypeReference SolveTypeReference(AssemblyReference assembly, string ns, string name)
     {
@@ -546,38 +542,5 @@ public partial class Compiler
         
         if (typeRef.Resolve() == null) throw new Exception($"Could not resolve type reference '[{assembly.Name}]{typeRef}'");
         return typeRef;
-    }
-
-    private class CustomAssemblyResolver : DotNetCoreAssemblyResolver
-    {
-        private readonly List<string> _resolvingDirectories = [];
-        
-        public CustomAssemblyResolver(Version runtimeVersion)
-            : base(UncachedFileService.Instance, runtimeVersion)
-        {
-            var paths = new DotNetCorePathProvider().GetRuntimePathCandidates(runtimeVersion);
-            _resolvingDirectories.AddRange(paths);
-        }
-        
-        protected override string? ProbeRuntimeDirectories(AssemblyDescriptor assembly)
-        {
-            var asmName = assembly.Name;
-            var asmVersion = assembly.Version;
-            
-            foreach (var dir in _resolvingDirectories)
-            {
-                var file = Path.Combine(dir, $"{asmName}.dll");
-                if (!File.Exists(file)) continue;
-                if (asmVersion == null!
-                    || asmVersion == ZeroVersion 
-                    || AssemblyDefinition.FromFile(file).Version == asmVersion) return file;
-            }
-            return null;
-        }
-        protected override AssemblyDefinition? ResolveImpl(AssemblyDescriptor assembly)
-        {
-            var path = ProbeRuntimeDirectories(assembly);
-            return path == null ? null : LoadAssemblyFromFile(path);
-        }
     }
 }

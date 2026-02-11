@@ -1,6 +1,4 @@
-﻿using System.Reflection;
-using System.Text;
-using Abstract.Cli.Build;
+﻿using Abstract.Cli.Build;
 
 namespace Abstract.Cli;
 
@@ -53,6 +51,13 @@ public class Program
                     var name = args[i++];
                     var path = args[i++];
                     buildOps.AppendModule(name, path);
+                    break;
+                
+                case "-i" or "--include" when args.Length < i + 1:
+                    throw new Exception("Expected include name or path");
+                case "-i" or "--include" when args.Length < i + 1:
+                    var include = args[i++];
+                    buildOps.AppendInclude(include);
                     break;
                 
                 case "-v" or "--verbose":

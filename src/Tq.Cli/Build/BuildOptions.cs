@@ -1,5 +1,3 @@
-using System.Diagnostics;
-using System.Runtime.InteropServices;
 using System.Text;
 
 namespace Abstract.Cli.Build;
@@ -19,8 +17,9 @@ public class BuildOptions(string projectName)
     public bool DebugDumpCompressedModules = false;
     
     private readonly Dictionary<string, string> _modules = [];
+    private readonly List<string> _includes = [];
     public (string name, string path)[] Modules => _modules.Select(x => (x.Key, x.Value)).ToArray();
-
+    public string[] Includes => [.. _includes];
 
     public void AppendModule(string name, string path)
     {
@@ -34,24 +33,35 @@ public class BuildOptions(string projectName)
         _modules.Add(name, rooted);
     }
 
-
+    public void AppendInclude(string path)
+    {
+        if (_includes.FirstOrDefault(path) == null!)
+            _includes.Add(path);
+    }
+    
     public override string ToString()
     {
         var sb = new StringBuilder();
 
         sb.AppendLine("{");
-        sb.AppendLine($"[Project]={ProjectName}");
-        sb.AppendLine($"[Verbose]={Verbose}");
+        sb.AppendLine($"  [Project]={ProjectName}");
+        sb.AppendLine($"  [Verbose]={Verbose}");
         
-        sb.AppendLine("[Modules]={");
+        sb.AppendLine("  [Modules]={");
         foreach (var i in _modules)
         {
-            sb.AppendLine($"  {i.Key} - {i.Value}");
+            sb.AppendLine($"    {i.Key} - {i.Value}");
+        }
+        sb.AppendLine("  }");
+        sb.AppendLine("  [Includes]={");
+        foreach (var i in _includes)
+        {
+            sb.AppendLine($"    {i}");
         }
         sb.AppendLine("  }");
         
-        sb.AppendLine($"[QueryRegex.Directory]='{DirectoryQueryRegex}'");
-        sb.AppendLine($"[QueryRegex.Scripts]='{ScriptQueryRegex}'");
+        sb.AppendLine($"  [QueryRegex.Directory]='{DirectoryQueryRegex}'");
+        sb.AppendLine($"  [QueryRegex.Scripts]='{ScriptQueryRegex}'");
         
         sb.AppendLine("}");
         
