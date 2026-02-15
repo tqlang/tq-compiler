@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using Abstract.CodeProcess.Core;
 using Abstract.CodeProcess.Core.Language;
 using Abstract.CodeProcess.Core.Language.SyntaxNodes.Base;
@@ -48,7 +49,7 @@ public class Parser(ErrorHandler errHandler)
                 node.AppendChild(EatAsNode()); // struct
                 node.AppendChild(ParseSingleIdentifier()); // <identifier>
 
-                if (Taste(TokenType.LeftPerenthesisChar)) node.AppendChild(ParseParameterCollection()); // generic parameters
+                if (Taste(TokenType.LeftParenthesisChar)) node.AppendChild(ParseParameterCollection()); // generic parameters
                 
                 bool useExtendsImplements = false;
                 var extendsImplements = new ExtendsImplementsNode();
@@ -90,20 +91,7 @@ public class Parser(ErrorHandler errHandler)
             }
             catch { DiscardLine(); throw; }
             break;
-
-            case TokenType.PacketKeyword:
-            try{
-
-                node = new PacketDeclarationNode();
-                node.AppendChild(EatAsNode()); // packet
-                node.AppendChild(ParseSingleIdentifier()); // <identifier>
-                TryEndLine();
-                node.AppendChild(ParseBlock((BlockNode n, ref bool _)
-                    => n.AppendChild(ParsePacketBody()))); // {...}
-
-            } catch { DiscardLine(); throw; }
-            break;
-
+            
             case TokenType.LetKeyword or
             TokenType.ConstKeyword:
             try{
@@ -127,8 +115,12 @@ public class Parser(ErrorHandler errHandler)
             {
                 node = new TypeDefinitionNode();
                 node.AppendChild(EatAsNode()); // typedef
+
+                if (Bite().type == TokenType.LeftParenthesisChar) // optional backing type
+                    node.AppendChild(ParseArgumentCollection());
+                
                 node.AppendChild(ParseSingleIdentifier()); // identifier
-                if (Taste(TokenType.LeftPerenthesisChar))
+                if (Taste(TokenType.LeftParenthesisChar))
                     node.AppendChild(ParseArgumentCollection()); // (T)
 
                 node.AppendChild(ParseBlock((BlockNode block, ref bool _break) =>
@@ -136,38 +128,50 @@ public class Parser(ErrorHandler errHandler)
                     var value = Bite();
                     switch (value.type)
                     {
-                        case TokenType.Identifier:
+                        case TokenType.CaseKeyword:
                         {
-                            var n = new TypeDefinitionNamedItemNode();
-                            n.AppendChild(ParseValue(false));
-                            block.AppendChild(n);
-                        } break;
-                        
-                        case TokenType.RangeOperator:
-                        case TokenType.IntegerNumberLiteral when TasteMore(1, TokenType.RangeOperator):
-                            throw new NotImplementedException();
+                            _ = Eat();
 
-                        case TokenType.IntegerNumberLiteral:
-                        {
-                            var n = new TypeDefinitionNumericItemNode();
-                            n.AppendChild(ParseValue(false));
-                            block.AppendChild(n);
+                            while (!IsEOF())
+                            {
+                                var v2 = Bite();
+                                switch (v2.type)
+                                {
+                                    case TokenType.Identifier:
+                                    {
+                                        var n = new TypeDefinitionNamedItemNode();
+                                        n.AppendChild(ParseValue(false));
+
+                                        if (Bite().type == TokenType.EqualsChar)
+                                        {
+                                            n.AppendChild(EatAsNode());
+                                            n.AppendChild(ParseExpression());
+                                        }
+                                        
+                                        block.AppendChild(n);
+                                    } break;
+
+                                    case TokenType.IntegerNumberLiteral:
+                                    {
+                                        var n = new TypeDefinitionNumericItemNode();
+                                        n.AppendChild(ParseValue(false));
+                                        block.AppendChild(n);
+                                    } break;
+
+                                    default: throw new UnreachableException();
+                                }
+                                
+                                if (Bite().type != TokenType.CommaChar) break;
+                                Eat();
+                                if (!IsEndOfLine()) continue;
+                                Eat();
+                                break;
+                            }
                         } break;
                         
-                        default: throw new NotImplementedException();
+                        default: throw new Exception($"Unexpected token {Bite()}");;
                     }
-                    
-                    // var i = new TypeDefinitionNamedItemNode();
-                    //
-                    // i.AppendChild(ParseSingleIdentifier()); // <ident>
-                    // if (TryEatAsNode(TokenType.EqualsChar, out var node))
-                    // {
-                    //     i.AppendChild(node); // =
-                    //     i.AppendChild(ParseExpression()); // <exp>
-                    // }
-
-                    if (!TryEat(TokenType.CommaChar, out _)) _break = true;
-                    TryEndLine();
+                    EndLine();
                 }));
 
             } break;
@@ -183,7 +187,7 @@ public class Parser(ErrorHandler errHandler)
                 node.AppendChild(EatAsNode());
                 node.AppendChild(ParseIdentifierAccess());
 
-                if (Taste(TokenType.LeftPerenthesisChar))
+                if (Taste(TokenType.LeftParenthesisChar))
                     node.AppendChild(ParseArgumentCollection());
 
                 TryEndLine();
@@ -214,7 +218,7 @@ public class Parser(ErrorHandler errHandler)
             case TokenType.DestructorKeyword:
                 throw new NotImplementedException();
 
-            default: throw new Exception($"Unexpected token {Bite()} at position {_tokens_cursor}");
+            default: throw new Exception($"Unexpected token {Bite()}");
         }
 
         TryEndLine();
@@ -352,11 +356,11 @@ public class Parser(ErrorHandler errHandler)
 
         if (!Taste(
                 TokenType.EqualsChar, // =
-                TokenType.AddAssigin, // +=
-                TokenType.SubAssigin, // -=
-                TokenType.MulAssigin, // *=
-                TokenType.DivAssigin, // /=
-                TokenType.RestAssigin // %=
+                TokenType.AddAssign, // +=
+                TokenType.SubAssign, // -=
+                TokenType.MulAssign, // *=
+                TokenType.DivAssign, // /=
+                TokenType.RestAssign // %=
             )) return node;
         
         var n = new AssignmentExpressionNode();
@@ -554,7 +558,7 @@ public class Parser(ErrorHandler errHandler)
                     ? ParseSingleIdentifier()
                     : ParseIdentifierAccess();
 
-                if (Taste(TokenType.LeftPerenthesisChar))
+                if (Taste(TokenType.LeftParenthesisChar))
                 {
                     node = new FunctionCallExpressionNode();
                     node.AppendChild(identifier);
@@ -609,7 +613,7 @@ public class Parser(ErrorHandler errHandler)
                 
                 var type = ParseType();
 
-                if (Taste(TokenType.LeftPerenthesisChar))
+                if (Taste(TokenType.LeftParenthesisChar))
                 {
                     node.AppendChild(type);
                     node.AppendChild(ParseArgumentCollection());
@@ -655,10 +659,10 @@ public class Parser(ErrorHandler errHandler)
             } break;
             
             // Parenthesis enclosed expression
-            case TokenType.LeftPerenthesisChar:
+            case TokenType.LeftParenthesisChar:
             try {
                 node = new ParenthesisExpressionNode();
-                node.AppendChild(DietAsNode(TokenType.LeftPerenthesisChar, (t) => throw new Exception($"Unexpected token '{Bite()}'")));
+                node.AppendChild(DietAsNode(TokenType.LeftParenthesisChar, (t) => throw new Exception($"Unexpected token '{Bite()}'")));
                 node.AppendChild(ParseExpression());
                 node.AppendChild(DietAsNode(TokenType.RightParenthesisChar, (t) => throw new Exception($"Unexpected token '{Bite()}'")));
 
@@ -787,11 +791,6 @@ public class Parser(ErrorHandler errHandler)
         return range;
     }
     
-    private SyntaxNode ParsePacketBody()
-    {
-        throw new Exception($"TODO");
-    }
-
     private FromImportNode ParseImport()
     {
         var nodebase = new FromImportNode();
@@ -805,13 +804,13 @@ public class Parser(ErrorHandler errHandler)
             => throw new Exception($"Unexpected token '{Bite()}'")));
 
         if (!Taste(TokenType.LeftBracketChar)) return nodebase;
-        
         {
             var collection = new ImportCollectionNode();
 
             collection.AppendChild(DietAsNode(TokenType.LeftBracketChar, (t)
                 => throw new Exception($"Unexpected token '{Bite()}'")));
-
+            TryEndLine();
+            
             while (!Taste(TokenType.RightBracketChar))
             {
                 var item = new ImportItemNode();
@@ -824,8 +823,11 @@ public class Parser(ErrorHandler errHandler)
 
                 collection.AppendChild(item);
                 if (!Taste(TokenType.CommaChar)) break;
+                item.AppendChild(EatAsNode());
+                TryEndLine();
             }
 
+            TryEndLine();
             collection.AppendChild(DietAsNode(TokenType.RightBracketChar, (t)
                 => throw new Exception($"Unexpected token '{Bite()}'")));
 
@@ -838,7 +840,7 @@ public class Parser(ErrorHandler errHandler)
     private ParameterCollectionNode ParseParameterCollection()
     {
         var collection = new ParameterCollectionNode();
-        collection.AppendChild(DietAsNode(TokenType.LeftPerenthesisChar,
+        collection.AppendChild(DietAsNode(TokenType.LeftParenthesisChar,
             (t) => throw new Exception($"Unexpected token '{Bite()}'")));
         TryEndLine();
 
@@ -860,7 +862,7 @@ public class Parser(ErrorHandler errHandler)
     private ArgumentCollectionNode ParseArgumentCollection()
     {
         var collection = new ArgumentCollectionNode();
-        collection.AppendChild(DietAsNode(TokenType.LeftPerenthesisChar,
+        collection.AppendChild(DietAsNode(TokenType.LeftParenthesisChar,
             (t) => throw new Exception($"Unexpected token {Bite()}")));
         TryEndLine();
 

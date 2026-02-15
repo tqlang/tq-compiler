@@ -1,4 +1,34 @@
+from Dotnet.System.IO import {
+	FileStream as CsFStream,
+	SeekOrigin as CsSeekOrigin,
+	FileMode as CsFileMode,
+	FileAccess as CsFileAccess
+}
+
 @public func open(string path) File {
-	let filestream = new CSharp_FileStream(path, CSharp_FileMode.OpenOrCreate, CSharp_FileAccess.Read)
+	let filestream = new CsFStream(path, FileMode.openOrCreate, FileAccess.RO)
 	return new File(filestream)
+}
+
+
+@public typedef(CsSeekOrigin) SeekOrigin {
+	case begin = CsSeekOrigin.Begin
+	case current = CsSeekOrigin.current
+	case end = CsSeekOrigin.End
+}
+
+@public typedef(CsFileMode) FileMode {
+	case createNew = CsFileMode.CreateNew
+	case create = CsFileMode.Create
+	case open = CsFileMode.Open
+	case openOrCreate = CsFileMode.OpenOrCreate
+	case truncate = CsFileMode.Truncate
+	case append = CsFileMode.Append
+}
+
+@public typedef(CsFileAccess) FileAccess {
+	case _fuck
+	case RO = CsFileAccess.Read
+	case WO = CsFileAccess.Write
+	case RW = CsFileAccess.ReadWrite
 }

@@ -6,7 +6,7 @@ using Abstract.CodeProcess.Core.Language.SyntaxNodes.Control;
 
 namespace Abstract.CodeProcess.Core.EvaluationData.LanguageObjects;
 
-public class StructObject(string n, StructureDeclarationNode synNode) : ContainerObject(n),
+public class StructObject(SourceScript sourceScript, string n, StructureDeclarationNode synNode) : ContainerObject(sourceScript, n),
         IPublicModifier,
         IStaticModifier,
         IInternalModifier,

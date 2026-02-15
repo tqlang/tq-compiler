@@ -2,12 +2,13 @@ using System.Text;
 using Abstract.CodeProcess.Core.EvaluationData.IntermediateTree;
 using Abstract.CodeProcess.Core.EvaluationData.LanguageObjects.Attributes;
 using Abstract.CodeProcess.Core.EvaluationData.LanguageObjects.CodeObjects;
+using Abstract.CodeProcess.Core.EvaluationData.LanguageObjects.Containers;
 using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.TypeReferences;
 using Abstract.CodeProcess.Core.Language.SyntaxNodes.Control;
 
 namespace Abstract.CodeProcess.Core.EvaluationData.LanguageObjects;
 
-public class DestructorObject(DestructorDeclarationNode synNode) : LangObject("destructor"),
+public class DestructorObject(SourceScript sourceScript, DestructorDeclarationNode synNode) : LangObject(sourceScript, "destructor"),
         IDotnetImportMethodModifier,
         ICallable
 {
@@ -15,6 +16,7 @@ public class DestructorObject(DestructorDeclarationNode synNode) : LangObject("d
     
     public DotnetImportMethodData? DotnetImport { get; set; }
     
+    SourceScript ICallable.Script => SourceScript;
     public List<ParameterObject> Parameters { get; } = [];
     public List<LocalVariableObject> Locals { get; } = [];
     public TypeReference? ReturnType { get; set; } = null;

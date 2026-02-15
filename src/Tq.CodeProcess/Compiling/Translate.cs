@@ -7,6 +7,7 @@ using Abstract.CodeProcess.Core.EvaluationData.IntermediateTree.Statements;
 using Abstract.CodeProcess.Core.EvaluationData.IntermediateTree.Values;
 using Abstract.CodeProcess.Core.EvaluationData.LanguageObjects;
 using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.CodeReferences;
+using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.Dotnet;
 using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.FieldReferences;
 using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.FunctionReferences;
 using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.TypedefReferences;
@@ -39,9 +40,14 @@ public partial class Compiler
 
             case IrNewObject @nobj:
             {
-                var type = _typesMap[nobj.InstanceType];
+                var type = nobj.InstanceType switch
+                {
+                    SolvedStructTypeReference structRef => _typesMap[structRef.Struct].Type,
+                    DotnetTypeReference dotnetRef => dotnetRef.Reference.TypeDescriptor,
+                    _ => throw new NotImplementedException()
+                };
                 var typeSignature = type.ToTypeSignature();
-                
+
                 if (type.IsValueType)
                 {
                     var local = ctx.AllocTmp(typeSignature);
@@ -843,9 +849,9 @@ public partial class Compiler
                         if (!fi.IsStatic && !ctx.Stack[^1].IsAssignableTo(fi.DeclaringType!.ToTypeSignature()))
                             ctx.Gen.Add(CilOpCodes.Conv_U);
                         
-                        ctx.Gen.Add(CilOpCodes.Ldflda, (IFieldDescriptor)fi);
+                        ctx.Gen.Add(CilOpCodes.Ldflda, fi);
                         if (fi.IsStatic) ctx.StackPop();
-                        ctx.StackPush(TypeDescriptorExtensions.MakeByReferenceType(fi.Signature!.FieldType));
+                        ctx.StackPush(fi.Signature!.FieldType.MakeByReferenceType());
                     } break;
 
                     default: throw new UnreachableException();
@@ -928,28 +934,48 @@ public partial class Compiler
                 {
                     case SolvedCallableReference sfr:
                     {
-                        var f = _functionsMap[sfr.Callable];
-                        var pl = sfr.Callable.Parameters.Count;
-                        if (generics != null!) pl -= generics.Length;
-
-                        switch (f)
+                        switch (sfr.Callable)
                         {
-                            case ConcreteFunctionData @fd:
-                                ctx.Gen.Add(useNewObj ? CilOpCodes.Newobj : CilOpCodes.Call, fd.Function);
-                                if (f.ReturnsValue) ctx.StackPush(fd.ReturnType);
-                                break;
-
-                            case GenericFunctionData @fd:
+                            case DotnetMethodObject dotnetMethod:
                             {
-                                var genericsSignatures = generics!.Select(e => TypeFromRef(e)!).ToArray();
-                                var instanceMethod = fd.MethodRef.MakeGenericInstanceMethod(genericsSignatures);
-                                ctx.Gen.Add(useNewObj ? CilOpCodes.Newobj : CilOpCodes.Call, instanceMethod);
+                                var methodRef = dotnetMethod.MethodReference;
+                                var methodSig = methodRef.Signature!;
+                                var pl = dotnetMethod.Parameters.Count;
+                                
+                                ctx.Gen.Add(useNewObj ? CilOpCodes.Newobj : CilOpCodes.Call,
+                                    ctx.Importer.ImportMethod(methodRef));
+                                ctx.StackPop(pl);
+                                if (methodSig.ReturnsValue) ctx.StackPush(methodSig.ReturnType);
+                            } break;
 
-                                if (f.ReturnsValue) ctx.StackPush(ResolveReturnType(
-                                    ((IMethodDescriptor)instanceMethod).Signature!.ReturnType, genericsSignatures));
+                            default:
+                            {
+                                var f = _functionsMap[sfr.Callable];
+                                var pl = sfr.Callable.Parameters.Count;
+                                if (generics != null!) pl -= generics.Length;
+
+                                switch (f)
+                                {
+                                    case ConcreteFunctionData @fd:
+                                    {
+                                        ctx.Gen.Add(useNewObj ? CilOpCodes.Newobj : CilOpCodes.Call, fd.Function);
+                                        ctx.StackPop(pl); 
+                                        if (f.ReturnsValue) ctx.StackPush(fd.ReturnType);
+                                    } break;
+
+                                    case GenericFunctionData @fd:
+                                    {
+                                        var genericsSignatures = generics!.Select(e => TypeFromRef(e)!).ToArray();
+                                        var instanceMethod = fd.MethodRef.MakeGenericInstanceMethod(genericsSignatures);
+                                        ctx.Gen.Add(useNewObj ? CilOpCodes.Newobj : CilOpCodes.Call, instanceMethod);
+                                        ctx.StackPop(pl); 
+                                        
+                                        if (f.ReturnsValue) ctx.StackPush(ResolveReturnType(
+                                            ((IMethodDescriptor)instanceMethod).Signature!.ReturnType, genericsSignatures));
+                                    } break;
+                                }
                             } break;
                         }
-                        ctx.StackPop(pl);
                     } break;
 
                     default: throw new UnreachableException();

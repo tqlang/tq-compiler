@@ -1,11 +1,12 @@
 using System.Text;
 using Abstract.CodeProcess.Core.EvaluationData.LanguageObjects.Attributes;
 using Abstract.CodeProcess.Core.EvaluationData.LanguageObjects.Containers;
+using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.TypeReferences;
 using Abstract.CodeProcess.Core.Language.SyntaxNodes.Control;
 
 namespace Abstract.CodeProcess.Core.EvaluationData.LanguageObjects;
 
-public class TypedefObject(string n, TypeDefinitionNode synNode) : LangObject(n),
+public class TypedefObject(SourceScript script, string n, TypeDefinitionNode synNode) : LangObject(script, n),
     IFunctionContainer,
     IPublicModifier,
     IStaticModifier,
@@ -18,7 +19,8 @@ public class TypedefObject(string n, TypeDefinitionNode synNode) : LangObject(n)
     bool IInternalModifier.Internal { get; set; } = false;
     bool IAbstractModifier.Abstract { get; set; } = false;
     public DotnetImportTypeData? DotnetImport { get; set; }
-    
+
+    public TypeReference? BackType = null;
     
     public readonly TypeDefinitionNode syntaxNode = synNode;
     public List<TypedefNamedValue> NamedValues = [];
@@ -34,7 +36,8 @@ public class TypedefObject(string n, TypeDefinitionNode synNode) : LangObject(n)
     public override string ToString()
     {
         var sb = new StringBuilder();
-        sb.AppendLine($"typedef '{Name}' {{");
+        if (BackType == null) sb.AppendLine($"typedef '{Name}' {{");
+        else sb.AppendLine($"typedef({BackType}) '{Name}' {{");
 
         sb.AppendLine(string.Join($",{Environment.NewLine}\t", NamedValues));
         foreach (var c in Functions) sb.AppendLine(c.ToString().TabAll());

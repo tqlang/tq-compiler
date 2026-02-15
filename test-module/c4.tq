@@ -44,16 +44,16 @@ let []uint currIdentifier
 	let keywords = "char else enum if int return sizeof while " +
 				   "open read close printf malloc free memset memcmp exit void main"
 
-	let idx1 = Tokens._char as uint
-	while idx1 <= Tokens._while as uint : idx1++ do { 
-		next()
-		currIdentifier[IdentifierOffsets.tk as uint] = idx1
-	}
-	let idx2 = OpCodes.open as uint
-	while idx2 <= OpCodes.exit as uint : idx2++ do {
-		next()
-		currIdentifier[IdentifierOffsets.class as uint] = idx2
-	}
+	# let idx1 = Tokens._char as uint
+	# while idx1 <= Tokens._while as uint : idx1++ do { 
+	# 	next()
+	# 	currIdentifier[IdentifierOffsets.tk as uint] = idx1
+	# }
+	# let idx2 = OpCodes.open as uint
+	# while idx2 <= OpCodes.exit as uint : idx2++ do {
+	# 	next()
+	# 	currIdentifier[IdentifierOffsets.class as uint] = idx2
+	# }
 
 	writeln("Not bad untill here")
 
@@ -64,19 +64,24 @@ func next() {
 }
 
 typedef Tokens {
-	num, fun, sys, glo, loc, id,
-	_char, _else, enum, _if, _int, ret, sizeof, _while,
-	assign, cond, opLor, opLan, opOr, opXor, opAnd, opEq, opNe, poLt, opGt, opLe, opGe,
-	opShl, opShr, opAdd, opSub, opMul, opDiv, opMod, opInc, opDec,
-	_break
+	case num, fun, sys, glo, loc, id, _char, _else, enum, _if, _int, ret, sizeof, _while
+	case assign, cond, opLor, opLan, opOr, opXor, opAnd, opEq, opNe, poLt, opGt, opLe, opGe
+	case opShl, opShr, opAdd, opSub, opMul, opDiv, opMod, opInc, opDec
+	case _break
 }
 
 typedef OpCodes {
-	lea,  imm,  jmp,  jsr,   bz,  bnz,  ent,  adj,  lev,   li,   lc,   si,   sc,  psh,
-	_or,  xor, _and,  eq,    ne,  lt,   gt,   le,   ge,   shl,  shr,  add,  sub,  mul, div, mod,
-	open, read, close, printf, malloc, free, memset, memcmp, exit
+	case lea,  imm,  jmp,   jsr,   bz,  bnz,  ent,  adj,  lev,   li,   lc,   si,   sc,  psh
+	case _or,  xor,  _and,  eq,    ne,  lt,   gt,   le,   ge,    shl,  shr,  add,  sub,  mul,  div,  mod
+	case open, read, close, printf, malloc, free, memset, memcmp, exit
 }
 
-typedef CTypes { _char, _int, ptr }
+typedef CTypes {
+	case _char
+	case _int
+	case ptr
+}
 
-typedef IdentifierOffsets { tk, hash, name, class, _type, val, hClass, hType, hVal, idsz }
+typedef IdentifierOffsets {
+	case tk, hash, name, class, _type, val, hClass, hType, hVal, idsz
+}

@@ -5,6 +5,6 @@ namespace Abstract.CodeProcess.Core.Language.SyntaxNodes.Control;
 public class TypeDefinitionNumericItemNode : TypeDefinitionItemNode
 {
  
-    public IntegerLiteralNode Value => (IntegerLiteralNode)_children[0];
+    public IntegerLiteralNode Key => (IntegerLiteralNode)_children[0];
     
 }

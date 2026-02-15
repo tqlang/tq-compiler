@@ -1,11 +1,12 @@
+using Abstract.CodeProcess.Core.EvaluationData.LanguageObjects.Containers;
 using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.AttributeReferences;
 
 namespace Abstract.CodeProcess.Core.EvaluationData.LanguageObjects;
 
-public abstract class LangObject(string name) : IFormattable
+public abstract class LangObject(SourceScript sourceScript, string name) : IFormattable
 {
     private readonly List<AttributeReference> _attributes = [];
-    private LangObject? _parent = null!;
+    private LangObject? _parent;
 
     public string[] Global => string.IsNullOrEmpty(Name) ? [.._parent?.Global ?? []] : [.._parent?.Global ?? [], Name];
 
@@ -21,15 +22,17 @@ public abstract class LangObject(string name) : IFormattable
             return _parent.Container;
         }
     }
-    public NamespaceObject? Namespace
+    public TqNamespaceObject? Namespace
     {
         get
         {
             if (_parent == null) return null;
-            if (_parent is NamespaceObject @nmsp) return nmsp;
+            if (_parent is TqNamespaceObject @nmsp) return nmsp;
             return _parent.Namespace;
         }
     }
+    public readonly SourceScript SourceScript = sourceScript;
+    
     public ModuleObject? Module
     {
         get
@@ -39,7 +42,6 @@ public abstract class LangObject(string name) : IFormattable
             return _parent.Module;
         }
     }
-    public ImportObject? Imports = null;
     
     public AttributeReference[] Attributes => [.. _attributes];
     

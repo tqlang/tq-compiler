@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Text;
 using Abstract.CodeProcess.Core.EvaluationData.LanguageObjects;
+using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.Dotnet;
 using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.TypeReferences;
 using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.TypeReferences.Builtin;
 using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.TypeReferences.Builtin.Integer;
@@ -60,7 +61,7 @@ public partial class Compiler
             
         File.WriteAllText(".abs-cache/debug/dlldump.il", sb.ToString());
     }
-    
+
     private TypeSignature TypeFromRef(TypeReference? typeRef)
     {
         if (typeRef == null) return _corLibFactory.Void;
@@ -104,7 +105,13 @@ public partial class Compiler
             
             case SolvedStructTypeReference @i: return _typesMap[i.Struct].ToTypeSignature();
             case SolvedTypedefTypeReference @t: return _enumsMap[t.Typedef].ToTypeSignature();
-            
+
+            case DotnetTypeReference @d:
+            {
+                var imported = _module.DefaultImporter.ImportType(d.Reference.TypeDescriptor.ToTypeDefOrRef());
+                return imported.ToTypeSignature();
+            }
+
             default: throw new UnreachableException();
         }
     }
@@ -180,13 +187,15 @@ public partial class Compiler
         public  bool ReturnsValue { get; } = returnsValue;
     }
     
-    private class Context(ITypeDefOrRef? selfType, CilMethodBody body, Parameter[] args, CilLocalVariable[] locals)
+    private class Context(ITypeDefOrRef? selfType, CilMethodBody body, ReferenceImporter importer, Parameter[] args, CilLocalVariable[] locals)
     {
         public readonly ITypeDefOrRef? SelfType = selfType;
         public CilMethodBody Body = body;
         public CilInstructionCollection Gen = body.Instructions;
+        public ReferenceImporter Importer = importer;
         public List<TypeSignature> Stack = [];
         public Stack<ContextFrame> Frame = [];
+
         
         private Parameter[] _args = args;
         private CilLocalVariable[] _locals = locals;
@@ -214,6 +223,7 @@ public partial class Compiler
             _tmp.Add(type, l);
             return l;
         }
+        
     }
     
     private abstract class ContextFrame {}

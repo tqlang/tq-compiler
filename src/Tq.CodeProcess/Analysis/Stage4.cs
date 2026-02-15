@@ -11,6 +11,7 @@ using Abstract.CodeProcess.Core.EvaluationData.LanguageObjects.Attributes;
 using Abstract.CodeProcess.Core.EvaluationData.LanguageObjects.CodeObjects;
 using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences;
 using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.CodeReferences;
+using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.Dotnet;
 using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.FunctionReferences;
 using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.TypeReferences;
 using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.TypeReferences.Builtin;
@@ -42,7 +43,7 @@ public partial class Analyser
         {
             switch (i)
             {
-                case NamespaceObject nmsp: NamespaceSemaAnal(nmsp); break;
+                case TqNamespaceObject nmsp: NamespaceSemaAnal(nmsp); break;
                 case FunctionGroupObject group: funclist.AddRange(group.Overloads); break;
                 case FunctionObject f: funclist.Add(f); break;
                 case FieldObject f: fldlist.Add(f); break;
@@ -107,7 +108,7 @@ public partial class Analyser
         }
     }
 
-    private void NamespaceSemaAnal(NamespaceObject nmsp)
+    private void NamespaceSemaAnal(TqNamespaceObject nmsp)
     {
     }
     private void FunctionSemaAnal(FunctionObject function)
@@ -167,7 +168,7 @@ public partial class Analyser
 
         if (structure is { Abstract: false, Constructors.Count: 0 })
         {
-            var defaultCtor = new ConstructorObject(null!)
+            var defaultCtor = new ConstructorObject(null!, null!)
             {
                 Body = new IrBlock(null!),
             };
@@ -310,14 +311,27 @@ public partial class Analyser
         node.Target = (IrReference)NodeSemaAnal(node.Target, ctx);
         var instanceTypeRef = GetEffectiveTypeReference(node.Target);
         if (instanceTypeRef is UnsolvedTypeReference) throw new Exception($"Not able to resolve reference to '{node.Origin}'");
-        if (instanceTypeRef is not SolvedStructTypeReference @r) throw new Exception($"Cannot instantiate type {node.Origin} as an object");
-        node.InstanceType = r.Struct;
+        if (instanceTypeRef is not SolvedStructTypeReference and not DotnetTypeReference)
+            throw new Exception($"Cannot instantiate type {node.Origin} as an object");
+        
+        node.InstanceType = instanceTypeRef;
+        if (instanceTypeRef is DotnetTypeReference { Reference.TypeDefinition.IsValueType: false }) 
+            node.OverrideReturnType = new ReferenceTypeReference(instanceTypeRef);
         
         for (var i = 0; i < node.Arguments.Length; i++)
             node.Arguments[i] = (IrExpression)NodeSemaAnal(node.Arguments[i], ctx);
-        
-        var res = SolveFunctionOverload(
-            node.InstanceType.Constructors.ToArray<ICallable>(), node.Arguments, node.Origin);
+
+        ISolvedOverloadResult res = instanceTypeRef switch
+        {
+            SolvedStructTypeReference structRef => SolveFunctionOverload(
+                structRef.Struct.Constructors.ToArray<ICallable>(), node.Arguments, node.Origin),
+            
+            DotnetTypeReference dotnetRef => SolveFunctionOverload(
+                dotnetRef.Reference.Constructors.ToArray<ICallable>(), node.Arguments, node.Origin),
+            
+            _ => throw new NotImplementedException()
+        };
+
         switch (res)
         {
             case NoOverloadResult: throw new Exception($"Could not find suitable overload for call '{node.Origin}'");
@@ -807,7 +821,7 @@ public partial class Analyser
                                 ? new IRAccess(syntaxNode, new IrSolvedReference(syntaxNode, new SelfReference()), refeNode) : refeNode;
                         }
                         curr2 = ((curr2 as StructObject)?.Extends as SolvedStructTypeReference)?.Struct;
-                    } while (curr2 != null && curr2 is not NamespaceObject);
+                    } while (curr2 != null && curr2 is not TqNamespaceObject);
                 }
                 
                 // Search inside namespace
@@ -815,14 +829,19 @@ public partial class Analyser
                 if (r4 != null) return new IrSolvedReference(syntaxNode, GetObjectReference(r4));
 
                 // Search inside imports
-                var r5 = parent?.Imports?.References.FirstOrDefault(e => e.Name == idnode.Value);
-                if (r5 != null) return new IrSolvedReference(syntaxNode, GetObjectReference(r5));
-                
+                if (parent?.SourceScript != null) {
+                    foreach (var i in parent.SourceScript.Imports)
+                    {
+                        var r5 = i.SearchReference(idnode.Value);
+                        if (r5 != null) return new IrSolvedReference(syntaxNode, GetObjectReference(r5));
+                    }
+                }
+
                 // Search global references
                 var r6 = _globalReferenceTable.FirstOrDefault(e => e.Key.Length == 1 && e.Key[0] == idnode.Value);
                 if (r6.Key != null) return new IrSolvedReference(syntaxNode, GetObjectReference(r6.Value));
 
-                if (parent is NamespaceObject @nmsp)
+                if (parent is TqNamespaceObject @nmsp)
                 {
                     string[] name = [.. nmsp.Global, idnode.Value];
                     var r7 = Enumerable.FirstOrDefault<KeyValuePair<string[], LangObject>>(_globalReferenceTable, e => IdentifierComparer.IsEquals(e.Key, name));
@@ -841,7 +860,7 @@ public partial class Analyser
         {
             case FunctionObject @function:
             {
-                var newFunc = new FunctionObject($"{function.Name}__impl", function.SyntaxNode)
+                var newFunc = new FunctionObject(baseCallable.Script, $"{function.Name}__impl", function.SyntaxNode)
                 {
                     IsGeneric = false,
                     Static = function.Static,
@@ -897,7 +916,6 @@ public partial class Analyser
                 function.ParentGroup.Overloads.Add(newFunc);
                 newFunc.Parent = function.Parent;
                 newFunc.ParentGroup = function.ParentGroup;
-                newFunc.Imports = function.Imports;
                 
                 if (!_analyzedObjects.Contains(function))
                 {

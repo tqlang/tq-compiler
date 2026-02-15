@@ -1,8 +1,9 @@
 using System.Text;
+using Abstract.CodeProcess.Core.EvaluationData.LanguageObjects.Containers;
 
 namespace Abstract.CodeProcess.Core.EvaluationData.LanguageObjects;
 
-public class FunctionGroupObject(string n): LangObject(n)
+public class FunctionGroupObject(SourceScript sourceScript, string n): LangObject(sourceScript, n)
 {
     public readonly List<FunctionObject> Overloads = [];
     

@@ -4,20 +4,27 @@ using Abstract.CodeProcess.Core.Language.SyntaxNodes.Control;
 
 namespace Abstract.CodeProcess.Core.EvaluationData.LanguageObjects;
 
-public class NamespaceObject(string n, NamespaceNode synnode) : ContainerObject(n),
+public class TqNamespaceObject(string n, NamespaceNode synNode) : BaseNamespaceObject(n),
+    INamespaceContainer,
     IFieldContainer,
+    IFunctionContainer,
     IStructContainer,
-    ITypedefContainer,
-    IFunctionContainer
+    ITypedefContainer
 {
-    public readonly NamespaceNode SyntaxNode = synnode;
-    public List<ImportObject> Imports = [];
-    
+    public readonly NamespaceNode SyntaxNode = synNode;
+    private List<FieldObject> _fields;
+    private List<FunctionGroupObject> _functions;
+    private List<StructObject> _structs;
+    private List<TypedefObject> _typedefs;
+
+    public List<SourceScript> Scripts { get; } = [];
+    public List<BaseNamespaceObject> Namespaces { get; } = [];
     public List<FieldObject> Fields { get; } = [];
+    public List<FunctionGroupObject> Functions { get; } = [];
     public List<StructObject> Structs { get; } = [];
     public List<TypedefObject> Typedefs { get; } = [];
-    public List<FunctionGroupObject> Functions { get; } = [];
 
+    
     public override LangObject? SearchChild(string name)
         => Fields.FirstOrDefault(e => e.Name == name)
             ?? (LangObject?)Structs.FirstOrDefault(e => e.Name == name)

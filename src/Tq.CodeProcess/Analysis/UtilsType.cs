@@ -4,6 +4,7 @@ using Abstract.CodeProcess.Core.EvaluationData.IntermediateTree.Expressions;
 using Abstract.CodeProcess.Core.EvaluationData.IntermediateTree.Values;
 using Abstract.CodeProcess.Core.EvaluationData.LanguageObjects;
 using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.CodeReferences;
+using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.Dotnet;
 using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.FieldReferences;
 using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.FunctionReferences;
 using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.TypedefReferences;
@@ -34,6 +35,10 @@ public partial class Analyser
 
                     case SolvedStructTypeReference structt:
                         result = structt;
+                        break;
+                    
+                    case DotnetTypeReference dotnetType:
+                        result = dotnetType;
                         break;
 
                     case SolvedTypedefNamedValueReference tdff:
@@ -345,7 +350,24 @@ public partial class Analyser
             
             case TypeTypeReference:
                 return typeFrom is TypeTypeReference ? Suitability.Perfect : Suitability.None;
-            
+
+            case DotnetTypeReference d:
+            {
+                switch (typeFrom)
+                {
+                    case DotnetTypeReference dotnetType:
+                        return d.Reference == dotnetType.Reference ? Suitability.Perfect : Suitability.None;
+
+                    case SolvedTypedefTypeReference typedef:
+                    {
+                        if (typedef.Typedef.BackType is not DotnetTypeReference @dotnetType) return Suitability.None;
+                        return d.Reference == dotnetType.Reference ?  Suitability.Perfect : Suitability.None;
+                    }
+                    
+                    default: return Suitability.None;
+                }
+            }
+
             default: throw new UnreachableException();
         }
     }

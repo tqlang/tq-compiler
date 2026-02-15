@@ -2,12 +2,13 @@ using System.Text;
 using Abstract.CodeProcess.Core.EvaluationData.IntermediateTree;
 using Abstract.CodeProcess.Core.EvaluationData.LanguageObjects.Attributes;
 using Abstract.CodeProcess.Core.EvaluationData.LanguageObjects.CodeObjects;
+using Abstract.CodeProcess.Core.EvaluationData.LanguageObjects.Containers;
 using Abstract.CodeProcess.Core.Language.SyntaxNodes.Control;
 using TypeReference = Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.TypeReferences.TypeReference;
 
 namespace Abstract.CodeProcess.Core.EvaluationData.LanguageObjects;
 
-public class FunctionObject(string n, FunctionDeclarationNode synNode) : LangObject(n),
+public class FunctionObject(SourceScript sourceScript, string n, FunctionDeclarationNode synNode) : LangObject(sourceScript, n),
         IPublicModifier,
         IStaticModifier,
         IInternalModifier,
@@ -33,6 +34,7 @@ public class FunctionObject(string n, FunctionDeclarationNode synNode) : LangObj
     public (string nmsp, string name)? Extern { get; set; } = null;
     public DotnetImportMethodData? DotnetImport { get; set; }
 
+    SourceScript ICallable.Script => SourceScript;
     public FunctionGroupObject ParentGroup { get; internal set; } = null!;
     public List<ParameterObject> Parameters { get; } = [];
     public List<LocalVariableObject> Locals { get; } = [];

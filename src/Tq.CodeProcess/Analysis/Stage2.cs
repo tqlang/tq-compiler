@@ -25,7 +25,7 @@ public partial class Analyser
 {
     private void ScanHeadersMetadata()
     {
-        foreach (var reference in Enumerable.ToArray<KeyValuePair<string[], LangObject>>(_globalReferenceTable))
+        foreach (var reference in _globalReferenceTable.ToArray())
         {
             var langObj = reference.Value;
 
@@ -36,14 +36,13 @@ public partial class Analyser
                 case FunctionGroupObject @funcg:
                 {
                     foreach (var o in funcg.Overloads) ProcessHeader(o);
-                    break;
-                }
+                } break;
                 case StructObject @struc:
                 {
+                    UnwrapStructureMeta(struc);
                     foreach (var i in struc.Constructors) ProcessHeader(i);
                     foreach (var i in struc.Destructors) ProcessHeader(i);
-                    break;
-                }
+                } break;
             }
         }
     }
@@ -53,6 +52,7 @@ public partial class Analyser
         {
             case FunctionObject @a: UnwrapFunctionMeta(a); break;
             case StructObject @a: UnwrapStructureMeta(a); break;
+            case TypedefObject @a: UnwrapTypedefMeta(a); break;
             case FieldObject @a: UnwrapFieldMeta(a); break;
             case ConstructorObject @a: UnwrapCtorMeta(a); break;
             case DestructorObject @a: UnwrapDtorMeta(a); break;
@@ -63,7 +63,7 @@ public partial class Analyser
         {
             refStatic.Static = reference.Parent switch
             {
-                ModuleObject or NamespaceObject => true,
+                ModuleObject or TqNamespaceObject => true,
                 IStaticModifier @parentStatic => parentStatic.Static,
                 _ => refStatic.Static
             };
@@ -276,6 +276,18 @@ public partial class Analyser
             structure.Extends = extendsVal == null ? null : new UnsolvedTypeReference(extendsVal);
         }
         
+    }
+    private void UnwrapTypedefMeta(TypedefObject typedef)
+    {
+        var node = typedef.syntaxNode;
+
+        if (node.Children.Length == 4 && node.BackType != null)
+        {
+            if (node.BackType.Arguments.Length != 1)
+                throw new Exception($"'{node}' backing type must be one argument");
+            
+            typedef.BackType = SolveShallowType(node.BackType.Arguments[0]);
+        }
     }
     private void UnwrapFieldMeta(FieldObject field)
     {

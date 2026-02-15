@@ -2,12 +2,13 @@ using System.Text;
 using Abstract.CodeProcess.Core.EvaluationData.IntermediateTree;
 using Abstract.CodeProcess.Core.EvaluationData.LanguageObjects.Attributes;
 using Abstract.CodeProcess.Core.EvaluationData.LanguageObjects.CodeObjects;
+using Abstract.CodeProcess.Core.EvaluationData.LanguageObjects.Containers;
 using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.TypeReferences;
 using Abstract.CodeProcess.Core.Language.SyntaxNodes.Control;
 
 namespace Abstract.CodeProcess.Core.EvaluationData.LanguageObjects;
 
-public class ConstructorObject(ConstructorDeclarationNode synNode) : LangObject("constructor"),
+public class ConstructorObject(SourceScript sourceScript, ConstructorDeclarationNode synNode) : LangObject(sourceScript, "constructor"),
         IDotnetImportMethodModifier,
         ICallable
 {
@@ -16,6 +17,7 @@ public class ConstructorObject(ConstructorDeclarationNode synNode) : LangObject(
     public DotnetImportMethodData? DotnetImport { get; set; }
     public TypeReference? ReturnTypeOverride = null;
 
+    SourceScript ICallable.Script => SourceScript;
     public List<ParameterObject> Parameters { get; } = [];
     public List<LocalVariableObject> Locals { get; } = [];
     public TypeReference ReturnType => ReturnTypeOverride ?? new SolvedStructTypeReference((StructObject)Parent);

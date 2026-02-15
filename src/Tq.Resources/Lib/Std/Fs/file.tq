@@ -1,11 +1,17 @@
 from Std.Io import
+from Dotnet.System.IO import {
+	FileStream as CsFStream,
+	SeekOrigin as CsSeekOrigin,
+	FileMode as CsFileMode,
+	FileAccess as CsFileAccess
+}
 
 
 @public struct File {
 
-    let *CSharp_FileStream _filestream
+    let *CsFStream _filestream
     
-    constructor(*CSharp_FileStream stream) {
+    constructor(*CsFStream stream) {
         _filestream = stream
     }
 }

@@ -10,6 +10,7 @@ public class IrBlockExecutionContextData(LangObject obj)
     public readonly LangObject Parent = obj;
 
     public void PushFrame() => _stack.Push(LocalVariables.Count);
+
     public void PopFrame()
     {
         var frame = _stack.Pop();

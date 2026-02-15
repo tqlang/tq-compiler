@@ -35,8 +35,7 @@ public class BuildOptions(string projectName)
 
     public void AppendInclude(string path)
     {
-        if (_includes.FirstOrDefault(path) == null!)
-            _includes.Add(path);
+        _includes.Add(path);
     }
     
     public override string ToString()

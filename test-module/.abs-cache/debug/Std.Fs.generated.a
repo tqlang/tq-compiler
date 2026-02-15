@@ -1,35 +1,35 @@
 from Std.Io import
+from Dotnet.System.IO import { FileStream as CsFStream , SeekOrigin as CsSeekOrigin , FileMode as CsFileMode , FileAccess as CsFileAccess }
 @public()
-struct File { let * CSharp_FileStream _filestream constructor (* CSharp_FileStream stream) { _filestream = stream } }
+struct File { let * CsFStream _filestream constructor (* CsFStream stream) { _filestream = stream } }
 @public()
 struct FileReader extends Reader { }
 @public()
 struct FileWriter extends Writer { }
 
-@dotnetImport("System.Runtime", "System.IO.FileStream")
-struct CSharp_FileStream { @dotnetImport() constructor (string path, CSharp_FileMode fileMode, CSharp_FileAccess fileAccess) * CSharp_FileStream @dotnetImport() @public() func Flush () void @dotnetImport() @public() func Flush (bool flushToDisk) void @dotnetImport() @public() func Seek (i64 offset, CSharp_SeekOrigin origin) i64 @dotnetImport("System.Runtime", "System.IO.Stream", "Close") @public() func Close () void }
-@dotnetImport("System.Runtime", "System.IO.SeekOrigin")
-typedef CSharp_SeekOrigin {
-	Begin,
-	Current,
-	End
-}
-@dotnetImport("System.Runtime", "System.IO.FileMode")
-typedef CSharp_FileMode {
-	CreateNew,
-	Create,
-	Open,
-	OpenOrCreate,
-	Truncate,
-	Append
-}
-@dotnetImport("System.Runtime", "System.IO.FileAccess")
-typedef CSharp_FileAccess {
-	Read,
-	Write,
-	ReadWrite
-}
-
+from Dotnet.System.IO import { FileStream as CsFStream , SeekOrigin as CsSeekOrigin , FileMode as CsFileMode , FileAccess as CsFileAccess }
 @public()
-func open (string path) File { let filestream = new CSharp_FileStream(path, CSharp_FileMode.OpenOrCreate, CSharp_FileAccess.Read) return new File(filestream) }
+func open (string path) File { let filestream = new CsFStream(path, FileMode.openOrCreate, FileAccess.RO) return new File(filestream) }
+@public()
+typedef( CsSeekOrigin ) SeekOrigin {
+	begin = CsSeekOrigin.Begin,
+	current = CsSeekOrigin.current,
+	end = CsSeekOrigin.End
+}
+@public()
+typedef( CsFileMode ) FileMode {
+	createNew = CsFileMode.CreateNew,
+	create = CsFileMode.Create,
+	open = CsFileMode.Open,
+	openOrCreate = CsFileMode.OpenOrCreate,
+	truncate = CsFileMode.Truncate,
+	append = CsFileMode.Append
+}
+@public()
+typedef( CsFileAccess ) FileAccess {
+	_fuck,
+	RO = CsFileAccess.Read,
+	WO = CsFileAccess.Write,
+	RW = CsFileAccess.ReadWrite
+}
 

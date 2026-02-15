@@ -1,8 +1,6 @@
 using System.Text;
 using Abstract.CodeProcess.Core.EvaluationData.IntermediateTree.Expressions;
-using Abstract.CodeProcess.Core.EvaluationData.LanguageObjects;
 using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.TypeReferences;
-using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.TypeReferences.Builtin;
 using Abstract.CodeProcess.Core.Language.SyntaxNodes.Base;
 
 namespace Abstract.CodeProcess.Core.EvaluationData.IntermediateTree.Values;
@@ -12,10 +10,11 @@ public class IrNewObject(SyntaxNode origin, IrReference type, IrExpression[] arg
     public IrExpression[] Arguments = args;
     public IRAssign[] InlineAssignments = inlineAssigns;
 
-    public StructObject InstanceType = null!;
+    public TypeReference InstanceType = null!;
+    public TypeReference? OverrideReturnType = null;
     public IrReference Target = type;
     
-    public override TypeReference Type => ((FunctionTypeReference)Target?.Type!).Returns;
+    public override TypeReference Type => OverrideReturnType ?? InstanceType;
     public override string ToString()
     {
         var sb = new StringBuilder();

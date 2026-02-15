@@ -5,6 +5,7 @@ using Abstract.CodeProcess.Core.EvaluationData.LanguageObjects;
 using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.AttributeReferences;
 using Abstract.CodeProcess.Core.Language.Module;
 using Abstract.CodeProcess.Dotnet;
+using AsmResolver.DotNet;
 
 namespace Abstract.CodeProcess;
 
@@ -13,10 +14,12 @@ public partial class Analyser(ErrorHandler handler)
     private readonly ErrorHandler _errorHandler = handler;
 
     private readonly List<ModuleObject> _modules = [];
-    private readonly List<NamespaceObject> _namespaces = [];
+    private readonly List<TqNamespaceObject> _namespaces = [];
     private readonly Dictionary<string[], LangObject> _globalReferenceTable = new(new IdentifierComparer());
     private readonly Stack<List<AttributeReference>> _onHoldAttributes = [];
+    
     private AssemblyResolver _assemblyResolver = null!;
+    private readonly List<AssemblyDefinition> _assemblies = [];
     
     public ProgramObject Analyze(
         Module[] modules,
@@ -66,13 +69,18 @@ public partial class Analyser(ErrorHandler handler)
             var kind = i.Value switch
             {
                 ModuleObject => "Modl",
-                NamespaceObject => "Nmsp",
+                TqNamespaceObject => "Nmsp",
                 FunctionGroupObject => "FnGp",
                 FunctionObject => "Func",
                 StructObject => "Type",
                 TypedefObject => "TDef",
                 TypedefNamedValue => "DefN",
                 FieldObject @fld => fld.Static ? "SFld" : "LFld",
+                DotnetNamespaceObject @dn => "DotNS",
+                DotnetTypeObject @dt => "DClas",
+                DotnetMethodGroupObject => "DMtGp",
+                DotnetMethodObject => "DMthd",
+                
                 _ => throw new NotImplementedException()
             };
             sb.AppendLine($"{kind}\t{string.Join('.', i.Key)}");

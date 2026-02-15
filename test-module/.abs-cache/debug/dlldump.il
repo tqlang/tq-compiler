@@ -20,8 +20,6 @@ class Program.Static extends System.Object {
 		.locals init (Std.Fs.File V_3)
 		.locals init (System.UInt64 V_4)
 		.locals init (System.String V_5)
-		.locals init (System.UInt64 V_6)
-		.locals init (System.UInt64 V_7)
 		IL_0000: call System.String[] Std.ProcessStatic::getProgramArguments()
 		IL_0005: stloc V_0
 		IL_0009: ldloc V_0
@@ -135,53 +133,9 @@ class Program.Static extends System.Object {
 		IL_01D3: stsfld System.Byte[] Program.Static::stack
 		IL_01D8: ldstr "char else enum if int return sizeof while open read close printf malloc free memset memcmp exit void main"
 		IL_01DD: stloc V_5
-		IL_01E1: ldc.i8 6
-		IL_01EA: conv.u8
-		IL_01EB: stloc V_6
-		IL_01EF: br IL_0224
-		IL_01F4: call System.Void Program.Static::next()
-		IL_01F9: ldsfld System.UInt64[] Program.Static::currIdentifier
-		IL_01FE: ldc.i8 0
-		IL_0207: conv.u8
-		IL_0208: ldloc V_6
-		IL_020C: stelem System.UInt64
-		IL_0211: ldloc V_6
-		IL_0215: dup
-		IL_0216: ldc.i8 1
-		IL_021F: add
-		IL_0220: stloc V_6
-		IL_0224: ldloc V_6
-		IL_0228: ldc.i8 13
-		IL_0231: conv.u8
-		IL_0232: cgt.un
-		IL_0234: ldc.i4.0
-		IL_0235: ceq
-		IL_0237: brtrue IL_01F4
-		IL_023C: ldc.i8 30
-		IL_0245: conv.u8
-		IL_0246: stloc V_7
-		IL_024A: br IL_027F
-		IL_024F: call System.Void Program.Static::next()
-		IL_0254: ldsfld System.UInt64[] Program.Static::currIdentifier
-		IL_0259: ldc.i8 3
-		IL_0262: conv.u8
-		IL_0263: ldloc V_7
-		IL_0267: stelem System.UInt64
-		IL_026C: ldloc V_7
-		IL_0270: dup
-		IL_0271: ldc.i8 1
-		IL_027A: add
-		IL_027B: stloc V_7
-		IL_027F: ldloc V_7
-		IL_0283: ldc.i8 38
-		IL_028C: conv.u8
-		IL_028D: cgt.un
-		IL_028F: ldc.i4.0
-		IL_0290: ceq
-		IL_0292: brtrue IL_024F
-		IL_0297: ldstr "Not bad untill here"
-		IL_029C: call System.Void Std.ConsoleStatic::writeln(System.String)
-		IL_02A1: ret
+		IL_01E1: ldstr "Not bad untill here"
+		IL_01E6: call System.Void Std.ConsoleStatic::writeln(System.String)
+		IL_01EB: ret
 	}
 
 	method private static next () System.Void {
@@ -358,15 +312,15 @@ class Std.FsStatic extends System.Object {
 		.locals init (System.IO.FileStream V_0)
 		.locals init (Std.Fs.File V_1)
 		IL_0000: ldarg System.String A_0
-		IL_0004: ldc.i4.4
-		IL_0005: ldc.i4.1
-		IL_0006: newobj System.Void System.IO.FileStream::.ctor(System.String, System.IO.FileMode, System.IO.FileAccess)
-		IL_000B: stloc V_0
-		IL_000F: ldloca V_1
-		IL_0013: ldloc V_0
-		IL_0017: call System.Void Std.Fs.File::.ctor(System.IO.FileStream)
-		IL_001C: ldloc V_1
-		IL_0020: ret
+		IL_0004: ldc.i8 3
+		IL_000D: ldc.i8 1
+		IL_0016: newobj System.Void System.IO.FileStream::.ctor(System.String, System.IO.FileMode, System.IO.FileAccess)
+		IL_001B: stloc V_0
+		IL_001F: ldloca V_1
+		IL_0023: ldloc V_0
+		IL_0027: call System.Void Std.Fs.File::.ctor(System.IO.FileStream)
+		IL_002C: ldloc V_1
+		IL_0030: ret
 	}
 }
 
@@ -524,4 +478,29 @@ struct Std.Mem.Alignment extends System.Enum {
 	field public static Std.Mem.Alignment _8
 	field public static Std.Mem.Alignment _16
 	field public static Std.Mem.Alignment _32
+}
+
+struct Std.Fs.SeekOrigin extends System.Enum {
+	field public instance System.UInt64 value__
+	field public static Std.Fs.SeekOrigin begin
+	field public static Std.Fs.SeekOrigin current
+	field public static Std.Fs.SeekOrigin end
+}
+
+struct Std.Fs.FileMode extends System.Enum {
+	field public instance System.UInt64 value__
+	field public static Std.Fs.FileMode createNew
+	field public static Std.Fs.FileMode create
+	field public static Std.Fs.FileMode open
+	field public static Std.Fs.FileMode openOrCreate
+	field public static Std.Fs.FileMode truncate
+	field public static Std.Fs.FileMode append
+}
+
+struct Std.Fs.FileAccess extends System.Enum {
+	field public instance System.UInt64 value__
+	field public static Std.Fs.FileAccess _fuck
+	field public static Std.Fs.FileAccess RO
+	field public static Std.Fs.FileAccess WO
+	field public static Std.Fs.FileAccess RW
 }

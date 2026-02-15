@@ -12,7 +12,7 @@ public class Lexer
             TokenType.RightParenthesisChar
         ] },
         { "justRight", [
-            TokenType.LeftPerenthesisChar,
+            TokenType.LeftParenthesisChar,
             TokenType.AtSiginChar,
         ] },
         { "bothSides", [
@@ -29,8 +29,8 @@ public class Lexer
             TokenType.LessEqualsOperator, TokenType.GreatEqualsOperator,
             TokenType.ExactEqualOperator, TokenType.ExactUnequalOperator,
 
-            TokenType.AddAssigin, TokenType.MulAssigin,
-            TokenType.SubAssigin, TokenType.DivAssigin,
+            TokenType.AddAssign, TokenType.MulAssign,
+            TokenType.SubAssign, TokenType.DivAssign,
             
             TokenType.CircumflexChar, TokenType.PipeChar,
             TokenType.BitShiftLeftOperator, TokenType.BitShiftRightOperator,
@@ -51,10 +51,10 @@ public class Lexer
         { "extends", TokenType.ExtendsKeyword },
         { "packet", TokenType.PacketKeyword },
         { "typedef", TokenType.TypedefKeyword },
+        { "case", TokenType.CaseKeyword },
         { "constructor", TokenType.ConstructorKeyword },
         { "destructor", TokenType.DestructorKeyword },
-
-        { "switch", TokenType.SwitchKeyword },
+        
         { "match", TokenType.MatchKeyword },
         { "if", TokenType.IfKeyword },
         { "elif", TokenType.ElifKeyword },
@@ -83,21 +83,6 @@ public class Lexer
         // operators
         { "and", TokenType.AndOperator },
         { "or", TokenType.OrOperator },
-
-        // types
-        { "void", TokenType.TypeKeyword },
-        { "noreturn", TokenType.TypeKeyword },
-        { "type", TokenType.TypeKeyword },
-
-        { "byte", TokenType.TypeKeyword },
-        { "int", TokenType.TypeKeyword },   { "uint", TokenType.TypeKeyword },
-        { "f32", TokenType.TypeKeyword },   { "float", TokenType.TypeKeyword },
-        { "f64", TokenType.TypeKeyword },   { "double", TokenType.TypeKeyword },
-
-        { "bool", TokenType.TypeKeyword },
-        { "char", TokenType.TypeKeyword },
-        { "string", TokenType.TypeKeyword },
-
     };
 
     private Token Tokenize(TokenType type, (ReadOnlyMemory<char> val, uint line, uint start, uint end) range)
@@ -134,7 +119,7 @@ public class Lexer
                 // Check single characters
                 case '\n': tokens.Add(Tokenize(TokenType.EndOfStatement, src.GetSlice())); break;
 
-                case '(': tokens.Add(Tokenize(TokenType.LeftPerenthesisChar, src.GetSlice())); break;
+                case '(': tokens.Add(Tokenize(TokenType.LeftParenthesisChar, src.GetSlice())); break;
                 case ')': tokens.Add(Tokenize(TokenType.RightParenthesisChar, src.GetSlice())); break;
                 case '{': tokens.Add(Tokenize(TokenType.LeftBracketChar, src.GetSlice())); break;
                 case '}': tokens.Add(Tokenize(TokenType.RightBracketChar, src.GetSlice())); break;
@@ -167,7 +152,7 @@ public class Lexer
                 } break;
                 
                 case '+': tokens.Add(Tokenize(
-                          src.NextIs('=') ? TokenType.AddAssigin
+                          src.NextIs('=') ? TokenType.AddAssign
                         : src.NextIs('+') ? TokenType.IncrementOperator
                         : src.NextIs('%') ? TokenType.AddWarpOperator
                         : src.NextIs('|') ? TokenType.SubOnBoundsOperator
@@ -175,7 +160,7 @@ public class Lexer
                     , src.GetSlice())); break;
                 
                 case '-': tokens.Add(Tokenize(
-                          src.NextIs('=') ? TokenType.SubAssigin
+                          src.NextIs('=') ? TokenType.SubAssign
                         : src.NextIs('-') ? TokenType.DecrementOperator
                         : src.NextIs('%') ? TokenType.SubWarpOperator
                         : src.NextIs('|') ? TokenType.SubOnBoundsOperator
@@ -183,18 +168,18 @@ public class Lexer
                     , src.GetSlice())); break;
                 
                 case '*': tokens.Add(src.NextIs('=')
-                    ? Tokenize(TokenType.MulAssigin, src.GetSlice())
+                    ? Tokenize(TokenType.MulAssign, src.GetSlice())
                     : Tokenize(TokenType.StarChar, src.GetSlice())); break;
                 
                 case '/': tokens.Add(Tokenize(
-                          src.NextIs('=') ? TokenType.DivAssigin
+                          src.NextIs('=') ? TokenType.DivAssign
                         : src.NextIs('^') ? TokenType.DivideCeilOperator
                         : src.NextIs('_') ? TokenType.DivideFloorOperator
                         : TokenType.SlashChar
                     , src.GetSlice())); break;
                 
                 case '%': tokens.Add(src.NextIs('=')
-                    ? Tokenize(TokenType.RestAssigin, src.GetSlice())
+                    ? Tokenize(TokenType.RestAssign, src.GetSlice())
                     : Tokenize(TokenType.PercentChar, src.GetSlice())); break;
                 
                 case '=': tokens.Add(src.NextIs('=')

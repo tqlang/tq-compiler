@@ -41,4 +41,5 @@ public class AssemblyResolver : DotNetCoreAssemblyResolver
         var path = ProbeRuntimeDirectories(assembly);
         return path == null ? null : LoadAssemblyFromFile(path);
     }
+    
 }

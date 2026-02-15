@@ -22,7 +22,7 @@ namespace Abstract.CodeProcess;
 
 public partial class Compiler
 {
-    private Dictionary<NamespaceObject, TypeDefinition> _namespacesMap = [];
+    private Dictionary<TqNamespaceObject, TypeDefinition> _namespacesMap = [];
     private Dictionary<ICallable, IFunctionData> _functionsMap = [];
     private Dictionary<StructObject, StructData> _typesMap = [];
     private Dictionary<TypedefObject, EnumData> _enumsMap = [];
@@ -47,7 +47,8 @@ public partial class Compiler
         
         LoadCoreLibResources();
         
-        foreach (var m in program.Modules) SearchRecursive(m);
+        foreach (var m in program.Modules) 
+            if (!m.ReferenceOnly) SearchRecursive(m);
         
         DeclareTypes();
         ResolveContent();
@@ -66,7 +67,7 @@ public partial class Compiler
                 foreach (var i in a.Namespaces) SearchRecursive(i);
                 break;
 
-            case NamespaceObject @a:
+            case TqNamespaceObject @a:
             {
                 var attributes = TypeAttributes.AnsiClass
                                  | TypeAttributes.Class
@@ -206,7 +207,7 @@ public partial class Compiler
                 var fieldDef = _fieldsMap[i];
 
                 fieldDef.HasDefault = true;
-                var ctx = new Context(null, body, [], []);
+                var ctx = new Context(null, body, _module.DefaultImporter, [], []);
                 CompileIrNodeLoad(i.Value, ctx);
                 body.Instructions.Add(CilOpCodes.Stsfld, fieldDef);
             }
@@ -239,7 +240,7 @@ public partial class Compiler
             var args = v.Def.Parameters.ToArray();
             ITypeDefOrRef? selfType = !v.IsStatic ? v.Def.DeclaringType : null;
             
-            var ctx = new Context(selfType, body, args, locals);
+            var ctx = new Context(selfType, body, _module.DefaultImporter, args, locals);
             
             CompileIr(k.Body!, ctx);
             if (body.Instructions.Count == 0 || body.Instructions[^1].OpCode != CilOpCodes.Ret)

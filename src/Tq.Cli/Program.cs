@@ -55,7 +55,7 @@ public class Program
                 
                 case "-i" or "--include" when args.Length < i + 1:
                     throw new Exception("Expected include name or path");
-                case "-i" or "--include" when args.Length < i + 1:
+                case "-i" or "--include":
                     var include = args[i++];
                     buildOps.AppendInclude(include);
                     break;

@@ -1,6 +1,7 @@
 using System.Diagnostics.CodeAnalysis;
 using Abstract.CodeProcess.Core.EvaluationData.LanguageObjects;
 using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences;
+using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.Dotnet;
 using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.FieldReferences;
 using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.FunctionReferences;
 using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.TypedefReferences;
@@ -25,7 +26,10 @@ public partial class Analyser
             FieldObject @v => new SolvedFieldReference(v),
             TypedefNamedValue @i => new SolvedTypedefNamedValueReference(i),
 
-            NamespaceObject @n => new NamespaceReference(n),
+            TqNamespaceObject @n => new NamespaceReference(n),
+            
+            DotnetTypeObject @t => new DotnetTypeReference(t),
+            DotnetNamespaceObject @n => new DotnetNamespaceReference(n),
             
             _ => throw new NotImplementedException(),
         };

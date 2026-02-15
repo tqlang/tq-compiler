@@ -41,10 +41,10 @@ public enum TokenType : byte
     ExtendsKeyword,         // extends
     PacketKeyword,          // packet
     TypedefKeyword,         // typedef
+    CaseKeyword,            // case
     ConstructorKeyword,     // constructor
     DestructorKeyword,      // destructor
-
-    SwitchKeyword,          // switch
+    
     MatchKeyword,           // match
 
     IfKeyword,              // if
@@ -70,7 +70,7 @@ public enum TokenType : byte
     BitwiseOrKeyword,       // OR
     BitwiseXorKeyword,      // XOR
 
-    LeftPerenthesisChar,    // (
+    LeftParenthesisChar,    // (
     RightParenthesisChar,   // )
 
     LeftBracketChar,        // {
@@ -125,11 +125,11 @@ public enum TokenType : byte
 
     PowerOperator,          // **
 
-    AddAssigin,             // +=
-    SubAssigin,             // -=
-    MulAssigin,             // *=
-    DivAssigin,             // /=
-    RestAssigin,            // %=
+    AddAssign,              // +=
+    SubAssign,              // -=
+    MulAssign,              // *=
+    DivAssign,              // /=
+    RestAssign,             // %=
     BitwiseXorAssign,       // ^=
     BitwiseAndAssign,       // &=
     BitwiseOrAssign,        // |=
@@ -139,7 +139,7 @@ public enum TokenType : byte
     IncrementOperator,      // ++
     DecrementOperator,      // --
 
-    RangeOperator,          // ..
+    DotDotOperator,         // ..
 
     SingleQuotes,           // '
     DoubleQuotes,           // "
@@ -149,5 +149,5 @@ public enum TokenType : byte
 
     EofChar,                // \EOF
     EndOfStatement,         // \n or ;
-    EspaceChar,             //  
+    SpaceChar,             //  
 }

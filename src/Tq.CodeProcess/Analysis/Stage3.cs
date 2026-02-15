@@ -7,6 +7,8 @@ using Abstract.CodeProcess.Core.EvaluationData.IntermediateTree.Statements;
 using Abstract.CodeProcess.Core.EvaluationData.IntermediateTree.Values;
 using Abstract.CodeProcess.Core.EvaluationData.LanguageObjects;
 using Abstract.CodeProcess.Core.EvaluationData.LanguageObjects.CodeObjects;
+using Abstract.CodeProcess.Core.EvaluationData.LanguageObjects.Containers;
+using Abstract.CodeProcess.Core.EvaluationData.LanguageObjects.Imports;
 using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.CodeReferences;
 using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.TypeReferences;
 using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.TypeReferences.Builtin;
@@ -37,18 +39,23 @@ public partial class Analyser
         {
             switch (i.Value)
             {
-                case NamespaceObject @nmsp: ScanNamespaceMeta(nmsp); break;
                 case FunctionObject @funcobj: ScanFunctionMeta(funcobj); break;
                 case StructObject @structobj: ScanStructureMeta(structobj); break;
+                case TypedefObject @typedefobj: ScanTypedefMeta(typedefobj); break;
+                
                 case ConstructorObject @c: ScanCtorMeta(c); break;
                 
+                case TqNamespaceObject @nmsp:
+                    foreach (var i2 in nmsp.Scripts) ScanScriptMeta(i2);
+                    break;
+                    
                 case FunctionGroupObject @funcgroup:
                     foreach (var i2 in funcgroup.Overloads) ScanFunctionMeta(i2);
                     break;
             }
         }
 
-        foreach (var i in Enumerable.OfType<StructObject>(_globalReferenceTable.Values))
+        foreach (var i in _globalReferenceTable.Values.OfType<StructObject>())
         {
             if (i.Extends == null) continue;
             i.Extends = SolveTypeLazy(i.Extends, null, i);
@@ -58,32 +65,40 @@ public partial class Analyser
             Console.WriteLine(i.Extends);
         }
         
-        var structsSortedList = TopologicalSort(Enumerable.OfType<StructObject>(_globalReferenceTable.Values));
+        var structsSortedList = TopologicalSort(_globalReferenceTable.Values.OfType<StructObject>());
         foreach (var structs in structsSortedList) LazyScanStructureMeta(structs);
     }
     
     
-    private void ScanNamespaceMeta(NamespaceObject nmsp)
+    private void ScanScriptMeta(SourceScript sourceScript)
     {
-        foreach (var a in nmsp.Imports)
+        foreach (var a in sourceScript.Imports)
         {
-            foreach (var raw in a.Raw)
+            switch (a)
             {
-                if (raw[^1] == "*")
+                case GeneralImportObject @general:
                 {
-                    var refe = _globalReferenceTable[raw[..^1]];
-                    if (refe is not NamespaceObject @namespaceObject) throw new Exception("Not a namespace");
-                    
-                    foreach (var i in namespaceObject.Fields) a.References.Add(i);
-                    foreach (var i in namespaceObject.Structs) a.References.Add(i);
-                    foreach (var i in namespaceObject.Typedefs) a.References.Add(i);
-                    foreach (var i in namespaceObject.Functions) a.References.Add(i);
-                }
-                else
+                    var r = _globalReferenceTable[general.NamespacePath];
+                    if (r is not BaseNamespaceObject @namespaceObject) throw new Exception("Not a namespace");
+                    general.NamespaceObject = namespaceObject;
+                } break;
+
+                case SpecificImportObject @specific:
                 {
-                    var refe = _globalReferenceTable[raw[..^1]];
-                    a.References.Add(refe);
-                }
+                    var r = _globalReferenceTable[specific.NamespacePath];
+                    if (r is not BaseNamespaceObject @namespaceObject) throw new Exception("Not a namespace");
+                    specific.NamespaceObject = namespaceObject;
+
+                    foreach (var i in specific.Imports)
+                    {
+                        var r2 = namespaceObject.SearchChild(i.Value.path);
+                        if (r2 == null) throw new Exception($"Reference {i.Value.path} not found" +
+                                                            $"in base {string.Join('.', specific.NamespacePath)}");
+                        specific.Imports[i.Key] = (i.Value.path, r2);
+                    }
+                } break;
+
+                default: throw new Exception();
             }
         }
     }
@@ -93,6 +108,11 @@ public partial class Analyser
         {
             if (!IsSolved(i.Type)) i.Type = SolveTypeLazy(i.Type, null, structure);
         }
+    }
+    private void ScanTypedefMeta(TypedefObject typedef)
+    {
+        if (typedef.BackType != null && !IsSolved(typedef.BackType))
+            typedef.BackType = SolveTypeLazy(typedef.BackType, null, typedef);
     }
     private void ScanFunctionMeta(FunctionObject function)
     {
@@ -130,6 +150,8 @@ public partial class Analyser
                 
                 case FieldObject @fld: ScanFieldValueBody(fld); break;
 
+                case TypedefObject @tdf: ScanTypedefEntriesValueBody(tdf); break;
+                
                 case StructObject @st:
                 {
                     foreach (var j in st.Constructors) ScanCtorExecutionBody(j);
@@ -139,6 +161,18 @@ public partial class Analyser
         }
     }
 
+    private void ScanTypedefEntriesValueBody(TypedefObject typedef)
+    {
+        foreach (var namedValue in typedef.NamedValues)
+        {
+            var node = namedValue.syntaxNode;
+            if (node.Value != null)
+            {
+                var ctx = new ExecutionContextData(typedef);
+                namedValue.Value = UnwrapExecutionContext_Expression(node.Value, ctx);
+            }
+        }
+    }
     private void ScanFieldValueBody(FieldObject field)
     {
         var nodes = field.SyntaxNode.Children;
@@ -542,6 +576,8 @@ public partial class Analyser
     
     private void LazyScanStructureMeta(StructObject structure)
     {
+        Console.WriteLine(string.Join('.', structure.Global));
+        
         // This functions ensures that the structure's dependency tree
         // was already scanned!
         
@@ -676,7 +712,7 @@ public partial class Analyser
                 
                 // Search in parent tree
                 var curr = parent;
-                while (curr != null && curr is not NamespaceObject)
+                while (curr != null && curr is not TqNamespaceObject)
                 {
                     var r3 = curr.SearchChild(idnode.Value);
                     if (r3 != null) return (TypeReference)GetObjectReference(r3);
@@ -687,7 +723,7 @@ public partial class Analyser
                 if (parent is StructObject { Extends: SolvedStructTypeReference } @structObject)
                 {
                     LangObject? curr2 = ((SolvedStructTypeReference)structObject.Extends).Struct;
-                    while (curr2 != null && curr2 is not NamespaceObject)
+                    while (curr2 != null! && curr2 is not TqNamespaceObject)
                     {
                         var r3 = curr2.SearchChild(idnode.Value);
                         if (r3 != null) return (TypeReference)GetObjectReference(r3);
@@ -700,27 +736,30 @@ public partial class Analyser
                 if (r4 != null) return (TypeReference)GetObjectReference(r4);
 
                 // Search inside imports
-                var r5 = obj?.Imports?.References.FirstOrDefault(e => e.Name == idnode.Value);
-                if (r5 != null) return (TypeReference)GetObjectReference(r5);
-                
+                if (obj?.SourceScript != null) {
+                    foreach (var i in obj.SourceScript.Imports)
+                    {
+                        var r5 = i.SearchReference(idnode.Value);
+                        if (r5 != null) return (TypeReference)GetObjectReference(r5);
+                    }
+                }
+
                 // Search global references
-                var r6 = Enumerable.FirstOrDefault<KeyValuePair<string[], LangObject>>(_globalReferenceTable, e => e.Key.Length == 1 && e.Key[0] == idnode.Value);
+                var r6 = _globalReferenceTable.FirstOrDefault(e => e.Key.Length == 1 && e.Key[0] == idnode.Value);
                 if (r6.Key != null) return (TypeReference)GetObjectReference(r6.Value);
 
-                if (parent is NamespaceObject @nmsp)
+                if (parent is TqNamespaceObject @nmsp)
                 {
                     string[] name = [.. nmsp.Global, idnode.Value];
-                    var r7 = Enumerable.FirstOrDefault<KeyValuePair<string[], LangObject>>(_globalReferenceTable, e => IdentifierComparer.IsEquals(e.Key, name));
+                    var r7 = _globalReferenceTable.FirstOrDefault(e => IdentifierComparer.IsEquals(e.Key, name));
                     if (r7.Key != null) return (TypeReference)GetObjectReference(r7.Value);
                 }
                 
                 throw new Exception($"Cannot find reference to {idnode:pos}");
             }
             
-            default: throw new UnreachableException(); break;
+            default: throw new UnreachableException();
         }
-        
-        throw new NotImplementedException();
     }
 
     
