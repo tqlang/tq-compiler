@@ -1,4 +1,4 @@
-module Program refonly {
+module Program {
 	Namespace '' ('Program') {
 		private static concrete var 'src' u64
 
@@ -19,148 +19,148 @@ module Program refonly {
 		private static concrete var 'currIdentifier' []u64
 
 		typedef 'Tokens' {
-		num,
-			fun,
-			sys,
-			glo,
-			loc,
-			id,
-			_char,
-			_else,
-			enum,
-			_if,
-			_int,
-			ret,
-			sizeof,
-			_while,
-			assign,
-			cond,
-			opLor,
-			opLan,
-			opOr,
-			opXor,
-			opAnd,
-			opEq,
-			opNe,
-			poLt,
-			opGt,
-			opLe,
-			opGe,
-			opShl,
-			opShr,
-			opAdd,
-			opSub,
-			opMul,
-			opDiv,
-			opMod,
-			opInc,
-			opDec,
-			_break
+			case num,
+			case fun,
+			case sys,
+			case glo,
+			case loc,
+			case id,
+			case _char,
+			case _else,
+			case enum,
+			case _if,
+			case _int,
+			case ret,
+			case sizeof,
+			case _while,
+			case assign,
+			case cond,
+			case opLor,
+			case opLan,
+			case opOr,
+			case opXor,
+			case opAnd,
+			case opEq,
+			case opNe,
+			case poLt,
+			case opGt,
+			case opLe,
+			case opGe,
+			case opShl,
+			case opShr,
+			case opAdd,
+			case opSub,
+			case opMul,
+			case opDiv,
+			case opMod,
+			case opInc,
+			case opDec,
+			case _break,
 		}
 
 		typedef 'OpCodes' {
-		lea,
-			imm,
-			jmp,
-			jsr,
-			bz,
-			bnz,
-			ent,
-			adj,
-			lev,
-			li,
-			lc,
-			si,
-			sc,
-			psh,
-			_or,
-			xor,
-			_and,
-			eq,
-			ne,
-			lt,
-			gt,
-			le,
-			ge,
-			shl,
-			shr,
-			add,
-			sub,
-			mul,
-			div,
-			mod,
-			open,
-			read,
-			close,
-			printf,
-			malloc,
-			free,
-			memset,
-			memcmp,
-			exit
+			case lea,
+			case imm,
+			case jmp,
+			case jsr,
+			case bz,
+			case bnz,
+			case ent,
+			case adj,
+			case lev,
+			case li,
+			case lc,
+			case si,
+			case sc,
+			case psh,
+			case _or,
+			case xor,
+			case _and,
+			case eq,
+			case ne,
+			case lt,
+			case gt,
+			case le,
+			case ge,
+			case shl,
+			case shr,
+			case add,
+			case sub,
+			case mul,
+			case div,
+			case mod,
+			case open,
+			case read,
+			case close,
+			case printf,
+			case malloc,
+			case free,
+			case memset,
+			case memcmp,
+			case exit,
 		}
 
 		typedef 'CTypes' {
-		_char,
-			_int,
-			ptr
+			case _char,
+			case _int,
+			case ptr,
 		}
 
 		typedef 'IdentifierOffsets' {
-		tk,
-			hash,
-			name,
-			class,
-			_type,
-			val,
-			hClass,
-			hType,
-			hVal,
-			idsz
+			case tk,
+			case hash,
+			case name,
+			case class,
+			case _type,
+			case val,
+			case hClass,
+			case hType,
+			case hVal,
+			case idsz,
 		}
 
 		; funcgroup main
-		private static concrete extern("") func main() void {
+		private static concrete func main() void {
 			$(00) Local 'argv': []string
 			$(01) Local 'argc': i64
 			$(02) Local 'i': i64
 			$(03) Local 'file': Struct<Std.Fs.File>
-			$(04) Local 'poolsz': u64
-			$(05) Local 'keywords': string
+			$(04) Local 'content': string
+			$(05) Local 'poolsz': u64
+			$(06) Local 'keywords': string
 			local.00 = call Callable<Std.Process.getProgramArguments> ()
 			local.01 = lenof local.00 as i64
 			local.02 = (i64)1
 			if (and cmp GreaterThan Subtract local.01, local.02 (i64)0, and cmp Equality local.00[local.02][(u64)0] (char) '-', cmp Equality local.00[local.02] (Undefined) "-s") {
-				Field<Program.src> = local.02++
-			}
+				Field<Program.src> = local.02++}
 
 			if (and cmp GreaterThan Subtract local.01, local.02 (i64)0, and cmp Equality local.00[local.02][(u64)0] (char) '-', cmp Equality local.00[local.02] (Undefined) "-d") {
-				Field<Program.debug> = local.02++
-			}
+				Field<Program.debug> = local.02++}
 
 			if (cmp LessThan Subtract local.01, local.02 (i64)1) {
 				call Callable<Std.Console.writeln> ((Undefined) "usage: c4 [-s] [-d] file ...")
-				call Callable<Std.Process.exit> ((u64)1)
-			}
+				call Callable<Std.Process.exit> ((u64)1)}
 
 			local.03 = call Callable<Std.Fs.open> (local.00[local.02])
+			local.04 = call Callable<Std.Fs.readAllText> (local.00[local.02])
+			call Callable<Std.Console.writeln> ((Undefined) "File content: ___________")
+			call Callable<Std.Console.writeln> (local.04)
+			call Callable<Std.Console.writeln> ((Undefined) "-------------------------")
 			call Callable<Std.Console.writeln> ((Undefined) "ok...")
-			local.04 = (u64)262144
-			Field<Program.symbols> = call Callable<Std.Mem.alloc__impl> (local.04, Alignment._1)
-			Field<Program.text> = call Callable<Std.Mem.alloc__impl> (local.04, Alignment._1)
-			Field<Program.data> = call Callable<Std.Mem.alloc__impl> (local.04, Alignment._1)
-			Field<Program.stack> = call Callable<Std.Mem.alloc__impl> (local.04, Alignment._1)
-			local.05 = (Undefined) "char else enum if int return sizeof while open read close printf malloc free memset memcmp exit void main"
-			call Callable<Std.Console.writeln> ((Undefined) "Not bad untill here")
-
+			local.05 = (u64)262144
+			Field<Program.symbols> = call Callable<Std.Mem.alloc> (u8, local.05, Alignment._1)
+			Field<Program.text> = call Callable<Std.Mem.alloc> (u8, local.05, Alignment._1)
+			Field<Program.data> = call Callable<Std.Mem.alloc> (u8, local.05, Alignment._1)
+			Field<Program.stack> = call Callable<Std.Mem.alloc> (u8, local.05, Alignment._1)
+			local.06 = (Undefined) "char else enum if int return sizeof while open read close printf malloc free memset memcmp exit void main"
+			call Callable<Std.Console.writeln> ((Undefined) "Not bad until here")
 		}
 
 
 		; funcgroup next
-		private static concrete extern("") func next() void {
+		private static concrete func next() void {
 			$(00) Local 'pp': u64
 			local.00 = (u64)0
-
 		}
 
 
@@ -168,236 +168,213 @@ module Program refonly {
 
 }
 
-module Std refonly {
+module Std {
 	Namespace '' ('Std') {
-	}
+		Namespace 'Io' ('Std.Io') {
+			public instance concrete struct 'Reader' {
+				ctor() {
 
-	Namespace 'Io' ('Std.Io') {
-		public instance concrete struct 'Reader' {
-		}
+				}
 
-		public instance concrete struct 'Writer' {
-		}
+			}
 
-	}
+			public instance concrete struct 'Writer' {
+				ctor() {
 
-	Namespace 'Process' ('Std.Process') {
-		; funcgroup internal_exit
-		private static concrete extern("") func internal_exit(i32) void
+				}
 
-
-		; funcgroup internal_getArgs
-		private static concrete extern("") func internal_getArgs() []string
-
-
-		; funcgroup getProgramArguments
-		public static concrete extern("") func getProgramArguments() []string {
-			ret call Callable<Std.Process.internal_getArgs> ()
-
+			}
 
 		}
 
-
-		; funcgroup exit
-		public static concrete extern("") func exit(u64) noreturn {
-			call Callable<Std.Process.internal_exit> (arg.00 as i32)
-
-		}
-
-
-	}
-
-	Namespace 'Mem' ('Std.Mem') {
-		typedef 'Alignment' {
-		_1,
-			_2,
-			_4,
-			_8,
-			_16,
-			_32
-		}
-
-		; funcgroup alloc
-		public static concrete extern("") generic func alloc(type, u64, Typedef<Std.Mem.Alignment>) []T {
-			ret dotnet_call Callable<Std.Mem.csharp_GC_AllocateArray><T>(arg.01 as i32, false)
+		Namespace 'Process' ('Std.Process') {
+			; funcgroup getProgramArguments
+			public static concrete func getProgramArguments() []string {
+				ret call Callable<GetCommandLineArgs> ()
+			}
 
 
-		}
-
-		public static concrete extern("") func alloc__impl(u64, Typedef<Std.Mem.Alignment>) []u8 {
-			ret dotnet_call Callable<Std.Mem.csharp_GC_AllocateArray><u8>(arg.00 as i32, false)
-
-
-		}
-
-		public static concrete extern("") func alloc__impl(u64, Typedef<Std.Mem.Alignment>) []u8 {
-			ret dotnet_call Callable<Std.Mem.csharp_GC_AllocateArray><u8>(arg.00 as i32, false)
-
-
-		}
-
-		public static concrete extern("") func alloc__impl(u64, Typedef<Std.Mem.Alignment>) []u8 {
-			ret dotnet_call Callable<Std.Mem.csharp_GC_AllocateArray><u8>(arg.00 as i32, false)
-
-
-		}
-
-		public static concrete extern("") func alloc__impl(u64, Typedef<Std.Mem.Alignment>) []u8 {
-			ret dotnet_call Callable<Std.Mem.csharp_GC_AllocateArray><u8>(arg.00 as i32, false)
-
-
-		}
-
-
-		; funcgroup create
-		public static concrete extern("") generic func create(type, Typedef<Std.Mem.Alignment>) T {
-
-		}
-
-
-		; funcgroup csharp_GC_AllocateArray
-		private static concrete extern("") generic func csharp_GC_AllocateArray(type, i32, bool) []T
-
-
-	}
-
-	Namespace 'Test' ('Std.Test') {
-		; funcgroup testValue
-		public static concrete extern("") func testValue(u8, u8) void {
-			call Callable<Std.Test.printStatusMessage> (cmp Equality arg.00 arg.01)
-
-		}
-
-
-		; funcgroup printStatusMessage
-		private static concrete extern("") func printStatusMessage(bool) void {
-			if (arg.00) {
-				call Callable<Std.Console.writeln> ((Undefined) "TEST PASSED")
-			} else {
-				call Callable<Std.Console.write> ((Undefined) "TEST FAILED")
+			; funcgroup exit
+			public static concrete func exit(u64) noreturn {
+				call Callable<Exit> (arg.00 as i32)
 			}
 
 
 		}
 
+		Namespace 'Mem' ('Std.Mem') {
+			typedef 'Alignment' {
+				case _1,
+				case _2,
+				case _4,
+				case _8,
+				case _16,
+				case _32,
+			}
 
-	}
-
-	Namespace 'Console' ('Std.Console') {
-		; funcgroup Console_Write
-		private static concrete extern("") func Console_Write(string) void
-
-
-		; funcgroup Console_WriteLine
-		private static concrete extern("") func Console_WriteLine(string) void
-
-
-		; funcgroup write
-		private static concrete extern("") func write(i64) void {
-			call Callable<Std.Console.Console_Write> (arg.00 as string)
-
-		}
-
-		private static concrete extern("") func write(u64) void {
-			call Callable<Std.Console.Console_Write> (arg.00 as string)
-
-		}
-
-		private static concrete extern("") func write(i128) void {
-			call Callable<Std.Console.Console_Write> (arg.00 as string)
-
-		}
-
-		private static concrete extern("") func write(u128) void {
-			call Callable<Std.Console.Console_Write> (arg.00 as string)
-
-		}
-
-		private static concrete extern("") func write(string) void {
-			call Callable<Std.Console.Console_Write> (arg.00)
-
-		}
-
-
-		; funcgroup writeln
-		private static concrete extern("") func writeln(i64) void {
-			call Callable<Std.Console.Console_WriteLine> (arg.00 as string)
-
-		}
-
-		private static concrete extern("") func writeln(u64) void {
-			call Callable<Std.Console.Console_WriteLine> (arg.00 as string)
-
-		}
-
-		private static concrete extern("") func writeln(i128) void {
-			call Callable<Std.Console.Console_WriteLine> (arg.00 as string)
-
-		}
-
-		private static concrete extern("") func writeln(u128) void {
-			call Callable<Std.Console.Console_WriteLine> (arg.00 as string)
-
-		}
-
-		private static concrete extern("") func writeln(string) void {
-			call Callable<Std.Console.Console_WriteLine> (arg.00)
-
-		}
-
-
-	}
-
-	Namespace 'Fs' ('Std.Fs') {
-		public instance concrete struct 'File' {
-			; offset=0 * 0n
-			private instance concrete var '_filestream' *FileStream
-
-		}
-
-		public instance concrete struct 'FileReader' extends Struct<Std.Io.Reader> {
-		}
-
-		public instance concrete struct 'FileWriter' extends Struct<Std.Io.Writer> {
-		}
-
-		typedef(SeekOrigin) 'SeekOrigin' {
-		begin = Unknown(CsSeekOrigin)->Unknown(Begin),
-			current = Unknown(CsSeekOrigin)->Unknown(current),
-			end = Unknown(CsSeekOrigin)->Unknown(End)
-		}
-
-		typedef(FileMode) 'FileMode' {
-		createNew = Unknown(CsFileMode)->Unknown(CreateNew),
-			create = Unknown(CsFileMode)->Unknown(Create),
-			open = Unknown(CsFileMode)->Unknown(Open),
-			openOrCreate = Unknown(CsFileMode)->Unknown(OpenOrCreate),
-			truncate = Unknown(CsFileMode)->Unknown(Truncate),
-			append = Unknown(CsFileMode)->Unknown(Append)
-		}
-
-		typedef(FileAccess) 'FileAccess' {
-		_fuck,
-			RO = Unknown(CsFileAccess)->Unknown(Read),
-			WO = Unknown(CsFileAccess)->Unknown(Write),
-			RW = Unknown(CsFileAccess)->Unknown(ReadWrite)
-		}
-
-		; funcgroup open
-		public static concrete extern("") func open(string) Struct<Std.Fs.File> {
-			$(00) Local 'filestream': *FileStream
-			local.00 = new Callable<.ctor>(arg.00, FileMode.openOrCreate, FileAccess.RO)
-			ret new Callable<Std.Fs.File.constructor>(local.00)
+			; funcgroup alloc
+			public static concrete generic func alloc(type, u64, Typedef<Std.Mem.Alignment>) []T {
+				ret call Callable<AllocateArray> (u8, arg.01 as i32, false)
+			}
 
 
 		}
 
+		Namespace 'Test' ('Std.Test') {
+			; funcgroup testValue
+			public static concrete func testValue(u8, u8) void {
+				call Callable<Std.Test.printStatusMessage> (cmp Equality arg.00 arg.01)
+			}
+
+
+			; funcgroup printStatusMessage
+			private static concrete func printStatusMessage(bool) void {
+				if (arg.00) {
+					call Callable<Std.Console.writeln> ((Undefined) "TEST PASSED")} else {
+					call Callable<Std.Console.write> ((Undefined) "TEST FAILED")}
+			}
+
+
+		}
+
+		Namespace 'Console' ('Std.Console') {
+			; funcgroup write
+			private static concrete func write(i64) void {
+				call Callable<Write> (arg.00 as string)
+			}
+
+			private static concrete func write(u64) void {
+				call Callable<Write> (arg.00 as string)
+			}
+
+			private static concrete func write(i128) void {
+				call Callable<Write> (arg.00 as string)
+			}
+
+			private static concrete func write(u128) void {
+				call Callable<Write> (arg.00 as string)
+			}
+
+			private static concrete func write(string) void {
+				call Callable<Write> (arg.00)
+			}
+
+
+			; funcgroup writeln
+			private static concrete func writeln(i64) void {
+				call Callable<WriteLine> (arg.00 as string)
+			}
+
+			private static concrete func writeln(u64) void {
+				call Callable<WriteLine> (arg.00 as string)
+			}
+
+			private static concrete func writeln(i128) void {
+				call Callable<WriteLine> (arg.00 as string)
+			}
+
+			private static concrete func writeln(u128) void {
+				call Callable<WriteLine> (arg.00 as string)
+			}
+
+			private static concrete func writeln(string) void {
+				call Callable<WriteLine> (arg.00)
+			}
+
+
+		}
+
+		Namespace 'Fs' ('Std.Fs') {
+			public instance concrete struct 'File' {
+				private instance concrete var '_filestream' *FileStream
+
+				; funcgroup close
+				private instance concrete func close() void {
+
+				}
+
+
+				ctor(*FileStream) {
+					self->Field<Std.Fs.File._filestream> = arg.00
+				}
+
+			}
+
+			public instance concrete struct 'FileReader' extends Struct<Std.Io.Reader> {
+				ctor() {
+
+				}
+
+			}
+
+			public instance concrete struct 'FileWriter' extends Struct<Std.Io.Writer> {
+				ctor() {
+
+				}
+
+			}
+
+			public instance concrete struct 'FileInfo' {
+				private instance concrete var '_fileInfo' *FileInfo
+
+				public instance concrete var 'name' string
+
+				public instance concrete var 'length' string
+
+				public instance concrete var 'directory' string
+
+				ctor(*FileInfo) {
+					self->Field<Std.Fs.FileInfo._fileInfo> = arg.00
+					self->Field<Std.Fs.FileInfo.name> = call Callable<get_Name> (arg.00)
+					self->Field<Std.Fs.FileInfo.length> = call Callable<get_Length> (arg.00)
+					self->Field<Std.Fs.FileInfo.directory> = call Callable<get_Directory> (arg.00)
+				}
+
+			}
+
+			typedef(SeekOrigin) 'SeekOrigin' {
+				case begin = Unknown(CsSeekOrigin)->Unknown(Begin),
+				case current = Unknown(CsSeekOrigin)->Unknown(current),
+				case end = Unknown(CsSeekOrigin)->Unknown(End),
+			}
+
+			typedef(FileMode) 'FileMode' {
+				case createNew = Unknown(CsFileMode)->Unknown(CreateNew),
+				case create = Unknown(CsFileMode)->Unknown(Create),
+				case open = Unknown(CsFileMode)->Unknown(Open),
+				case openOrCreate = Unknown(CsFileMode)->Unknown(OpenOrCreate),
+				case truncate = Unknown(CsFileMode)->Unknown(Truncate),
+				case append = Unknown(CsFileMode)->Unknown(Append),
+			}
+
+			typedef(FileAccess) 'FileAccess' {
+				case _fuck,
+				case RO = Unknown(CsFileAccess)->Unknown(Read),
+				case WO = Unknown(CsFileAccess)->Unknown(Write),
+				case RW = Unknown(CsFileAccess)->Unknown(ReadWrite),
+			}
+
+			; funcgroup open
+			public static concrete func open(string) Struct<Std.Fs.File> {
+				$(00) Local 'filestream': *FileStream
+				local.00 = new Callable<.ctor>(arg.00, FileMode.openOrCreate, FileAccess.RO)
+				ret new Callable<Std.Fs.File.constructor>(local.00)
+			}
+
+
+			; funcgroup readAllText
+			public static concrete func readAllText(string) string {
+				ret call Callable<ReadAllText> (arg.00)
+			}
+
+
+		}
 
 	}
 
 }
 
-module Dotnet {
+module Dotnet refonly {
 	Namespace 'Microsoft' ('Dotnet.Microsoft') {
 		Namespace 'Win32' ('Dotnet.Microsoft.Win32') {
 			Namespace 'SafeHandles' ('Dotnet.Microsoft.Win32.SafeHandles') {
@@ -447,7 +424,7 @@ module Dotnet {
 	Namespace 'System' ('Dotnet.System') {
 		Namespace 'Buffers' ('Dotnet.System.Buffers') {
 			Namespace 'Text' ('Dotnet.System.Buffers.Text') {
-				class Base64 extends Object {
+				static class Base64 extends Object {
 					method EncodeToUtf8(System.ReadOnlySpan`1<System.Byte> bytes, System.Span`1<System.Byte> utf8, System.Int32& bytesConsumed, System.Int32& bytesWritten, System.Boolean isFinalBlock) System.Buffers.OperationStatus
 					method GetMaxEncodedToUtf8Length(System.Int32 length) System.Int32
 					method EncodeToUtf8InPlace(System.Span`1<System.Byte> buffer, System.Int32 dataLength, System.Int32& bytesWritten) System.Buffers.OperationStatus
@@ -456,7 +433,7 @@ module Dotnet {
 					method DecodeFromUtf8InPlace(System.Span`1<System.Byte> buffer, System.Int32& bytesWritten) System.Buffers.OperationStatus
 					method IsValid(System.ReadOnlySpan`1<System.Char> base64Text) System.Booleanmethod IsValid(System.ReadOnlySpan`1<System.Char> base64Text, System.Int32& decodedLength) System.Booleanmethod IsValid(System.ReadOnlySpan`1<System.Byte> base64TextUtf8) System.Booleanmethod IsValid(System.ReadOnlySpan`1<System.Byte> base64TextUtf8, System.Int32& decodedLength) System.Boolean
 				}
-				class Base64Url extends Object {
+				static class Base64Url extends Object {
 					method GetMaxDecodedLength(System.Int32 base64Length) System.Int32
 					method DecodeFromUtf8(System.ReadOnlySpan`1<System.Byte> source, System.Span`1<System.Byte> destination, System.Int32& bytesConsumed, System.Int32& bytesWritten, System.Boolean isFinalBlock) System.Buffers.OperationStatusmethod DecodeFromUtf8(System.ReadOnlySpan`1<System.Byte> source, System.Span`1<System.Byte> destination) System.Int32method DecodeFromUtf8(System.ReadOnlySpan`1<System.Byte> source) System.Byte[]
 					method DecodeFromUtf8InPlace(System.Span`1<System.Byte> buffer) System.Int32
@@ -510,7 +487,7 @@ module Dotnet {
 				method BeginInvoke(System.ReadOnlySpan`1<!0> span, !1 arg, System.AsyncCallback callback, System.Object object) System.IAsyncResult
 				method EndInvoke(System.IAsyncResult result) System.Void
 			}
-			class SearchValues extends Object {
+			static class SearchValues extends Object {
 				method Create(System.ReadOnlySpan`1<System.Byte> values) System.Buffers.SearchValues`1<System.Byte>method Create(System.ReadOnlySpan`1<System.Char> values) System.Buffers.SearchValues`1<System.Char>method Create(System.ReadOnlySpan`1<System.String> values, System.StringComparison comparisonType) System.Buffers.SearchValues`1<System.String>
 				method <Create>g__ShouldUseProbabilisticMap|1_0(System.Int32 valuesLength, System.Int32 maxInclusive) System.Boolean
 			}
@@ -662,7 +639,7 @@ module Dotnet {
 					constructor(System.String message, System.Exception innerException) System.Void
 					constructor(System.Runtime.Serialization.SerializationInfo info, System.Runtime.Serialization.StreamingContext context) System.Void
 				}
-				class KeyValuePair extends Object {
+				static class KeyValuePair extends Object {
 					method Create(type TKey, type TValue, !!0 key, !!1 value) System.Collections.Generic.KeyValuePair`2<!!0, !!1>
 					method PairToString(System.Object key, System.Object value) System.String
 				}
@@ -672,433 +649,6 @@ module Dotnet {
 					method get_Value() !1
 					method ToString() System.String
 					method Deconstruct(!0& key, !1& value) System.Void
-				}
-				class CollectionExtensions extends Object {
-					method GetValueOrDefault(type TKey, type TValue, System.Collections.Generic.IReadOnlyDictionary`2<!!0, !!1> dictionary, !!0 key) !!1method GetValueOrDefault(type TKey, type TValue, System.Collections.Generic.IReadOnlyDictionary`2<!!0, !!1> dictionary, !!0 key, !!1 defaultValue) !!1
-					method TryAdd(type TKey, type TValue, System.Collections.Generic.IDictionary`2<!!0, !!1> dictionary, !!0 key, !!1 value) System.Boolean
-					method Remove(type TKey, type TValue, System.Collections.Generic.IDictionary`2<!!0, !!1> dictionary, !!0 key, !!1& value) System.Boolean
-					method AsReadOnly(type T, System.Collections.Generic.IList`1<!!0> list) System.Collections.ObjectModel.ReadOnlyCollection`1<!!0>method AsReadOnly(type T, System.Collections.Generic.ISet`1<!!0> set) System.Collections.ObjectModel.ReadOnlySet`1<!!0>method AsReadOnly(type TKey, type TValue, System.Collections.Generic.IDictionary`2<!!0, !!1> dictionary) System.Collections.ObjectModel.ReadOnlyDictionary`2<!!0, !!1>
-					method AddRange(type T, System.Collections.Generic.List`1<!!0> list, System.ReadOnlySpan`1<!!0> source) System.Void
-					method InsertRange(type T, System.Collections.Generic.List`1<!!0> list, System.Int32 index, System.ReadOnlySpan`1<!!0> source) System.Void
-					method CopyTo(type T, System.Collections.Generic.List`1<!!0> list, System.Span`1<!!0> destination) System.Void
-				}
-				class Comparer`1 (T) extends Object {
-					constructor() System.Void
-					method get_Default() System.Collections.Generic.Comparer`1<!0>
-					method Create(System.Comparison`1<!0> comparison) System.Collections.Generic.Comparer`1<!0>
-					method Compare(!0 x, !0 y) System.Int32
-				}
-				class Dictionary`2 (TKey, TValue) extends Object {
-					class AlternateLookup`1 (TKey, TValue, TAlternateKey) extends ValueType {
-						constructor(System.Collections.Generic.Dictionary`2<!0, !1> dictionary) System.Void
-						method get_Dictionary() System.Collections.Generic.Dictionary`2<!0, !1>
-						method IsCompatibleKey(System.Collections.Generic.Dictionary`2<!0, !1> dictionary) System.Boolean
-						method GetAlternateComparer(System.Collections.Generic.Dictionary`2<!0, !1> dictionary) System.Collections.Generic.IAlternateEqualityComparer`2<!2, !0>
-						method TryGetValue(!2 key, !0& actualKey, !1& value) System.Boolean
-						method Remove(!2 key, !0& actualKey, !1& value) System.Boolean
-					}
-					class Enumerator (TKey, TValue) extends ValueType {
-						constructor(System.Collections.Generic.Dictionary`2<!0, !1> dictionary, System.Int32 getEnumeratorRetType) System.Void
-						method MoveNext() System.Boolean
-						method get_Current() System.Collections.Generic.KeyValuePair`2<!0, !1>
-						method Dispose() System.Void
-					}
-					class KeyCollection (TKey, TValue) extends Object {
-						class Enumerator (TKey, TValue) extends ValueType {
-							constructor(System.Collections.Generic.Dictionary`2<!0, !1> dictionary) System.Void
-							method Dispose() System.Void
-							method MoveNext() System.Boolean
-							method get_Current() !0
-						}
-						constructor(System.Collections.Generic.Dictionary`2<!0, !1> dictionary) System.Void
-						method GetEnumerator() System.Collections.Generic.Dictionary`2+KeyCollection+Enumerator<!0, !1>
-						method CopyTo(!0[] array, System.Int32 index) System.Void
-						method get_Count() System.Int32
-						method Contains(!0 item) System.Boolean
-					}
-					class ValueCollection (TKey, TValue) extends Object {
-						class Enumerator (TKey, TValue) extends ValueType {
-							constructor(System.Collections.Generic.Dictionary`2<!0, !1> dictionary) System.Void
-							method Dispose() System.Void
-							method MoveNext() System.Boolean
-							method get_Current() !1
-						}
-						constructor(System.Collections.Generic.Dictionary`2<!0, !1> dictionary) System.Void
-						method GetEnumerator() System.Collections.Generic.Dictionary`2+ValueCollection+Enumerator<!0, !1>
-						method CopyTo(!1[] array, System.Int32 index) System.Void
-						method get_Count() System.Int32
-					}
-					constructor() System.Void
-					constructor(System.Int32 capacity) System.Void
-					constructor(System.Collections.Generic.IEqualityComparer`1<!0> comparer) System.Void
-					constructor(System.Int32 capacity, System.Collections.Generic.IEqualityComparer`1<!0> comparer) System.Void
-					constructor(System.Collections.Generic.IDictionary`2<!0, !1> dictionary) System.Void
-					constructor(System.Collections.Generic.IDictionary`2<!0, !1> dictionary, System.Collections.Generic.IEqualityComparer`1<!0> comparer) System.Void
-					constructor(System.Collections.Generic.IEnumerable`1<System.Collections.Generic.KeyValuePair`2<!0, !1>> collection) System.Void
-					constructor(System.Collections.Generic.IEnumerable`1<System.Collections.Generic.KeyValuePair`2<!0, !1>> collection, System.Collections.Generic.IEqualityComparer`1<!0> comparer) System.Void
-					constructor(System.Runtime.Serialization.SerializationInfo info, System.Runtime.Serialization.StreamingContext context) System.Void
-					method get_Comparer() System.Collections.Generic.IEqualityComparer`1<!0>
-					method get_Count() System.Int32
-					method get_Capacity() System.Int32
-					method get_Keys() System.Collections.Generic.Dictionary`2+KeyCollection<!0, !1>
-					method get_Values() System.Collections.Generic.Dictionary`2+ValueCollection<!0, !1>
-					method get_Item(!0 key) !1
-					method set_Item(!0 key, !1 value) System.Void
-					method Add(!0 key, !1 value) System.Void
-					method Clear() System.Void
-					method ContainsKey(!0 key) System.Boolean
-					method GetEnumerator() System.Collections.Generic.Dictionary`2+Enumerator<!0, !1>
-					method GetObjectData(System.Runtime.Serialization.SerializationInfo info, System.Runtime.Serialization.StreamingContext context) System.Void
-					method FindValue(!0 key) !1&
-					method GetAlternateLookup(type TAlternateKey) System.Collections.Generic.Dictionary`2+AlternateLookup`1<!0, !1, !!0>
-					method TryGetAlternateLookup(type TAlternateKey, System.Collections.Generic.Dictionary`2+AlternateLookup`1<!0, !1, !!0>& lookup) System.Boolean
-					method OnDeserialization(System.Object sender) System.Void
-					method Remove(!0 key) System.Booleanmethod Remove(!0 key, !1& value) System.Boolean
-					method TryGetValue(!0 key, !1& value) System.Boolean
-					method TryAdd(!0 key, !1 value) System.Boolean
-					method EnsureCapacity(System.Int32 capacity) System.Int32
-					method TrimExcess() System.Voidmethod TrimExcess(System.Int32 capacity) System.Void
-				}
-				class EqualityComparer`1 (T) extends Object {
-					constructor() System.Void
-					method get_Default() System.Collections.Generic.EqualityComparer`1<!0>
-					method Equals(!0 x, !0 y) System.Boolean
-					method GetHashCode(!0 obj) System.Int32
-					method IndexOf(!0[] array, !0 value, System.Int32 startIndex, System.Int32 count) System.Int32
-					method LastIndexOf(!0[] array, !0 value, System.Int32 startIndex, System.Int32 count) System.Int32
-				}
-				class HashSet`1 (T) extends Object {
-					class AlternateLookup`1 (T, TAlternate) extends ValueType {
-						constructor(System.Collections.Generic.HashSet`1<!0> set) System.Void
-						method get_Set() System.Collections.Generic.HashSet`1<!0>
-						method IsCompatibleItem(System.Collections.Generic.HashSet`1<!0> set) System.Boolean
-						method GetAlternateComparer(System.Collections.Generic.HashSet`1<!0> set) System.Collections.Generic.IAlternateEqualityComparer`2<!1, !0>
-						method TryGetValue(!1 equalValue, !0& actualValue) System.Boolean
-					}
-					class Enumerator (T) extends ValueType {
-						constructor(System.Collections.Generic.HashSet`1<!0> hashSet) System.Void
-						method MoveNext() System.Boolean
-						method get_Current() !0
-						method Dispose() System.Void
-					}
-					constructor() System.Void
-					constructor(System.Collections.Generic.IEqualityComparer`1<!0> comparer) System.Void
-					constructor(System.Int32 capacity) System.Void
-					constructor(System.Collections.Generic.IEnumerable`1<!0> collection) System.Void
-					constructor(System.Collections.Generic.IEnumerable`1<!0> collection, System.Collections.Generic.IEqualityComparer`1<!0> comparer) System.Void
-					constructor(System.Int32 capacity, System.Collections.Generic.IEqualityComparer`1<!0> comparer) System.Void
-					constructor(System.Runtime.Serialization.SerializationInfo info, System.Runtime.Serialization.StreamingContext context) System.Void
-					method Clear() System.Void
-					method Contains(!0 item) System.Boolean
-					method Remove(!0 item) System.Boolean
-					method get_Count() System.Int32
-					method get_Capacity() System.Int32
-					method GetAlternateLookup(type TAlternate) System.Collections.Generic.HashSet`1+AlternateLookup`1<!0, !!0>
-					method TryGetAlternateLookup(type TAlternate, System.Collections.Generic.HashSet`1+AlternateLookup`1<!0, !!0>& lookup) System.Boolean
-					method GetEnumerator() System.Collections.Generic.HashSet`1+Enumerator<!0>
-					method GetObjectData(System.Runtime.Serialization.SerializationInfo info, System.Runtime.Serialization.StreamingContext context) System.Void
-					method OnDeserialization(System.Object sender) System.Void
-					method Add(!0 item) System.Boolean
-					method TryGetValue(!0 equalValue, !0& actualValue) System.Boolean
-					method UnionWith(System.Collections.Generic.IEnumerable`1<!0> other) System.Void
-					method IntersectWith(System.Collections.Generic.IEnumerable`1<!0> other) System.Void
-					method ExceptWith(System.Collections.Generic.IEnumerable`1<!0> other) System.Void
-					method SymmetricExceptWith(System.Collections.Generic.IEnumerable`1<!0> other) System.Void
-					method IsSubsetOf(System.Collections.Generic.IEnumerable`1<!0> other) System.Boolean
-					method IsProperSubsetOf(System.Collections.Generic.IEnumerable`1<!0> other) System.Boolean
-					method IsSupersetOf(System.Collections.Generic.IEnumerable`1<!0> other) System.Boolean
-					method IsProperSupersetOf(System.Collections.Generic.IEnumerable`1<!0> other) System.Boolean
-					method Overlaps(System.Collections.Generic.IEnumerable`1<!0> other) System.Boolean
-					method SetEquals(System.Collections.Generic.IEnumerable`1<!0> other) System.Boolean
-					method CopyTo(!0[] array) System.Voidmethod CopyTo(!0[] array, System.Int32 arrayIndex) System.Voidmethod CopyTo(!0[] array, System.Int32 arrayIndex, System.Int32 count) System.Void
-					method RemoveWhere(System.Predicate`1<!0> match) System.Int32
-					method get_Comparer() System.Collections.Generic.IEqualityComparer`1<!0>
-					method get_EffectiveComparer() System.Collections.Generic.IEqualityComparer`1<!0>
-					method EnsureCapacity(System.Int32 capacity) System.Int32
-					method TrimExcess() System.Voidmethod TrimExcess(System.Int32 capacity) System.Void
-					method CreateSetComparer() System.Collections.Generic.IEqualityComparer`1<System.Collections.Generic.HashSet`1<!0>>
-					method IsSubsetOfHashSetWithSameComparer(System.Collections.Generic.HashSet`1<!0> other) System.Boolean
-					method EqualityComparersAreEqual(System.Collections.Generic.HashSet`1<!0> set1, System.Collections.Generic.HashSet`1<!0> set2) System.Boolean
-					method EffectiveEqualityComparersAreEqual(System.Collections.Generic.HashSet`1<!0> set1, System.Collections.Generic.HashSet`1<!0> set2) System.Boolean
-				}
-				class List`1 (T) extends Object {
-					class Enumerator (T) extends ValueType {
-						constructor(System.Collections.Generic.List`1<!0> list) System.Void
-						method Dispose() System.Void
-						method MoveNext() System.Boolean
-						method get_Current() !0
-					}
-					constructor() System.Void
-					constructor(System.Int32 capacity) System.Void
-					constructor(System.Collections.Generic.IEnumerable`1<!0> collection) System.Void
-					method get_Capacity() System.Int32
-					method set_Capacity(System.Int32 value) System.Void
-					method get_Count() System.Int32
-					method get_Item(System.Int32 index) !0
-					method set_Item(System.Int32 index, !0 value) System.Void
-					method Add(!0 item) System.Void
-					method AddRange(System.Collections.Generic.IEnumerable`1<!0> collection) System.Void
-					method AsReadOnly() System.Collections.ObjectModel.ReadOnlyCollection`1<!0>
-					method BinarySearch(System.Int32 index, System.Int32 count, !0 item, System.Collections.Generic.IComparer`1<!0> comparer) System.Int32method BinarySearch(!0 item) System.Int32method BinarySearch(!0 item, System.Collections.Generic.IComparer`1<!0> comparer) System.Int32
-					method Clear() System.Void
-					method Contains(!0 item) System.Boolean
-					method ConvertAll(type TOutput, System.Converter`2<!0, !!0> converter) System.Collections.Generic.List`1<!!0>
-					method CopyTo(!0[] array) System.Voidmethod CopyTo(System.Int32 index, !0[] array, System.Int32 arrayIndex, System.Int32 count) System.Voidmethod CopyTo(!0[] array, System.Int32 arrayIndex) System.Void
-					method EnsureCapacity(System.Int32 capacity) System.Int32
-					method Grow(System.Int32 capacity) System.Void
-					method GrowForInsertion(System.Int32 indexToInsert, System.Int32 insertionCount) System.Void
-					method Exists(System.Predicate`1<!0> match) System.Boolean
-					method Find(System.Predicate`1<!0> match) !0
-					method FindAll(System.Predicate`1<!0> match) System.Collections.Generic.List`1<!0>
-					method FindIndex(System.Predicate`1<!0> match) System.Int32method FindIndex(System.Int32 startIndex, System.Predicate`1<!0> match) System.Int32method FindIndex(System.Int32 startIndex, System.Int32 count, System.Predicate`1<!0> match) System.Int32
-					method FindLast(System.Predicate`1<!0> match) !0
-					method FindLastIndex(System.Predicate`1<!0> match) System.Int32method FindLastIndex(System.Int32 startIndex, System.Predicate`1<!0> match) System.Int32method FindLastIndex(System.Int32 startIndex, System.Int32 count, System.Predicate`1<!0> match) System.Int32
-					method ForEach(System.Action`1<!0> action) System.Void
-					method GetEnumerator() System.Collections.Generic.List`1+Enumerator<!0>
-					method GetRange(System.Int32 index, System.Int32 count) System.Collections.Generic.List`1<!0>
-					method Slice(System.Int32 start, System.Int32 length) System.Collections.Generic.List`1<!0>
-					method IndexOf(!0 item) System.Int32method IndexOf(!0 item, System.Int32 index) System.Int32method IndexOf(!0 item, System.Int32 index, System.Int32 count) System.Int32
-					method Insert(System.Int32 index, !0 item) System.Void
-					method InsertRange(System.Int32 index, System.Collections.Generic.IEnumerable`1<!0> collection) System.Void
-					method LastIndexOf(!0 item) System.Int32method LastIndexOf(!0 item, System.Int32 index) System.Int32method LastIndexOf(!0 item, System.Int32 index, System.Int32 count) System.Int32
-					method Remove(!0 item) System.Boolean
-					method RemoveAll(System.Predicate`1<!0> match) System.Int32
-					method RemoveAt(System.Int32 index) System.Void
-					method RemoveRange(System.Int32 index, System.Int32 count) System.Void
-					method Reverse() System.Voidmethod Reverse(System.Int32 index, System.Int32 count) System.Void
-					method Sort() System.Voidmethod Sort(System.Collections.Generic.IComparer`1<!0> comparer) System.Voidmethod Sort(System.Int32 index, System.Int32 count, System.Collections.Generic.IComparer`1<!0> comparer) System.Voidmethod Sort(System.Comparison`1<!0> comparison) System.Void
-					method ToArray() !0[]
-					method TrimExcess() System.Void
-					method TrueForAll(System.Predicate`1<!0> match) System.Boolean
-				}
-				class Queue`1 (T) extends Object {
-					class Enumerator (T) extends ValueType {
-						constructor(System.Collections.Generic.Queue`1<!0> queue) System.Void
-						method Dispose() System.Void
-						method MoveNext() System.Boolean
-						method get_Current() !0
-					}
-					constructor() System.Void
-					constructor(System.Int32 capacity) System.Void
-					constructor(System.Collections.Generic.IEnumerable`1<!0> collection) System.Void
-					method get_Count() System.Int32
-					method get_Capacity() System.Int32
-					method Clear() System.Void
-					method CopyTo(!0[] array, System.Int32 arrayIndex) System.Void
-					method Enqueue(!0 item) System.Void
-					method GetEnumerator() System.Collections.Generic.Queue`1+Enumerator<!0>
-					method Dequeue() !0
-					method TryDequeue(!0& result) System.Boolean
-					method Peek() !0
-					method TryPeek(!0& result) System.Boolean
-					method Contains(!0 item) System.Boolean
-					method ToArray() !0[]
-					method TrimExcess() System.Voidmethod TrimExcess(System.Int32 capacity) System.Void
-					method EnsureCapacity(System.Int32 capacity) System.Int32
-				}
-				class ReferenceEqualityComparer extends Object {
-					method get_Instance() System.Collections.Generic.ReferenceEqualityComparer
-					method Equals(System.Object x, System.Object y) System.Boolean
-					method GetHashCode(System.Object obj) System.Int32
-				}
-				class LinkedList`1 (T) extends Object {
-					constructor() System.Void
-					constructor(System.Collections.Generic.IEnumerable`1<!0> collection) System.Void
-					constructor(System.Runtime.Serialization.SerializationInfo info, System.Runtime.Serialization.StreamingContext context) System.Void
-					method get_Count() System.Int32
-					method get_First() System.Collections.Generic.LinkedListNode`1<!0>
-					method get_Last() System.Collections.Generic.LinkedListNode`1<!0>
-					method AddAfter(System.Collections.Generic.LinkedListNode`1<!0> node, !0 value) System.Collections.Generic.LinkedListNode`1<!0>method AddAfter(System.Collections.Generic.LinkedListNode`1<!0> node, System.Collections.Generic.LinkedListNode`1<!0> newNode) System.Void
-					method AddBefore(System.Collections.Generic.LinkedListNode`1<!0> node, !0 value) System.Collections.Generic.LinkedListNode`1<!0>method AddBefore(System.Collections.Generic.LinkedListNode`1<!0> node, System.Collections.Generic.LinkedListNode`1<!0> newNode) System.Void
-					method AddFirst(!0 value) System.Collections.Generic.LinkedListNode`1<!0>method AddFirst(System.Collections.Generic.LinkedListNode`1<!0> node) System.Void
-					method AddLast(!0 value) System.Collections.Generic.LinkedListNode`1<!0>method AddLast(System.Collections.Generic.LinkedListNode`1<!0> node) System.Void
-					method Clear() System.Void
-					method Contains(!0 value) System.Boolean
-					method CopyTo(!0[] array, System.Int32 index) System.Void
-					method Find(!0 value) System.Collections.Generic.LinkedListNode`1<!0>
-					method FindLast(!0 value) System.Collections.Generic.LinkedListNode`1<!0>
-					method Remove(!0 value) System.Booleanmethod Remove(System.Collections.Generic.LinkedListNode`1<!0> node) System.Void
-					method RemoveFirst() System.Void
-					method RemoveLast() System.Void
-					method GetObjectData(System.Runtime.Serialization.SerializationInfo info, System.Runtime.Serialization.StreamingContext context) System.Void
-					method OnDeserialization(System.Object sender) System.Void
-					method InternalRemoveNode(System.Collections.Generic.LinkedListNode`1<!0> node) System.Void
-					method ValidateNewNode(System.Collections.Generic.LinkedListNode`1<!0> node) System.Void
-					method ValidateNode(System.Collections.Generic.LinkedListNode`1<!0> node) System.Void
-				}
-				class LinkedListNode`1 (T) extends Object {
-					constructor(!0 value) System.Void
-					constructor(System.Collections.Generic.LinkedList`1<!0> list, !0 value) System.Void
-					method get_List() System.Collections.Generic.LinkedList`1<!0>
-					method get_Next() System.Collections.Generic.LinkedListNode`1<!0>
-					method get_Previous() System.Collections.Generic.LinkedListNode`1<!0>
-					method get_Value() !0
-					method set_Value(!0 value) System.Void
-					method get_ValueRef() !0&
-					method Invalidate() System.Void
-				}
-				class OrderedDictionary`2 (TKey, TValue) extends Object {
-					constructor() System.Void
-					constructor(System.Int32 capacity) System.Void
-					constructor(System.Collections.Generic.IEqualityComparer`1<!0> comparer) System.Void
-					constructor(System.Int32 capacity, System.Collections.Generic.IEqualityComparer`1<!0> comparer) System.Void
-					constructor(System.Collections.Generic.IDictionary`2<!0, !1> dictionary) System.Void
-					constructor(System.Collections.Generic.IDictionary`2<!0, !1> dictionary, System.Collections.Generic.IEqualityComparer`1<!0> comparer) System.Void
-					constructor(System.Collections.Generic.IEnumerable`1<System.Collections.Generic.KeyValuePair`2<!0, !1>> collection) System.Void
-					constructor(System.Collections.Generic.IEnumerable`1<System.Collections.Generic.KeyValuePair`2<!0, !1>> collection, System.Collections.Generic.IEqualityComparer`1<!0> comparer) System.Void
-					method get_Capacity() System.Int32
-					method get_Comparer() System.Collections.Generic.IEqualityComparer`1<!0>
-					method get_Count() System.Int32
-					method get_Item(!0 key) !1
-					method set_Item(!0 key, !1 value) System.Void
-					method Add(!0 key, !1 value) System.Void
-					method TryAdd(!0 key, !1 value) System.Booleanmethod TryAdd(!0 key, !1 value, System.Int32& index) System.Boolean
-					method Clear() System.Void
-					method ContainsKey(!0 key) System.Boolean
-					method GetAt(System.Int32 index) System.Collections.Generic.KeyValuePair`2<!0, !1>
-					method IndexOf(!0 key) System.Int32
-					method Insert(System.Int32 index, !0 key, !1 value) System.Void
-					method Remove(!0 key) System.Booleanmethod Remove(!0 key, !1& value) System.Boolean
-					method RemoveAt(System.Int32 index) System.Void
-					method SetAt(System.Int32 index, !1 value) System.Voidmethod SetAt(System.Int32 index, !0 key, !1 value) System.Void
-					method EnsureCapacity(System.Int32 capacity) System.Int32
-					method TrimExcess() System.Voidmethod TrimExcess(System.Int32 capacity) System.Void
-					method TryGetValue(!0 key, !1& value) System.Booleanmethod TryGetValue(!0 key, !1& value, System.Int32& index) System.Boolean
-				}
-				class PriorityQueue`2 (TElement, TPriority) extends Object {
-					constructor() System.Void
-					constructor(System.Int32 initialCapacity) System.Void
-					constructor(System.Collections.Generic.IComparer`1<!1> comparer) System.Void
-					constructor(System.Int32 initialCapacity, System.Collections.Generic.IComparer`1<!1> comparer) System.Void
-					constructor(System.Collections.Generic.IEnumerable`1<System.ValueTuple`2<!0, !1>> items) System.Void
-					constructor(System.Collections.Generic.IEnumerable`1<System.ValueTuple`2<!0, !1>> items, System.Collections.Generic.IComparer`1<!1> comparer) System.Void
-					method get_Count() System.Int32
-					method get_Capacity() System.Int32
-					method get_Comparer() System.Collections.Generic.IComparer`1<!1>
-					method Enqueue(!0 element, !1 priority) System.Void
-					method Peek() !0
-					method Dequeue() !0
-					method DequeueEnqueue(!0 element, !1 priority) !0
-					method TryDequeue(!0& element, !1& priority) System.Boolean
-					method TryPeek(!0& element, !1& priority) System.Boolean
-					method EnqueueDequeue(!0 element, !1 priority) !0
-					method EnqueueRange(System.Collections.Generic.IEnumerable`1<System.ValueTuple`2<!0, !1>> items) System.Voidmethod EnqueueRange(System.Collections.Generic.IEnumerable`1<!0> elements, !1 priority) System.Void
-					method Remove(!0 element, !0& removedElement, !1& priority, System.Collections.Generic.IEqualityComparer`1<!0> equalityComparer) System.Boolean
-					method Clear() System.Void
-					method EnsureCapacity(System.Int32 capacity) System.Int32
-					method TrimExcess() System.Void
-				}
-				class SortedDictionary`2 (TKey, TValue) extends Object {
-					constructor() System.Void
-					constructor(System.Collections.Generic.IDictionary`2<!0, !1> dictionary) System.Void
-					constructor(System.Collections.Generic.IDictionary`2<!0, !1> dictionary, System.Collections.Generic.IComparer`1<!0> comparer) System.Void
-					constructor(System.Collections.Generic.IComparer`1<!0> comparer) System.Void
-					method get_Item(!0 key) !1
-					method set_Item(!0 key, !1 value) System.Void
-					method get_Count() System.Int32
-					method get_Comparer() System.Collections.Generic.IComparer`1<!0>
-					method Add(!0 key, !1 value) System.Void
-					method Clear() System.Void
-					method ContainsKey(!0 key) System.Boolean
-					method CopyTo(System.Collections.Generic.KeyValuePair`2<!0, !1>[] array, System.Int32 index) System.Void
-					method Remove(!0 key) System.Boolean
-					method TryGetValue(!0 key, !1& value) System.Boolean
-				}
-				class TreeSet`1 (T) extends SortedSet`1<!0> {
-					constructor() System.Void
-					constructor(System.Collections.Generic.IComparer`1<!0> comparer) System.Void
-					constructor(System.Collections.Generic.TreeSet`1<!0> set, System.Collections.Generic.IComparer`1<!0> comparer) System.Void
-					method AddIfNotPresent(!0 item) System.Boolean
-				}
-				class SortedList`2 (TKey, TValue) extends Object {
-					constructor() System.Void
-					constructor(System.Int32 capacity) System.Void
-					constructor(System.Collections.Generic.IComparer`1<!0> comparer) System.Void
-					constructor(System.Int32 capacity, System.Collections.Generic.IComparer`1<!0> comparer) System.Void
-					constructor(System.Collections.Generic.IDictionary`2<!0, !1> dictionary) System.Void
-					constructor(System.Collections.Generic.IDictionary`2<!0, !1> dictionary, System.Collections.Generic.IComparer`1<!0> comparer) System.Void
-					method Add(!0 key, !1 value) System.Void
-					method get_Capacity() System.Int32
-					method set_Capacity(System.Int32 value) System.Void
-					method get_Comparer() System.Collections.Generic.IComparer`1<!0>
-					method get_Count() System.Int32
-					method get_Keys() System.Collections.Generic.IList`1<!0>
-					method get_Values() System.Collections.Generic.IList`1<!1>
-					method Clear() System.Void
-					method ContainsKey(!0 key) System.Boolean
-					method GetValueAtIndex(System.Int32 index) !1
-					method SetValueAtIndex(System.Int32 index, !1 value) System.Void
-					method GetEnumerator() System.Collections.Generic.IEnumerator`1<System.Collections.Generic.KeyValuePair`2<!0, !1>>
-					method GetKeyAtIndex(System.Int32 index) !0
-					method get_Item(!0 key) !1
-					method set_Item(!0 key, !1 value) System.Void
-					method IndexOfKey(!0 key) System.Int32
-					method TryGetValue(!0 key, !1& value) System.Boolean
-					method RemoveAt(System.Int32 index) System.Void
-					method Remove(!0 key) System.Boolean
-					method TrimExcess() System.Void
-				}
-				class SortedSet`1 (T) extends Object {
-					constructor() System.Void
-					constructor(System.Collections.Generic.IComparer`1<!0> comparer) System.Void
-					constructor(System.Collections.Generic.IEnumerable`1<!0> collection) System.Void
-					constructor(System.Collections.Generic.IEnumerable`1<!0> collection, System.Collections.Generic.IComparer`1<!0> comparer) System.Void
-					constructor(System.Runtime.Serialization.SerializationInfo info, System.Runtime.Serialization.StreamingContext context) System.Void
-					method get_Count() System.Int32
-					method get_Comparer() System.Collections.Generic.IComparer`1<!0>
-					method VersionCheck(System.Boolean updateCount) System.Void
-					method TotalCount() System.Int32
-					method IsWithinRange(!0 item) System.Boolean
-					method Add(!0 item) System.Boolean
-					method AddIfNotPresent(!0 item) System.Boolean
-					method Remove(!0 item) System.Boolean
-					method DoRemove(!0 item) System.Boolean
-					method Clear() System.Void
-					method Contains(!0 item) System.Boolean
-					method CopyTo(!0[] array) System.Voidmethod CopyTo(!0[] array, System.Int32 index) System.Voidmethod CopyTo(!0[] array, System.Int32 index, System.Int32 count) System.Void
-					method InternalIndexOf(!0 item) System.Int32
-					method UpdateVersion() System.Void
-					method CreateSetComparer() System.Collections.Generic.IEqualityComparer`1<System.Collections.Generic.SortedSet`1<!0>>method CreateSetComparer(System.Collections.Generic.IEqualityComparer`1<!0> memberEqualityComparer) System.Collections.Generic.IEqualityComparer`1<System.Collections.Generic.SortedSet`1<!0>>
-					method SortedSetEquals(System.Collections.Generic.SortedSet`1<!0> set1, System.Collections.Generic.SortedSet`1<!0> set2, System.Collections.Generic.IComparer`1<!0> comparer) System.Boolean
-					method UnionWith(System.Collections.Generic.IEnumerable`1<!0> other) System.Void
-					method IntersectWith(System.Collections.Generic.IEnumerable`1<!0> other) System.Void
-					method IntersectWithEnumerable(System.Collections.Generic.IEnumerable`1<!0> other) System.Void
-					method ExceptWith(System.Collections.Generic.IEnumerable`1<!0> other) System.Void
-					method SymmetricExceptWith(System.Collections.Generic.IEnumerable`1<!0> other) System.Void
-					method IsSubsetOf(System.Collections.Generic.IEnumerable`1<!0> other) System.Boolean
-					method IsProperSubsetOf(System.Collections.Generic.IEnumerable`1<!0> other) System.Boolean
-					method IsSupersetOf(System.Collections.Generic.IEnumerable`1<!0> other) System.Boolean
-					method IsProperSupersetOf(System.Collections.Generic.IEnumerable`1<!0> other) System.Boolean
-					method SetEquals(System.Collections.Generic.IEnumerable`1<!0> other) System.Boolean
-					method Overlaps(System.Collections.Generic.IEnumerable`1<!0> other) System.Boolean
-					method RemoveWhere(System.Predicate`1<!0> match) System.Int32
-					method get_Min() !0
-					method get_MinInternal() !0
-					method get_Max() !0
-					method get_MaxInternal() !0
-					method Reverse() System.Collections.Generic.IEnumerable`1<!0>
-					method GetViewBetween(!0 lowerValue, !0 upperValue) System.Collections.Generic.SortedSet`1<!0>
-					method GetObjectData(System.Runtime.Serialization.SerializationInfo info, System.Runtime.Serialization.StreamingContext context) System.Void
-					method OnDeserialization(System.Object sender) System.Void
-					method TryGetValue(!0 equalValue, !0& actualValue) System.Boolean
-				}
-				class Stack`1 (T) extends Object {
-					constructor() System.Void
-					constructor(System.Int32 capacity) System.Void
-					constructor(System.Collections.Generic.IEnumerable`1<!0> collection) System.Void
-					method get_Count() System.Int32
-					method get_Capacity() System.Int32
-					method Clear() System.Void
-					method Contains(!0 item) System.Boolean
-					method CopyTo(!0[] array, System.Int32 arrayIndex) System.Void
-					method TrimExcess() System.Voidmethod TrimExcess(System.Int32 capacity) System.Void
-					method Peek() !0
-					method TryPeek(!0& result) System.Boolean
-					method Pop() !0
-					method TryPop(!0& result) System.Boolean
-					method Push(!0 item) System.Void
-					method EnsureCapacity(System.Int32 capacity) System.Int32
-					method ToArray() !0[]
 				}
 			}
 
@@ -1124,7 +674,7 @@ module Dotnet {
 					method RemoveItem(System.Int32 index) System.Void
 					method SetItem(System.Int32 index, !0 item) System.Void
 				}
-				class ReadOnlyCollection extends Object {
+				static class ReadOnlyCollection extends Object {
 					method CreateCollection(type T, System.ReadOnlySpan`1<!!0> values) System.Collections.ObjectModel.ReadOnlyCollection`1<!!0>
 					method CreateSet(type T, System.ReadOnlySpan`1<!!0> values) System.Collections.ObjectModel.ReadOnlySet`1<!!0>
 				}
@@ -1343,42 +893,6 @@ module Dotnet {
 				method Equals(System.Object other, System.Collections.IEqualityComparer comparer) System.Boolean
 				method GetHashCode(System.Collections.IEqualityComparer comparer) System.Int32
 			}
-			class BitArray extends Object {
-				constructor(System.Int32 length) System.Void
-				constructor(System.Int32 length, System.Boolean defaultValue) System.Void
-				constructor(System.Byte[] bytes) System.Void
-				constructor(System.Boolean[] values) System.Void
-				constructor(System.Int32[] values) System.Void
-				constructor(System.Collections.BitArray bits) System.Void
-				method get_Item(System.Int32 index) System.Boolean
-				method set_Item(System.Int32 index, System.Boolean value) System.Void
-				method Get(System.Int32 index) System.Boolean
-				method Set(System.Int32 index, System.Boolean value) System.Void
-				method SetAll(System.Boolean value) System.Void
-				method And(System.Collections.BitArray value) System.Collections.BitArray
-				method Or(System.Collections.BitArray value) System.Collections.BitArray
-				method Xor(System.Collections.BitArray value) System.Collections.BitArray
-				method Not() System.Collections.BitArray
-				method RightShift(System.Int32 count) System.Collections.BitArray
-				method LeftShift(System.Int32 count) System.Collections.BitArray
-				method get_Length() System.Int32
-				method set_Length(System.Int32 value) System.Void
-				method CopyTo(System.Array array, System.Int32 index) System.Void
-				method HasAllSet() System.Boolean
-				method HasAnySet() System.Boolean
-				method get_Count() System.Int32
-				method get_SyncRoot() System.Object
-				method get_IsSynchronized() System.Boolean
-				method get_IsReadOnly() System.Boolean
-				method Clone() System.Object
-				method GetEnumerator() System.Collections.IEnumerator
-				method GetByteArrayLengthFromBitLength(System.Int32 bitLength) System.Int32
-				method <Invoke>g__Apply|24_0(type TBinaryOp, type TVector, System.Int32 count, System.Byte[] thisArray, System.Byte[] valueArray) System.Int32
-			}
-			class StructuralComparisons extends Object {
-				method get_StructuralComparer() System.Collections.IComparer
-				method get_StructuralEqualityComparer() System.Collections.IEqualityComparer
-			}
 		}
 
 		Namespace 'ComponentModel' ('Dotnet.System.ComponentModel') {
@@ -1582,7 +1096,7 @@ module Dotnet {
 				constructor(System.String conditionString) System.Void
 				method get_ConditionString() System.String
 			}
-			class Debug extends Object {
+			static class Debug extends Object {
 				class AssertInterpolatedStringHandler extends ValueType {
 					constructor(System.Int32 literalLength, System.Int32 formattedCount, System.Boolean condition, System.Boolean& shouldAppend) System.Void
 					method ToStringAndClear() System.String
@@ -1622,7 +1136,7 @@ module Dotnet {
 				method get_IsJITOptimizerDisabled() System.Boolean
 				method get_DebuggingFlags() System.Diagnostics.DebuggableAttribute+DebuggingModes
 			}
-			class Debugger extends Object {
+			static class Debugger extends Object {
 				method Break() System.Void
 				method Launch() System.Boolean
 				method NotifyOfCrossThreadDependency() System.Void
@@ -1773,7 +1287,7 @@ module Dotnet {
 			}
 			class CalendarAlgorithmType extends Enum {}
 			class CalendarWeekRule extends Enum {}
-			class CharUnicodeInfo extends Object {
+			static class CharUnicodeInfo extends Object {
 				method GetDecimalDigitValue(System.Char ch) System.Int32method GetDecimalDigitValue(System.String s, System.Int32 index) System.Int32
 				method GetDigitValue(System.Char ch) System.Int32method GetDigitValue(System.String s, System.Int32 index) System.Int32
 				method GetIsWhiteSpace(System.Char ch) System.Boolean
@@ -2033,7 +1547,7 @@ module Dotnet {
 				method set_TwoDigitYearMax(System.Int32 value) System.Void
 				method ToFourDigitYear(System.Int32 year) System.Int32
 			}
-			class GlobalizationExtensions extends Object {
+			static class GlobalizationExtensions extends Object {
 				method GetStringComparer(System.Globalization.CompareInfo compareInfo, System.Globalization.CompareOptions options) System.StringComparer
 			}
 			class GregorianCalendar extends Calendar {
@@ -2145,7 +1659,7 @@ module Dotnet {
 				method Equals(System.Object obj) System.Boolean
 				method GetHashCode() System.Int32
 			}
-			class ISOWeek extends Object {
+			static class ISOWeek extends Object {
 				method GetWeekOfYear(System.DateTime date) System.Int32method GetWeekOfYear(System.DateOnly date) System.Int32
 				method GetYear(System.DateTime date) System.Int32method GetYear(System.DateOnly date) System.Int32
 				method GetYearStart(System.Int32 year) System.DateTime
@@ -2645,7 +2159,7 @@ module Dotnet {
 					method Finalize() System.Void
 					method MoveNext() System.Boolean
 				}
-				class FileSystemName extends Object {
+				static class FileSystemName extends Object {
 					method TranslateWin32Expression(System.String expression) System.String
 					method MatchesWin32Expression(System.ReadOnlySpan`1<System.Char> expression, System.ReadOnlySpan`1<System.Char> name, System.Boolean ignoreCase) System.Boolean
 					method MatchesSimpleExpression(System.ReadOnlySpan`1<System.Char> expression, System.ReadOnlySpan`1<System.Char> name, System.Boolean ignoreCase) System.Boolean
@@ -2728,7 +2242,7 @@ module Dotnet {
 				method CopyTo(System.IO.Stream destination, System.Int32 bufferSize) System.Void
 				method CopyToAsync(System.IO.Stream destination, System.Int32 bufferSize, System.Threading.CancellationToken cancellationToken) System.Threading.Tasks.Task
 			}
-			class Directory extends Object {
+			static class Directory extends Object {
 				method GetParent(System.String path) System.IO.DirectoryInfo
 				method CreateDirectory(System.String path) System.IO.DirectoryInfomethod CreateDirectory(System.String path, System.IO.UnixFileMode unixCreateMode) System.IO.DirectoryInfo
 				method CreateTempSubdirectory(System.String prefix) System.IO.DirectoryInfo
@@ -2812,7 +2326,7 @@ module Dotnet {
 				method get_ReturnSpecialDirectories() System.Boolean
 				method set_ReturnSpecialDirectories(System.Boolean value) System.Void
 			}
-			class File extends Object {
+			static class File extends Object {
 				method OpenText(System.String path) System.IO.StreamReader
 				method CreateText(System.String path) System.IO.StreamWriter
 				method AppendText(System.String path) System.IO.StreamWriter
@@ -3096,7 +2610,7 @@ module Dotnet {
 				method WriteByte(System.Byte value) System.Void
 				method WriteTo(System.IO.Stream stream) System.Void
 			}
-			class Path extends Object {
+			static class Path extends Object {
 				method ChangeExtension(System.String path, System.String extension) System.String
 				method Exists(System.String path) System.Boolean
 				method GetDirectoryName(System.String path) System.Stringmethod GetDirectoryName(System.ReadOnlySpan`1<System.Char> path) System.ReadOnlySpan`1<System.Char>
@@ -3128,7 +2642,7 @@ module Dotnet {
 				constructor(System.String message, System.Exception innerException) System.Void
 				constructor(System.Runtime.Serialization.SerializationInfo info, System.Runtime.Serialization.StreamingContext context) System.Void
 			}
-			class RandomAccess extends Object {
+			static class RandomAccess extends Object {
 				method GetLength(Microsoft.Win32.SafeHandles.SafeFileHandle handle) System.Int64
 				method SetLength(Microsoft.Win32.SafeHandles.SafeFileHandle handle, System.Int64 length) System.Void
 				method Read(Microsoft.Win32.SafeHandles.SafeFileHandle handle, System.Span`1<System.Byte> buffer, System.Int64 fileOffset) System.Int32method Read(Microsoft.Win32.SafeHandles.SafeFileHandle handle, System.Collections.Generic.IReadOnlyList`1<System.Memory`1<System.Byte>> buffers, System.Int64 fileOffset) System.Int64
@@ -3347,7 +2861,7 @@ module Dotnet {
 		}
 
 		Namespace 'Net' ('Dotnet.System.Net') {
-			class WebUtility extends Object {
+			static class WebUtility extends Object {
 				method HtmlEncode(System.String value) System.Stringmethod HtmlEncode(System.String value, System.IO.TextWriter output) System.Void
 				method HtmlDecode(System.String value) System.Stringmethod HtmlDecode(System.String value, System.IO.TextWriter output) System.Void
 				method UrlEncode(System.String value) System.String
@@ -3358,7 +2872,7 @@ module Dotnet {
 		}
 
 		Namespace 'Numerics' ('Dotnet.System.Numerics') {
-			class BitOperations extends Object {
+			static class BitOperations extends Object {
 				method IsPow2(System.Int32 value) System.Booleanmethod IsPow2(System.UInt32 value) System.Booleanmethod IsPow2(System.Int64 value) System.Booleanmethod IsPow2(System.UInt64 value) System.Booleanmethod IsPow2(System.IntPtr value) System.Booleanmethod IsPow2(System.UIntPtr value) System.Boolean
 				method RoundUpToPowerOf2(System.UInt32 value) System.UInt32method RoundUpToPowerOf2(System.UInt64 value) System.UInt64method RoundUpToPowerOf2(System.UIntPtr value) System.UIntPtr
 				method LeadingZeroCount(System.UInt32 value) System.Int32method LeadingZeroCount(System.UInt64 value) System.Int32method LeadingZeroCount(System.UIntPtr value) System.Int32
@@ -3863,7 +3377,7 @@ module Dotnet {
 				method get_ConstructorArguments() System.Collections.Generic.IList`1<System.Reflection.CustomAttributeTypedArgument>
 				method get_NamedArguments() System.Collections.Generic.IList`1<System.Reflection.CustomAttributeNamedArgument>
 			}
-			class CustomAttributeExtensions extends Object {
+			static class CustomAttributeExtensions extends Object {
 				method GetCustomAttribute(System.Reflection.Assembly element, System.Type attributeType) System.Attributemethod GetCustomAttribute(System.Reflection.Module element, System.Type attributeType) System.Attributemethod GetCustomAttribute(System.Reflection.MemberInfo element, System.Type attributeType) System.Attributemethod GetCustomAttribute(System.Reflection.ParameterInfo element, System.Type attributeType) System.Attributemethod GetCustomAttribute(type T, System.Reflection.Assembly element) !!0method GetCustomAttribute(type T, System.Reflection.Module element) !!0method GetCustomAttribute(type T, System.Reflection.MemberInfo element) !!0method GetCustomAttribute(type T, System.Reflection.ParameterInfo element) !!0method GetCustomAttribute(System.Reflection.MemberInfo element, System.Type attributeType, System.Boolean inherit) System.Attributemethod GetCustomAttribute(System.Reflection.ParameterInfo element, System.Type attributeType, System.Boolean inherit) System.Attributemethod GetCustomAttribute(type T, System.Reflection.MemberInfo element, System.Boolean inherit) !!0method GetCustomAttribute(type T, System.Reflection.ParameterInfo element, System.Boolean inherit) !!0
 				method GetCustomAttributes(System.Reflection.Assembly element) System.Collections.Generic.IEnumerable`1<System.Attribute>method GetCustomAttributes(System.Reflection.Module element) System.Collections.Generic.IEnumerable`1<System.Attribute>method GetCustomAttributes(System.Reflection.MemberInfo element) System.Collections.Generic.IEnumerable`1<System.Attribute>method GetCustomAttributes(System.Reflection.ParameterInfo element) System.Collections.Generic.IEnumerable`1<System.Attribute>method GetCustomAttributes(System.Reflection.MemberInfo element, System.Boolean inherit) System.Collections.Generic.IEnumerable`1<System.Attribute>method GetCustomAttributes(System.Reflection.ParameterInfo element, System.Boolean inherit) System.Collections.Generic.IEnumerable`1<System.Attribute>method GetCustomAttributes(System.Reflection.Assembly element, System.Type attributeType) System.Collections.Generic.IEnumerable`1<System.Attribute>method GetCustomAttributes(System.Reflection.Module element, System.Type attributeType) System.Collections.Generic.IEnumerable`1<System.Attribute>method GetCustomAttributes(System.Reflection.MemberInfo element, System.Type attributeType) System.Collections.Generic.IEnumerable`1<System.Attribute>method GetCustomAttributes(System.Reflection.ParameterInfo element, System.Type attributeType) System.Collections.Generic.IEnumerable`1<System.Attribute>method GetCustomAttributes(type T, System.Reflection.Assembly element) System.Collections.Generic.IEnumerable`1<!!0>method GetCustomAttributes(type T, System.Reflection.Module element) System.Collections.Generic.IEnumerable`1<!!0>method GetCustomAttributes(type T, System.Reflection.MemberInfo element) System.Collections.Generic.IEnumerable`1<!!0>method GetCustomAttributes(type T, System.Reflection.ParameterInfo element) System.Collections.Generic.IEnumerable`1<!!0>method GetCustomAttributes(System.Reflection.MemberInfo element, System.Type attributeType, System.Boolean inherit) System.Collections.Generic.IEnumerable`1<System.Attribute>method GetCustomAttributes(System.Reflection.ParameterInfo element, System.Type attributeType, System.Boolean inherit) System.Collections.Generic.IEnumerable`1<System.Attribute>method GetCustomAttributes(type T, System.Reflection.MemberInfo element, System.Boolean inherit) System.Collections.Generic.IEnumerable`1<!!0>method GetCustomAttributes(type T, System.Reflection.ParameterInfo element, System.Boolean inherit) System.Collections.Generic.IEnumerable`1<!!0>
 				method IsDefined(System.Reflection.Assembly element, System.Type attributeType) System.Booleanmethod IsDefined(System.Reflection.Module element, System.Type attributeType) System.Booleanmethod IsDefined(System.Reflection.MemberInfo element, System.Type attributeType) System.Booleanmethod IsDefined(System.Reflection.ParameterInfo element, System.Type attributeType) System.Booleanmethod IsDefined(System.Reflection.MemberInfo element, System.Type attributeType, System.Boolean inherit) System.Booleanmethod IsDefined(System.Reflection.ParameterInfo element, System.Type attributeType, System.Boolean inherit) System.Boolean
@@ -3978,7 +3492,7 @@ module Dotnet {
 			}
 			class ImageFileMachine extends Enum {}
 			class InterfaceMapping extends ValueType {}
-			class IntrospectionExtensions extends Object {
+			static class IntrospectionExtensions extends Object {
 				method GetTypeInfo(System.Type type) System.Reflection.TypeInfo
 			}
 			class InvalidFilterCriteriaException extends ApplicationException {
@@ -4283,7 +3797,7 @@ module Dotnet {
 			}
 			class ResourceAttributes extends Enum {}
 			class ResourceLocation extends Enum {}
-			class RuntimeReflectionExtensions extends Object {
+			static class RuntimeReflectionExtensions extends Object {
 				method GetRuntimeFields(System.Type type) System.Collections.Generic.IEnumerable`1<System.Reflection.FieldInfo>
 				method GetRuntimeMethods(System.Type type) System.Collections.Generic.IEnumerable`1<System.Reflection.MethodInfo>
 				method GetRuntimeProperties(System.Type type) System.Collections.Generic.IEnumerable`1<System.Reflection.PropertyInfo>
@@ -4499,7 +4013,7 @@ module Dotnet {
 					constructor(System.String propertyName) System.Void
 					method get_PropertyName() System.String
 				}
-				class AsyncHelpers extends Object {
+				static class AsyncHelpers extends Object {
 					method AwaitAwaiter(type TAwaiter, !!0 awaiter) System.Void
 					method UnsafeAwaitAwaiter(type TAwaiter, !!0 awaiter) System.Void
 					method Await(type T, System.Threading.Tasks.Task`1<!!0> task) !!0method Await(System.Threading.Tasks.Task task) System.Voidmethod Await(type T, System.Threading.Tasks.ValueTask`1<!!0> task) !!0method Await(System.Threading.Tasks.ValueTask task) System.Voidmethod Await(System.Runtime.CompilerServices.ConfiguredTaskAwaitable configuredAwaitable) System.Voidmethod Await(System.Runtime.CompilerServices.ConfiguredValueTaskAwaitable configuredAwaitable) System.Voidmethod Await(type T, System.Runtime.CompilerServices.ConfiguredTaskAwaitable`1<!!0> configuredAwaitable) !!0method Await(type T, System.Runtime.CompilerServices.ConfiguredValueTaskAwaitable`1<!!0> configuredAwaitable) !!0
@@ -4779,7 +4293,7 @@ module Dotnet {
 					method get_ElementType() System.Type
 					method get_Length() System.Int32
 				}
-				class FormattableStringFactory extends Object {
+				static class FormattableStringFactory extends Object {
 					method Create(System.String format, System.Object[] arguments) System.FormattableString
 				}
 				class IAsyncStateMachine extends Object {
@@ -4831,8 +4345,8 @@ module Dotnet {
 				class IsByRefLikeAttribute extends Attribute {
 					constructor() System.Void
 				}
-				class IsConst extends Object {}
-				class IsExternalInit extends Object {}
+				static class IsConst extends Object {}
+				static class IsExternalInit extends Object {}
 				class IsReadOnlyAttribute extends Attribute {
 					constructor() System.Void
 				}
@@ -4843,7 +4357,7 @@ module Dotnet {
 				class IsUnmanagedAttribute extends Attribute {
 					constructor() System.Void
 				}
-				class IsVolatile extends Object {}
+				static class IsVolatile extends Object {}
 				class IteratorStateMachineAttribute extends StateMachineAttribute {
 					constructor(System.Type stateMachineType) System.Void
 				}
@@ -4923,12 +4437,12 @@ module Dotnet {
 					method get_WrapNonExceptionThrows() System.Boolean
 					method set_WrapNonExceptionThrows(System.Boolean value) System.Void
 				}
-				class RuntimeFeature extends Object {
+				static class RuntimeFeature extends Object {
 					method IsSupported(System.String feature) System.Boolean
 					method get_IsDynamicCodeSupported() System.Boolean
 					method get_IsDynamicCodeCompiled() System.Boolean
 				}
-				class RuntimeHelpers extends Object {
+				static class RuntimeHelpers extends Object {
 					class CleanupCode extends MulticastDelegate {
 						constructor(System.Object object, System.IntPtr method) System.Void
 						method Invoke(System.Object userData, System.Boolean exceptionThrown) System.Void
@@ -5043,7 +4557,7 @@ module Dotnet {
 					constructor(System.Type destination) System.Void
 					method get_Destination() System.Type
 				}
-				class Unsafe extends Object {
+				static class Unsafe extends Object {
 					method AsPointer(type T, !!0& value) System.Void*
 					method SizeOf(type T) System.Int32
 					method As(type T, System.Object o) !!0method As(type TFrom, type TTo, !!0& source) !!1&
@@ -5138,7 +4652,7 @@ module Dotnet {
 					method SetCurrentStackTrace(System.Exception source) System.Exception
 					method SetRemoteStackTrace(System.Exception source, System.String stackTrace) System.Exception
 				}
-				class ExceptionHandling extends Object {
+				static class ExceptionHandling extends Object {
 					method IsHandledByGlobalHandler(System.Exception ex) System.Boolean
 					method RaiseAppDomainUnhandledExceptionEvent(System.Object exception) System.Void
 				}
@@ -5168,7 +4682,7 @@ module Dotnet {
 						constructor(System.Type nativeType) System.Void
 						method get_NativeType() System.Type
 					}
-					class ReadOnlySpanMarshaller`2 (T, TUnmanagedElement) extends Object {
+					static class ReadOnlySpanMarshaller`2 (T, TUnmanagedElement) extends Object {
 						class ManagedToUnmanagedIn (T, TUnmanagedElement) extends ValueType {
 							method get_BufferSize() System.Int32
 							method FromManaged(System.ReadOnlySpan`1<!0> managed, System.Span`1<!1> buffer) System.Void
@@ -5185,13 +4699,13 @@ module Dotnet {
 							method GetManagedValuesDestination(System.Int32 numElements) System.Span`1<!0>
 							method Free() System.Void
 						}
-						class UnmanagedToManagedOut (T, TUnmanagedElement) extends Object {
+						static class UnmanagedToManagedOut (T, TUnmanagedElement) extends Object {
 							method AllocateContainerForUnmanagedElements(System.ReadOnlySpan`1<!0> managed, System.Int32& numElements) !1*
 							method GetManagedValuesSource(System.ReadOnlySpan`1<!0> managed) System.ReadOnlySpan`1<!0>
 							method GetUnmanagedValuesDestination(!1* unmanaged, System.Int32 numElements) System.Span`1<!1>
 						}
 					}
-					class SafeHandleMarshaller`1 (T) extends Object {
+					static class SafeHandleMarshaller`1 (T) extends Object {
 						class ManagedToUnmanagedIn (T) extends ValueType {
 							method FromManaged(!0 handle) System.Void
 							method ToUnmanaged() System.IntPtr
@@ -5213,7 +4727,7 @@ module Dotnet {
 							method Free() System.Void
 						}
 					}
-					class SpanMarshaller`2 (T, TUnmanagedElement) extends Object {
+					static class SpanMarshaller`2 (T, TUnmanagedElement) extends Object {
 						class ManagedToUnmanagedIn (T, TUnmanagedElement) extends ValueType {
 							method get_BufferSize() System.Int32
 							method FromManaged(System.Span`1<!0> managed, System.Span`1<!1> buffer) System.Void
@@ -5314,7 +4828,7 @@ module Dotnet {
 					method Equals(System.Object obj) System.Booleanmethod Equals(System.Runtime.InteropServices.GCHandle`1<!0> other) System.Boolean
 					method GetHashCode() System.Int32
 				}
-				class GCHandleExtensions extends Object {
+				static class GCHandleExtensions extends Object {
 					method GetAddressOfArrayData(type T, System.Runtime.InteropServices.PinnedGCHandle`1<!!0[]> handle) !!0*
 					method GetAddressOfStringData(System.Runtime.InteropServices.PinnedGCHandle`1<System.String> handle) System.Char*
 				}
@@ -5323,7 +4837,7 @@ module Dotnet {
 					constructor() System.Void
 				}
 				class LayoutKind extends Enum {}
-				class MemoryMarshal extends Object {
+				static class MemoryMarshal extends Object {
 					method GetArrayDataReference(type T, !!0[] array) !!0&method GetArrayDataReference(System.Array array) System.Byte&
 					method AsBytes(type T, System.Span`1<!!0> span) System.Span`1<System.Byte>method AsBytes(type T, System.ReadOnlySpan`1<!!0> span) System.ReadOnlySpan`1<System.Byte>
 					method AsMemory(type T, System.ReadOnlyMemory`1<!!0> memory) System.Memory`1<!!0>
@@ -5375,7 +4889,7 @@ module Dotnet {
 					method Equals(System.Object obj) System.Booleanmethod Equals(System.Runtime.InteropServices.PinnedGCHandle`1<!0> other) System.Boolean
 					method GetHashCode() System.Int32
 				}
-				class RuntimeInformation extends Object {
+				static class RuntimeInformation extends Object {
 					method get_RuntimeIdentifier() System.String
 					method IsOSPlatform(System.Runtime.InteropServices.OSPlatform osPlatform) System.Boolean
 					method get_ProcessArchitecture() System.Runtime.InteropServices.Architecture
@@ -5633,7 +5147,7 @@ module Dotnet {
 				class UnsupportedOSPlatformGuardAttribute extends OSPlatformAttribute {
 					constructor(System.String platformName) System.Void
 				}
-				class VersioningHelper extends Object {
+				static class VersioningHelper extends Object {
 					method MakeVersionSafeName(System.String name, System.Runtime.Versioning.ResourceScope from, System.Runtime.Versioning.ResourceScope to) System.Stringmethod MakeVersionSafeName(System.String name, System.Runtime.Versioning.ResourceScope from, System.Runtime.Versioning.ResourceScope to, System.Type type) System.String
 				}
 			}
@@ -5647,7 +5161,7 @@ module Dotnet {
 				constructor(System.String targetedPatchBand) System.Void
 				method get_TargetedPatchBand() System.String
 			}
-			class ControlledExecution extends Object {
+			static class ControlledExecution extends Object {
 				method Run(System.Action action, System.Threading.CancellationToken cancellationToken) System.Void
 			}
 			class DependentHandle extends ValueType {
@@ -5666,14 +5180,14 @@ module Dotnet {
 			}
 			class GCLargeObjectHeapCompactionMode extends Enum {}
 			class GCLatencyMode extends Enum {}
-			class GCSettings extends Object {
+			static class GCSettings extends Object {
 				method get_IsServerGC() System.Boolean
 				method get_LatencyMode() System.Runtime.GCLatencyMode
 				method set_LatencyMode(System.Runtime.GCLatencyMode value) System.Void
 				method get_LargeObjectHeapCompactionMode() System.Runtime.GCLargeObjectHeapCompactionMode
 				method set_LargeObjectHeapCompactionMode(System.Runtime.GCLargeObjectHeapCompactionMode value) System.Void
 			}
-			class JitInfo extends Object {
+			static class JitInfo extends Object {
 				method GetCompiledILBytes(System.Boolean currentThread) System.Int64
 				method GetCompiledMethodCount(System.Boolean currentThread) System.Int64
 				method GetCompilationTime(System.Boolean currentThread) System.TimeSpan
@@ -5685,7 +5199,7 @@ module Dotnet {
 				method AddMemoryFailPointReservation(System.Int64 size) System.Int64
 				method get_MemoryFailPointReservedMemory() System.UInt64
 			}
-			class ProfileOptimization extends Object {
+			static class ProfileOptimization extends Object {
 				method SetProfileRoot(System.String directoryPath) System.Void
 				method StartProfile(System.String profile) System.Void
 			}
@@ -5927,7 +5441,7 @@ module Dotnet {
 
 		Namespace 'Text' ('Dotnet.System.Text') {
 			Namespace 'Unicode' ('Dotnet.System.Text.Unicode') {
-				class Utf8 extends Object {
+				static class Utf8 extends Object {
 					class TryWriteInterpolatedStringHandler extends ValueType {
 						constructor(System.Int32 literalLength, System.Int32 formattedCount, System.Span`1<System.Byte> destination, System.Boolean& shouldAppend) System.Void
 						constructor(System.Int32 literalLength, System.Int32 formattedCount, System.Span`1<System.Byte> destination, System.IFormatProvider provider, System.Boolean& shouldAppend) System.Void
@@ -5944,7 +5458,7 @@ module Dotnet {
 				}
 			}
 
-			class Ascii extends Object {
+			static class Ascii extends Object {
 				method IsValid(System.ReadOnlySpan`1<System.Byte> value) System.Booleanmethod IsValid(System.ReadOnlySpan`1<System.Char> value) System.Booleanmethod IsValid(System.Byte value) System.Booleanmethod IsValid(System.Char value) System.Boolean
 				method ToUpper(System.ReadOnlySpan`1<System.Byte> source, System.Span`1<System.Byte> destination, System.Int32& bytesWritten) System.Buffers.OperationStatusmethod ToUpper(System.ReadOnlySpan`1<System.Char> source, System.Span`1<System.Char> destination, System.Int32& charsWritten) System.Buffers.OperationStatusmethod ToUpper(System.ReadOnlySpan`1<System.Byte> source, System.Span`1<System.Char> destination, System.Int32& charsWritten) System.Buffers.OperationStatusmethod ToUpper(System.ReadOnlySpan`1<System.Char> source, System.Span`1<System.Byte> destination, System.Int32& bytesWritten) System.Buffers.OperationStatus
 				method ToLower(System.ReadOnlySpan`1<System.Byte> source, System.Span`1<System.Byte> destination, System.Int32& bytesWritten) System.Buffers.OperationStatusmethod ToLower(System.ReadOnlySpan`1<System.Char> source, System.Span`1<System.Char> destination, System.Int32& charsWritten) System.Buffers.OperationStatusmethod ToLower(System.ReadOnlySpan`1<System.Byte> source, System.Span`1<System.Char> destination, System.Int32& charsWritten) System.Buffers.OperationStatusmethod ToLower(System.ReadOnlySpan`1<System.Char> source, System.Span`1<System.Byte> destination, System.Int32& bytesWritten) System.Buffers.OperationStatus
@@ -6208,7 +5722,6 @@ module Dotnet {
 				method GetEncodings() System.Collections.Generic.IEnumerable`1<System.Text.EncodingInfo>
 				method AddProvider(System.Text.EncodingProvider provider) System.Void
 				method GetEncodingFromProvider(System.Int32 codepage) System.Text.Encodingmethod GetEncodingFromProvider(System.String encodingName) System.Text.Encodingmethod GetEncodingFromProvider(System.Int32 codepage, System.Text.EncoderFallback enc, System.Text.DecoderFallback dec) System.Text.Encodingmethod GetEncodingFromProvider(System.String encodingName, System.Text.EncoderFallback enc, System.Text.DecoderFallback dec) System.Text.Encoding
-				method GetEncodingListFromProviders() System.Collections.Generic.Dictionary`2<System.Int32, System.Text.EncodingInfo>
 			}
 			class NormalizationForm extends Enum {}
 			class Rune extends ValueType {
@@ -6412,7 +5925,6 @@ module Dotnet {
 					method Dispose() System.Voidmethod Dispose(System.Boolean disposing) System.Void
 					method ScheduleAndStart(System.Boolean needsProtection) System.Void
 					method AddException(System.Object exceptionObject) System.Voidmethod AddException(System.Object exceptionObject, System.Boolean representsCancellation) System.Void
-					method GetExceptionDispatchInfos() System.Collections.Generic.List`1<System.Runtime.ExceptionServices.ExceptionDispatchInfo>
 					method GetCancellationExceptionDispatchInfo() System.Runtime.ExceptionServices.ExceptionDispatchInfo
 					method MarkExceptionsAsHandled() System.Void
 					method ThrowIfExceptional(System.Boolean includeTaskCanceledExceptions) System.Void
@@ -6445,7 +5957,6 @@ module Dotnet {
 					method ContinueWithCore(System.Threading.Tasks.Task continuationTask, System.Threading.Tasks.TaskScheduler scheduler, System.Threading.CancellationToken cancellationToken, System.Threading.Tasks.TaskContinuationOptions options) System.Void
 					method RemoveContinuation(System.Object continuationObject) System.Void
 					method WaitAll(System.Threading.Tasks.Task[] tasks) System.Voidmethod WaitAll(System.ReadOnlySpan`1<System.Threading.Tasks.Task> tasks) System.Voidmethod WaitAll(System.Threading.Tasks.Task[] tasks, System.TimeSpan timeout) System.Booleanmethod WaitAll(System.Threading.Tasks.Task[] tasks, System.Int32 millisecondsTimeout) System.Booleanmethod WaitAll(System.Threading.Tasks.Task[] tasks, System.Threading.CancellationToken cancellationToken) System.Voidmethod WaitAll(System.Threading.Tasks.Task[] tasks, System.Int32 millisecondsTimeout, System.Threading.CancellationToken cancellationToken) System.Booleanmethod WaitAll(System.Collections.Generic.IEnumerable`1<System.Threading.Tasks.Task> tasks, System.Threading.CancellationToken cancellationToken) System.Void
-					method AddExceptionsForCompletedTask(System.Collections.Generic.List`1<System.Exception>& exceptions, System.Threading.Tasks.Task t) System.Void
 					method WaitAny(System.Threading.Tasks.Task[] tasks) System.Int32method WaitAny(System.Threading.Tasks.Task[] tasks, System.TimeSpan timeout) System.Int32method WaitAny(System.Threading.Tasks.Task[] tasks, System.Threading.CancellationToken cancellationToken) System.Int32method WaitAny(System.Threading.Tasks.Task[] tasks, System.Int32 millisecondsTimeout) System.Int32method WaitAny(System.Threading.Tasks.Task[] tasks, System.Int32 millisecondsTimeout, System.Threading.CancellationToken cancellationToken) System.Int32
 					method FromResult(type TResult, !!0 result) System.Threading.Tasks.Task`1<!!0>
 					method FromException(System.Exception exception) System.Threading.Tasks.Taskmethod FromException(type TResult, System.Exception exception) System.Threading.Tasks.Task`1<!!0>
@@ -6476,7 +5987,7 @@ module Dotnet {
 					method ContinueWith(System.Action`1<System.Threading.Tasks.Task`1<!0>> continuationAction) System.Threading.Tasks.Taskmethod ContinueWith(System.Action`1<System.Threading.Tasks.Task`1<!0>> continuationAction, System.Threading.CancellationToken cancellationToken) System.Threading.Tasks.Taskmethod ContinueWith(System.Action`1<System.Threading.Tasks.Task`1<!0>> continuationAction, System.Threading.Tasks.TaskScheduler scheduler) System.Threading.Tasks.Taskmethod ContinueWith(System.Action`1<System.Threading.Tasks.Task`1<!0>> continuationAction, System.Threading.Tasks.TaskContinuationOptions continuationOptions) System.Threading.Tasks.Taskmethod ContinueWith(System.Action`1<System.Threading.Tasks.Task`1<!0>> continuationAction, System.Threading.CancellationToken cancellationToken, System.Threading.Tasks.TaskContinuationOptions continuationOptions, System.Threading.Tasks.TaskScheduler scheduler) System.Threading.Tasks.Taskmethod ContinueWith(System.Action`1<System.Threading.Tasks.Task`1<!0>> continuationAction, System.Threading.Tasks.TaskScheduler scheduler, System.Threading.CancellationToken cancellationToken, System.Threading.Tasks.TaskContinuationOptions continuationOptions) System.Threading.Tasks.Taskmethod ContinueWith(System.Action`2<System.Threading.Tasks.Task`1<!0>, System.Object> continuationAction, System.Object state) System.Threading.Tasks.Taskmethod ContinueWith(System.Action`2<System.Threading.Tasks.Task`1<!0>, System.Object> continuationAction, System.Object state, System.Threading.CancellationToken cancellationToken) System.Threading.Tasks.Taskmethod ContinueWith(System.Action`2<System.Threading.Tasks.Task`1<!0>, System.Object> continuationAction, System.Object state, System.Threading.Tasks.TaskScheduler scheduler) System.Threading.Tasks.Taskmethod ContinueWith(System.Action`2<System.Threading.Tasks.Task`1<!0>, System.Object> continuationAction, System.Object state, System.Threading.Tasks.TaskContinuationOptions continuationOptions) System.Threading.Tasks.Taskmethod ContinueWith(System.Action`2<System.Threading.Tasks.Task`1<!0>, System.Object> continuationAction, System.Object state, System.Threading.CancellationToken cancellationToken, System.Threading.Tasks.TaskContinuationOptions continuationOptions, System.Threading.Tasks.TaskScheduler scheduler) System.Threading.Tasks.Taskmethod ContinueWith(System.Action`2<System.Threading.Tasks.Task`1<!0>, System.Object> continuationAction, System.Object state, System.Threading.Tasks.TaskScheduler scheduler, System.Threading.CancellationToken cancellationToken, System.Threading.Tasks.TaskContinuationOptions continuationOptions) System.Threading.Tasks.Task
 					method <ConfigureAwait>g__ThrowForInvalidOptions|35_0(System.Threading.Tasks.ConfigureAwaitOptions options) System.Void
 				}
-				class TaskAsyncEnumerableExtensions extends Object {
+				static class TaskAsyncEnumerableExtensions extends Object {
 					method ConfigureAwait(System.IAsyncDisposable source, System.Boolean continueOnCapturedContext) System.Runtime.CompilerServices.ConfiguredAsyncDisposablemethod ConfigureAwait(type T, System.Collections.Generic.IAsyncEnumerable`1<!!0> source, System.Boolean continueOnCapturedContext) System.Runtime.CompilerServices.ConfiguredCancelableAsyncEnumerable`1<!!0>
 					method WithCancellation(type T, System.Collections.Generic.IAsyncEnumerable`1<!!0> source, System.Threading.CancellationToken cancellationToken) System.Runtime.CompilerServices.ConfiguredCancelableAsyncEnumerable`1<!!0>
 					method ToBlockingEnumerable(type T, System.Collections.Generic.IAsyncEnumerable`1<!!0> source, System.Threading.CancellationToken cancellationToken) System.Collections.Generic.IEnumerable`1<!!0>
@@ -6522,7 +6033,7 @@ module Dotnet {
 				}
 				class TaskContinuationOptions extends Enum {}
 				class TaskCreationOptions extends Enum {}
-				class TaskExtensions extends Object {
+				static class TaskExtensions extends Object {
 					method Unwrap(System.Threading.Tasks.Task`1<System.Threading.Tasks.Task> task) System.Threading.Tasks.Taskmethod Unwrap(type TResult, System.Threading.Tasks.Task`1<System.Threading.Tasks.Task`1<!!0>> task) System.Threading.Tasks.Task`1<!!0>
 				}
 				class TaskFactory extends Object {
@@ -6588,7 +6099,7 @@ module Dotnet {
 					constructor(System.Runtime.Serialization.SerializationInfo info, System.Runtime.Serialization.StreamingContext context) System.Void
 				}
 				class TaskStatus extends Enum {}
-				class TaskToAsyncResult extends Object {
+				static class TaskToAsyncResult extends Object {
 					method Begin(System.Threading.Tasks.Task task, System.AsyncCallback callback, System.Object state) System.IAsyncResult
 					method End(System.IAsyncResult asyncResult) System.Voidmethod End(type TResult, System.IAsyncResult asyncResult) !!0
 					method Unwrap(System.IAsyncResult asyncResult) System.Threading.Tasks.Taskmethod Unwrap(type TResult, System.IAsyncResult asyncResult) System.Threading.Tasks.Task`1<!!0>
@@ -6713,7 +6224,7 @@ module Dotnet {
 				method Dispose() System.Void
 				method Finalize() System.Void
 			}
-			class Timeout extends Object {}
+			static class Timeout extends Object {}
 			class Timer extends MarshalByRefObject {
 				constructor(System.Threading.TimerCallback callback, System.Object state, System.Int32 dueTime, System.Int32 period) System.Void
 				constructor(System.Threading.TimerCallback callback, System.Object state, System.Int32 dueTime, System.Int32 period, System.Boolean flowExecutionContext) System.Void
@@ -6749,7 +6260,7 @@ module Dotnet {
 				method <WaitOneCore>g____PInvoke|0_0(System.IntPtr __waitHandle_native, System.Int32 __millisecondsTimeout_native, System.Int32 __useTrivialWaits_native) System.Int32
 				method <WaitMultipleIgnoringSyncContext>g____PInvoke|2_0(System.IntPtr* __waitHandles_native, System.Int32 __numHandles_native, System.Int32 __waitAll_native, System.Int32 __millisecondsTimeout_native) System.Int32
 			}
-			class WaitHandleExtensions extends Object {
+			static class WaitHandleExtensions extends Object {
 				method GetSafeWaitHandle(System.Threading.WaitHandle waitHandle) Microsoft.Win32.SafeHandles.SafeWaitHandle
 				method SetSafeWaitHandle(System.Threading.WaitHandle waitHandle, Microsoft.Win32.SafeHandles.SafeWaitHandle value) System.Void
 			}
@@ -6955,7 +6466,7 @@ module Dotnet {
 			method BeginInvoke(!0 arg1, !1 arg2, !2 arg3, !3 arg4, !4 arg5, !5 arg6, !6 arg7, !7 arg8, !8 arg9, System.AsyncCallback callback, System.Object object) System.IAsyncResult
 			method EndInvoke(System.IAsyncResult result) System.Void
 		}
-		class Activator extends Object {
+		static class Activator extends Object {
 			method CreateInstance(System.Type type, System.Reflection.BindingFlags bindingAttr, System.Reflection.Binder binder, System.Object[] args, System.Globalization.CultureInfo culture) System.Objectmethod CreateInstance(System.Type type, System.Object[] args) System.Objectmethod CreateInstance(System.Type type, System.Object[] args, System.Object[] activationAttributes) System.Objectmethod CreateInstance(System.Type type) System.Objectmethod CreateInstance(System.Type type, System.Reflection.BindingFlags bindingAttr, System.Reflection.Binder binder, System.Object[] args, System.Globalization.CultureInfo culture, System.Object[] activationAttributes) System.Objectmethod CreateInstance(System.String assemblyName, System.String typeName) System.Runtime.Remoting.ObjectHandlemethod CreateInstance(System.String assemblyName, System.String typeName, System.Boolean ignoreCase, System.Reflection.BindingFlags bindingAttr, System.Reflection.Binder binder, System.Object[] args, System.Globalization.CultureInfo culture, System.Object[] activationAttributes) System.Runtime.Remoting.ObjectHandlemethod CreateInstance(System.String assemblyName, System.String typeName, System.Object[] activationAttributes) System.Runtime.Remoting.ObjectHandlemethod CreateInstance(System.Type type, System.Boolean nonPublic) System.Objectmethod CreateInstance(System.Type type, System.Boolean nonPublic, System.Boolean wrapExceptions) System.Objectmethod CreateInstance(type T) !!0
 			method CreateInstanceFrom(System.String assemblyFile, System.String typeName) System.Runtime.Remoting.ObjectHandlemethod CreateInstanceFrom(System.String assemblyFile, System.String typeName, System.Object[] activationAttributes) System.Runtime.Remoting.ObjectHandlemethod CreateInstanceFrom(System.String assemblyFile, System.String typeName, System.Boolean ignoreCase, System.Reflection.BindingFlags bindingAttr, System.Reflection.Binder binder, System.Object[] args, System.Globalization.CultureInfo culture, System.Object[] activationAttributes) System.Runtime.Remoting.ObjectHandle
 		}
@@ -6967,8 +6478,6 @@ module Dotnet {
 			constructor(System.Exception[] innerExceptions) System.Void
 			constructor(System.String message, System.Collections.Generic.IEnumerable`1<System.Exception> innerExceptions) System.Void
 			constructor(System.String message, System.Exception[] innerExceptions) System.Void
-			constructor(System.Collections.Generic.List`1<System.Runtime.ExceptionServices.ExceptionDispatchInfo> innerExceptionInfos) System.Void
-			constructor(System.String message, System.Collections.Generic.List`1<System.Runtime.ExceptionServices.ExceptionDispatchInfo> innerExceptionInfos) System.Void
 			constructor(System.Runtime.Serialization.SerializationInfo info, System.Runtime.Serialization.StreamingContext context) System.Void
 			method GetObjectData(System.Runtime.Serialization.SerializationInfo info, System.Runtime.Serialization.StreamingContext context) System.Void
 			method GetBaseException() System.Exception
@@ -6979,7 +6488,7 @@ module Dotnet {
 			method get_InnerExceptionCount() System.Int32
 			method get_InternalInnerExceptions() System.Exception[]
 		}
-		class AppContext extends Object {
+		static class AppContext extends Object {
 			method get_BaseDirectory() System.String
 			method get_TargetFrameworkName() System.String
 			method GetData(System.String name) System.Object
@@ -7280,7 +6789,7 @@ module Dotnet {
 			method get_FusionLog() System.String
 		}
 		class Base64FormattingOptions extends Enum {}
-		class BitConverter extends Object {
+		static class BitConverter extends Object {
 			method GetBytes(System.Boolean value) System.Byte[]method GetBytes(System.Char value) System.Byte[]method GetBytes(System.Int16 value) System.Byte[]method GetBytes(System.Int32 value) System.Byte[]method GetBytes(System.Int64 value) System.Byte[]method GetBytes(System.Int128 value) System.Byte[]method GetBytes(System.UInt16 value) System.Byte[]method GetBytes(System.UInt32 value) System.Byte[]method GetBytes(System.UInt64 value) System.Byte[]method GetBytes(System.UInt128 value) System.Byte[]method GetBytes(System.Half value) System.Byte[]method GetBytes(System.Single value) System.Byte[]method GetBytes(System.Double value) System.Byte[]
 			method TryWriteBytes(System.Span`1<System.Byte> destination, System.Boolean value) System.Booleanmethod TryWriteBytes(System.Span`1<System.Byte> destination, System.Char value) System.Booleanmethod TryWriteBytes(System.Span`1<System.Byte> destination, System.Int16 value) System.Booleanmethod TryWriteBytes(System.Span`1<System.Byte> destination, System.Int32 value) System.Booleanmethod TryWriteBytes(System.Span`1<System.Byte> destination, System.Int64 value) System.Booleanmethod TryWriteBytes(System.Span`1<System.Byte> destination, System.Int128 value) System.Booleanmethod TryWriteBytes(System.Span`1<System.Byte> destination, System.UInt16 value) System.Booleanmethod TryWriteBytes(System.Span`1<System.Byte> destination, System.UInt32 value) System.Booleanmethod TryWriteBytes(System.Span`1<System.Byte> destination, System.UInt64 value) System.Booleanmethod TryWriteBytes(System.Span`1<System.Byte> destination, System.UInt128 value) System.Booleanmethod TryWriteBytes(System.Span`1<System.Byte> destination, System.Half value) System.Booleanmethod TryWriteBytes(System.Span`1<System.Byte> destination, System.Single value) System.Booleanmethod TryWriteBytes(System.Span`1<System.Byte> destination, System.Double value) System.Boolean
 			method ToChar(System.Byte[] value, System.Int32 startIndex) System.Charmethod ToChar(System.ReadOnlySpan`1<System.Byte> value) System.Char
@@ -7323,7 +6832,7 @@ module Dotnet {
 			method GetTypeCode() System.TypeCode
 			method <TryParse>g__TryParseUncommon|20_0(System.ReadOnlySpan`1<System.Char> value, System.Boolean& result) System.Boolean
 		}
-		class Buffer extends Object {
+		static class Buffer extends Object {
 			method Memcpy(System.Byte* dest, System.Byte* src, System.Int32 len) System.Voidmethod Memcpy(System.Byte* pDest, System.Int32 destIndex, System.Byte[] src, System.Int32 srcIndex, System.Int32 len) System.Void
 			method BlockCopy(System.Array src, System.Int32 srcOffset, System.Array dst, System.Int32 dstOffset, System.Int32 count) System.Void
 			method ByteLength(System.Array array) System.Int32
@@ -7446,7 +6955,7 @@ module Dotnet {
 		class ContextStaticAttribute extends Attribute {
 			constructor() System.Void
 		}
-		class Convert extends Object {
+		static class Convert extends Object {
 			method GetTypeCode(System.Object value) System.TypeCode
 			method IsDBNull(System.Object value) System.Boolean
 			method ChangeType(System.Object value, System.TypeCode typeCode) System.Objectmethod ChangeType(System.Object value, System.TypeCode typeCode, System.IFormatProvider provider) System.Objectmethod ChangeType(System.Object value, System.Type conversionType) System.Objectmethod ChangeType(System.Object value, System.Type conversionType, System.IFormatProvider provider) System.Object
@@ -7993,7 +7502,7 @@ module Dotnet {
 			method AreSequentialFromZero(type TStorage, !!0[] values) System.Boolean
 			method AreSorted(type TStorage, !!0[] values) System.Boolean
 		}
-		class Environment extends Object {
+		static class Environment extends Object {
 			class ProcessCpuUsage extends ValueType {
 				method get_UserTime() System.TimeSpan
 				method get_PrivilegedTime() System.TimeSpan
@@ -8231,7 +7740,7 @@ module Dotnet {
 			method BeginInvoke(!0 arg1, !1 arg2, !2 arg3, !3 arg4, !4 arg5, !5 arg6, !6 arg7, !7 arg8, System.AsyncCallback callback, System.Object object) System.IAsyncResult
 			method EndInvoke(System.IAsyncResult result) !8
 		}
-		class GC extends Object {
+		static class GC extends Object {
 			method GetGCMemoryInfo() System.GCMemoryInfomethod GetGCMemoryInfo(System.GCKind kind) System.GCMemoryInfo
 			method _StartNoGCRegion(System.Int64 totalSize, System.Boolean lohSizeKnown, System.Int64 lohSize, System.Boolean disallowFullBlockingGC) System.Int32
 			method _EndNoGCRegion() System.Int32
@@ -8826,7 +8335,7 @@ module Dotnet {
 			method InitializeLifetimeService() System.Object
 			method MemberwiseClone(System.Boolean cloneIdentity) System.MarshalByRefObject
 		}
-		class Math extends Object {
+		static class Math extends Object {
 			method Acos(System.Double d) System.Double
 			method Acosh(System.Double d) System.Double
 			method Asin(System.Double d) System.Double
@@ -8879,7 +8388,7 @@ module Dotnet {
 			method <BigMul>g__SoftwareFallback|49_0(System.UInt64 a, System.UInt64 b, System.UInt64& low) System.UInt64
 			method <CopySign>g__SoftwareFallback|55_0(System.Double x, System.Double y) System.Double
 		}
-		class MathF extends Object {
+		static class MathF extends Object {
 			method Acos(System.Single x) System.Single
 			method Acosh(System.Single x) System.Single
 			method Asin(System.Single x) System.Single
@@ -9058,7 +8567,7 @@ module Dotnet {
 			constructor(System.String message, System.Exception innerException) System.Void
 			constructor(System.Runtime.Serialization.SerializationInfo info, System.Runtime.Serialization.StreamingContext context) System.Void
 		}
-		class Nullable extends Object {
+		static class Nullable extends Object {
 			method GetUnderlyingType(System.Type nullableType) System.Type
 		}
 		class Nullable`1 (T) extends ValueType {
@@ -9612,7 +9121,7 @@ module Dotnet {
 			method GetHashCode(System.Object obj) System.Int32method GetHashCode(System.String obj) System.Int32
 		}
 		class StringComparison extends Enum {}
-		class StringNormalizationExtensions extends Object {
+		static class StringNormalizationExtensions extends Object {
 			method IsNormalized(System.String strInput) System.Booleanmethod IsNormalized(System.String strInput, System.Text.NormalizationForm normalizationForm) System.Booleanmethod IsNormalized(System.ReadOnlySpan`1<System.Char> source, System.Text.NormalizationForm normalizationForm) System.Boolean
 			method Normalize(System.String strInput) System.Stringmethod Normalize(System.String strInput, System.Text.NormalizationForm normalizationForm) System.String
 			method TryNormalize(System.ReadOnlySpan`1<System.Char> source, System.Span`1<System.Char> destination, System.Int32& charsWritten, System.Text.NormalizationForm normalizationForm) System.Boolean
@@ -9834,7 +9343,7 @@ module Dotnet {
 			constructor(System.String message, System.Exception innerException) System.Void
 			constructor(System.Runtime.Serialization.SerializationInfo info, System.Runtime.Serialization.StreamingContext context) System.Void
 		}
-		class Tuple extends Object {
+		static class Tuple extends Object {
 			method Create(type T1, !!0 item1) System.Tuple`1<!!0>method Create(type T1, type T2, !!0 item1, !!1 item2) System.Tuple`2<!!0, !!1>method Create(type T1, type T2, type T3, !!0 item1, !!1 item2, !!2 item3) System.Tuple`3<!!0, !!1, !!2>method Create(type T1, type T2, type T3, type T4, !!0 item1, !!1 item2, !!2 item3, !!3 item4) System.Tuple`4<!!0, !!1, !!2, !!3>method Create(type T1, type T2, type T3, type T4, type T5, !!0 item1, !!1 item2, !!2 item3, !!3 item4, !!4 item5) System.Tuple`5<!!0, !!1, !!2, !!3, !!4>method Create(type T1, type T2, type T3, type T4, type T5, type T6, !!0 item1, !!1 item2, !!2 item3, !!3 item4, !!4 item5, !!5 item6) System.Tuple`6<!!0, !!1, !!2, !!3, !!4, !!5>method Create(type T1, type T2, type T3, type T4, type T5, type T6, type T7, !!0 item1, !!1 item2, !!2 item3, !!3 item4, !!4 item5, !!5 item6, !!6 item7) System.Tuple`7<!!0, !!1, !!2, !!3, !!4, !!5, !!6>method Create(type T1, type T2, type T3, type T4, type T5, type T6, type T7, type T8, !!0 item1, !!1 item2, !!2 item3, !!3 item4, !!4 item5, !!5 item6, !!6 item7, !!7 item8) System.Tuple`8<!!0, !!1, !!2, !!3, !!4, !!5, !!6, System.Tuple`1<!!7>>
 			method CombineHashCodes(System.Int32 h1, System.Int32 h2) System.Int32method CombineHashCodes(System.Int32 h1, System.Int32 h2, System.Int32 h3) System.Int32method CombineHashCodes(System.Int32 h1, System.Int32 h2, System.Int32 h3, System.Int32 h4) System.Int32method CombineHashCodes(System.Int32 h1, System.Int32 h2, System.Int32 h3, System.Int32 h4, System.Int32 h5) System.Int32method CombineHashCodes(System.Int32 h1, System.Int32 h2, System.Int32 h3, System.Int32 h4, System.Int32 h5, System.Int32 h6) System.Int32method CombineHashCodes(System.Int32 h1, System.Int32 h2, System.Int32 h3, System.Int32 h4, System.Int32 h5, System.Int32 h6, System.Int32 h7) System.Int32method CombineHashCodes(System.Int32 h1, System.Int32 h2, System.Int32 h3, System.Int32 h4, System.Int32 h5, System.Int32 h6, System.Int32 h7, System.Int32 h8) System.Int32
 		}
@@ -9922,7 +9431,7 @@ module Dotnet {
 			method GetHashCode() System.Int32
 			method ToString() System.String
 		}
-		class TupleExtensions extends Object {
+		static class TupleExtensions extends Object {
 			method Deconstruct(type T1, System.Tuple`1<!!0> value, !!0& item1) System.Voidmethod Deconstruct(type T1, type T2, System.Tuple`2<!!0, !!1> value, !!0& item1, !!1& item2) System.Voidmethod Deconstruct(type T1, type T2, type T3, System.Tuple`3<!!0, !!1, !!2> value, !!0& item1, !!1& item2, !!2& item3) System.Voidmethod Deconstruct(type T1, type T2, type T3, type T4, System.Tuple`4<!!0, !!1, !!2, !!3> value, !!0& item1, !!1& item2, !!2& item3, !!3& item4) System.Voidmethod Deconstruct(type T1, type T2, type T3, type T4, type T5, System.Tuple`5<!!0, !!1, !!2, !!3, !!4> value, !!0& item1, !!1& item2, !!2& item3, !!3& item4, !!4& item5) System.Voidmethod Deconstruct(type T1, type T2, type T3, type T4, type T5, type T6, System.Tuple`6<!!0, !!1, !!2, !!3, !!4, !!5> value, !!0& item1, !!1& item2, !!2& item3, !!3& item4, !!4& item5, !!5& item6) System.Voidmethod Deconstruct(type T1, type T2, type T3, type T4, type T5, type T6, type T7, System.Tuple`7<!!0, !!1, !!2, !!3, !!4, !!5, !!6> value, !!0& item1, !!1& item2, !!2& item3, !!3& item4, !!4& item5, !!5& item6, !!6& item7) System.Voidmethod Deconstruct(type T1, type T2, type T3, type T4, type T5, type T6, type T7, type T8, System.Tuple`8<!!0, !!1, !!2, !!3, !!4, !!5, !!6, System.Tuple`1<!!7>> value, !!0& item1, !!1& item2, !!2& item3, !!3& item4, !!4& item5, !!5& item6, !!6& item7, !!7& item8) System.Voidmethod Deconstruct(type T1, type T2, type T3, type T4, type T5, type T6, type T7, type T8, type T9, System.Tuple`8<!!0, !!1, !!2, !!3, !!4, !!5, !!6, System.Tuple`2<!!7, !!8>> value, !!0& item1, !!1& item2, !!2& item3, !!3& item4, !!4& item5, !!5& item6, !!6& item7, !!7& item8, !!8& item9) System.Voidmethod Deconstruct(type T1, type T2, type T3, type T4, type T5, type T6, type T7, type T8, type T9, type T10, System.Tuple`8<!!0, !!1, !!2, !!3, !!4, !!5, !!6, System.Tuple`3<!!7, !!8, !!9>> value, !!0& item1, !!1& item2, !!2& item3, !!3& item4, !!4& item5, !!5& item6, !!6& item7, !!7& item8, !!8& item9, !!9& item10) System.Voidmethod Deconstruct(type T1, type T2, type T3, type T4, type T5, type T6, type T7, type T8, type T9, type T10, type T11, System.Tuple`8<!!0, !!1, !!2, !!3, !!4, !!5, !!6, System.Tuple`4<!!7, !!8, !!9, !!10>> value, !!0& item1, !!1& item2, !!2& item3, !!3& item4, !!4& item5, !!5& item6, !!6& item7, !!7& item8, !!8& item9, !!9& item10, !!10& item11) System.Voidmethod Deconstruct(type T1, type T2, type T3, type T4, type T5, type T6, type T7, type T8, type T9, type T10, type T11, type T12, System.Tuple`8<!!0, !!1, !!2, !!3, !!4, !!5, !!6, System.Tuple`5<!!7, !!8, !!9, !!10, !!11>> value, !!0& item1, !!1& item2, !!2& item3, !!3& item4, !!4& item5, !!5& item6, !!6& item7, !!7& item8, !!8& item9, !!9& item10, !!10& item11, !!11& item12) System.Voidmethod Deconstruct(type T1, type T2, type T3, type T4, type T5, type T6, type T7, type T8, type T9, type T10, type T11, type T12, type T13, System.Tuple`8<!!0, !!1, !!2, !!3, !!4, !!5, !!6, System.Tuple`6<!!7, !!8, !!9, !!10, !!11, !!12>> value, !!0& item1, !!1& item2, !!2& item3, !!3& item4, !!4& item5, !!5& item6, !!6& item7, !!7& item8, !!8& item9, !!9& item10, !!10& item11, !!11& item12, !!12& item13) System.Voidmethod Deconstruct(type T1, type T2, type T3, type T4, type T5, type T6, type T7, type T8, type T9, type T10, type T11, type T12, type T13, type T14, System.Tuple`8<!!0, !!1, !!2, !!3, !!4, !!5, !!6, System.Tuple`7<!!7, !!8, !!9, !!10, !!11, !!12, !!13>> value, !!0& item1, !!1& item2, !!2& item3, !!3& item4, !!4& item5, !!5& item6, !!6& item7, !!7& item8, !!8& item9, !!9& item10, !!10& item11, !!11& item12, !!12& item13, !!13& item14) System.Voidmethod Deconstruct(type T1, type T2, type T3, type T4, type T5, type T6, type T7, type T8, type T9, type T10, type T11, type T12, type T13, type T14, type T15, System.Tuple`8<!!0, !!1, !!2, !!3, !!4, !!5, !!6, System.Tuple`8<!!7, !!8, !!9, !!10, !!11, !!12, !!13, System.Tuple`1<!!14>>> value, !!0& item1, !!1& item2, !!2& item3, !!3& item4, !!4& item5, !!5& item6, !!6& item7, !!7& item8, !!8& item9, !!9& item10, !!10& item11, !!11& item12, !!12& item13, !!13& item14, !!14& item15) System.Voidmethod Deconstruct(type T1, type T2, type T3, type T4, type T5, type T6, type T7, type T8, type T9, type T10, type T11, type T12, type T13, type T14, type T15, type T16, System.Tuple`8<!!0, !!1, !!2, !!3, !!4, !!5, !!6, System.Tuple`8<!!7, !!8, !!9, !!10, !!11, !!12, !!13, System.Tuple`2<!!14, !!15>>> value, !!0& item1, !!1& item2, !!2& item3, !!3& item4, !!4& item5, !!5& item6, !!6& item7, !!7& item8, !!8& item9, !!9& item10, !!10& item11, !!11& item12, !!12& item13, !!13& item14, !!14& item15, !!15& item16) System.Voidmethod Deconstruct(type T1, type T2, type T3, type T4, type T5, type T6, type T7, type T8, type T9, type T10, type T11, type T12, type T13, type T14, type T15, type T16, type T17, System.Tuple`8<!!0, !!1, !!2, !!3, !!4, !!5, !!6, System.Tuple`8<!!7, !!8, !!9, !!10, !!11, !!12, !!13, System.Tuple`3<!!14, !!15, !!16>>> value, !!0& item1, !!1& item2, !!2& item3, !!3& item4, !!4& item5, !!5& item6, !!6& item7, !!7& item8, !!8& item9, !!9& item10, !!10& item11, !!11& item12, !!12& item13, !!13& item14, !!14& item15, !!15& item16, !!16& item17) System.Voidmethod Deconstruct(type T1, type T2, type T3, type T4, type T5, type T6, type T7, type T8, type T9, type T10, type T11, type T12, type T13, type T14, type T15, type T16, type T17, type T18, System.Tuple`8<!!0, !!1, !!2, !!3, !!4, !!5, !!6, System.Tuple`8<!!7, !!8, !!9, !!10, !!11, !!12, !!13, System.Tuple`4<!!14, !!15, !!16, !!17>>> value, !!0& item1, !!1& item2, !!2& item3, !!3& item4, !!4& item5, !!5& item6, !!6& item7, !!7& item8, !!8& item9, !!9& item10, !!10& item11, !!11& item12, !!12& item13, !!13& item14, !!14& item15, !!15& item16, !!16& item17, !!17& item18) System.Voidmethod Deconstruct(type T1, type T2, type T3, type T4, type T5, type T6, type T7, type T8, type T9, type T10, type T11, type T12, type T13, type T14, type T15, type T16, type T17, type T18, type T19, System.Tuple`8<!!0, !!1, !!2, !!3, !!4, !!5, !!6, System.Tuple`8<!!7, !!8, !!9, !!10, !!11, !!12, !!13, System.Tuple`5<!!14, !!15, !!16, !!17, !!18>>> value, !!0& item1, !!1& item2, !!2& item3, !!3& item4, !!4& item5, !!5& item6, !!6& item7, !!7& item8, !!8& item9, !!9& item10, !!10& item11, !!11& item12, !!12& item13, !!13& item14, !!14& item15, !!15& item16, !!16& item17, !!17& item18, !!18& item19) System.Voidmethod Deconstruct(type T1, type T2, type T3, type T4, type T5, type T6, type T7, type T8, type T9, type T10, type T11, type T12, type T13, type T14, type T15, type T16, type T17, type T18, type T19, type T20, System.Tuple`8<!!0, !!1, !!2, !!3, !!4, !!5, !!6, System.Tuple`8<!!7, !!8, !!9, !!10, !!11, !!12, !!13, System.Tuple`6<!!14, !!15, !!16, !!17, !!18, !!19>>> value, !!0& item1, !!1& item2, !!2& item3, !!3& item4, !!4& item5, !!5& item6, !!6& item7, !!7& item8, !!8& item9, !!9& item10, !!10& item11, !!11& item12, !!12& item13, !!13& item14, !!14& item15, !!15& item16, !!16& item17, !!17& item18, !!18& item19, !!19& item20) System.Voidmethod Deconstruct(type T1, type T2, type T3, type T4, type T5, type T6, type T7, type T8, type T9, type T10, type T11, type T12, type T13, type T14, type T15, type T16, type T17, type T18, type T19, type T20, type T21, System.Tuple`8<!!0, !!1, !!2, !!3, !!4, !!5, !!6, System.Tuple`8<!!7, !!8, !!9, !!10, !!11, !!12, !!13, System.Tuple`7<!!14, !!15, !!16, !!17, !!18, !!19, !!20>>> value, !!0& item1, !!1& item2, !!2& item3, !!3& item4, !!4& item5, !!5& item6, !!6& item7, !!7& item8, !!8& item9, !!9& item10, !!10& item11, !!11& item12, !!12& item13, !!13& item14, !!14& item15, !!15& item16, !!16& item17, !!17& item18, !!18& item19, !!19& item20, !!20& item21) System.Void
 			method ToValueTuple(type T1, System.Tuple`1<!!0> value) System.ValueTuple`1<!!0>method ToValueTuple(type T1, type T2, System.Tuple`2<!!0, !!1> value) System.ValueTuple`2<!!0, !!1>method ToValueTuple(type T1, type T2, type T3, System.Tuple`3<!!0, !!1, !!2> value) System.ValueTuple`3<!!0, !!1, !!2>method ToValueTuple(type T1, type T2, type T3, type T4, System.Tuple`4<!!0, !!1, !!2, !!3> value) System.ValueTuple`4<!!0, !!1, !!2, !!3>method ToValueTuple(type T1, type T2, type T3, type T4, type T5, System.Tuple`5<!!0, !!1, !!2, !!3, !!4> value) System.ValueTuple`5<!!0, !!1, !!2, !!3, !!4>method ToValueTuple(type T1, type T2, type T3, type T4, type T5, type T6, System.Tuple`6<!!0, !!1, !!2, !!3, !!4, !!5> value) System.ValueTuple`6<!!0, !!1, !!2, !!3, !!4, !!5>method ToValueTuple(type T1, type T2, type T3, type T4, type T5, type T6, type T7, System.Tuple`7<!!0, !!1, !!2, !!3, !!4, !!5, !!6> value) System.ValueTuple`7<!!0, !!1, !!2, !!3, !!4, !!5, !!6>method ToValueTuple(type T1, type T2, type T3, type T4, type T5, type T6, type T7, type T8, System.Tuple`8<!!0, !!1, !!2, !!3, !!4, !!5, !!6, System.Tuple`1<!!7>> value) System.ValueTuple`8<!!0, !!1, !!2, !!3, !!4, !!5, !!6, System.ValueTuple`1<!!7>>method ToValueTuple(type T1, type T2, type T3, type T4, type T5, type T6, type T7, type T8, type T9, System.Tuple`8<!!0, !!1, !!2, !!3, !!4, !!5, !!6, System.Tuple`2<!!7, !!8>> value) System.ValueTuple`8<!!0, !!1, !!2, !!3, !!4, !!5, !!6, System.ValueTuple`2<!!7, !!8>>method ToValueTuple(type T1, type T2, type T3, type T4, type T5, type T6, type T7, type T8, type T9, type T10, System.Tuple`8<!!0, !!1, !!2, !!3, !!4, !!5, !!6, System.Tuple`3<!!7, !!8, !!9>> value) System.ValueTuple`8<!!0, !!1, !!2, !!3, !!4, !!5, !!6, System.ValueTuple`3<!!7, !!8, !!9>>method ToValueTuple(type T1, type T2, type T3, type T4, type T5, type T6, type T7, type T8, type T9, type T10, type T11, System.Tuple`8<!!0, !!1, !!2, !!3, !!4, !!5, !!6, System.Tuple`4<!!7, !!8, !!9, !!10>> value) System.ValueTuple`8<!!0, !!1, !!2, !!3, !!4, !!5, !!6, System.ValueTuple`4<!!7, !!8, !!9, !!10>>method ToValueTuple(type T1, type T2, type T3, type T4, type T5, type T6, type T7, type T8, type T9, type T10, type T11, type T12, System.Tuple`8<!!0, !!1, !!2, !!3, !!4, !!5, !!6, System.Tuple`5<!!7, !!8, !!9, !!10, !!11>> value) System.ValueTuple`8<!!0, !!1, !!2, !!3, !!4, !!5, !!6, System.ValueTuple`5<!!7, !!8, !!9, !!10, !!11>>method ToValueTuple(type T1, type T2, type T3, type T4, type T5, type T6, type T7, type T8, type T9, type T10, type T11, type T12, type T13, System.Tuple`8<!!0, !!1, !!2, !!3, !!4, !!5, !!6, System.Tuple`6<!!7, !!8, !!9, !!10, !!11, !!12>> value) System.ValueTuple`8<!!0, !!1, !!2, !!3, !!4, !!5, !!6, System.ValueTuple`6<!!7, !!8, !!9, !!10, !!11, !!12>>method ToValueTuple(type T1, type T2, type T3, type T4, type T5, type T6, type T7, type T8, type T9, type T10, type T11, type T12, type T13, type T14, System.Tuple`8<!!0, !!1, !!2, !!3, !!4, !!5, !!6, System.Tuple`7<!!7, !!8, !!9, !!10, !!11, !!12, !!13>> value) System.ValueTuple`8<!!0, !!1, !!2, !!3, !!4, !!5, !!6, System.ValueTuple`7<!!7, !!8, !!9, !!10, !!11, !!12, !!13>>method ToValueTuple(type T1, type T2, type T3, type T4, type T5, type T6, type T7, type T8, type T9, type T10, type T11, type T12, type T13, type T14, type T15, System.Tuple`8<!!0, !!1, !!2, !!3, !!4, !!5, !!6, System.Tuple`8<!!7, !!8, !!9, !!10, !!11, !!12, !!13, System.Tuple`1<!!14>>> value) System.ValueTuple`8<!!0, !!1, !!2, !!3, !!4, !!5, !!6, System.ValueTuple`8<!!7, !!8, !!9, !!10, !!11, !!12, !!13, System.ValueTuple`1<!!14>>>method ToValueTuple(type T1, type T2, type T3, type T4, type T5, type T6, type T7, type T8, type T9, type T10, type T11, type T12, type T13, type T14, type T15, type T16, System.Tuple`8<!!0, !!1, !!2, !!3, !!4, !!5, !!6, System.Tuple`8<!!7, !!8, !!9, !!10, !!11, !!12, !!13, System.Tuple`2<!!14, !!15>>> value) System.ValueTuple`8<!!0, !!1, !!2, !!3, !!4, !!5, !!6, System.ValueTuple`8<!!7, !!8, !!9, !!10, !!11, !!12, !!13, System.ValueTuple`2<!!14, !!15>>>method ToValueTuple(type T1, type T2, type T3, type T4, type T5, type T6, type T7, type T8, type T9, type T10, type T11, type T12, type T13, type T14, type T15, type T16, type T17, System.Tuple`8<!!0, !!1, !!2, !!3, !!4, !!5, !!6, System.Tuple`8<!!7, !!8, !!9, !!10, !!11, !!12, !!13, System.Tuple`3<!!14, !!15, !!16>>> value) System.ValueTuple`8<!!0, !!1, !!2, !!3, !!4, !!5, !!6, System.ValueTuple`8<!!7, !!8, !!9, !!10, !!11, !!12, !!13, System.ValueTuple`3<!!14, !!15, !!16>>>method ToValueTuple(type T1, type T2, type T3, type T4, type T5, type T6, type T7, type T8, type T9, type T10, type T11, type T12, type T13, type T14, type T15, type T16, type T17, type T18, System.Tuple`8<!!0, !!1, !!2, !!3, !!4, !!5, !!6, System.Tuple`8<!!7, !!8, !!9, !!10, !!11, !!12, !!13, System.Tuple`4<!!14, !!15, !!16, !!17>>> value) System.ValueTuple`8<!!0, !!1, !!2, !!3, !!4, !!5, !!6, System.ValueTuple`8<!!7, !!8, !!9, !!10, !!11, !!12, !!13, System.ValueTuple`4<!!14, !!15, !!16, !!17>>>method ToValueTuple(type T1, type T2, type T3, type T4, type T5, type T6, type T7, type T8, type T9, type T10, type T11, type T12, type T13, type T14, type T15, type T16, type T17, type T18, type T19, System.Tuple`8<!!0, !!1, !!2, !!3, !!4, !!5, !!6, System.Tuple`8<!!7, !!8, !!9, !!10, !!11, !!12, !!13, System.Tuple`5<!!14, !!15, !!16, !!17, !!18>>> value) System.ValueTuple`8<!!0, !!1, !!2, !!3, !!4, !!5, !!6, System.ValueTuple`8<!!7, !!8, !!9, !!10, !!11, !!12, !!13, System.ValueTuple`5<!!14, !!15, !!16, !!17, !!18>>>method ToValueTuple(type T1, type T2, type T3, type T4, type T5, type T6, type T7, type T8, type T9, type T10, type T11, type T12, type T13, type T14, type T15, type T16, type T17, type T18, type T19, type T20, System.Tuple`8<!!0, !!1, !!2, !!3, !!4, !!5, !!6, System.Tuple`8<!!7, !!8, !!9, !!10, !!11, !!12, !!13, System.Tuple`6<!!14, !!15, !!16, !!17, !!18, !!19>>> value) System.ValueTuple`8<!!0, !!1, !!2, !!3, !!4, !!5, !!6, System.ValueTuple`8<!!7, !!8, !!9, !!10, !!11, !!12, !!13, System.ValueTuple`6<!!14, !!15, !!16, !!17, !!18, !!19>>>method ToValueTuple(type T1, type T2, type T3, type T4, type T5, type T6, type T7, type T8, type T9, type T10, type T11, type T12, type T13, type T14, type T15, type T16, type T17, type T18, type T19, type T20, type T21, System.Tuple`8<!!0, !!1, !!2, !!3, !!4, !!5, !!6, System.Tuple`8<!!7, !!8, !!9, !!10, !!11, !!12, !!13, System.Tuple`7<!!14, !!15, !!16, !!17, !!18, !!19, !!20>>> value) System.ValueTuple`8<!!0, !!1, !!2, !!3, !!4, !!5, !!6, System.ValueTuple`8<!!7, !!8, !!9, !!10, !!11, !!12, !!13, System.ValueTuple`7<!!14, !!15, !!16, !!17, !!18, !!19, !!20>>>
 			method ToTuple(type T1, System.ValueTuple`1<!!0> value) System.Tuple`1<!!0>method ToTuple(type T1, type T2, System.ValueTuple`2<!!0, !!1> value) System.Tuple`2<!!0, !!1>method ToTuple(type T1, type T2, type T3, System.ValueTuple`3<!!0, !!1, !!2> value) System.Tuple`3<!!0, !!1, !!2>method ToTuple(type T1, type T2, type T3, type T4, System.ValueTuple`4<!!0, !!1, !!2, !!3> value) System.Tuple`4<!!0, !!1, !!2, !!3>method ToTuple(type T1, type T2, type T3, type T4, type T5, System.ValueTuple`5<!!0, !!1, !!2, !!3, !!4> value) System.Tuple`5<!!0, !!1, !!2, !!3, !!4>method ToTuple(type T1, type T2, type T3, type T4, type T5, type T6, System.ValueTuple`6<!!0, !!1, !!2, !!3, !!4, !!5> value) System.Tuple`6<!!0, !!1, !!2, !!3, !!4, !!5>method ToTuple(type T1, type T2, type T3, type T4, type T5, type T6, type T7, System.ValueTuple`7<!!0, !!1, !!2, !!3, !!4, !!5, !!6> value) System.Tuple`7<!!0, !!1, !!2, !!3, !!4, !!5, !!6>method ToTuple(type T1, type T2, type T3, type T4, type T5, type T6, type T7, type T8, System.ValueTuple`8<!!0, !!1, !!2, !!3, !!4, !!5, !!6, System.ValueTuple`1<!!7>> value) System.Tuple`8<!!0, !!1, !!2, !!3, !!4, !!5, !!6, System.Tuple`1<!!7>>method ToTuple(type T1, type T2, type T3, type T4, type T5, type T6, type T7, type T8, type T9, System.ValueTuple`8<!!0, !!1, !!2, !!3, !!4, !!5, !!6, System.ValueTuple`2<!!7, !!8>> value) System.Tuple`8<!!0, !!1, !!2, !!3, !!4, !!5, !!6, System.Tuple`2<!!7, !!8>>method ToTuple(type T1, type T2, type T3, type T4, type T5, type T6, type T7, type T8, type T9, type T10, System.ValueTuple`8<!!0, !!1, !!2, !!3, !!4, !!5, !!6, System.ValueTuple`3<!!7, !!8, !!9>> value) System.Tuple`8<!!0, !!1, !!2, !!3, !!4, !!5, !!6, System.Tuple`3<!!7, !!8, !!9>>method ToTuple(type T1, type T2, type T3, type T4, type T5, type T6, type T7, type T8, type T9, type T10, type T11, System.ValueTuple`8<!!0, !!1, !!2, !!3, !!4, !!5, !!6, System.ValueTuple`4<!!7, !!8, !!9, !!10>> value) System.Tuple`8<!!0, !!1, !!2, !!3, !!4, !!5, !!6, System.Tuple`4<!!7, !!8, !!9, !!10>>method ToTuple(type T1, type T2, type T3, type T4, type T5, type T6, type T7, type T8, type T9, type T10, type T11, type T12, System.ValueTuple`8<!!0, !!1, !!2, !!3, !!4, !!5, !!6, System.ValueTuple`5<!!7, !!8, !!9, !!10, !!11>> value) System.Tuple`8<!!0, !!1, !!2, !!3, !!4, !!5, !!6, System.Tuple`5<!!7, !!8, !!9, !!10, !!11>>method ToTuple(type T1, type T2, type T3, type T4, type T5, type T6, type T7, type T8, type T9, type T10, type T11, type T12, type T13, System.ValueTuple`8<!!0, !!1, !!2, !!3, !!4, !!5, !!6, System.ValueTuple`6<!!7, !!8, !!9, !!10, !!11, !!12>> value) System.Tuple`8<!!0, !!1, !!2, !!3, !!4, !!5, !!6, System.Tuple`6<!!7, !!8, !!9, !!10, !!11, !!12>>method ToTuple(type T1, type T2, type T3, type T4, type T5, type T6, type T7, type T8, type T9, type T10, type T11, type T12, type T13, type T14, System.ValueTuple`8<!!0, !!1, !!2, !!3, !!4, !!5, !!6, System.ValueTuple`7<!!7, !!8, !!9, !!10, !!11, !!12, !!13>> value) System.Tuple`8<!!0, !!1, !!2, !!3, !!4, !!5, !!6, System.Tuple`7<!!7, !!8, !!9, !!10, !!11, !!12, !!13>>method ToTuple(type T1, type T2, type T3, type T4, type T5, type T6, type T7, type T8, type T9, type T10, type T11, type T12, type T13, type T14, type T15, System.ValueTuple`8<!!0, !!1, !!2, !!3, !!4, !!5, !!6, System.ValueTuple`8<!!7, !!8, !!9, !!10, !!11, !!12, !!13, System.ValueTuple`1<!!14>>> value) System.Tuple`8<!!0, !!1, !!2, !!3, !!4, !!5, !!6, System.Tuple`8<!!7, !!8, !!9, !!10, !!11, !!12, !!13, System.Tuple`1<!!14>>>method ToTuple(type T1, type T2, type T3, type T4, type T5, type T6, type T7, type T8, type T9, type T10, type T11, type T12, type T13, type T14, type T15, type T16, System.ValueTuple`8<!!0, !!1, !!2, !!3, !!4, !!5, !!6, System.ValueTuple`8<!!7, !!8, !!9, !!10, !!11, !!12, !!13, System.ValueTuple`2<!!14, !!15>>> value) System.Tuple`8<!!0, !!1, !!2, !!3, !!4, !!5, !!6, System.Tuple`8<!!7, !!8, !!9, !!10, !!11, !!12, !!13, System.Tuple`2<!!14, !!15>>>method ToTuple(type T1, type T2, type T3, type T4, type T5, type T6, type T7, type T8, type T9, type T10, type T11, type T12, type T13, type T14, type T15, type T16, type T17, System.ValueTuple`8<!!0, !!1, !!2, !!3, !!4, !!5, !!6, System.ValueTuple`8<!!7, !!8, !!9, !!10, !!11, !!12, !!13, System.ValueTuple`3<!!14, !!15, !!16>>> value) System.Tuple`8<!!0, !!1, !!2, !!3, !!4, !!5, !!6, System.Tuple`8<!!7, !!8, !!9, !!10, !!11, !!12, !!13, System.Tuple`3<!!14, !!15, !!16>>>method ToTuple(type T1, type T2, type T3, type T4, type T5, type T6, type T7, type T8, type T9, type T10, type T11, type T12, type T13, type T14, type T15, type T16, type T17, type T18, System.ValueTuple`8<!!0, !!1, !!2, !!3, !!4, !!5, !!6, System.ValueTuple`8<!!7, !!8, !!9, !!10, !!11, !!12, !!13, System.ValueTuple`4<!!14, !!15, !!16, !!17>>> value) System.Tuple`8<!!0, !!1, !!2, !!3, !!4, !!5, !!6, System.Tuple`8<!!7, !!8, !!9, !!10, !!11, !!12, !!13, System.Tuple`4<!!14, !!15, !!16, !!17>>>method ToTuple(type T1, type T2, type T3, type T4, type T5, type T6, type T7, type T8, type T9, type T10, type T11, type T12, type T13, type T14, type T15, type T16, type T17, type T18, type T19, System.ValueTuple`8<!!0, !!1, !!2, !!3, !!4, !!5, !!6, System.ValueTuple`8<!!7, !!8, !!9, !!10, !!11, !!12, !!13, System.ValueTuple`5<!!14, !!15, !!16, !!17, !!18>>> value) System.Tuple`8<!!0, !!1, !!2, !!3, !!4, !!5, !!6, System.Tuple`8<!!7, !!8, !!9, !!10, !!11, !!12, !!13, System.Tuple`5<!!14, !!15, !!16, !!17, !!18>>>method ToTuple(type T1, type T2, type T3, type T4, type T5, type T6, type T7, type T8, type T9, type T10, type T11, type T12, type T13, type T14, type T15, type T16, type T17, type T18, type T19, type T20, System.ValueTuple`8<!!0, !!1, !!2, !!3, !!4, !!5, !!6, System.ValueTuple`8<!!7, !!8, !!9, !!10, !!11, !!12, !!13, System.ValueTuple`6<!!14, !!15, !!16, !!17, !!18, !!19>>> value) System.Tuple`8<!!0, !!1, !!2, !!3, !!4, !!5, !!6, System.Tuple`8<!!7, !!8, !!9, !!10, !!11, !!12, !!13, System.Tuple`6<!!14, !!15, !!16, !!17, !!18, !!19>>>method ToTuple(type T1, type T2, type T3, type T4, type T5, type T6, type T7, type T8, type T9, type T10, type T11, type T12, type T13, type T14, type T15, type T16, type T17, type T18, type T19, type T20, type T21, System.ValueTuple`8<!!0, !!1, !!2, !!3, !!4, !!5, !!6, System.ValueTuple`8<!!7, !!8, !!9, !!10, !!11, !!12, !!13, System.ValueTuple`7<!!14, !!15, !!16, !!17, !!18, !!19, !!20>>> value) System.Tuple`8<!!0, !!1, !!2, !!3, !!4, !!5, !!6, System.Tuple`8<!!7, !!8, !!9, !!10, !!11, !!12, !!13, System.Tuple`7<!!14, !!15, !!16, !!17, !!18, !!19, !!20>>>
@@ -10556,6 +10065,105 @@ module Dotnet {
 			method SetTarget(!0 target) System.Void
 			method Finalize() System.Void
 		}
+		static class Console extends Object {
+			method get_In() System.IO.TextReader
+			method get_InputEncoding() System.Text.Encoding
+			method set_InputEncoding(System.Text.Encoding value) System.Void
+			method get_OutputEncoding() System.Text.Encoding
+			method set_OutputEncoding(System.Text.Encoding value) System.Void
+			method get_KeyAvailable() System.Boolean
+			method ReadKey() System.ConsoleKeyInfomethod ReadKey(System.Boolean intercept) System.ConsoleKeyInfo
+			method get_Out() System.IO.TextWriter
+			method get_Error() System.IO.TextWriter
+			method get_IsInputRedirected() System.Boolean
+			method get_IsOutputRedirected() System.Boolean
+			method get_IsErrorRedirected() System.Boolean
+			method get_CursorSize() System.Int32
+			method set_CursorSize(System.Int32 value) System.Void
+			method get_NumberLock() System.Boolean
+			method get_CapsLock() System.Boolean
+			method get_BackgroundColor() System.ConsoleColor
+			method set_BackgroundColor(System.ConsoleColor value) System.Void
+			method get_ForegroundColor() System.ConsoleColor
+			method set_ForegroundColor(System.ConsoleColor value) System.Void
+			method ResetColor() System.Void
+			method get_BufferWidth() System.Int32
+			method set_BufferWidth(System.Int32 value) System.Void
+			method get_BufferHeight() System.Int32
+			method set_BufferHeight(System.Int32 value) System.Void
+			method SetBufferSize(System.Int32 width, System.Int32 height) System.Void
+			method get_WindowLeft() System.Int32
+			method set_WindowLeft(System.Int32 value) System.Void
+			method get_WindowTop() System.Int32
+			method set_WindowTop(System.Int32 value) System.Void
+			method get_WindowWidth() System.Int32
+			method set_WindowWidth(System.Int32 value) System.Void
+			method get_WindowHeight() System.Int32
+			method set_WindowHeight(System.Int32 value) System.Void
+			method SetWindowPosition(System.Int32 left, System.Int32 top) System.Void
+			method SetWindowSize(System.Int32 width, System.Int32 height) System.Void
+			method get_LargestWindowWidth() System.Int32
+			method get_LargestWindowHeight() System.Int32
+			method get_CursorVisible() System.Boolean
+			method set_CursorVisible(System.Boolean value) System.Void
+			method get_CursorLeft() System.Int32
+			method set_CursorLeft(System.Int32 value) System.Void
+			method get_CursorTop() System.Int32
+			method set_CursorTop(System.Int32 value) System.Void
+			method GetCursorPosition() System.ValueTuple`2<System.Int32, System.Int32>
+			method get_Title() System.String
+			method set_Title(System.String value) System.Void
+			method Beep() System.Voidmethod Beep(System.Int32 frequency, System.Int32 duration) System.Void
+			method MoveBufferArea(System.Int32 sourceLeft, System.Int32 sourceTop, System.Int32 sourceWidth, System.Int32 sourceHeight, System.Int32 targetLeft, System.Int32 targetTop) System.Voidmethod MoveBufferArea(System.Int32 sourceLeft, System.Int32 sourceTop, System.Int32 sourceWidth, System.Int32 sourceHeight, System.Int32 targetLeft, System.Int32 targetTop, System.Char sourceChar, System.ConsoleColor sourceForeColor, System.ConsoleColor sourceBackColor) System.Void
+			method Clear() System.Void
+			method SetCursorPosition(System.Int32 left, System.Int32 top) System.Void
+			method add_CancelKeyPress(System.ConsoleCancelEventHandler value) System.Void
+			method remove_CancelKeyPress(System.ConsoleCancelEventHandler value) System.Void
+			method get_TreatControlCAsInput() System.Boolean
+			method set_TreatControlCAsInput(System.Boolean value) System.Void
+			method OpenStandardInput() System.IO.Streammethod OpenStandardInput(System.Int32 bufferSize) System.IO.Stream
+			method OpenStandardOutput() System.IO.Streammethod OpenStandardOutput(System.Int32 bufferSize) System.IO.Stream
+			method OpenStandardError() System.IO.Streammethod OpenStandardError(System.Int32 bufferSize) System.IO.Stream
+			method SetIn(System.IO.TextReader newIn) System.Void
+			method SetOut(System.IO.TextWriter newOut) System.Void
+			method SetError(System.IO.TextWriter newError) System.Void
+			method Read() System.Int32
+			method ReadLine() System.String
+			method WriteLine() System.Voidmethod WriteLine(System.Boolean value) System.Voidmethod WriteLine(System.Char value) System.Voidmethod WriteLine(System.Char[] buffer) System.Voidmethod WriteLine(System.Char[] buffer, System.Int32 index, System.Int32 count) System.Voidmethod WriteLine(System.Decimal value) System.Voidmethod WriteLine(System.Double value) System.Voidmethod WriteLine(System.Single value) System.Voidmethod WriteLine(System.Int32 value) System.Voidmethod WriteLine(System.UInt32 value) System.Voidmethod WriteLine(System.Int64 value) System.Voidmethod WriteLine(System.UInt64 value) System.Voidmethod WriteLine(System.Object value) System.Voidmethod WriteLine(System.String value) System.Voidmethod WriteLine(System.ReadOnlySpan`1<System.Char> value) System.Voidmethod WriteLine(System.String format, System.Object arg0) System.Voidmethod WriteLine(System.String format, System.Object arg0, System.Object arg1) System.Voidmethod WriteLine(System.String format, System.Object arg0, System.Object arg1, System.Object arg2) System.Voidmethod WriteLine(System.String format, System.Object[] arg) System.Voidmethod WriteLine(System.String format, System.ReadOnlySpan`1<System.Object> arg) System.Void
+			method Write(System.String format, System.Object arg0) System.Voidmethod Write(System.String format, System.Object arg0, System.Object arg1) System.Voidmethod Write(System.String format, System.Object arg0, System.Object arg1, System.Object arg2) System.Voidmethod Write(System.String format, System.Object[] arg) System.Voidmethod Write(System.String format, System.ReadOnlySpan`1<System.Object> arg) System.Voidmethod Write(System.Boolean value) System.Voidmethod Write(System.Char value) System.Voidmethod Write(System.Char[] buffer) System.Voidmethod Write(System.Char[] buffer, System.Int32 index, System.Int32 count) System.Voidmethod Write(System.Double value) System.Voidmethod Write(System.Decimal value) System.Voidmethod Write(System.Single value) System.Voidmethod Write(System.Int32 value) System.Voidmethod Write(System.UInt32 value) System.Voidmethod Write(System.Int64 value) System.Voidmethod Write(System.UInt64 value) System.Voidmethod Write(System.Object value) System.Voidmethod Write(System.String value) System.Voidmethod Write(System.ReadOnlySpan`1<System.Char> value) System.Void
+			method <get_In>g__EnsureInitialized|14_0() System.IO.TextReader
+			method <get_Out>g__EnsureInitialized|26_0() System.IO.TextWriter
+			method <get_Error>g__EnsureInitialized|28_0() System.IO.TextWriter
+			method <get_IsInputRedirected>g__EnsureInitialized|34_0() System.Runtime.CompilerServices.StrongBox`1<System.Boolean>
+			method <get_IsOutputRedirected>g__EnsureInitialized|36_0() System.Runtime.CompilerServices.StrongBox`1<System.Boolean>
+			method <get_IsErrorRedirected>g__EnsureInitialized|38_0() System.Runtime.CompilerServices.StrongBox`1<System.Boolean>
+		}
+		class ConsoleCancelEventHandler extends MulticastDelegate {
+			constructor(System.Object object, System.IntPtr method) System.Void
+			method Invoke(System.Object sender, System.ConsoleCancelEventArgs e) System.Void
+			method BeginInvoke(System.Object sender, System.ConsoleCancelEventArgs e, System.AsyncCallback callback, System.Object object) System.IAsyncResult
+			method EndInvoke(System.IAsyncResult result) System.Void
+		}
+		class ConsoleCancelEventArgs extends EventArgs {
+			constructor(System.ConsoleSpecialKey type) System.Void
+			method get_Cancel() System.Boolean
+			method set_Cancel(System.Boolean value) System.Void
+			method get_SpecialKey() System.ConsoleSpecialKey
+		}
+		class ConsoleColor extends Enum {}
+		class ConsoleSpecialKey extends Enum {}
+		class ConsoleKey extends Enum {}
+		class ConsoleKeyInfo extends ValueType {
+			constructor(System.Char keyChar, System.ConsoleKey key, System.Boolean shift, System.Boolean alt, System.Boolean control) System.Void
+			method get_KeyChar() System.Char
+			method get_Key() System.ConsoleKey
+			method get_Modifiers() System.ConsoleModifiers
+			method Equals(System.Object value) System.Booleanmethod Equals(System.ConsoleKeyInfo obj) System.Boolean
+			method op_Equality(System.ConsoleKeyInfo a, System.ConsoleKeyInfo b) System.Boolean
+			method op_Inequality(System.ConsoleKeyInfo a, System.ConsoleKeyInfo b) System.Boolean
+			method GetHashCode() System.Int32
+		}
+		class ConsoleModifiers extends Enum {}
 	}
 
 }

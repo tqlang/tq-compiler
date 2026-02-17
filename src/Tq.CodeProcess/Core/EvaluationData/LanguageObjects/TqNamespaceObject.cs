@@ -25,11 +25,20 @@ public class TqNamespaceObject(string n, NamespaceNode synNode) : BaseNamespaceO
     public List<TypedefObject> Typedefs { get; } = [];
 
     
-    public override LangObject? SearchChild(string name)
-        => Fields.FirstOrDefault(e => e.Name == name)
+    public override LangObject? SearchChild(string name, SearchChildMode mode) => mode switch
+    {
+        SearchChildMode.All or SearchChildMode.OnlyStatic =>
+            Fields.FirstOrDefault(e => e.Name == name)
             ?? (LangObject?)Structs.FirstOrDefault(e => e.Name == name)
             ?? (LangObject?)Typedefs.FirstOrDefault(e => e.Name == name)
-            ?? Functions.FirstOrDefault(e => e.Name == name);
+            ?? (LangObject?)Functions.FirstOrDefault(e => e.Name == name)
+            ?? Namespaces.FirstOrDefault(e => e.Name == name),
+        
+        SearchChildMode.OnlyInstance =>
+            Functions.FirstOrDefault(e => e.Name == name),
+
+        _ => throw new ArgumentOutOfRangeException(nameof(mode), mode, null)
+    };
 
     public override string ToString()
     {
@@ -40,6 +49,7 @@ public class TqNamespaceObject(string n, NamespaceNode synNode) : BaseNamespaceO
         foreach (var i in Structs) sb.AppendLine($"{i}".TabAll());
         foreach (var i in Typedefs) sb.AppendLine($"{i}".TabAll());
         foreach (var i in Functions) sb.AppendLine($"{i}".TabAll());
+        foreach (var i in Namespaces) sb.AppendLine($"{i}".TabAll());
 
         sb.AppendLine("}");
         return sb.ToString();

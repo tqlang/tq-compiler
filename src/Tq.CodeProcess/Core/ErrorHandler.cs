@@ -1,5 +1,5 @@
-﻿using System.Diagnostics;
-using System.Text;
+﻿using System.Text;
+using Abstract.CodeProcess.Core.EvaluationData.LanguageObjects.Containers;
 
 namespace Abstract.CodeProcess.Core;
 
@@ -11,7 +11,11 @@ public class ErrorHandler
     private string? _currentFile = null;
     
     public int ErrorCount { get; private set; } = 0;
-
+    
+    public void SetFileNull() => _currentFile = null;
+    public void SetFile(string? file) => _currentFile = file;
+    public void SetFile(SourceScript file) => _currentFile = file?.Path;
+    
     public void RegisterError(Exception ex)
     {
         if (_currentFile == null) _general_errors.Add(ex);
@@ -22,8 +26,6 @@ public class ErrorHandler
         }
         ErrorCount++;
     }
-    public void SetFile(string? file) => _currentFile = file;
-
     
     public void Dump()
     {

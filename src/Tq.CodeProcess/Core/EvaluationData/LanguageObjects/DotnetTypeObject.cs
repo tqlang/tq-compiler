@@ -11,16 +11,19 @@ public class DotnetTypeObject(ITypeDescriptor typeRef, TypeDefinition typeDef, s
 {
     public readonly ITypeDescriptor TypeDescriptor = typeRef;
     public readonly TypeDefinition TypeDefinition = typeDef;
+    public DotnetTypeObject? ParentTypeDefinition = null;
 
-    
     public List<DotnetTypeObject> Types { get; } = [];
     public List<DotnetMethodGroupObject> Methods { get; } = [];
     public List<DotnetMethodObject> Constructors { get; } = [];
     public DotnetTypeObject? Destructor { get; set; }
     
+    public bool IsStatic => TypeDefinition is { IsAbstract: true, IsSealed: true };
+    
     public override string ToString()
     {
         var sb = new StringBuilder();
+        if (IsStatic) sb.Append("static ");
         sb.Append($"class {TypeDefinition.Name!.Value}");
         if (TypeDefinition.GenericParameters.Count > 0)
             sb.Append($" ({string.Join(", ", TypeDefinition.GenericParameters)})");
@@ -40,4 +43,18 @@ public class DotnetTypeObject(ITypeDescriptor typeRef, TypeDefinition typeDef, s
         return sb.ToString();
     }
     public override string ToSignature() => Name;
+
+    public override LangObject? SearchChild(string name, SearchChildMode mode) => mode switch
+    {
+        SearchChildMode.All or SearchChildMode.OnlyStatic =>
+            (LangObject?)Types.FirstOrDefault(e => e.Name == name)
+            ?? Methods.FirstOrDefault(e => e.Name == name)
+            ?? ParentTypeDefinition?.SearchChild(name, mode),
+        
+        SearchChildMode.OnlyInstance =>
+            Methods.FirstOrDefault(e => e.Name == name)
+            ?? ParentTypeDefinition?.SearchChild(name, mode),
+
+        _ => throw new ArgumentOutOfRangeException(nameof(mode), mode, null)
+    };
 }

@@ -42,13 +42,22 @@ public partial class Analyser
         foreach (var m in modules)
         {
             var module = new ModuleObject(m.name);
+            Dictionary<string, TqNamespaceObject> _moduleNamespaces = [];
             foreach (var n in m.Namespaces)
             {
+                var a = string.Join('.', n.Identifier);
                 List<string> name = [m.name];
                 if (n.Identifier.Length > 0) name.AddRange(n.Identifier);
                 var obj = new TqNamespaceObject(n.Identifier[0], n);
+
+                if (n.Identifier.Length > 1 || !string.IsNullOrEmpty(n.Identifier[0]))
+                {
+                    var parent = _moduleNamespaces[string.Join('.', n.Identifier[0..^1])];
+                    parent.Namespaces.Add(obj);
+                }
+                else module.Namespaces.Add(obj);
+                _moduleNamespaces.Add(string.Join('.', n.Identifier), obj);
                 
-                module.Namespaces.Add(obj);
                 _namespaces.Add(obj);
                 SearchNamespaceRecursive(obj);
             }
@@ -96,9 +105,9 @@ public partial class Analyser
         var poppedList = _onHoldAttributes.Pop();
         if (poppedList.Count == 0) return;
         
-        foreach (var unbinded in poppedList)
+        foreach (var unbounded in poppedList)
         {
-            try { throw new Exception($"Attribute {unbinded} not assigned to any member"); }
+            try { throw new Exception($"Attribute {unbounded} not assigned to any member"); }
             catch (Exception e) { _errorHandler.RegisterError(e); }
         }
     }
@@ -169,7 +178,11 @@ public partial class Analyser
         }
         else
         {
-            var namespaceParts = ((AccessNode)fromImport.Children[1]).StringValues;
+            var namespacePartsNode = fromImport.Children[1];
+            var namespaceParts = namespacePartsNode is AccessNode @accessNode
+                ? (accessNode).StringValues
+                : [((IdentifierNode)namespacePartsNode).Value];
+            
             var imports = (ImportCollectionNode)fromImport.Children[3];
             if (namespaceParts.Any(string.IsNullOrEmpty)) throw new Exception("Invalid expression inside namespace identifier");
 
@@ -397,7 +410,6 @@ public partial class Analyser
 
             "extern" => BuiltinAttributes.Extern,
             "export" => BuiltinAttributes.Export,
-            "dotnetImport" => BuiltinAttributes.DotnetImport,
             
             "inline" => BuiltinAttributes.Inline,
             "noinline" => BuiltinAttributes.Noinline,

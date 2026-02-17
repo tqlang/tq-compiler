@@ -14,7 +14,12 @@ from Dotnet.System.IO import {
     constructor(*CsFStream stream) {
         _filestream = stream
     }
+
+	func close() void {
+		#_filestream.Close()
+	}
 }
+
 
 @public struct FileReader extends Reader {
 

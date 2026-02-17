@@ -1,15 +1,21 @@
 from Std.Io import
 from Dotnet.System.IO import { FileStream as CsFStream , SeekOrigin as CsSeekOrigin , FileMode as CsFileMode , FileAccess as CsFileAccess }
 @public()
-struct File { let * CsFStream _filestream constructor (* CsFStream stream) { _filestream = stream } }
+struct File { let * CsFStream _filestream constructor (* CsFStream stream) { _filestream = stream } func close () void { } }
 @public()
 struct FileReader extends Reader { }
 @public()
 struct FileWriter extends Writer { }
 
-from Dotnet.System.IO import { FileStream as CsFStream , SeekOrigin as CsSeekOrigin , FileMode as CsFileMode , FileAccess as CsFileAccess }
+from Dotnet.System.IO import { FileInfo as CsFileInfo , }
+@public()
+struct FileInfo { let * CsFileInfo _fileInfo @public() let string name @public() let string length @public() let string directory constructor (* CsFileInfo fInfo) { _fileInfo = fInfo name = fInfo.get_Name() length = fInfo.get_Length() directory = fInfo.get_Directory() } }
+
+from Dotnet.System.IO import { FileStream as CsFStream , SeekOrigin as CsSeekOrigin , FileMode as CsFileMode , FileAccess as CsFileAccess , File as CsFile }
 @public()
 func open (string path) File { let filestream = new CsFStream(path, FileMode.openOrCreate, FileAccess.RO) return new File(filestream) }
+@public()
+func readAllText (string path) string { return CsFile.ReadAllText(path) }
 @public()
 typedef( CsSeekOrigin ) SeekOrigin {
 	begin = CsSeekOrigin.Begin,

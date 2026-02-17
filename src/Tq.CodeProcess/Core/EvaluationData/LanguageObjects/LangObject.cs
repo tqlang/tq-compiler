@@ -47,7 +47,7 @@ public abstract class LangObject(SourceScript sourceScript, string name) : IForm
     
     public void AppendAttributes(params AttributeReference[] attrs) => _attributes.AddRange(attrs);
 
-    public virtual LangObject? SearchChild(string name) => null;
+    public virtual LangObject? SearchChild(string name, SearchChildMode mode) => null;
     
     public string ToString(string? format, IFormatProvider? formatProvider)
     {
@@ -61,3 +61,9 @@ public abstract class LangObject(SourceScript sourceScript, string name) : IForm
     public abstract string ToSignature();
 }
 
+public enum SearchChildMode
+{
+    All,
+    OnlyStatic,
+    OnlyInstance
+}

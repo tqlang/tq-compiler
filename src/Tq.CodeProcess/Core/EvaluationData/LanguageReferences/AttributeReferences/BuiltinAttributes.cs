@@ -24,7 +24,6 @@ public enum BuiltinAttributes
     // Low level and linkage
     Extern,
     Export,
-    DotnetImport,
         
     // Optimization
     Inline,

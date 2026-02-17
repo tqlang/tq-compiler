@@ -1,37 +1,36 @@
 ###    TQ STANDARD LIBRARY SCRIPT    ###
 
-@dotnetImport("System.Console", "System.Console", "Write")     func Console_Write(string value) void
-@dotnetImport("System.Console", "System.Console", "WriteLine") func Console_WriteLine(string value) void
+from Dotnet.System import { Console }
 
 func write(i64 value) void {
-    Console_Write(value as string)
+    Console.Write(value as string)
 }
 func write(u64 value) void {
-    Console_Write(value as string)
+    Console.Write(value as string)
 }
 func write(i128 value) void {
-    Console_Write(value as string)
+    Console.Write(value as string)
 }
 func write(u128 value) void {
-    Console_Write(value as string)
+    Console.Write(value as string)
 }
 func write(string value) void {
-    Console_Write(value)
+    Console.Write(value)
 }
 
 func writeln(i64 value) void {
-    Console_WriteLine(value as string)
+    Console.WriteLine(value as string)
 }
 func writeln(u64 value) void {
-    Console_WriteLine(value as string)
+    Console.WriteLine(value as string)
 }
 func writeln(i128 value) void {
-    Console_WriteLine(value as string)
+    Console.WriteLine(value as string)
 }
 func writeln(u128 value) void {
-    Console_WriteLine(value as string)
+    Console.WriteLine(value as string)
 }
 func writeln(string value) void {
-    Console_WriteLine(value)
+    Console.WriteLine(value)
 }
 

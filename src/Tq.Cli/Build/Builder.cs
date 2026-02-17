@@ -85,7 +85,7 @@ public static class Builder
             
             if (verbose) Console.WriteLine($"Done ({singleModule.Elapsed})");
         }
-        err.SetFile(null);
+        err.SetFileNull();
         
         parsingModules.Stop();
         if (verbose) Console.WriteLine($"Modules parsed ({parsingModules.Elapsed})");
@@ -102,6 +102,8 @@ public static class Builder
             [.. options.Includes],
             dumpGlobalTable: options.DebugDumpAnalyzerIr,
             dumpEvaluatedData: options.DebugDumpAnalyzerIr);
+        analysis.Stop();
+        Console.WriteLine($"Analysis done ({analysis.Elapsed})");
         
         var binaryEmission = Stopwatch.StartNew();
         

@@ -17,7 +17,6 @@ public class FunctionObject(SourceScript sourceScript, string n, FunctionDeclara
         IOverrideAttribute,
         IExternModifier,
         IExportModifier,
-        IDotnetImportMethodModifier,
         ICallable
 {
     public readonly FunctionDeclarationNode SyntaxNode = synNode;
@@ -32,7 +31,6 @@ public class FunctionObject(SourceScript sourceScript, string n, FunctionDeclara
     public bool IsGeneric { get; set; } = false;
     public bool ConstExp { get; set; } = false;
     public (string nmsp, string name)? Extern { get; set; } = null;
-    public DotnetImportMethodData? DotnetImport { get; set; }
 
     SourceScript ICallable.Script => SourceScript;
     public FunctionGroupObject ParentGroup { get; internal set; } = null!;
@@ -72,7 +70,6 @@ public class FunctionObject(SourceScript sourceScript, string n, FunctionDeclara
         sb.Append(Abstract ? "abstract " : "concrete ");
         if (Virtual) sb.Append("virtual ");
         if (Override) sb.Append("override ");
-        if (Extern == null) sb.Append($"extern(\"{Extern}\") ");
         if (IsGeneric) sb.Append("generic ");
 
         sb.Append($"func {Name}({string.Join(", ", Parameters.Select(e => e.Type))}) {ReturnType}");

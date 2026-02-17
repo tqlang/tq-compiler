@@ -52,14 +52,12 @@ public partial class Compiler
                 {
                     var local = ctx.AllocTmp(typeSignature);
                     ctx.Gen.Add(CilOpCodes.Ldloca, local);
-                    foreach (var i in nobj.Arguments) CompileIrNodeLoad(i, ctx);
-                    CompileIrNodeCall(nobj.Target, ctx);
+                    CompileIrNodeCall(nobj.Target, nobj.Arguments, ctx);
                     ctx.Gen.Add(CilOpCodes.Ldloc, local);
                 }
                 else
                 {
-                    foreach (var i in nobj.Arguments) CompileIrNodeLoad(i, ctx);
-                    CompileIrNodeCall(nobj.Target, ctx, useNewObj: true);
+                    CompileIrNodeCall(nobj.Target, nobj.Arguments, ctx, useNewObj: true);
                 }
                 
                 ctx.StackPush(typeSignature);
@@ -202,16 +200,7 @@ public partial class Compiler
                 ctx.StackPush(t);
             } break;
     
-            case IrInvoke @iv:
-            {
-                foreach (var i in iv.Arguments) CompileIrNodeLoad(i, ctx);
-                CompileIrNodeCall(iv.Target, ctx);
-            } break;
-            case IrDotnetInvoke @iv:
-            {
-                foreach (var i in iv.Arguments) CompileIrNodeLoad(i, ctx);
-                CompileIrNodeCall(iv.Target, ctx, generics: iv.Generics);
-            } break;
+            case IrInvoke @iv: CompileIrNodeCall(iv.Target, iv.Arguments, ctx); break;
             
             case IrConv @c:
             {
@@ -922,9 +911,7 @@ public partial class Compiler
         }
     }
     
-    private void CompileIrNodeCall(IrNode node, Context ctx,
-        TypeReference[] generics = null!,
-        bool useNewObj = false)
+    private void CompileIrNodeCall(IrNode node, IrExpression[] allArgs, Context ctx, bool useNewObj = false)
     {
         switch (node)
         {
@@ -934,46 +921,66 @@ public partial class Compiler
                 {
                     case SolvedCallableReference sfr:
                     {
+                        List<TypeReference> generics = [];
+                        var argsCount = 0;
+                        
+                        foreach (var i in allArgs)
+                        {
+                            switch (i)
+                            {
+                                case IrSolvedReference { Type: TypeTypeReference, Reference: TypeReference @type }:
+                                    generics.Add(type);
+                                    break;
+                                case IrSolvedReference { Type: TypeTypeReference, Reference: ParameterReference @param }:
+                                    generics.Add(new GenericTypeReference(param.Parameter));
+                                    break;
+                                
+                                default: CompileIrNodeLoad(i, ctx); argsCount++; break;
+                            }
+                        }
+                        
                         switch (sfr.Callable)
                         {
                             case DotnetMethodObject dotnetMethod:
                             {
-                                var methodRef = dotnetMethod.MethodReference;
-                                var methodSig = methodRef.Signature!;
-                                var pl = dotnetMethod.Parameters.Count;
+                                var descriptor = dotnetMethod.MethodReference;
+                                var signature = dotnetMethod.MethodDefinition.Signature!;
                                 
-                                ctx.Gen.Add(useNewObj ? CilOpCodes.Newobj : CilOpCodes.Call,
-                                    ctx.Importer.ImportMethod(methodRef));
-                                ctx.StackPop(pl);
-                                if (methodSig.ReturnsValue) ctx.StackPush(methodSig.ReturnType);
+                                if (signature.IsGeneric)
+                                {
+                                    var genericsSignatures = generics.Select(TypeFromRef).ToArray();
+                                    var importedGeneric = (MemberReference)ctx.Importer.ImportMethod(dotnetMethod.MethodReference);
+                                    descriptor = importedGeneric.MakeGenericInstanceMethod(genericsSignatures);
+                                }
+                                else
+                                {
+                                    descriptor = ctx.Importer.ImportMethod(descriptor);
+                                }
+                                
+                                ctx.Gen.Add(useNewObj ? CilOpCodes.Newobj : CilOpCodes.Call, descriptor);
+                                ctx.StackPop(argsCount); 
+                                if (signature.ReturnsValue) ctx.StackPush(signature.ReturnType);
                             } break;
 
                             default:
                             {
-                                var f = _functionsMap[sfr.Callable];
-                                var pl = sfr.Callable.Parameters.Count;
-                                if (generics != null!) pl -= generics.Length;
+                                var functionData = _functionsMap[sfr.Callable];
+                                var signature = functionData.Signature!;
 
-                                switch (f)
+                                IMethodDescriptor descriptor;
+                                if (signature.IsGeneric)
                                 {
-                                    case ConcreteFunctionData @fd:
-                                    {
-                                        ctx.Gen.Add(useNewObj ? CilOpCodes.Newobj : CilOpCodes.Call, fd.Function);
-                                        ctx.StackPop(pl); 
-                                        if (f.ReturnsValue) ctx.StackPush(fd.ReturnType);
-                                    } break;
-
-                                    case GenericFunctionData @fd:
-                                    {
-                                        var genericsSignatures = generics!.Select(e => TypeFromRef(e)!).ToArray();
-                                        var instanceMethod = fd.MethodRef.MakeGenericInstanceMethod(genericsSignatures);
-                                        ctx.Gen.Add(useNewObj ? CilOpCodes.Newobj : CilOpCodes.Call, instanceMethod);
-                                        ctx.StackPop(pl); 
-                                        
-                                        if (f.ReturnsValue) ctx.StackPush(ResolveReturnType(
-                                            ((IMethodDescriptor)instanceMethod).Signature!.ReturnType, genericsSignatures));
-                                    } break;
+                                    var genericsSignatures = generics.Select(TypeFromRef).ToArray();
+                                    descriptor = functionData.MemberReference!.MakeGenericInstanceMethod(genericsSignatures);
                                 }
+                                else
+                                {
+                                    descriptor = functionData.MethodDescriptor ?? throw new UnreachableException();
+                                }
+
+                                ctx.Gen.Add(useNewObj ? CilOpCodes.Newobj : CilOpCodes.Call, descriptor);
+                                ctx.StackPop(argsCount); 
+                                if (signature.ReturnsValue) ctx.StackPush(signature.ReturnType);
                             } break;
                         }
                     } break;
@@ -1024,34 +1031,9 @@ public partial class Compiler
         
         ctx.StackPush(_corLibFactory.FromElementType(c.Type)!);
     }
-    TypeSignature ResolveReturnType(TypeSignature type, IReadOnlyList<TypeSignature> methodArgs)
+
+    private T[] Test<T>(ulong length)
     {
-        return type switch
-        {
-            GenericParameterSignature { ParameterType: GenericParameterType.Method } gp => methodArgs[gp.Index],
-
-            SzArrayTypeSignature arr =>
-                new SzArrayTypeSignature(
-                    ResolveReturnType(arr.BaseType, methodArgs)
-                ),
-
-            ArrayTypeSignature arr =>
-                new ArrayTypeSignature(
-                    ResolveReturnType(arr.BaseType, methodArgs),
-                    arr.Rank
-                ),
-
-            PointerTypeSignature ptr =>
-                new PointerTypeSignature(
-                    ResolveReturnType(ptr.BaseType, methodArgs)
-                ),
-
-            ByReferenceTypeSignature br =>
-                new ByReferenceTypeSignature(
-                    ResolveReturnType(br.BaseType, methodArgs)
-                ),
-            
-            _ => type
-        };
+        return GC.AllocateArray<T>((int)length);
     }
 }

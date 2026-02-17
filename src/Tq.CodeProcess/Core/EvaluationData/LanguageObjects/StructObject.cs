@@ -11,7 +11,6 @@ public class StructObject(SourceScript sourceScript, string n, StructureDeclarat
         IStaticModifier,
         IInternalModifier,
         IAbstractModifier,
-        IDotnetImportTypeModifier,
         
         IFieldContainer,
         ICtorDtorContainer,
@@ -23,7 +22,6 @@ public class StructObject(SourceScript sourceScript, string n, StructureDeclarat
     public bool Abstract { get; set; } = false;
     public bool Interface { get; set; } =  false;
     public bool Final { get; set; } =  false;
-    public DotnetImportTypeData? DotnetImport { get; set; }
     
     public TypeReference? Extends { get; set; }
     public (FunctionObject parent, FunctionObject? overrided, bool isSealed)[]? VirtualTable { get; set; }
@@ -38,9 +36,20 @@ public class StructObject(SourceScript sourceScript, string n, StructureDeclarat
     
     public readonly StructureDeclarationNode SyntaxNode = synNode;
 
-    public override LangObject? SearchChild(string name)
-        => Fields.FirstOrDefault(e => e.Name == name)
-           ?? (LangObject?)Functions.FirstOrDefault(e => e.Name == name);
+    public override LangObject? SearchChild(string name, SearchChildMode mode) => mode switch
+    {
+        SearchChildMode.All =>
+            Fields.FirstOrDefault(e => e.Name == name)
+            ?? (LangObject?)Functions.FirstOrDefault(e => e.Name == name),
+            
+        SearchChildMode.OnlyStatic =>
+            Fields.FirstOrDefault(e => e.Name == name && e.Static)
+            ?? (LangObject?)Functions.FirstOrDefault(e => e.Name == name),
+        
+        SearchChildMode.OnlyInstance =>
+            Fields.FirstOrDefault(e => e.Name == name && !e.Static)
+            ?? (LangObject?)Functions.FirstOrDefault(e => e.Name == name)
+    };
 
     public override string ToString()
     {
@@ -57,6 +66,8 @@ public class StructObject(SourceScript sourceScript, string n, StructureDeclarat
         
         foreach (var c in Fields) sb.AppendLine(c.ToString().TabAll());
         foreach (var c in Functions) sb.AppendLine(c.ToString().TabAll());
+        foreach (var c in Constructors) sb.AppendLine(c.ToString().TabAll());
+        foreach (var c in Destructors) sb.AppendLine(c.ToString().TabAll());
 
         sb.AppendLine("}");
         return sb.ToString();

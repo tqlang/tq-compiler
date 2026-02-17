@@ -11,14 +11,12 @@ public class TypedefObject(SourceScript script, string n, TypeDefinitionNode syn
     IPublicModifier,
     IStaticModifier,
     IInternalModifier,
-    IAbstractModifier,
-    IDotnetImportTypeModifier
+    IAbstractModifier
 {
     bool IPublicModifier.Public { get; set; } = false;
     bool IStaticModifier.Static { get; set; } = false;
     bool IInternalModifier.Internal { get; set; } = false;
     bool IAbstractModifier.Abstract { get; set; } = false;
-    public DotnetImportTypeData? DotnetImport { get; set; }
 
     public TypeReference? BackType = null;
     
@@ -27,10 +25,19 @@ public class TypedefObject(SourceScript script, string n, TypeDefinitionNode syn
     public List<FunctionGroupObject> Functions { get; } = [];
 
 
-    public override LangObject? SearchChild(string name)
+    public override LangObject? SearchChild(string name, SearchChildMode mode)
     {
-        return NamedValues.FirstOrDefault(x => x.Name == name)
-            ?? (LangObject?)Functions.FirstOrDefault(x => x.Name == name);
+        return mode switch
+        {
+            SearchChildMode.All or SearchChildMode.OnlyStatic
+                => NamedValues.FirstOrDefault(x => x.Name == name)
+                   ?? (LangObject?)Functions.FirstOrDefault(x => x.Name == name),
+            
+            SearchChildMode.OnlyInstance
+                => Functions.FirstOrDefault(x => x.Name == name),
+            
+            _ => throw new ArgumentOutOfRangeException(nameof(mode), mode, null)
+        };
     }
 
     public override string ToString()
@@ -39,7 +46,9 @@ public class TypedefObject(SourceScript script, string n, TypeDefinitionNode syn
         if (BackType == null) sb.AppendLine($"typedef '{Name}' {{");
         else sb.AppendLine($"typedef({BackType}) '{Name}' {{");
 
-        sb.AppendLine(string.Join($",{Environment.NewLine}\t", NamedValues));
+        foreach (var (i, e) in NamedValues.Index())
+            sb.AppendLine($"\tcase {e}" + (i < NamedValues.Count ? $"," : ""));
+        
         foreach (var c in Functions) sb.AppendLine(c.ToString().TabAll());
 
         sb.AppendLine("}");

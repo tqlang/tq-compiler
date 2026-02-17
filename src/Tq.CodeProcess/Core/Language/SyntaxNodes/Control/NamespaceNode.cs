@@ -12,8 +12,7 @@ public class NamespaceNode(string identifier)
     public void AddTree(SyntaxTree tree) => _trees.Add(tree);
 
 
-    public override string ToString() => identifier;
-
+    public override string ToString() => string.Join('.', Identifier);
     public string ContentToString()
     {
         var sb = new StringBuilder();
@@ -22,4 +21,5 @@ public class NamespaceNode(string identifier)
         
         return sb.ToString();
     }
+    
 }

@@ -18,8 +18,9 @@ class Program.Static extends System.Object {
 		.locals init (System.Int64 V_1)
 		.locals init (System.Int64 V_2)
 		.locals init (Std.Fs.File V_3)
-		.locals init (System.UInt64 V_4)
-		.locals init (System.String V_5)
+		.locals init (System.String V_4)
+		.locals init (System.UInt64 V_5)
+		.locals init (System.String V_6)
 		IL_0000: call System.String[] Std.ProcessStatic::getProgramArguments()
 		IL_0005: stloc V_0
 		IL_0009: ldloc V_0
@@ -111,31 +112,43 @@ class Program.Static extends System.Object {
 		IL_0157: ldelem System.String
 		IL_015C: call Std.Fs.File Std.FsStatic::open(System.String)
 		IL_0161: stloc V_3
-		IL_0165: ldstr "ok..."
-		IL_016A: call System.Void Std.ConsoleStatic::writeln(System.String)
-		IL_016F: ldc.i8 262144
+		IL_0165: ldloc V_0
+		IL_0169: ldloc V_2
+		IL_016D: conv.i4
+		IL_016E: ldelem System.String
+		IL_0173: call System.String Std.FsStatic::readAllText(System.String)
 		IL_0178: stloc V_4
-		IL_017C: ldloc V_4
-		IL_0180: ldc.i8 0
-		IL_0189: call System.Byte[] Std.MemStatic::alloc__impl(System.UInt64, Std.Mem.Alignment)
-		IL_018E: stsfld System.Byte[] Program.Static::symbols
-		IL_0193: ldloc V_4
-		IL_0197: ldc.i8 0
-		IL_01A0: call System.Byte[] Std.MemStatic::alloc__impl(System.UInt64, Std.Mem.Alignment)
-		IL_01A5: stsfld System.Byte[] Program.Static::text
-		IL_01AA: ldloc V_4
-		IL_01AE: ldc.i8 0
-		IL_01B7: call System.Byte[] Std.MemStatic::alloc__impl(System.UInt64, Std.Mem.Alignment)
-		IL_01BC: stsfld System.Byte[] Program.Static::data
-		IL_01C1: ldloc V_4
-		IL_01C5: ldc.i8 0
-		IL_01CE: call System.Byte[] Std.MemStatic::alloc__impl(System.UInt64, Std.Mem.Alignment)
-		IL_01D3: stsfld System.Byte[] Program.Static::stack
-		IL_01D8: ldstr "char else enum if int return sizeof while open read close printf malloc free memset memcmp exit void main"
-		IL_01DD: stloc V_5
-		IL_01E1: ldstr "Not bad untill here"
-		IL_01E6: call System.Void Std.ConsoleStatic::writeln(System.String)
-		IL_01EB: ret
+		IL_017C: ldstr "File content: ___________"
+		IL_0181: call System.Void Std.ConsoleStatic::writeln(System.String)
+		IL_0186: ldloc V_4
+		IL_018A: call System.Void Std.ConsoleStatic::writeln(System.String)
+		IL_018F: ldstr "-------------------------"
+		IL_0194: call System.Void Std.ConsoleStatic::writeln(System.String)
+		IL_0199: ldstr "ok..."
+		IL_019E: call System.Void Std.ConsoleStatic::writeln(System.String)
+		IL_01A3: ldc.i8 262144
+		IL_01AC: stloc V_5
+		IL_01B0: ldloc V_5
+		IL_01B4: ldc.i8 0
+		IL_01BD: call !!0[] Std.MemStatic::alloc<System.Byte>(System.UInt64, Std.Mem.Alignment)
+		IL_01C2: stsfld System.Byte[] Program.Static::symbols
+		IL_01C7: ldloc V_5
+		IL_01CB: ldc.i8 0
+		IL_01D4: call !!0[] Std.MemStatic::alloc<System.Byte>(System.UInt64, Std.Mem.Alignment)
+		IL_01D9: stsfld System.Byte[] Program.Static::text
+		IL_01DE: ldloc V_5
+		IL_01E2: ldc.i8 0
+		IL_01EB: call !!0[] Std.MemStatic::alloc<System.Byte>(System.UInt64, Std.Mem.Alignment)
+		IL_01F0: stsfld System.Byte[] Program.Static::data
+		IL_01F5: ldloc V_5
+		IL_01F9: ldc.i8 0
+		IL_0202: call !!0[] Std.MemStatic::alloc<System.Byte>(System.UInt64, Std.Mem.Alignment)
+		IL_0207: stsfld System.Byte[] Program.Static::stack
+		IL_020C: ldstr "char else enum if int return sizeof while open read close printf malloc free memset memcmp exit void main"
+		IL_0211: stloc V_6
+		IL_0215: ldstr "Not bad until here"
+		IL_021A: call System.Void Std.ConsoleStatic::writeln(System.String)
+		IL_021F: ret
 	}
 
 	method private static next () System.Void {
@@ -159,8 +172,8 @@ class Std.ProcessStatic extends System.Object {
 		IL_0005: ret
 	}
 
-	method public static exit (System.UInt64 A_0) System.Void {
-		IL_0000: ldarg System.UInt64 A_0
+	method public static exit (System.UInt64 status) System.Void {
+		IL_0000: ldarg System.UInt64 status
 		IL_0004: conv.i4
 		IL_0005: call System.Void System.Environment::Exit(System.Int32)
 		IL_000A: ret
@@ -169,32 +182,8 @@ class Std.ProcessStatic extends System.Object {
 
 class Std.MemStatic extends System.Object {
 
-	method public static alloc__impl (System.UInt64 alloc__impl, Std.Mem.Alignment A_1) System.Byte[] {
-		IL_0000: ldarg System.UInt64 alloc__impl
-		IL_0004: conv.i4
-		IL_0005: ldc.i4.0
-		IL_0006: call !!0[] System.GC::AllocateArray<System.Byte>(System.Int32, System.Boolean)
-		IL_000B: ret
-	}
-
-	method public static alloc__impl (System.UInt64 alloc__impl, Std.Mem.Alignment A_1) System.Byte[] {
-		IL_0000: ldarg System.UInt64 alloc__impl
-		IL_0004: conv.i4
-		IL_0005: ldc.i4.0
-		IL_0006: call !!0[] System.GC::AllocateArray<System.Byte>(System.Int32, System.Boolean)
-		IL_000B: ret
-	}
-
-	method public static alloc__impl (System.UInt64 alloc__impl, Std.Mem.Alignment A_1) System.Byte[] {
-		IL_0000: ldarg System.UInt64 alloc__impl
-		IL_0004: conv.i4
-		IL_0005: ldc.i4.0
-		IL_0006: call !!0[] System.GC::AllocateArray<System.Byte>(System.Int32, System.Boolean)
-		IL_000B: ret
-	}
-
-	method public static alloc__impl (System.UInt64 alloc__impl, Std.Mem.Alignment A_1) System.Byte[] {
-		IL_0000: ldarg System.UInt64 alloc__impl
+	method public static alloc (System.UInt64 length, Std.Mem.Alignment alignment) !!0[] {
+		IL_0000: ldarg System.UInt64 length
 		IL_0004: conv.i4
 		IL_0005: ldc.i4.0
 		IL_0006: call !!0[] System.GC::AllocateArray<System.Byte>(System.Int32, System.Boolean)
@@ -204,16 +193,16 @@ class Std.MemStatic extends System.Object {
 
 class Std.TestStatic extends System.Object {
 
-	method public static testValue (System.Byte testValue, System.Byte A_1) System.Void {
-		IL_0000: ldarg System.Byte testValue
-		IL_0004: ldarg System.Byte A_1
+	method public static testValue (System.Byte value, System.Byte reference) System.Void {
+		IL_0000: ldarg System.Byte value
+		IL_0004: ldarg System.Byte reference
 		IL_0008: ceq
 		IL_000A: call System.Void Std.TestStatic::printStatusMessage(System.Boolean)
 		IL_000F: ret
 	}
 
-	method private static printStatusMessage (System.Boolean A_0) System.Void {
-		IL_0000: ldarg System.Boolean A_0
+	method private static printStatusMessage (System.Boolean status) System.Void {
+		IL_0000: ldarg System.Boolean status
 		IL_0004: brfalse IL_0019
 		IL_0009: nop
 		IL_000A: ldstr "TEST PASSED"
@@ -229,78 +218,78 @@ class Std.TestStatic extends System.Object {
 
 class Std.ConsoleStatic extends System.Object {
 
-	method private static write (System.Int64 A_0) System.Void {
-		IL_0000: ldarg System.Int64 A_0
+	method private static write (System.Int64 value) System.Void {
+		IL_0000: ldarg System.Int64 value
 		IL_0004: box System.Int64
 		IL_0009: callvirt System.String System.Object::ToString()
 		IL_000E: call System.Void System.Console::Write(System.String)
 		IL_0013: ret
 	}
 
-	method private static write (System.UInt64 A_0) System.Void {
-		IL_0000: ldarg System.UInt64 A_0
+	method private static write (System.UInt64 value) System.Void {
+		IL_0000: ldarg System.UInt64 value
 		IL_0004: box System.UInt64
 		IL_0009: callvirt System.String System.Object::ToString()
 		IL_000E: call System.Void System.Console::Write(System.String)
 		IL_0013: ret
 	}
 
-	method private static write (System.Int128 A_0) System.Void {
-		IL_0000: ldarg System.Int128 A_0
+	method private static write (System.Int128 value) System.Void {
+		IL_0000: ldarg System.Int128 value
 		IL_0004: box System.Int128
 		IL_0009: callvirt System.String System.Object::ToString()
 		IL_000E: call System.Void System.Console::Write(System.String)
 		IL_0013: ret
 	}
 
-	method private static write (System.UInt128 A_0) System.Void {
-		IL_0000: ldarg System.UInt128 A_0
+	method private static write (System.UInt128 value) System.Void {
+		IL_0000: ldarg System.UInt128 value
 		IL_0004: box System.UInt128
 		IL_0009: callvirt System.String System.Object::ToString()
 		IL_000E: call System.Void System.Console::Write(System.String)
 		IL_0013: ret
 	}
 
-	method private static write (System.String A_0) System.Void {
-		IL_0000: ldarg System.String A_0
+	method private static write (System.String value) System.Void {
+		IL_0000: ldarg System.String value
 		IL_0004: call System.Void System.Console::Write(System.String)
 		IL_0009: ret
 	}
 
-	method private static writeln (System.Int64 A_0) System.Void {
-		IL_0000: ldarg System.Int64 A_0
+	method private static writeln (System.Int64 value) System.Void {
+		IL_0000: ldarg System.Int64 value
 		IL_0004: box System.Int64
 		IL_0009: callvirt System.String System.Object::ToString()
 		IL_000E: call System.Void System.Console::WriteLine(System.String)
 		IL_0013: ret
 	}
 
-	method private static writeln (System.UInt64 A_0) System.Void {
-		IL_0000: ldarg System.UInt64 A_0
+	method private static writeln (System.UInt64 value) System.Void {
+		IL_0000: ldarg System.UInt64 value
 		IL_0004: box System.UInt64
 		IL_0009: callvirt System.String System.Object::ToString()
 		IL_000E: call System.Void System.Console::WriteLine(System.String)
 		IL_0013: ret
 	}
 
-	method private static writeln (System.Int128 A_0) System.Void {
-		IL_0000: ldarg System.Int128 A_0
+	method private static writeln (System.Int128 value) System.Void {
+		IL_0000: ldarg System.Int128 value
 		IL_0004: box System.Int128
 		IL_0009: callvirt System.String System.Object::ToString()
 		IL_000E: call System.Void System.Console::WriteLine(System.String)
 		IL_0013: ret
 	}
 
-	method private static writeln (System.UInt128 A_0) System.Void {
-		IL_0000: ldarg System.UInt128 A_0
+	method private static writeln (System.UInt128 value) System.Void {
+		IL_0000: ldarg System.UInt128 value
 		IL_0004: box System.UInt128
 		IL_0009: callvirt System.String System.Object::ToString()
 		IL_000E: call System.Void System.Console::WriteLine(System.String)
 		IL_0013: ret
 	}
 
-	method private static writeln (System.String A_0) System.Void {
-		IL_0000: ldarg System.String A_0
+	method private static writeln (System.String value) System.Void {
+		IL_0000: ldarg System.String value
 		IL_0004: call System.Void System.Console::WriteLine(System.String)
 		IL_0009: ret
 	}
@@ -308,10 +297,10 @@ class Std.ConsoleStatic extends System.Object {
 
 class Std.FsStatic extends System.Object {
 
-	method public static open (System.String A_0) Std.Fs.File {
+	method public static open (System.String path) Std.Fs.File {
 		.locals init (System.IO.FileStream V_0)
 		.locals init (Std.Fs.File V_1)
-		IL_0000: ldarg System.String A_0
+		IL_0000: ldarg System.String path
 		IL_0004: ldc.i8 3
 		IL_000D: ldc.i8 1
 		IL_0016: newobj System.Void System.IO.FileStream::.ctor(System.String, System.IO.FileMode, System.IO.FileAccess)
@@ -321,6 +310,12 @@ class Std.FsStatic extends System.Object {
 		IL_0027: call System.Void Std.Fs.File::.ctor(System.IO.FileStream)
 		IL_002C: ldloc V_1
 		IL_0030: ret
+	}
+
+	method public static readAllText (System.String path) System.String {
+		IL_0000: ldarg System.String path
+		IL_0004: call System.String System.IO.File::ReadAllText(System.String)
+		IL_0009: ret
 	}
 }
 
@@ -347,6 +342,10 @@ struct Std.Fs.File extends System.ValueType {
 		IL_0005: stfld System.IO.FileStream Std.Fs.File::_filestream
 		IL_000A: ret
 	}
+
+	method private instance close () System.Void {
+		IL_0000: ret
+	}
 }
 
 struct Std.Fs.FileReader extends System.ValueType {
@@ -362,6 +361,32 @@ struct Std.Fs.FileWriter extends System.ValueType {
 
 	method private instance .ctor () System.Void {
 		IL_0000: ret
+	}
+}
+
+struct Std.Fs.FileInfo extends System.ValueType {
+	field private instance System.IO.FileInfo _fileInfo
+	field public instance System.String name
+	field public instance System.String length
+	field public instance System.String directory
+
+	method private instance .ctor (System.IO.FileInfo fInfo) System.Void {
+		IL_0000: ldarg.0
+		IL_0001: ldarg System.IO.FileInfo fInfo
+		IL_0005: stfld System.IO.FileInfo Std.Fs.FileInfo::_fileInfo
+		IL_000A: ldarg.0
+		IL_000B: ldarg System.IO.FileInfo fInfo
+		IL_000F: call System.String System.IO.FileInfo::get_Name()
+		IL_0014: stfld System.String Std.Fs.FileInfo::name
+		IL_0019: ldarg.0
+		IL_001A: ldarg System.IO.FileInfo fInfo
+		IL_001E: call System.Int64 System.IO.FileInfo::get_Length()
+		IL_0023: stfld System.String Std.Fs.FileInfo::length
+		IL_0028: ldarg.0
+		IL_0029: ldarg System.IO.FileInfo fInfo
+		IL_002D: call System.IO.DirectoryInfo System.IO.FileInfo::get_Directory()
+		IL_0032: stfld System.String Std.Fs.FileInfo::directory
+		IL_0037: ret
 	}
 }
 

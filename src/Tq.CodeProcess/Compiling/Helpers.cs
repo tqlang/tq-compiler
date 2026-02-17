@@ -77,7 +77,7 @@ public partial class Compiler
             case SliceTypeReference @s:
                 return new SzArrayTypeSignature(TypeFromRef(s.InternalType));
             case GenericTypeReference @g:
-                return new GenericParameterSignature(GenericParameterType.Method, g.Parameter.Index);
+                return new GenericParameterSignature(_module, GenericParameterType.Method, g.Parameter.Index);
             
             
             case RuntimeIntegerTypeReference @i:
@@ -167,24 +167,49 @@ public partial class Compiler
         public IFieldDescriptor GetItem(TypedefNamedValue namedValue) => Items[namedValue];
     }
 
-    private interface IFunctionData
+    private class FunctionData
     {
-        public bool ReturnsValue { get; }
-    }
-    private class ConcreteFunctionData(IMethodDefOrRef methodDef) : IFunctionData 
-    {
-        public readonly IMethodDefOrRef Function = methodDef ?? throw new ArgumentNullException();
-        public readonly MethodDefinition Def = methodDef.Resolve()!; //?? throw new ArgumentNullException();
+        public readonly MemberReference? MemberReference;
+        public readonly IMethodDescriptor? MethodDescriptor;
+        public readonly MethodDefinition? Definition;
         
-        public bool IsStatic => Def.IsStatic;
-        public bool ReturnsValue => Function.Signature!.ReturnsValue;
-        public TypeSignature ReturnType => Function.Signature!.ReturnType;
-        public TypeDefinition? InstanceType => IsStatic ? null : Def.DeclaringType;
-    }
-    private class GenericFunctionData(MemberReference methodRef, bool returnsValue) : IFunctionData
-    {
-        public readonly MemberReference MethodRef = methodRef;
-        public  bool ReturnsValue { get; } = returnsValue;
+        public readonly MethodSignature Signature;
+
+        
+        public FunctionData(MemberReference d1, MethodDefinition d2, MethodSignature sig)
+        {
+            MemberReference = null;
+            MethodDescriptor = d1;
+            Definition = d2;
+            Signature = sig;
+        }
+        public FunctionData(IMethodDescriptor d1, MethodDefinition d2, MethodSignature sig)
+        {
+            MemberReference = d2.CreateMemberReference(d2.Name!, sig);
+            MethodDescriptor = d1;
+            Definition = d2;
+            Signature = sig;
+        }
+        public FunctionData(MemberReference d, MethodSignature sig)
+        {
+            MemberReference = d;
+            MethodDescriptor = null;
+            Definition = null;
+            Signature = sig;
+        }
+        public FunctionData(MethodDefinition d, MethodSignature sig)
+        {
+            MemberReference = d.CreateMemberReference(d.Name!, sig);
+            MethodDescriptor = d;
+            Definition = d;
+            Signature = sig;
+        }
+
+
+        public bool IsStatic => Definition?.IsStatic ?? false;
+        public bool ReturnsValue => Signature.ReturnsValue;
+        public TypeSignature ReturnType => Signature.ReturnType;
+        public TypeDefinition? InstanceType => IsStatic ? null : Definition?.DeclaringType;
     }
     
     private class Context(ITypeDefOrRef? selfType, CilMethodBody body, ReferenceImporter importer, Parameter[] args, CilLocalVariable[] locals)
@@ -227,9 +252,9 @@ public partial class Compiler
     }
     
     private abstract class ContextFrame {}
-    private class ConditionalExpressionFrame(CilInstructionLabel iftrue, CilInstructionLabel iffalse) : ContextFrame
+    private class ConditionalExpressionFrame(CilInstructionLabel ifTrue, CilInstructionLabel ifFalse) : ContextFrame
     {
-        public readonly CilInstructionLabel IfTrue = iftrue;
-        public readonly CilInstructionLabel IfFalse = iffalse;
+        public readonly CilInstructionLabel IfTrue = ifTrue;
+        public readonly CilInstructionLabel IfFalse = ifFalse;
     }
 }

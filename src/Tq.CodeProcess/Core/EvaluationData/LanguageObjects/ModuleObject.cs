@@ -12,7 +12,7 @@ public class ModuleObject(string n) : ContainerObject(null!, n),
     public override string ToString()
     {
         var sb = new StringBuilder();
-        if (ReferenceOnly) sb.AppendLine($"module {Name} {{");
+        if (!ReferenceOnly) sb.AppendLine($"module {Name} {{");
         else sb.AppendLine($"module {Name} refonly {{");
         
         foreach (var i in Namespaces) sb.AppendLine(i.ToString().TabAll());
@@ -21,4 +21,6 @@ public class ModuleObject(string n) : ContainerObject(null!, n),
         return sb.ToString();
     }
     public override string ToSignature() => $"module {Name}";
+
+    public override LangObject? SearchChild(string name, SearchChildMode mode) => null;
 }

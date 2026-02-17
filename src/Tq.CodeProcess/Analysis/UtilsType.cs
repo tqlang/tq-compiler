@@ -225,7 +225,6 @@ public partial class Analyser
             case IrConv:
             case IrIndex:
             case IrInvoke:
-            case IrDotnetInvoke:
             case IrLenOf:
             case IRCompareExp:
             case IRUnaryExp:
@@ -325,6 +324,10 @@ public partial class Analyser
                         || strArg.Encoding == stringParam.Encoding)) return Suitability.Perfect;
                 return Suitability.None;
 
+            case CharTypeReference charParam:
+                if (typeFrom is CharTypeReference) return Suitability.Perfect;
+                return Suitability.None;
+            
             case BooleanTypeReference:
                 return typeFrom is BooleanTypeReference ? Suitability.Perfect : Suitability.None;
 
@@ -333,6 +336,13 @@ public partial class Analyser
                        && CalculateTypeSuitability(refe.InternalType, refArg.InternalType, false) == Suitability.Perfect
                     ? Suitability.Perfect
                     : Suitability.None;
+            
+            case SliceTypeReference @refe:
+                return typeFrom is SliceTypeReference @sliceArg 
+                       && CalculateTypeSuitability(refe.InternalType, sliceArg.InternalType, false) == Suitability.Perfect
+                    ? Suitability.Perfect
+                    : Suitability.None;
+
             
             case SolvedStructTypeReference @solvedstruct:
                 if (typeFrom is SolvedStructTypeReference @solvedstructarg)
@@ -367,7 +377,10 @@ public partial class Analyser
                     default: return Suitability.None;
                 }
             }
-
+                
+            case DotnetGenericTypeReference gd:
+                return Suitability.None;
+                
             default: throw new UnreachableException();
         }
     }

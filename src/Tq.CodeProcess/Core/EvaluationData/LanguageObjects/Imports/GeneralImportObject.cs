@@ -9,5 +9,6 @@ public class GeneralImportObject(string[] path) : ImportObject
             ? $"from {string.Join('.', NamespaceObject.Global)} import"
             : $"from {string.Join('.', NamespacePath)} import";
 
-    public override LangObject? SearchReference(string reference) => NamespaceObject.SearchChild(reference);
+    public override LangObject? SearchReference(string reference)
+        => NamespaceObject.SearchChild(reference, SearchChildMode.OnlyStatic);
 }

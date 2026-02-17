@@ -18,16 +18,16 @@ public class DotnetMethodObject(
 {
     public DotnetMethodGroupObject MethodGroup = null!;
     public readonly IMethodDescriptor MethodReference = descriptor;
-    private readonly MethodDefinition _methodDefinition = definition;
+    public readonly MethodDefinition MethodDefinition = definition;
     
-    public bool IsConstructor => _methodDefinition.IsConstructor;
+    public bool IsConstructor => MethodDefinition.IsConstructor;
     
     public SourceScript Script => throw new NotImplementedException();
     public List<ParameterObject> Parameters { get; } = parameters.ToList();
     public List<LocalVariableObject> Locals { get; } = [];
     public TypeReference ReturnType { get; } = returnType ?? new VoidTypeReference();
     
-    public bool IsStatic => _methodDefinition.IsStatic;
+    public bool IsStatic => MethodDefinition.IsStatic;
     public bool IsGeneric => false;
     public IrBlock? Body { get => null; set {} }
     
@@ -45,45 +45,45 @@ public class DotnetMethodObject(
     {
         var sb = new StringBuilder();
 
-        if (_methodDefinition.IsConstructor)
+        if (MethodDefinition.IsConstructor)
             sb.Append($"constructor");
         else
-            sb.Append($"method {_methodDefinition.Name}");
+            sb.Append($"method {MethodDefinition.Name}");
 
         sb.Append('(');
-        switch (_methodDefinition.GenericParameters.Count)
+        switch (MethodDefinition.GenericParameters.Count)
         {
-            case > 0 when _methodDefinition.Parameters.Count > 0:
+            case > 0 when MethodDefinition.Parameters.Count > 0:
             {
-                for (var i = 0; i < _methodDefinition.GenericParameters.Count; i++)
+                for (var i = 0; i < MethodDefinition.GenericParameters.Count; i++)
                 {
-                    sb.Append($"type {_methodDefinition.GenericParameters[i]}");
+                    sb.Append($"type {MethodDefinition.GenericParameters[i]}");
                     sb.Append(", ");
                 }
-                for (var i = 0; i < _methodDefinition.Parameters.Count; i++)
+                for (var i = 0; i < MethodDefinition.Parameters.Count; i++)
                 {
-                    sb.Append($"{_methodDefinition.Parameters[i]}");
-                    if (i < _methodDefinition.Parameters.Count - 1) sb.Append(", ");
+                    sb.Append($"{MethodDefinition.Parameters[i]}");
+                    if (i < MethodDefinition.Parameters.Count - 1) sb.Append(", ");
                 }
 
                 break;
             }
-            case > 0 when _methodDefinition.Parameters.Count == 0:
+            case > 0 when MethodDefinition.Parameters.Count == 0:
             {
-                for (var i = 0; i < _methodDefinition.GenericParameters.Count; i++)
+                for (var i = 0; i < MethodDefinition.GenericParameters.Count; i++)
                 {
-                    sb.Append($"type {_methodDefinition.GenericParameters[i]}");
-                    if (i < _methodDefinition.GenericParameters.Count - 1) sb.Append(", ");
+                    sb.Append($"type {MethodDefinition.GenericParameters[i]}");
+                    if (i < MethodDefinition.GenericParameters.Count - 1) sb.Append(", ");
                 }
 
                 break;
             }
             default:
             {
-                for (var i = 0; i < _methodDefinition.Parameters.Count; i++)
+                for (var i = 0; i < MethodDefinition.Parameters.Count; i++)
                 {
-                    sb.Append($"{_methodDefinition.Parameters[i]}");
-                    if (i < _methodDefinition.Parameters.Count - 1) sb.Append(", ");
+                    sb.Append($"{MethodDefinition.Parameters[i]}");
+                    if (i < MethodDefinition.Parameters.Count - 1) sb.Append(", ");
                 }
 
                 break;
@@ -91,12 +91,12 @@ public class DotnetMethodObject(
         }
         sb.Append(')');
 
-        sb.Append($" {_methodDefinition.Signature!.ReturnType}");
+        sb.Append($" {MethodDefinition.Signature!.ReturnType}");
         
         return sb.ToString();
     }
 
-    public override string ToSignature() => _methodDefinition.IsConstructor
-        ? "constructor" : $"method {_methodDefinition.Name}";
+    public override string ToSignature() => MethodDefinition.IsConstructor
+        ? "constructor" : $"method {MethodDefinition.Name}";
     
 }

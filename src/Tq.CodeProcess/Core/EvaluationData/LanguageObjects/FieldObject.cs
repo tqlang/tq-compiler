@@ -33,7 +33,7 @@ public class FieldObject(SourceScript sourceScript, string n, TopLevelVariableNo
     {
         var sb = new StringBuilder();
         
-        if (Offset.HasValue) sb.AppendLine($"; offset={Offset.Value}");
+        //if (Offset.HasValue) sb.AppendLine($"; offset={Offset.Value}");
         sb.Append(Public ? "public " : "private ");
         sb.Append(Static ? "static " : "instance ");
         if (Internal) sb.Append("internal ");

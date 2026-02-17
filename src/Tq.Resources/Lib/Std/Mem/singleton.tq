@@ -1,13 +1,11 @@
+from Dotnet.System import { GC }
 
 # Allocates a slice in heap memory
 @public func alloc(type T, uint length, Alignment alignment) []T {
-    return csharp_GC_AllocateArray(T, length as i32, false)
+    return GC.AllocateArray(T, length as i32, false)
 }
 
 # Allocates a struct in heap memory
-@public func create(type T, Alignment alignment) T {
-
-}
-
-@dotnetImport("System.Runtime", "System.GC", "AllocateArray")
-func csharp_GC_AllocateArray(type T, i32 len, bool pinned) []T
+#@public func create(type T, Alignment alignment) T {
+#
+#}

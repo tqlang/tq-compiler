@@ -24,7 +24,12 @@ public class DotnetNamespaceObject(string n) : BaseNamespaceObject(n),
     }
     public override string ToSignature() => $"Namespace {string.Join('.', Global)}";
 
-    public override LangObject? SearchChild(string name)
-        => (LangObject?)Types.FirstOrDefault(e => e.Name == name)
-            ?? Namespaces.FirstOrDefault(e => e.Name == Name);
+    public override LangObject? SearchChild(string name, SearchChildMode mode) => mode switch
+    {
+        SearchChildMode.All or SearchChildMode.OnlyStatic =>
+            (LangObject?)Types.FirstOrDefault(e => e.Name == name)
+            ?? Namespaces.FirstOrDefault(e => e.Name == Name),
+
+        _ => null,
+    };
 }

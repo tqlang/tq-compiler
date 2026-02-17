@@ -5,13 +5,13 @@ namespace Abstract.CodeProcess.Core.EvaluationData.LanguageObjects.Imports;
 public class SpecificImportObject(string[] namespacePath) : ImportObject
 {
     public readonly string[] NamespacePath = namespacePath;
-    public BaseNamespaceObject NamespaceObject = null!;
+    public ContainerObject Container = null!;
     public readonly Dictionary<string, (string path, LangObject obj)> Imports = [];
 
     public override string ToString()
     {
         var sb = new StringBuilder();
-        if (NamespaceObject != null!) sb.Append($"from {string.Join('.', NamespaceObject.Global)} import {{ ");
+        if (Container != null!) sb.Append($"from {string.Join('.', Container.Global)} import {{ ");
         else sb.Append($"from {string.Join('.', NamespacePath)} import {{ ");
 
         foreach (var i in Imports)

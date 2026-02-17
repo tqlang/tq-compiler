@@ -1,7 +1,4 @@
-from Std.Console import
-from Std.Process import
-from Std.Mem import
-from Std.Fs import
+from Std import { Console , Process , Mem , Fs }
 let uint src
 let uint debug
 let []byte symbols
@@ -12,7 +9,7 @@ let uint srcPointer
 let uint currToken
 let []uint currIdentifier
 @export("main")
-func main () void { let argv = getProgramArguments() let argc = argv.len as int let i = 1 if ((argc - i) > 0 and argv[i][0] == '-' and argv[i] == "-s") src = i++ if ((argc - i) > 0 and argv[i][0] == '-' and argv[i] == "-d") debug = i++ if ((argc - i) < 1) { writeln("usage: c4 [-s] [-d] file ...") exit(1) } let file = open(argv[i]) writeln("ok...") const uint poolsz = 256 * 1024 symbols = alloc(byte, poolsz, Alignment._1) text = alloc(byte, poolsz, Alignment._1) data = alloc(byte, poolsz, Alignment._1) stack = alloc(byte, poolsz, Alignment._1) let keywords = "char else enum if int return sizeof while " + "open read close printf malloc free memset memcmp exit void main" writeln("Not bad untill here") }
+func main () void { let argv = Process.getProgramArguments() let argc = argv.len as int let i = 1 if ((argc - i) > 0 and argv[i][0] == '-' and argv[i] == "-s") src = i++ if ((argc - i) > 0 and argv[i][0] == '-' and argv[i] == "-d") debug = i++ if ((argc - i) < 1) { Console.writeln("usage: c4 [-s] [-d] file ...") Process.exit(1) } let file = Fs.open(argv[i]) let content = Fs.readAllText(argv[i]) Console.writeln("File content: ___________") Console.writeln(content) Console.writeln("-------------------------") Console.writeln("ok...") const uint poolsz = 256 * 1024 symbols = Mem.alloc(byte, poolsz, Mem.Alignment._1) text = Mem.alloc(byte, poolsz, Mem.Alignment._1) data = Mem.alloc(byte, poolsz, Mem.Alignment._1) stack = Mem.alloc(byte, poolsz, Mem.Alignment._1) let keywords = "char else enum if int return sizeof while " + "open read close printf malloc free memset memcmp exit void main" Console.writeln("Not bad until here") }
 func next () { let uint pp = 0 }
 typedef Tokens {
 	num,

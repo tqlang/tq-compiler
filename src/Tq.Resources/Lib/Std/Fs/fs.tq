@@ -2,12 +2,17 @@ from Dotnet.System.IO import {
 	FileStream as CsFStream,
 	SeekOrigin as CsSeekOrigin,
 	FileMode as CsFileMode,
-	FileAccess as CsFileAccess
+	FileAccess as CsFileAccess,
+	File as CsFile
 }
 
 @public func open(string path) File {
 	let filestream = new CsFStream(path, FileMode.openOrCreate, FileAccess.RO)
 	return new File(filestream)
+}
+
+@public func readAllText(string path) string {
+	return CsFile.ReadAllText(path)
 }
 
 

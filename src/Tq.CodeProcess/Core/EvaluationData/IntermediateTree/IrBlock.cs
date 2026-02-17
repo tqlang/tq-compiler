@@ -11,6 +11,6 @@ public class IrBlock(SyntaxNode origin): IrNode(origin)
     {
         var sb = new StringBuilder();
         foreach (var i in Content) sb.AppendLine(i.ToString());
-        return sb.ToString();
+        return sb.ToString().TrimEnd();
     }
 }

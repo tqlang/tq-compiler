@@ -86,14 +86,18 @@ public partial class Analyser
                 case SpecificImportObject @specific:
                 {
                     var r = _globalReferenceTable[specific.NamespacePath];
-                    if (r is not BaseNamespaceObject @namespaceObject) throw new Exception("Not a namespace");
-                    specific.NamespaceObject = namespaceObject;
+                    specific.Container = r switch
+                    {
+                        BaseNamespaceObject @namespaceObject => namespaceObject,
+                        DotnetTypeObject { IsStatic: true } @staticClass => staticClass,
+                        _ => throw new Exception("Not a namespace")
+                    };
 
                     foreach (var i in specific.Imports)
                     {
-                        var r2 = namespaceObject.SearchChild(i.Value.path);
+                        var r2 = specific.Container.SearchChild(i.Value.path, SearchChildMode.All);
                         if (r2 == null) throw new Exception($"Reference {i.Value.path} not found" +
-                                                            $"in base {string.Join('.', specific.NamespacePath)}");
+                                                            $" in base {string.Join('.', specific.NamespacePath)}");
                         specific.Imports[i.Key] = (i.Value.path, r2);
                     }
                 } break;
@@ -714,7 +718,7 @@ public partial class Analyser
                 var curr = parent;
                 while (curr != null && curr is not TqNamespaceObject)
                 {
-                    var r3 = curr.SearchChild(idnode.Value);
+                    var r3 = curr.SearchChild(idnode.Value, SearchChildMode.All);
                     if (r3 != null) return (TypeReference)GetObjectReference(r3);
                     curr = curr.Parent;
                 }
@@ -725,14 +729,14 @@ public partial class Analyser
                     LangObject? curr2 = ((SolvedStructTypeReference)structObject.Extends).Struct;
                     while (curr2 != null! && curr2 is not TqNamespaceObject)
                     {
-                        var r3 = curr2.SearchChild(idnode.Value);
+                        var r3 = curr2.SearchChild(idnode.Value, SearchChildMode.All);
                         if (r3 != null) return (TypeReference)GetObjectReference(r3);
                         curr2 = curr2.Parent;
                     }
                 }
 
                 // Search inside namespace
-                var r4 = obj?.Namespace?.SearchChild(idnode.Value);
+                var r4 = obj?.Namespace?.SearchChild(idnode.Value, SearchChildMode.OnlyStatic);
                 if (r4 != null) return (TypeReference)GetObjectReference(r4);
 
                 // Search inside imports
@@ -745,13 +749,15 @@ public partial class Analyser
                 }
 
                 // Search global references
-                var r6 = _globalReferenceTable.FirstOrDefault(e => e.Key.Length == 1 && e.Key[0] == idnode.Value);
+                var r6 = _globalReferenceTable
+                    .FirstOrDefault(e => e.Key.Length == 1 && e.Key[0] == idnode.Value);
                 if (r6.Key != null) return (TypeReference)GetObjectReference(r6.Value);
 
                 if (parent is TqNamespaceObject @nmsp)
                 {
                     string[] name = [.. nmsp.Global, idnode.Value];
-                    var r7 = _globalReferenceTable.FirstOrDefault(e => IdentifierComparer.IsEquals(e.Key, name));
+                    var r7 = _globalReferenceTable
+                        .FirstOrDefault(e => IdentifierComparer.IsEquals(e.Key, name));
                     if (r7.Key != null) return (TypeReference)GetObjectReference(r7.Value);
                 }
                 

@@ -30,6 +30,7 @@ public partial class Analyser
             
             DotnetTypeObject @t => new DotnetTypeReference(t),
             DotnetNamespaceObject @n => new DotnetNamespaceReference(n),
+            DotnetMethodGroupObject @mg => new DotnetMethodGroupReference(mg),
             
             _ => throw new NotImplementedException(),
         };
