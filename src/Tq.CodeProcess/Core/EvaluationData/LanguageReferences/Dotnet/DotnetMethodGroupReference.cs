@@ -6,6 +6,6 @@ namespace Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.Dotnet;
 public class DotnetMethodGroupReference(DotnetMethodGroupObject r) : LanguageReference
 {
     public readonly DotnetMethodGroupObject MethodGroup = r;
-    public override TypeReference Type => null!;
+    public override TypeReference FieldType => null!;
     public override string ToString() => $"MGr<{MethodGroup.Name}>";
 }

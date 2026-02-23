@@ -18,7 +18,7 @@ from Dotnet.System.IO import {
 
 @public typedef(CsSeekOrigin) SeekOrigin {
 	case begin = CsSeekOrigin.Begin
-	case current = CsSeekOrigin.current
+	case current = CsSeekOrigin.Current
 	case end = CsSeekOrigin.End
 }
 
@@ -32,7 +32,6 @@ from Dotnet.System.IO import {
 }
 
 @public typedef(CsFileAccess) FileAccess {
-	case _fuck
 	case RO = CsFileAccess.Read
 	case WO = CsFileAccess.Write
 	case RW = CsFileAccess.ReadWrite

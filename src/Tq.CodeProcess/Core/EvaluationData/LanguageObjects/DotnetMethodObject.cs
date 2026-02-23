@@ -17,8 +17,8 @@ public class DotnetMethodObject(
     ICallable
 {
     public DotnetMethodGroupObject MethodGroup = null!;
-    public readonly IMethodDescriptor MethodReference = descriptor;
-    public readonly MethodDefinition MethodDefinition = definition;
+    public IMethodDescriptor MethodReference { get; } = descriptor;
+    public MethodDefinition MethodDefinition { get; } = definition;
     
     public bool IsConstructor => MethodDefinition.IsConstructor;
     

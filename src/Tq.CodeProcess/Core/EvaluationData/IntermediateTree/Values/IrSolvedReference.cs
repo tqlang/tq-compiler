@@ -6,7 +6,7 @@ namespace Abstract.CodeProcess.Core.EvaluationData.IntermediateTree.Values;
 
 public class IrSolvedReference(SyntaxNode origin, LanguageReference refe) : IrReference(origin)
 {
-    public override TypeReference Type => refe.Type;
+    public override TypeReference Type => refe.FieldType;
     public readonly LanguageReference Reference = refe;
     
     public override string ToString() => Reference.ToString() ?? throw new NotImplementedException();

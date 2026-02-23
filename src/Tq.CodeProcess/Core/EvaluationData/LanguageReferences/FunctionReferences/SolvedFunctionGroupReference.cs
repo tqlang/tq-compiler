@@ -6,7 +6,7 @@ namespace Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.FunctionRe
 public class SolvedFunctionGroupReference(FunctionGroupObject fun) : FunctionReference
 {
     public readonly FunctionGroupObject FunctionGroup = fun;
-    public override TypeReference Type => null!;
+    public override TypeReference FieldType => null!;
 
     public override string ToString() => $"FGr<{string.Join('.', FunctionGroup.Global)}>";
 }

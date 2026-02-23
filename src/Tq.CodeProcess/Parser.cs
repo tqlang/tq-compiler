@@ -123,7 +123,7 @@ public class Parser(ErrorHandler errHandler)
                 if (Taste(TokenType.LeftParenthesisChar))
                     node.AppendChild(ParseArgumentCollection()); // (T)
 
-                node.AppendChild(ParseBlock((BlockNode block, ref bool _break) =>
+                node.AppendChild(ParseBlock((block, ref b) =>
                 {
                     var value = Bite();
                     switch (value.type)
@@ -303,6 +303,7 @@ public class Parser(ErrorHandler errHandler)
                 }
                 node.AppendChild(DietAsNode(TokenType.DoKeyword, (t)
                     => throw new Exception($"Unexpected token '{Bite()}'")));
+                TryEndLine();
                 node.AppendChild(ParseStatement()); // <statement>
 
             } catch { DiscardLine(); throw; }
@@ -512,9 +513,9 @@ public class Parser(ErrorHandler errHandler)
         {
             node = new UnaryPrefixExpressionNode();
             node.AppendChild(EatAsNode());
-            node.AppendChild(ParseValue(recursive));
+            node.AppendChild(ParseRangeExpression(recursive));
         }
-        else node = ParseValue(recursive);
+        else node = ParseRangeExpression(recursive);
 
         if (Taste(
                 TokenType.IncrementOperator, // ++,
@@ -538,7 +539,40 @@ public class Parser(ErrorHandler errHandler)
         }
 
         return node;
-    }    
+    }
+
+    private ExpressionNode ParseRangeExpression(bool recursive)
+    {
+        ExpressionNode node;
+        bool isRangeExpression = false;
+
+        if (TryEatAsNode(TokenType.DotDotOperator, out var n))
+        {
+            isRangeExpression = true;
+            node = new RangeExpressionNode();
+            node.AppendChild(n);
+            node.AppendChild(ParseValue(recursive));
+        }
+        else node = ParseValue(recursive);
+        
+        if (TryEatAsNode(TokenType.DotDotOperator, out var n2))
+        {
+            if (isRangeExpression) throw new Exception("Already in a range expression");
+            isRangeExpression = true;
+            var n3 = new RangeExpressionNode();
+            n3.AppendChild(node);
+            n3.AppendChild(n2);
+            node = n3;
+        }
+        else if (isRangeExpression && !Taste(TokenType.ColonChar))
+        {
+            node.AppendChild(ParseValue(recursive));
+        }
+        
+        // TODO step
+        
+        return node;
+    }
     
     #endregion
 
@@ -568,9 +602,8 @@ public class Parser(ErrorHandler errHandler)
 
             } catch { DiscardLine(); throw; }
             break;
-
-            // To make things works right, local variables needs
-            // to be parsed here
+            
+            // Local variables declaration
             case TokenType.LetKeyword or
             TokenType.ConstKeyword:
             try
@@ -670,19 +703,12 @@ public class Parser(ErrorHandler errHandler)
             break;
 
             // Numbers
-            case TokenType.IntegerNumberLiteral:
-                node = new IntegerLiteralNode(Eat());
-                break;
-            
-            case TokenType.FloatingNumberLiteral:
-                node = new FloatingLiteralNode(Eat());
-                break;
+            case TokenType.IntegerNumberLiteral: node = new IntegerLiteralNode(Eat()); break;
+            case TokenType.FloatingNumberLiteral: node = new FloatingLiteralNode(Eat()); break;
             
             // Booleans
             case TokenType.TrueKeyword:
-            case TokenType.FalseKeyword:
-                node = new BooleanLiteralNode(Eat());
-                break;
+            case TokenType.FalseKeyword: node = new BooleanLiteralNode(Eat()); break;
             
             // String
             case TokenType.DoubleQuotes:
@@ -711,9 +737,8 @@ public class Parser(ErrorHandler errHandler)
 
                     else throw new Exception($"Unexpected token '{Bite()}'");
                 }
-                node.AppendChild(DietAsNode(TokenType.DoubleQuotes, (e)
+                node.AppendChild(DietAsNode(TokenType.DoubleQuotes, (e) 
                     => throw new Exception($"Unexpected token '{Bite()}'")));
-
                 break;
 
             // Char
@@ -770,8 +795,13 @@ public class Parser(ErrorHandler errHandler)
             (e) => throw new Exception($"Unexpected token '{Bite()}'")));
 
         if (!Taste(TokenType.RightSquareBracketChar))
-            do collection.AppendChild(ParseExpression());
-            while(TryEat(TokenType.CommaChar, out _));
+            while (!IsEOF())
+            {
+                collection.AppendChild(ParseExpression());
+                TryEndLine();
+                if (!TryEat(TokenType.CommaChar, out _)) break;
+                TryEndLine();
+            }
 
         collection.AppendChild(DietAsNode(TokenType.RightSquareBracketChar,
             (e) => throw new Exception($"Unexpected token '{Bite()}'")));

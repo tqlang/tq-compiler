@@ -4,30 +4,33 @@ using AsmResolver.DotNet;
 
 namespace Abstract.CodeProcess.Core.EvaluationData.LanguageObjects;
 
-public class DotnetTypeObject(ITypeDescriptor typeRef, TypeDefinition typeDef, string n) : ContainerObject(null!, n),
+public class DotnetTypeObject(TypeDefinition definition) : ContainerObject(null!, definition.Name!),
     IDotnetTypeContainer,
+    IDotnetFieldContainer,
     IDotnetMethodContainer,
     IDotnetCtorDtorContainer
 {
-    public readonly ITypeDescriptor TypeDescriptor = typeRef;
-    public readonly TypeDefinition TypeDefinition = typeDef;
-    public DotnetTypeObject? ParentTypeDefinition = null;
+    public readonly TypeDefinition Reference = definition;
+    public DotnetTypeObject? ParentType = null;
 
     public List<DotnetTypeObject> Types { get; } = [];
+    public List<DotnetFieldObject> Fields { get; } = [];
     public List<DotnetMethodGroupObject> Methods { get; } = [];
     public List<DotnetMethodObject> Constructors { get; } = [];
     public DotnetTypeObject? Destructor { get; set; }
-    
-    public bool IsStatic => TypeDefinition is { IsAbstract: true, IsSealed: true };
+
+    public bool IsStatic => Reference is { IsAbstract: true, IsSealed: true };
+    public bool IsValueType => Reference.IsValueType;
+    public bool IsEnum => Reference.IsEnum;
     
     public override string ToString()
     {
         var sb = new StringBuilder();
         if (IsStatic) sb.Append("static ");
-        sb.Append($"class {TypeDefinition.Name!.Value}");
-        if (TypeDefinition.GenericParameters.Count > 0)
-            sb.Append($" ({string.Join(", ", TypeDefinition.GenericParameters)})");
-        sb.Append($" extends {TypeDefinition.BaseType?.Name!.Value ?? "Object"}");
+        sb.Append(IsValueType ? "struct" : "class");
+        sb.Append($" {Reference.Name!.Value}");
+        if (Reference.GenericParameters.Count > 0) sb.Append($" <{string.Join(", ", Reference.GenericParameters)}>");
+        if (ParentType != null) sb.Append($" extends {ParentType?.Reference.Name!.Value}");
 
         if (Types.Count + Methods.Count + Constructors.Count > 0 || Destructor != null)
         {
@@ -48,12 +51,14 @@ public class DotnetTypeObject(ITypeDescriptor typeRef, TypeDefinition typeDef, s
     {
         SearchChildMode.All or SearchChildMode.OnlyStatic =>
             (LangObject?)Types.FirstOrDefault(e => e.Name == name)
+            ?? Fields.FirstOrDefault(e => !e.IsStatic && e.Name == name)
             ?? Methods.FirstOrDefault(e => e.Name == name)
-            ?? ParentTypeDefinition?.SearchChild(name, mode),
+            ?? ParentType?.SearchChild(name, mode),
         
         SearchChildMode.OnlyInstance =>
-            Methods.FirstOrDefault(e => e.Name == name)
-            ?? ParentTypeDefinition?.SearchChild(name, mode),
+            Fields.FirstOrDefault(e => e.IsStatic && e.Name == name)
+            ?? Methods.FirstOrDefault(e => e.Name == name)
+            ?? ParentType?.SearchChild(name, mode),
 
         _ => throw new ArgumentOutOfRangeException(nameof(mode), mode, null)
     };

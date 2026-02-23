@@ -42,7 +42,7 @@ public partial class Analyser
                         break;
 
                     case SolvedTypedefNamedValueReference tdff:
-                        result = tdff.Type;
+                        result = tdff.FieldType;
                         break;
 
                     case SolvedFieldReference field:

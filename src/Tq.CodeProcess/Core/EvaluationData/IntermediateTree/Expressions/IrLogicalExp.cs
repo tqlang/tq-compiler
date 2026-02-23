@@ -16,7 +16,7 @@ public class IrLogicalExp(
     public IrExpression Left { get; set; } = left;
     public IrExpression Right { get; set; } = right;
 
-    public override string ToString() => $"{Operator.ToString().ToLower()} {Left}, {Right}";
+    public override string ToString() => $"{Left}\n\t{Operator.ToString().ToLower()} {Right}";
     
     public enum Operators
     {

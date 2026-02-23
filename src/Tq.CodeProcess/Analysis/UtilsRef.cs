@@ -29,6 +29,7 @@ public partial class Analyser
             TqNamespaceObject @n => new NamespaceReference(n),
             
             DotnetTypeObject @t => new DotnetTypeReference(t),
+            DotnetFieldObject @f => new DotnetFieldReference(f),
             DotnetNamespaceObject @n => new DotnetNamespaceReference(n),
             DotnetMethodGroupObject @mg => new DotnetMethodGroupReference(mg),
             

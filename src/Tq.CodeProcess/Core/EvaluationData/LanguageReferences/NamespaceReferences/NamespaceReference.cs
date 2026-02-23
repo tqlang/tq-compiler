@@ -7,5 +7,5 @@ namespace Abstract.CodeProcess.Core.EvaluationData.LanguageReferences;
 public class NamespaceReference(TqNamespaceObject nmsp) : LanguageReference
 {
     public readonly TqNamespaceObject TqNamespaceObject = nmsp;
-    public override TypeReference Type => new SolvedNamespaceTypeReference(nmsp);
+    public override TypeReference FieldType => new SolvedNamespaceTypeReference(nmsp);
 }

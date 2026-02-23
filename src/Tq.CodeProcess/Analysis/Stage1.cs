@@ -15,6 +15,7 @@ using Abstract.CodeProcess.Core.Language.SyntaxNodes.Expression;
 using Abstract.CodeProcess.Core.Language.SyntaxNodes.Misc;
 using Abstract.CodeProcess.Core.Language.SyntaxNodes.Value;
 using AsmResolver.DotNet;
+using AsmResolver.DotNet.Serialized;
 using AsmResolver.DotNet.Signatures.Types;
 using TypeReference = Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.TypeReferences.TypeReference;
 
@@ -367,6 +368,13 @@ public partial class Analyser
                 LoadGlobalsRecursive(i);
             }
         
+        if (obj is IDotnetFieldContainer fd)
+            foreach (var i in fd.Fields)
+            {
+                i.Parent = obj;
+                LoadGlobalsRecursive(i);
+            }
+        
         if (obj is IDotnetMethodContainer dm)
             foreach (var i in dm.Methods)
             {
@@ -438,94 +446,87 @@ public partial class Analyser
     
     private void BuildDotnetAssemblyTree(ModuleObject root, ModuleDefinition dotnetModule, Dictionary<string, DotnetTypeObject> typesMap)
     {
-        foreach (var type in dotnetModule.ExportedTypes) DotnetInsertType(root, type, typesMap, true);
-        foreach (var type in dotnetModule.TopLevelTypes) DotnetInsertType(root, type, typesMap, false);
+        foreach (var type in dotnetModule.ExportedTypes) DotnetInsertType(root, type.Resolve()!, typesMap);
+        foreach (var type in dotnetModule.GetAllTypes()) DotnetInsertType(root, type, typesMap);
     }
-
-    private void DotnetInsertType(ModuleObject root, ITypeDescriptor type, Dictionary<string, DotnetTypeObject> map, bool skipable)
+    
+    private void DotnetInsertType(ModuleObject root, TypeDefinition type, Dictionary<string, DotnetTypeObject> map)
     {
-        var typedef = type.Resolve() ?? throw new Exception();
         try
         {
-
-            if (typedef.FullName == "<Module>") return;
-            if (typedef.IsNotPublic) return;
+            if (type.FullName == "<Module>") return;
+            if (type is SerializedTypeDefinition { IsPublic: false }) return;
             
-            if (map.ContainsKey(typedef.FullName))
-            {
-                if (skipable) return;
-                throw new Exception();
-            }
-
-            var ns = type.Namespace?.Split('.') ?? ["Global"];
+            var ns = type.Namespace?.ToString().Split('.') ?? ["Global"];
             if (ns.Length < 1) throw new Exception();
 
-            ContainerObject current = root;
-
-            if (typedef.IsNested)
-            {
-                current = map[typedef.DeclaringType!.FullName];
-            }
-            else
-            {
-                // Manually search inside namespace
-                foreach (var part in ns) current = GetOrCreateNamespace((INamespaceContainer)current, part);
-            }
-
+            var current = type is SerializedTypeDefinition { IsNested: true } nested
+                ? map[nested.DeclaringType!.FullName]
+                : ns.Aggregate((ContainerObject)root, (current1, part) => GetOrCreateNamespace((INamespaceContainer)current1, part));
+            
             if (current is not IDotnetTypeContainer @container) throw new Exception();
-            var obj = new DotnetTypeObject(type, typedef, type.Name!);
+            var obj = new DotnetTypeObject(type);
             container.Types.Add(obj);
 
-            map.Add(typedef.FullName, obj);
+            map.Add(type.FullName, obj);
         }
         catch (Exception e)
         {
-            Console.WriteLine($"Error importing type '{typedef.FullName}': {e.Message}");
+            Console.WriteLine($"Error importing type '{type.FullName}': {e.Message}");
         }
     }
 
     private void DotnetRescanTypes(DotnetTypeObject obj, Dictionary<string, DotnetTypeObject> map)
     {
-        foreach (var i in obj.TypeDefinition.Methods) DotnetTryInsertMethod(obj, i, map);
+        foreach (var i in obj.Reference.Fields) DotnetTryInsertField(obj,  i, map);
+        foreach (var i in obj.Reference.Methods) DotnetTryInsertMethod(obj, i, map);
     }
-    
-    private void DotnetTryInsertMethod(DotnetTypeObject parent, IMethodDescriptor method,
-        Dictionary<string, DotnetTypeObject> typesMap)
+
+    private void DotnetTryInsertField(DotnetTypeObject parent, FieldDefinition field,
+        Dictionary<string, DotnetTypeObject> map)
     {
-        var methodDef = method.Resolve() ?? throw new Exception();
-        
         try
         {
-
-            if (methodDef.IsPrivate) return;
+            if (field.IsPrivate) return;
+            var obj = new DotnetFieldObject(field, DotnetTypeToRef(field.Signature!.FieldType, map));
+            parent.Fields.Add(obj);
+        }
+        catch (Exception e) { Console.WriteLine($"Error importing field '{field.FullName}': {e.Message}"); }
+    }
+    private void DotnetTryInsertMethod(DotnetTypeObject parent, MethodDefinition method,
+        Dictionary<string, DotnetTypeObject> typesMap)
+    {
+        try
+        {
+            if (method.IsPrivate) return;
             
-            var parameters = new ParameterObject[methodDef.GenericParameters.Count + methodDef.Parameters.Count];
-            for ( var i = 0; i < methodDef.GenericParameters.Count; i++)
+            var parameters = new ParameterObject[method.GenericParameters.Count + method.Parameters.Count];
+            for ( var i = 0; i < method.GenericParameters.Count; i++)
             {
                 parameters[i] = new ParameterObject(
                     new TypeTypeReference(null),
-                    methodDef.GenericParameters[i].Name!);
+                    method.GenericParameters[i].Name!);
             }
 
-            for (var i = 0; i < methodDef.Parameters.Count; i++)
+            for (var i = 0; i < method.Parameters.Count; i++)
             {
-                var idx = methodDef.GenericParameters.Count + i;
-                var ptype = methodDef.Parameters[i].ParameterType;
-                var pname = methodDef.Parameters[i].Name!;
+                var idx = method.GenericParameters.Count + i;
+                var ptype = method.Parameters[i].ParameterType;
+                var pname = method.Parameters[i].Name!;
                 
                 if (ptype is GenericParameterSignature gp)
                     parameters[idx] = new ParameterObject(new GenericTypeReference(parameters[gp.Index]), pname);
                 else
                     parameters[idx] = new ParameterObject(DotnetTypeToRef(ptype, typesMap), pname);
             }
-
+            
             var obj = new DotnetMethodObject(
-                methodDef.Name!,
-                method, methodDef,
-                DotnetTypeToRef(methodDef.Signature!.ReturnType,  typesMap),
+                method.Name!,
+                method, method,
+                DotnetTypeToRef(method.Signature!.ReturnType,  typesMap),
                 parameters);
             
-            if (methodDef.IsConstructor) parent.Constructors.Add(obj);
+            if (method.IsConstructor) parent.Constructors.Add(obj);
             else
             {
                 var group = parent.Methods.FirstOrDefault(e => e.Name == method.Name);
@@ -537,10 +538,7 @@ public partial class Analyser
                 group.Overloads.Add(obj);
             }
         }
-        catch (Exception e)
-        {
-            Console.WriteLine($"Error importing method '{methodDef.FullName}': {e.Message}");
-        }
+        catch (Exception e) { Console.WriteLine($"Error importing method '{method.FullName}': {e.Message}"); }
     }
     
     private ContainerObject GetOrCreateNamespace(INamespaceContainer container, string name)

@@ -27,10 +27,10 @@ public partial class Compiler
 {
     private void CompileIr(IrBlock block, Context ctx)
     {
-        foreach (var node in block.Content) CompileIrNodeLoad(node, ctx);
+        foreach (var node in block.Content) CompileIrNodeLoad(node, true, ctx);
     }
     
-    private void CompileIrNodeLoad(IrNode node, Context ctx)
+    private void CompileIrNodeLoad(IrNode node, bool ignoreValue, Context ctx)
     {
         switch (node)
         {
@@ -40,10 +40,11 @@ public partial class Compiler
 
             case IrNewObject @nobj:
             {
+                if (ignoreValue) return;
                 var type = nobj.InstanceType switch
                 {
                     SolvedStructTypeReference structRef => _typesMap[structRef.Struct].Type,
-                    DotnetTypeReference dotnetRef => dotnetRef.Reference.TypeDescriptor,
+                    DotnetTypeReference dotnetRef => dotnetRef.Reference.Reference,
                     _ => throw new NotImplementedException()
                 };
                 var typeSignature = type.ToTypeSignature();
@@ -52,19 +53,21 @@ public partial class Compiler
                 {
                     var local = ctx.AllocTmp(typeSignature);
                     ctx.Gen.Add(CilOpCodes.Ldloca, local);
-                    CompileIrNodeCall(nobj.Target, nobj.Arguments, ctx);
+                    CompileIrNodeCall(nobj.Target, nobj.Arguments, false, ctx);
                     ctx.Gen.Add(CilOpCodes.Ldloc, local);
                 }
                 else
                 {
-                    CompileIrNodeCall(nobj.Target, nobj.Arguments, ctx, useNewObj: true);
+                    CompileIrNodeCall(nobj.Target, nobj.Arguments, false, ctx, useNewObj: true);
                 }
-                
-                ctx.StackPush(typeSignature);
+
+                if (ignoreValue) ctx.Gen.Add(CilOpCodes.Pop);
+                else ctx.StackPush(typeSignature);
             } break;
 
             case IrIntegerLiteral @intlit:
             {
+                if (ignoreValue) return;
                 var signed = ((RuntimeIntegerTypeReference)intlit.Type!).Signed;
                 switch (intlit.Size)
                 {
@@ -73,7 +76,7 @@ public partial class Compiler
                         ctx.StackPush(signed ? _corLibFactory.Int32 : _corLibFactory.UInt32);
                         break;
                     case <= 64:
-                        ctx.Gen.Add(CilOpCodes.Ldc_I8, unchecked((long)(UInt128)intlit.Value));
+                        ctx.Gen.Add(CilOpCodes.Ldc_I8, unchecked((long)(Int128)intlit.Value));
                         ctx.StackPush(signed ? _corLibFactory.Int64 : _corLibFactory.UInt64);
                         break;
                     case <= 128:
@@ -113,19 +116,23 @@ public partial class Compiler
                 
             } break;
             case IRBooleanLiteral @boollit:
+                if (ignoreValue) return;
                 ctx.Gen.Add(boollit.Value ? CilOpCodes.Ldc_I4_1 : CilOpCodes.Ldc_I4_0);
                 ctx.StackPush(_corLibFactory.Boolean);
                 break;
             case IrCharLiteral @charlit:
+                if (ignoreValue) return;
                 ctx.Gen.Add(CilOpCodes.Ldc_I4_S, (short)charlit.Data);
                 ctx.StackPush(_corLibFactory.Char);
                 break;
             case IrStringLiteral @strlit:
+                if (ignoreValue) return;
                 ctx.Gen.Add(CilOpCodes.Ldstr, strlit.Data);
                 ctx.StackPush(_corLibFactory.String);
                 break;
             case IrCollectionLiteral @collit:
             {
+                if (ignoreValue) return;
                 var elmtype = TypeFromRef(collit.ElementType);
                 
                 ctx.Gen.Add(CilInstruction.CreateLdcI4(collit.Length));
@@ -137,7 +144,7 @@ public partial class Compiler
                 {
                     ctx.Gen.Add(CilOpCodes.Dup);
                     ctx.Gen.Add(CilInstruction.CreateLdcI4(index++));
-                    CompileIrNodeLoad(i,  ctx);
+                    CompileIrNodeLoad(i, false, ctx);
                     ctx.Gen.Add(CilOpCodes.Stelem, elmtype.ToTypeDefOrRef());
                     ctx.StackPop();
                 }
@@ -145,6 +152,7 @@ public partial class Compiler
             
             case IrSolvedReference @solv:
             {
+                if (ignoreValue) return;
                 switch (solv.Reference)
                 {
                     case LocalReference @lr:
@@ -192,6 +200,7 @@ public partial class Compiler
     
             case IRAccess @acc:
             {
+                if (ignoreValue) return;
                 CompileIrNodeLoadAsRef(acc.A, ctx);
                 CompileIrNodeLoadAsRef(acc.B, ctx);
                 
@@ -200,10 +209,11 @@ public partial class Compiler
                 ctx.StackPush(t);
             } break;
     
-            case IrInvoke @iv: CompileIrNodeCall(iv.Target, iv.Arguments, ctx); break;
+            case IrInvoke @iv: CompileIrNodeCall(iv.Target, iv.Arguments, ignoreValue, ctx); break;
             
             case IrConv @c:
             {
+                if (ignoreValue) return;
                 var fromType = c.OriginType;
                 var toType = c.Type;
 
@@ -212,7 +222,7 @@ public partial class Compiler
                     case StringTypeReference:
                     {
                         var baseTypeRef = TypeFromRef(fromType);
-                        CompileIrNodeLoad(c.Expression, ctx);
+                        CompileIrNodeLoad(c.Expression, false, ctx);
                         ctx.StackPop();
                         ctx.Gen.Add(CilOpCodes.Box, baseTypeRef.ToTypeDefOrRef());
                         ctx.Gen.Add(CilOpCodes.Callvirt, (IMethodDescriptor)_coreLib["Object"].m["ToString"]);
@@ -221,7 +231,7 @@ public partial class Compiler
 
                     case RuntimeIntegerTypeReference @targt:
                     {
-                        CompileIrNodeLoad(c.Expression, ctx);
+                        CompileIrNodeLoad(c.Expression, false, ctx);
                         
                         switch (c.Expression.Type)
                         {
@@ -304,6 +314,47 @@ public partial class Compiler
                                 }
                             } break;
 
+                            case CharTypeReference:
+                            {
+                                var s = targt.Signed;
+                                var bitsize = targt.BitSize.Bits;
+                                
+                                switch (bitsize)
+                                {
+                                    case 0:
+                                        ctx.Gen.Add(s ? CilOpCodes.Conv_I : CilOpCodes.Conv_U);
+                                        ctx.StackPush(s ? _corLibFactory.IntPtr : _corLibFactory.UIntPtr);
+                                        break;
+                                    
+                                    case <= 8:
+                                        ctx.Gen.Add(s ? CilOpCodes.Conv_I1 : CilOpCodes.Conv_U1);
+                                        ctx.StackPush(s ? _corLibFactory.SByte : _corLibFactory.Byte);
+                                        break;
+                                    case <= 16:
+                                        ctx.Gen.Add(s ? CilOpCodes.Conv_I2 : CilOpCodes.Conv_U2);
+                                        ctx.StackPush(s ? _corLibFactory.Int16 : _corLibFactory.UInt16);
+                                        break;
+                                    case <= 32:
+                                        ctx.Gen.Add(s ? CilOpCodes.Conv_I4 : CilOpCodes.Conv_U4);
+                                        ctx.StackPush(s ? _corLibFactory.Int32 : _corLibFactory.UInt32);
+                                        break;
+                                    case <= 64:
+                                        ctx.Gen.Add(s ? CilOpCodes.Conv_I8 : CilOpCodes.Conv_U8);
+                                        ctx.StackPush(s ? _corLibFactory.Int64 : _corLibFactory.UInt64);
+                                        break;
+
+                                    case <= 128:
+                                    {
+                                        var baset = _coreLib["UInt128"];
+                                        ctx.Gen.Add(CilOpCodes.Call, baset.m[s ? "Conv_from_i32" : "Conv_from_u32"]);
+                                        ctx.StackPush(baset.t);
+                                        break;
+                                    }
+
+                                    default: throw new UnreachableException();
+                                }
+                            } break;
+                            
                             case SolvedTypedefTypeReference:
                             {
                                 var fromTypeSig = ctx.Stack[^1];
@@ -370,46 +421,48 @@ public partial class Compiler
                 switch (ue.Operation)
                 {
                     case IRUnaryExp.UnaryOperation.Reference:
+                        if (ignoreValue) return;
                         CompileIrNodeLoadAsRef(ue.Value, ctx);
                         break;
 
                     case IRUnaryExp.UnaryOperation.BitwiseNot:
                     {
+                        if (ignoreValue) return;
                         var isSigned = ((RuntimeIntegerTypeReference)ue.Type!).Signed;
                         var is128 = ((RuntimeIntegerTypeReference)ue.Type!).BitSize == 128;
                         
-                        CompileIrNodeLoad(ue.Value, ctx);
-                        if (is128) ctx.Gen.Add(CilOpCodes.Call, (IMethodDescriptor)_coreLib[isSigned ? "Int128" : "UInt128"].m["BitwiseNot"]);
+                        CompileIrNodeLoad(ue.Value, false, ctx);
+                        if (is128) ctx.Gen.Add(CilOpCodes.Call, _coreLib[isSigned ? "Int128" : "UInt128"].m["BitwiseNot"]);
                         else ctx.Gen.Add(CilOpCodes.Not); ;
                     } break;
 
                     case IRUnaryExp.UnaryOperation.PreIncrement:
-                        CompileIrNodeLoad(ue.Value, ctx);
+                        CompileIrNodeLoad(ue.Value, false, ctx);
                         
                         it = (RuntimeIntegerTypeReference)ue.Value.Type;
                         bs = it.BitSize.Bits;
                         switch (bs)
                         {
-                            case <= 32: CilInstruction.CreateLdcI4(1); break;
+                            case <= 32: ctx.Gen.Add(CilInstruction.CreateLdcI4(1)); break;
                             case <= 64: ctx.Gen.Add(CilOpCodes.Ldc_I8, (long)1); break;
                             default: throw new UnreachableException();
                         }
                         
                         ctx.Gen.Add(CilOpCodes.Add);
-                        ctx.Gen.Add(CilOpCodes.Dup);
+                        if (!ignoreValue) ctx.Gen.Add(CilOpCodes.Dup);
                         CompileIrNodeStore(ue.Value, null, ctx);
                         ctx.Stack.Add(TypeFromRef(ue.Type));
                         break;
                     
                     case IRUnaryExp.UnaryOperation.PostIncrement:
-                        CompileIrNodeLoad(ue.Value, ctx);
-                        ctx.Gen.Add(CilOpCodes.Dup);
+                        CompileIrNodeLoad(ue.Value, false, ctx);
+                        if (!ignoreValue) ctx.Gen.Add(CilOpCodes.Dup);
                         
                         it = (RuntimeIntegerTypeReference)ue.Value.Type;
                         bs = it.BitSize.Bits;
                         switch (bs)
                         {
-                            case <= 32: CilInstruction.CreateLdcI4(1); break;
+                            case <= 32: ctx.Gen.Add(CilInstruction.CreateLdcI4(1)); break;
                             case <= 64: ctx.Gen.Add(CilOpCodes.Ldc_I8, (long)1); break;
                             default: throw new UnreachableException();
                         }
@@ -424,8 +477,9 @@ public partial class Compiler
             } break;
             case IRBinaryExp @bin:
             {
-                CompileIrNodeLoad(bin.Left, ctx);
-                CompileIrNodeLoad(bin.Right, ctx);
+                if (ignoreValue) return;
+                CompileIrNodeLoad(bin.Left, false, ctx);
+                CompileIrNodeLoad(bin.Right, false, ctx);
                 
                 switch (bin.Left.Type)
                 {
@@ -486,19 +540,17 @@ public partial class Compiler
 
                             case IRBinaryExp.Operators.BitwiseXor:
                                 if (is128)
-                                    ctx.Gen.Add(CilOpCodes.Call, (IMethodDescriptor)_coreLib[isSigned ? "Int128" : "UInt128"].m["BitwiseXor"]);
+                                    ctx.Gen.Add(CilOpCodes.Call, _coreLib[isSigned ? "Int128" : "UInt128"].m["BitwiseXor"]);
                                 else ctx.Gen.Add(CilOpCodes.Xor);
                                 break;
 
                             case IRBinaryExp.Operators.LeftShift:
-                                //ctx.Gen.Add(CilOpCodes.Conv_I4);
                                 if (is128)
-                                    ctx.Gen.Add(CilOpCodes.Call, (IMethodDescriptor)_coreLib[isSigned ? "Int128" : "UInt128"].m["LeftShift"]);
+                                    ctx.Gen.Add(CilOpCodes.Call, _coreLib[isSigned ? "Int128" : "UInt128"].m["LeftShift"]);
                                 else ctx.Gen.Add(CilOpCodes.Shl);
                                 break;
 
                             case IRBinaryExp.Operators.RightShift:
-                                //ctx.Gen.Add(CilOpCodes.Conv_I4);
                                 if (is128)
                                     ctx.Gen.Add(CilOpCodes.Call, (IMethodDescriptor)_coreLib[isSigned ? "Int128" : "UInt128"].m["RightShift"]);
                                 else ctx.Gen.Add(CilOpCodes.Shr_Un);
@@ -517,12 +569,14 @@ public partial class Compiler
                         throw new UnreachableException();
                 }
                 
-                ctx.StackPop();
+                ctx.StackPop(2);
+                ctx.StackPush(TypeFromRef(bin.Type));
             } break;
             case IRCompareExp @cmp:
             {
-                CompileIrNodeLoad(cmp.Left, ctx);
-                CompileIrNodeLoad(cmp.Right, ctx);
+                if (ignoreValue) return;
+                CompileIrNodeLoad(cmp.Left, false, ctx);
+                CompileIrNodeLoad(cmp.Right, false, ctx);
                 
                 switch (cmp.Left.Type)
                 {
@@ -594,6 +648,26 @@ public partial class Compiler
                                 ctx.Gen.Add(CilOpCodes.Ceq);
                                 break;
                             
+                            case IRCompareExp.Operators.LessThan:
+                                ctx.Gen.Add(CilOpCodes.Clt_Un);
+                                break;
+                            
+                            case IRCompareExp.Operators.LessThanOrEqual:
+                                ctx.Gen.Add(CilOpCodes.Cgt_Un);
+                                ctx.Gen.Add(CilOpCodes.Ldc_I4_0);
+                                ctx.Gen.Add(CilOpCodes.Ceq);
+                                break;
+                            
+                            case IRCompareExp.Operators.GreaterThan:
+                                ctx.Gen.Add(CilOpCodes.Cgt_Un);
+                                break;
+                            
+                            case IRCompareExp.Operators.GreaterThanOrEqual:
+                                ctx.Gen.Add(CilOpCodes.Cgt_Un);
+                                ctx.Gen.Add(CilOpCodes.Ldc_I4_0);
+                                ctx.Gen.Add(CilOpCodes.Ceq);
+                                break;
+                            
                             default: throw new ArgumentOutOfRangeException();
                         }
                     } break;
@@ -623,32 +697,47 @@ public partial class Compiler
             } break;
             case IrLogicalExp @log:
             {
+                var shortcutMode = false;
+                CilInstructionLabel shortcutIfTrueLabel = null!;
+                CilInstructionLabel shortcutIfFalseLabel = null!;
+
                 if (ctx.GetFrame() is ConditionalExpressionFrame @cef)
+                    (shortcutMode, shortcutIfTrueLabel, shortcutIfFalseLabel) = (true, cef.IfTrue, cef.IfFalse);
+                else if (ctx.GetFrame() is LoopCheckFrame @lcf)
+                    (shortcutMode, shortcutIfTrueLabel, shortcutIfFalseLabel) = (true, lcf.Continue, lcf.Break);
+
+                if (shortcutMode)
                 {
                     switch (log.Operator)
                     {
                         case IrLogicalExp.Operators.And:
-                            CompileIrNodeLoad(log.Left, ctx);
+                            CompileIrNodeLoad(log.Left, false, ctx);
                             if (log.Left is not IrLogicalExp)
                             {
-                                ctx.Gen.Add(CilOpCodes.Brfalse, cef.IfFalse);
                                 ctx.StackPop();
+                                ctx.Gen.Add(CilOpCodes.Brfalse, shortcutIfFalseLabel);
                             }
-                            CompileIrNodeLoad(log.Right, ctx);
+                            CompileIrNodeLoad(log.Right, false, ctx);
                             if (log.Right is not IrLogicalExp)
                             {
-                                ctx.Gen.Add(CilOpCodes.Brfalse, cef.IfFalse);
                                 ctx.StackPop();
+                                ctx.Gen.Add(CilOpCodes.Brfalse, shortcutIfFalseLabel);
                             }
                             break;
                         
                         case IrLogicalExp.Operators.Or:
-                            CompileIrNodeLoad(log.Left, ctx);
-                            ctx.Gen.Add(CilOpCodes.Brtrue, cef.IfTrue);
-                            ctx.StackPop();
-                            CompileIrNodeLoad(log.Right, ctx);
-                            ctx.Gen.Add(CilOpCodes.Brtrue, cef.IfTrue);
-                            ctx.StackPop();
+                            CompileIrNodeLoad(log.Left, false, ctx);
+                            if (log.Left is not IrLogicalExp)
+                            {
+                                ctx.StackPop();
+                                ctx.Gen.Add(CilOpCodes.Brtrue, shortcutIfTrueLabel);
+                            }
+                            CompileIrNodeLoad(log.Right, false, ctx);
+                            if (log.Right is not IrLogicalExp)
+                            {
+                                ctx.StackPop();
+                                ctx.Gen.Add(CilOpCodes.Brtrue, shortcutIfTrueLabel);
+                            }
                             break;
                         
                         default: throw new ArgumentOutOfRangeException();
@@ -656,8 +745,9 @@ public partial class Compiler
                 }
                 else
                 {
-                    CompileIrNodeLoad(log.Left, ctx);
-                    CompileIrNodeLoad(log.Right, ctx);
+                    if (ignoreValue) return;
+                    CompileIrNodeLoad(log.Left, false, ctx);
+                    CompileIrNodeLoad(log.Right, false, ctx);
 
                     switch (log.Operator)
                     {
@@ -680,29 +770,29 @@ public partial class Compiler
             case IrIndex @idx:
             {
                 var elmtype = TypeFromRef(idx.ResultType);
-                CompileIrNodeLoad(idx.Value, ctx);
-                CompileIrNodeLoad(idx.Indices[0], ctx);
-
+                CompileIrNodeLoad(idx.Value, false, ctx);
+                CompileIrNodeLoad(idx.Indices[0], false, ctx);
+                
                 if (ctx.Stack[^2] is SzArrayTypeSignature)
                 {
-                    if (ctx.Stack[^1] is CorLibTypeSignature @clts && IsExplicitInteger(clts, out var sig, out var len))
+                    if (ctx.PeekStack() is CorLibTypeSignature @clts && IsExplicitInteger(clts, out var sig, out var len))
                         if (len > 4) ctx.Gen.Add(CilOpCodes.Conv_I4);
                     ctx.Gen.Add(CilOpCodes.Ldelem, elmtype.ToTypeDefOrRef());
                 }
                 else if (ctx.Stack[^2] == _corLibFactory.String)
                 {
-                    if (ctx.Stack[^1] is CorLibTypeSignature @clts && IsExplicitInteger(clts, out var sig, out var len))
+                    if (ctx.PeekStack() is CorLibTypeSignature @clts && IsExplicitInteger(clts, out var sig, out var len))
                         if (len > 4) ctx.Gen.Add(CilOpCodes.Conv_I4);
-                    ctx.Gen.Add(CilOpCodes.Call, (IMethodDescriptor)_coreLib["String"].m["charAt"]);
+                    ctx.Gen.Add(CilOpCodes.Call, _coreLib["String"].m["charAt"]);
                 }
-                else throw new UnreachableException();
+                else throw new NotImplementedException();
                 
-                ctx.StackPop();
-                ctx.Stack[^1] = elmtype;
+                ctx.StackPop(2);
+                ctx.StackPush(elmtype);
             } break;
             case IrLenOf @lenof:
             {
-                CompileIrNodeLoad(lenof.OfValue, ctx);
+                CompileIrNodeLoad(lenof.OfValue, false, ctx);
                 ctx.Gen.Add(CilOpCodes.Ldlen);
                 ctx.Stack[^1] = TypeFromRef(lenof.Type);
             } break;
@@ -714,7 +804,7 @@ public partial class Compiler
                 var breakLabel = new CilInstructionLabel();
                 
                 ctx.FramePush(new ConditionalExpressionFrame(thisConditionLabel, nextConditionLabel));
-                CompileIrNodeLoad(@if.Condition, ctx);
+                CompileIrNodeLoad(@if.Condition, false, ctx);
                 if (@if.Condition is not IrLogicalExp)
                 {
                     ctx.Gen.Add(CilOpCodes.Brfalse, nextConditionLabel);
@@ -738,10 +828,13 @@ public partial class Compiler
                         nextConditionLabel = new CilInstructionLabel();
                         
                         ctx.FramePush(new ConditionalExpressionFrame(thisConditionLabel, nextConditionLabel));
-                        CompileIrNodeLoad(@elseIf.Condition, ctx);
-                        ctx.Gen.Add(CilOpCodes.Brfalse, nextConditionLabel);
+                        CompileIrNodeLoad(@elseIf.Condition, false, ctx);
+                        if (@elseIf.Condition is not IrLogicalExp)
+                        {
+                            ctx.Gen.Add(CilOpCodes.Brfalse, nextConditionLabel);
+                            ctx.StackPop();
+                        }
                         ctx.FramePop();
-                        ctx.StackPop();
                         
                         ctx.MarkLabel(thisConditionLabel);
                         CompileIr(@elseIf.Then, ctx);
@@ -766,32 +859,47 @@ public partial class Compiler
     
             case IRWhile @while:
             {
+                var a = ctx;
                 var checkLabel = new CilInstructionLabel();
                 var bodyLabel = new CilInstructionLabel();
+                var breakLabel = new CilInstructionLabel();
                 
                 // Jump to check
                 ctx.Gen.Add(CilOpCodes.Br,  checkLabel);
                 
                 // Body
+                ctx.FramePush(new LoopBodyFrame(checkLabel, breakLabel));
                 var lastIdx = ctx.Gen.Count;
                 CompileIr(@while.Process, ctx);
+                if (lastIdx == ctx.Gen.Count) ctx.Gen.Add(CilOpCodes.Nop);
                 bodyLabel.Instruction = ctx.Gen[lastIdx];
+                ctx.FramePop();
                 
                 // Step
                 if (@while.Step != null) CompileIr(@while.Step, ctx);
                 
                 // Check
+                ctx.FramePush(new LoopCheckFrame(checkLabel, breakLabel));
+                var stackBefore = ctx.Stack.Count;
                 lastIdx = ctx.Gen.Count;
-                CompileIrNodeLoad(@while.Condition, ctx);
-                ctx.Gen.Add(CilOpCodes.Brtrue, bodyLabel);
-                ctx.StackPop();
+                CompileIrNodeLoad(@while.Condition, false, ctx);
+                ctx.FramePop();
+
+                if (stackBefore != ctx.Stack.Count)
+                {
+                    ctx.Gen.Add(CilOpCodes.Brtrue, bodyLabel);
+                    ctx.StackPop();
+                }
+                else ctx.Gen.Add(CilOpCodes.Br, bodyLabel);
+                
                 checkLabel.Instruction = ctx.Gen[lastIdx];
+                breakLabel.Instruction = ctx.Gen.Add(CilOpCodes.Nop);
             } break;
             
             case IrReturn @ret:
                 if (ret.Value != null)
                 {
-                    CompileIrNodeLoad(ret.Value, ctx);
+                    CompileIrNodeLoad(ret.Value, false, ctx);
                     ctx.StackPop();
                 }
                 ctx.Gen.Add(CilOpCodes.Ret);
@@ -857,7 +965,7 @@ public partial class Compiler
         }
     }
     
-    private void CompileIrNodeStore(IrNode node, IrNode? value,  Context ctx)
+    private void CompileIrNodeStore(IrNode node, IrNode? value, Context ctx)
     {
         switch (node)
         {
@@ -867,7 +975,7 @@ public partial class Compiler
                 {
                     case LocalReference @l:
                     {
-                        if (value != null) CompileIrNodeLoad(value, ctx);
+                        if (value != null) CompileIrNodeLoad(value, false, ctx);
                         ctx.Gen.Add(CilOpCodes.Stloc, ctx.GetLoc(l.Local.index));
                         ctx.StackPop();
                     } break;
@@ -880,8 +988,8 @@ public partial class Compiler
                         if (!t.IsStatic && !ctx.Stack[^1].IsAssignableTo(t.DeclaringType!.ToTypeSignature()))
                             ctx.Gen.Add(CilOpCodes.Conv_U);
                         
-                        if (value != null) CompileIrNodeLoad(value, ctx);
-                        ctx.Gen.Add((CilOpCode)(isstat ? CilOpCodes.Stsfld : CilOpCodes.Stfld), (IFieldDescriptor)t);
+                        if (value != null) CompileIrNodeLoad(value, false, ctx);
+                        ctx.Gen.Add((isstat ? CilOpCodes.Stsfld : CilOpCodes.Stfld), t);
                         
                         if (!isstat) ctx.StackPop();
                         ctx.StackPop();
@@ -900,9 +1008,10 @@ public partial class Compiler
             case IrIndex @idx:
             {
                 var elmtype = TypeFromRef(idx.ResultType);
-                CompileIrNodeLoad(idx.Value, ctx);
-                CompileIrNodeLoad(idx.Indices[0], ctx);
-                CompileIrNodeLoad(value!, ctx);
+                CompileIrNodeLoad(idx.Value, false, ctx);
+                CompileIrNodeLoad(idx.Indices[0], false, ctx);
+                SolveLastSoftCast(_corLibFactory.Int32, ctx);
+                CompileIrNodeLoad(value!, false, ctx);
                 ctx.Gen.Add(CilOpCodes.Stelem, elmtype.ToTypeDefOrRef());
                 ctx.StackPop(3);
             } break;
@@ -911,7 +1020,7 @@ public partial class Compiler
         }
     }
     
-    private void CompileIrNodeCall(IrNode node, IrExpression[] allArgs, Context ctx, bool useNewObj = false)
+    private void CompileIrNodeCall(IrNode node, IrExpression[] allArgs, bool ignoreValue, Context ctx, bool useNewObj = false)
     {
         switch (node)
         {
@@ -935,7 +1044,10 @@ public partial class Compiler
                                     generics.Add(new GenericTypeReference(param.Parameter));
                                     break;
                                 
-                                default: CompileIrNodeLoad(i, ctx); argsCount++; break;
+                                default:
+                                    CompileIrNodeLoad(i, false, ctx);
+                                    SolveLastSoftCast(TypeFromRef(i.Type), ctx);
+                                    argsCount++; break;
                             }
                         }
                         
@@ -943,44 +1055,46 @@ public partial class Compiler
                         {
                             case DotnetMethodObject dotnetMethod:
                             {
-                                var descriptor = dotnetMethod.MethodReference;
                                 var signature = dotnetMethod.MethodDefinition.Signature!;
                                 
+                                IMethodDescriptor descriptor;
                                 if (signature.IsGeneric)
                                 {
                                     var genericsSignatures = generics.Select(TypeFromRef).ToArray();
-                                    var importedGeneric = (MemberReference)ctx.Importer.ImportMethod(dotnetMethod.MethodReference);
-                                    descriptor = importedGeneric.MakeGenericInstanceMethod(genericsSignatures);
+                                    var genericInstance = ((IMethodDefOrRef)dotnetMethod.MethodReference)
+                                        .MakeGenericInstanceMethod(genericsSignatures);
+                                    descriptor = ctx.Importer.ImportMethod(genericInstance);
                                 }
-                                else
-                                {
-                                    descriptor = ctx.Importer.ImportMethod(descriptor);
-                                }
+                                else descriptor = ctx.Importer.ImportMethod(dotnetMethod.MethodReference);
                                 
                                 ctx.Gen.Add(useNewObj ? CilOpCodes.Newobj : CilOpCodes.Call, descriptor);
                                 ctx.StackPop(argsCount); 
-                                if (signature.ReturnsValue) ctx.StackPush(signature.ReturnType);
+                                if (signature.ReturnsValue)
+                                {
+                                    if (ignoreValue) ctx.Gen.Add(CilOpCodes.Pop);
+                                    else ctx.StackPush(signature.ReturnType);
+                                }
                             } break;
 
                             default:
                             {
                                 var functionData = _functionsMap[sfr.Callable];
-                                var signature = functionData.Signature!;
+                                var signature = functionData.Method.Signature!;
 
-                                IMethodDescriptor descriptor;
+                                IMethodDescriptor descriptor = functionData.Method;
                                 if (signature.IsGeneric)
                                 {
                                     var genericsSignatures = generics.Select(TypeFromRef).ToArray();
-                                    descriptor = functionData.MemberReference!.MakeGenericInstanceMethod(genericsSignatures);
-                                }
-                                else
-                                {
-                                    descriptor = functionData.MethodDescriptor ?? throw new UnreachableException();
+                                    descriptor = functionData.Method.MakeGenericInstanceMethod(genericsSignatures);
                                 }
 
                                 ctx.Gen.Add(useNewObj ? CilOpCodes.Newobj : CilOpCodes.Call, descriptor);
-                                ctx.StackPop(argsCount); 
-                                if (signature.ReturnsValue) ctx.StackPush(signature.ReturnType);
+                                ctx.StackPop(argsCount);
+                                if (signature.ReturnsValue)
+                                {
+                                    if (ignoreValue) ctx.Gen.Add(CilOpCodes.Pop);
+                                    else ctx.StackPush(signature.ReturnType);
+                                }
                             } break;
                         }
                     } break;
@@ -1032,8 +1146,32 @@ public partial class Compiler
         ctx.StackPush(_corLibFactory.FromElementType(c.Type)!);
     }
 
-    private T[] Test<T>(ulong length)
+    private void SolveLastSoftCast(TypeSignature toType, Context ctx)
     {
-        return GC.AllocateArray<T>((int)length);
+        var fromType = ctx.PeekStack();
+        switch (toType)
+        {
+            case CorLibTypeSignature @to when fromType is CorLibTypeSignature @from:
+            {
+                if (
+                    IsExplicitInteger(to, out var toSigned, out var toSize)
+                    && IsExplicitInteger(from, out var fromSigned, out var fromSize))
+                {
+                    switch (toSize)
+                    {
+                        case null when fromSigned: ctx.Gen.Add(toSigned ? CilOpCodes.Conv_Ovf_I : CilOpCodes.Conv_Ovf_U); break;
+                        case null:                 ctx.Gen.Add(toSigned ? CilOpCodes.Conv_Ovf_I_Un : CilOpCodes.Conv_Ovf_U_Un); break;
+                        case 1 when fromSigned: ctx.Gen.Add(toSigned ? CilOpCodes.Conv_Ovf_I1 : CilOpCodes.Conv_Ovf_U1); break;
+                        case 1:                 ctx.Gen.Add(toSigned ? CilOpCodes.Conv_Ovf_I1_Un : CilOpCodes.Conv_Ovf_U1_Un); break;
+                        case 2 when fromSigned: ctx.Gen.Add(toSigned ? CilOpCodes.Conv_Ovf_I2 : CilOpCodes.Conv_Ovf_U2); break;
+                        case 2:                 ctx.Gen.Add(toSigned ? CilOpCodes.Conv_Ovf_I2_Un : CilOpCodes.Conv_Ovf_U2_Un); break;
+                        case 4 when fromSigned: ctx.Gen.Add(toSigned ? CilOpCodes.Conv_Ovf_I4 : CilOpCodes.Conv_Ovf_U4); break;
+                        case 4:                 ctx.Gen.Add(toSigned ? CilOpCodes.Conv_Ovf_I4_Un : CilOpCodes.Conv_Ovf_U4_Un); break;
+                        case 8 when fromSigned: ctx.Gen.Add(toSigned ? CilOpCodes.Conv_Ovf_I8 : CilOpCodes.Conv_Ovf_U8); break;
+                        case 8:                 ctx.Gen.Add(toSigned ? CilOpCodes.Conv_Ovf_I8_Un : CilOpCodes.Conv_Ovf_U8_Un); break;
+                    }
+                }
+            } break;
+        }
     }
 }

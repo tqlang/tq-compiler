@@ -6,7 +6,7 @@ namespace Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.CodeRefere
 public class LocalReference(LocalVariableObject local) : LanguageReference
 {
     public readonly LocalVariableObject Local = local;
-    public override TypeReference Type => Local.Type!;
+    public override TypeReference FieldType => Local.Type!;
 
     public override string ToString() => $"local.{Local.index:D2}";
 }

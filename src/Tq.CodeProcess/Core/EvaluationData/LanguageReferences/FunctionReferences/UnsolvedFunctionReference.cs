@@ -6,7 +6,7 @@ namespace Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.FunctionRe
 public class UnsolvedFunctionReference(SyntaxNode node): FunctionReference
 {
     public readonly SyntaxNode Expression = node;
-    public override TypeReference Type => null!;
+    public override TypeReference FieldType => null!;
 
     public override string ToString() => $"UFun({Expression})";
 }

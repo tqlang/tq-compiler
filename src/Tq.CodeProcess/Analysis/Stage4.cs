@@ -31,11 +31,10 @@ namespace Abstract.CodeProcess;
 
 public partial class Analyser
 {
-    private HashSet<LangObject> _analyzedObjects = [];
-    
     private void DoSemanticAnalysis()
     {
         List<FunctionObject> funclist = [];
+        List<TypedefObject> typedeflist = [];
         List<ConstructorObject> ctorList = [];
         List<DestructorObject> dtorList = [];
         List<FieldObject> fldlist = [];
@@ -46,6 +45,7 @@ public partial class Analyser
             {
                 case TqNamespaceObject nmsp: NamespaceSemaAnal(nmsp); break;
                 case FunctionGroupObject group: funclist.AddRange(group.Overloads); break;
+                case TypedefObject t: typedeflist.Add(t); break;
                 case FunctionObject f: funclist.Add(f); break;
                 case FieldObject f: fldlist.Add(f); break;
                 case StructObject s:
@@ -78,34 +78,40 @@ public partial class Analyser
             }
         }
         
-        // Excution analysis
+        // Execution analysis
         foreach (var fld in fldlist)
         {
             if (fld.Value == null) continue;
             var ctx = new IrBlockExecutionContextData(fld);
-            fld.Value = (IrExpression)NodeSemaAnal(fld.Value, ctx);
-            _analyzedObjects.Add(fld);
+            fld.Value = SolveTypeCast(fld.Type, (IrExpression)NodeSemaAnal(fld.Value, ctx), true);
+        }
+        
+        foreach (var tdef in typedeflist)
+        {
+            foreach (var namedEntry in tdef.NamedValues)
+            {
+                if (namedEntry.Value == null) continue;
+                var ctx = new IrBlockExecutionContextData(tdef);
+                namedEntry.Value = (IrExpression)NodeSemaAnal(namedEntry.Value, ctx);
+            }
         }
         
         foreach (var fun in funclist)
         {
             var ctx = new IrBlockExecutionContextData(fun);
             if (fun.Body != null) BlockSemaAnal(fun.Body, ctx);
-            _analyzedObjects.Add(fun);
         }
-
+        
         foreach (var ctor in ctorList)
         {
             var ctx = new IrBlockExecutionContextData(ctor);
             if (ctor.Body != null) BlockSemaAnal(ctor.Body, ctx);
-            _analyzedObjects.Add(ctor);
         }
         
         foreach (var dtor in dtorList)
         {
             var ctx = new IrBlockExecutionContextData(dtor);
             if (dtor.Body != null) BlockSemaAnal(dtor.Body, ctx);
-            _analyzedObjects.Add(dtor);
         }
     }
 
@@ -178,8 +184,7 @@ public partial class Analyser
     }
     private void FieldSemaAnal(FieldObject field)
     {
-        if (IsSolved(field.Type)) return;
-        field.Type = SolveTypeLazy2(field.Type, null, field);
+        if (!IsSolved(field.Type)) field.Type = SolveTypeLazy2(field.Type, null, field);
     }
 
     
@@ -296,7 +301,7 @@ public partial class Analyser
             throw new Exception($"Cannot instantiate type {node.Origin} as an object");
         
         node.InstanceType = instanceTypeRef;
-        if (instanceTypeRef is DotnetTypeReference { Reference.TypeDefinition.IsValueType: false }) 
+        if (instanceTypeRef is DotnetTypeReference { Reference.IsValueType: false }) 
             node.OverrideReturnType = new ReferenceTypeReference(instanceTypeRef);
         
         for (var i = 0; i < node.Arguments.Length; i++)
@@ -363,7 +368,7 @@ public partial class Analyser
         node.Target = (IrExpression)NodeSemaAnal(node.Target, ctx);
         node.Value = (IrExpression)NodeSemaAnal(node.Value, ctx);
 
-        if (node.Target is IrSolvedReference { Reference: LocalReference { Type: null } @l })
+        if (node.Target is IrSolvedReference { Reference: LocalReference { FieldType: null } @l })
         {
             var typefrom = GetEffectiveTypeReference(node.Value);
             if (typefrom is ComptimeIntegerTypeReference) typefrom = new RuntimeIntegerTypeReference(true);
@@ -706,7 +711,6 @@ public partial class Analyser
             betterFound = ov;
             betterFoundSum = sum;
             betterFoundArgTypes = argTypes;
-            betterFoundGenerics = generics;
 
             NoSuitability: ;
         }
@@ -718,7 +722,7 @@ public partial class Analyser
     {
         var baseRef = ReferenceOf(accessBase);
         var accessName = ((IdentifierNode)accessMember.Origin).Value;
-        var typeref = baseRef.Type;
+        var typeref = baseRef.FieldType;
 
         while (true)
         {
@@ -728,7 +732,17 @@ public partial class Analyser
         
         return typeref switch
         {
-            SliceTypeReference @sliceBuiltin => new IrLenOf(origin, accessBase),
+            SliceTypeReference @sliceBuiltin => accessName switch
+            {
+                "len" => new IrLenOf(origin, accessBase),
+                _ =>  throw new NotImplementedException(),
+            },
+            
+            StringTypeReference @stringBuiltin => accessName switch
+            {
+                "len" => new IrLenOf(origin, accessBase),
+                _ =>  throw new NotImplementedException(),
+            },
             
             TypeTypeReference staticRef => staticRef.ReferencedType switch {
                 SolvedTypedefTypeReference @solvedType
@@ -818,8 +832,7 @@ public partial class Analyser
                 if (parent is TqNamespaceObject @nmsp)
                 {
                     string[] name = [.. nmsp.Global, idnode.Value];
-                    var r7 = Enumerable.FirstOrDefault<KeyValuePair<string[], LangObject>>(_globalReferenceTable,
-                        e => IdentifierComparer.IsEquals(e.Key, name));
+                    var r7 = _globalReferenceTable.FirstOrDefault<KeyValuePair<string[], LangObject>>(e => IdentifierComparer.IsEquals(e.Key, name));
                     if (r7.Key != null) return new IrSolvedReference(syntaxNode, GetObjectReference(r7.Value));
                 }
                 

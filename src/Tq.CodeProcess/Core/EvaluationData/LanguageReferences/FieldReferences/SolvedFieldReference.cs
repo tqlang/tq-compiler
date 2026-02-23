@@ -6,7 +6,7 @@ namespace Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.FieldRefer
 public class SolvedFieldReference(FieldObject field) : FieldReference
 {
     public readonly FieldObject Field = field;
-    public override TypeReference Type => Field.Type;
+    public override TypeReference FieldType => Field.Type;
 
     public override string ToString() => $"Field<{string.Join('.', Field.Global)}>";
 }

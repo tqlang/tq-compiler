@@ -10,5 +10,5 @@ typedef Alignment {
 
 from Dotnet.System import { GC }
 @public()
-func alloc (type T, uint length, Alignment alignment) []T { return GC.AllocateArray(byte, length as i32, False) }
+func alloc (type T, uint length, Alignment alignment) []T { return GC.AllocateArray(T, length as i32, False) }
 

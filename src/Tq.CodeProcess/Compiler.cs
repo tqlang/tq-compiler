@@ -1,13 +1,17 @@
 using System.Buffers.Binary;
 using System.Diagnostics;
 using Abstract.CodeProcess.Core.EvaluationData;
+using Abstract.CodeProcess.Core.EvaluationData.IntermediateTree.Values;
 using Abstract.CodeProcess.Core.EvaluationData.LanguageObjects;
+using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.Dotnet;
+using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.TypeReferences.Builtin.Integer;
 using AsmResolver.DotNet;
 using AsmResolver.DotNet.Code.Cil;
 using AsmResolver.DotNet.Collections;
 using AsmResolver.DotNet.Signatures;
 using AsmResolver.DotNet.Signatures.Types;
 using AsmResolver.PE.DotNet.Cil;
+using AsmResolver.PE.DotNet.Metadata.Tables.Rows;
 using AssemblyDefinition = AsmResolver.DotNet.AssemblyDefinition;
 using FieldAttributes = AsmResolver.PE.DotNet.Metadata.Tables.Rows.FieldAttributes;
 using FieldDefinition = AsmResolver.DotNet.FieldDefinition;
@@ -194,7 +198,7 @@ public partial class Compiler
                                               | MethodAttributes.RuntimeSpecialName
                                               | MethodAttributes.Static;
                 
-                var sig = MethodSignature.CreateInstance(_corLibFactory.Void);
+                var sig = MethodSignature.CreateStatic(_corLibFactory.Void);
                 staticCtor = new MethodDefinition(".cctor", attributes, sig);
             }
             
@@ -208,7 +212,7 @@ public partial class Compiler
 
                 fieldDef.HasDefault = true;
                 var ctx = new Context(null, body, _module.DefaultImporter, [], []);
-                CompileIrNodeLoad(i.Value, ctx);
+                CompileIrNodeLoad(i.Value, false, ctx);
                 body.Instructions.Add(CilOpCodes.Stsfld, fieldDef);
             }
 
@@ -222,10 +226,10 @@ public partial class Compiler
         foreach (var (k, v) in _functionsMap)
         {
             if (k.Body == null) continue;
-            if (v.Definition!.HasMethodBody) continue;
+            if (v.Method is not MethodDefinition { HasMethodBody: false } @mDef) continue;
             
-            var body = new CilMethodBody(v.Definition);
-            v.Definition.CilMethodBody = body;
+            var body = new CilMethodBody(mDef);
+            mDef.CilMethodBody = body;
             
             var locals = new CilLocalVariable[k.Locals.Count];
             foreach (var local in k.Locals)
@@ -236,9 +240,9 @@ public partial class Compiler
             }
             if (locals.Length > 0) body.InitializeLocals = true;
 
-            var args = new Parameter[v.Definition.GenericParameters.Count + v.Definition.Parameters.Count];
-            v.Definition.Parameters.ToArray().CopyTo(args, v.Definition.GenericParameters.Count);
-            ITypeDefOrRef? selfType = !v.IsStatic ? v.Definition.DeclaringType : null;
+            var args = new Parameter[mDef.GenericParameters.Count + mDef.Parameters.Count];
+            mDef.Parameters.ToArray().CopyTo(args, mDef.GenericParameters.Count);
+            ITypeDefOrRef? selfType = mDef.Signature!.HasThis ? mDef.DeclaringType : null;
             
             var ctx = new Context(selfType, body, _module.DefaultImporter, args, locals);
             
@@ -275,44 +279,193 @@ public partial class Compiler
     }
     private EnumData DeclareTypedef(TypedefObject typedefobj)
     {
-        var nmsp = string.Join('.', typedefobj.Global[0..^1]);
+        var ns = string.Join('.', typedefobj.Global[0..^1]);
         var name = typedefobj.Name;
 
         var attributes = TypeAttributes.AnsiClass
                          | TypeAttributes.Sealed;
 
-        var enumType = new TypeDefinition(nmsp, name, attributes, _coreLib["Enum"].t.ToTypeDefOrRef());
-        _module.TopLevelTypes.Add(enumType);
-
-        var valueField = new FieldDefinition(
-            "value__",
-            FieldAttributes.Public | FieldAttributes.SpecialName | FieldAttributes.RuntimeSpecialName,
-            _corLibFactory.UInt64
-        );
-        enumType.Fields.Add(valueField);
-
-        var enumdata = new EnumData(enumType, valueField);
-
-        ulong i = 0;
-        foreach (var value in typedefobj.NamedValues)
+        bool isPrimitiveType;
+        TypeSignature valueType;
+        
+        switch (typedefobj.BackType)
         {
-            var itemField = new FieldDefinition(
-                value.Name,
-                FieldAttributes.Public
-                | FieldAttributes.Static
-                | FieldAttributes.Literal
-                | FieldAttributes.HasDefault,
-                enumType.ToTypeSignature()
-            );
-            var bytes = new byte[8];
-            BinaryPrimitives.WriteUInt64LittleEndian(bytes.AsSpan(), i);
-            itemField.Constant = new Constant(_corLibFactory.UInt64.ElementType, new DataBlobSignature(bytes));
-            enumType.Fields.Add(itemField);
-            enumdata.Items.Add(value, itemField);
-            i++;
+            case null:
+                valueType = _corLibFactory.Int64;
+                isPrimitiveType = true;
+                break;
+            case RuntimeIntegerTypeReference @integer:
+            {
+                var s = integer.Signed;
+                if (integer.BitSize.Bytes == 16)
+                {
+                    isPrimitiveType = false;
+                    valueType = _coreLib[s ? "Int128" : "UInt128"].t;
+                    break;
+                }
+            
+                isPrimitiveType = true;
+                valueType = integer.BitSize.Bytes switch
+                {
+                    1 => s ? _corLibFactory.SByte : _corLibFactory.Byte,
+                    2 => s ? _corLibFactory.Int16 : _corLibFactory.UInt16,
+                    4 => s ? _corLibFactory.Int32 : _corLibFactory.UInt32,
+                    8 => s ? _corLibFactory.Int64 : _corLibFactory.UInt64,
+                    _ => throw new ArgumentOutOfRangeException(nameof(typedefobj.BackType), typedefobj.BackType, null)
+                };
+                break;
+            }
+            case DotnetTypeReference { Reference: { IsEnum: true } @e }:
+                isPrimitiveType = true;
+                valueType = e.Reference.Fields[0].Signature!.FieldType;
+                break;
+            default:
+                isPrimitiveType = false;
+                valueType = TypeFromRef(typedefobj.BackType);
+                break;
         }
 
-        return enumdata;
+        if (isPrimitiveType)
+        {
+            var enumType = new TypeDefinition(ns, name, attributes, _coreLib["Enum"].t.ToTypeDefOrRef());
+            _module.TopLevelTypes.Add(enumType);
+
+            var valueField = new FieldDefinition(
+                "value__",
+                FieldAttributes.Public | FieldAttributes.SpecialName | FieldAttributes.RuntimeSpecialName,
+                valueType
+            );
+            enumType.Fields.Add(valueField);
+
+            var enumData = new EnumData(enumType, valueField);
+
+            List<(FieldDefinition, TypedefNamedValue)> fieldsWithDefaultValue = [];
+            List<FieldDefinition> fieldsWithoutDefaultValue = [];
+            
+            foreach (var value in typedefobj.NamedValues)
+            {
+                var itemField = new FieldDefinition(
+                    value.Name,
+                    FieldAttributes.Public
+                    | FieldAttributes.Static
+                    | FieldAttributes.Literal
+                    | FieldAttributes.HasDefault,
+                    enumType.ToTypeSignature()
+                );
+                
+                enumType.Fields.Add(itemField);
+                enumData.Items.Add(value, itemField);
+                
+                if (value.Value == null) fieldsWithoutDefaultValue.Add(itemField);
+                else fieldsWithDefaultValue.Add((itemField, value));
+            }
+
+            var bytes = valueType.ElementType switch
+            {
+                ElementType.I1 or ElementType.U1 => new byte[1],
+                ElementType.I2 or ElementType.U2 => new byte[2],
+                ElementType.I4 or ElementType.U4 => new byte[4],
+                ElementType.I8 or ElementType.U8 => new byte[8],
+                
+                _ => throw new ArgumentOutOfRangeException()
+            };
+            
+            HashSet<ulong> usedValues = [];
+            foreach (var (d, o) in fieldsWithDefaultValue)
+            {
+                var constant = o.Value switch
+                {
+                    IrSolvedReference @r => r.Reference switch
+                    {
+                        DotnetFieldReference @fr => fr.Reference.Reference.Constant!,
+                        _ => throw new NotImplementedException(),
+                    },
+                    _ => throw new NotImplementedException(),
+                };
+                d.Constant = constant;
+
+                var constBytes = constant.Value!.Data;
+                var entryValue = valueType.ElementType switch
+                {
+                    ElementType.I1 or ElementType.U1 => constBytes[0],
+                    ElementType.I2 => unchecked((ulong)BinaryPrimitives.ReadInt16LittleEndian(constBytes)),
+                    ElementType.U2 => BinaryPrimitives.ReadUInt16LittleEndian(constBytes),
+                    ElementType.I4 => unchecked((ulong)BinaryPrimitives.ReadInt32LittleEndian(constBytes)),
+                    ElementType.U4 => BinaryPrimitives.ReadUInt32LittleEndian(constBytes),
+                    ElementType.I8 => unchecked((ulong)BinaryPrimitives.ReadInt64LittleEndian(constBytes)),
+                    ElementType.U8 => BinaryPrimitives.ReadUInt64LittleEndian(constBytes),
+
+                    _ => throw new ArgumentOutOfRangeException()
+                };
+                usedValues.Add(entryValue);
+            }
+
+            ulong val = 0;
+            foreach (var i in fieldsWithoutDefaultValue)
+            {
+                while (usedValues.Contains(val)) val++;
+
+                switch (valueType.ElementType)
+                {
+                    case ElementType.I1 or ElementType.U1: bytes[0] = (byte)val; break;
+                    case ElementType.I2: BinaryPrimitives.WriteInt16LittleEndian(bytes.AsSpan(), unchecked((short)val)); break;
+                    case ElementType.U2: BinaryPrimitives.WriteUInt16LittleEndian(bytes.AsSpan(), unchecked((ushort)val)); break;
+                    case ElementType.I4: BinaryPrimitives.WriteInt32LittleEndian(bytes.AsSpan(), unchecked((int)val)); break;
+                    case ElementType.U4: BinaryPrimitives.WriteUInt32LittleEndian(bytes.AsSpan(), unchecked((uint)val));break;
+                    case ElementType.I8: BinaryPrimitives.WriteInt64LittleEndian(bytes.AsSpan(), unchecked((long)val)); break;
+                    case ElementType.U8: BinaryPrimitives.WriteUInt64LittleEndian(bytes.AsSpan(),val); break;
+                    default: throw new ArgumentOutOfRangeException();
+                }
+                i.Constant = new Constant(valueType.ElementType, new DataBlobSignature(bytes.ToArray()));
+            }
+        
+            return enumData;
+        }
+        else
+        {
+            var enumType = new TypeDefinition(ns, name, attributes, _corLibFactory.Object.ToTypeDefOrRef());
+            _module.TopLevelTypes.Add(enumType);
+
+            var valueField = new FieldDefinition(
+                "value__",
+                FieldAttributes.Public | FieldAttributes.SpecialName | FieldAttributes.RuntimeSpecialName,
+                valueType
+            );
+            enumType.Fields.Add(valueField);
+            
+            MethodAttributes attributes2 = MethodAttributes.HideBySig
+                                          | MethodAttributes.SpecialName
+                                          | MethodAttributes.RuntimeSpecialName
+                                          | MethodAttributes.Static;
+            var sig = MethodSignature.CreateInstance(_corLibFactory.Void);
+            var staticCtor = new MethodDefinition(".cctor", attributes2, sig);
+            enumType.Methods.Add(staticCtor);
+            
+            var enumData = new EnumData(enumType, valueField);
+
+            Dictionary<TypedefNamedValue, FieldDefinition> namedValues = [];
+            
+            foreach (var value in typedefobj.NamedValues)
+            {
+                var itemField = new FieldDefinition(
+                    value.Name,
+                    FieldAttributes.Public
+                    | FieldAttributes.Static
+                    | FieldAttributes.Literal
+                    | FieldAttributes.HasDefault,
+                    enumType.ToTypeSignature()
+                );
+                namedValues.Add(value, itemField);
+            }
+
+            foreach (var i in namedValues)
+            {
+                // TODO implement static constructor
+                throw new NotImplementedException();
+            }
+        
+            return enumData;
+        }
     }
         
     private FunctionData DeclareCtor(ConstructorObject ctorobj, ITypeDefOrRef parent)
@@ -330,12 +483,11 @@ public partial class Compiler
             .Select((p, i) => new ParameterDefinition((ushort)(i + 1), p.Name, 0));
 
         var sig = MethodSignature.CreateInstance(_corLibFactory.Void, argTypes);
-        
-        var m = new MethodDefinition(name, attributes, sig);
+        var m = new MethodDefinition(name, attributes, sig) { IsStatic = false };
         foreach (var i in argDefs) m.ParameterDefinitions.Add(i);
         parentTypedef.Methods.Add(m);
         
-        return new FunctionData(m, sig);
+        return new FunctionData(m);
     }
     private FunctionData DeclareFunction(FunctionObject funcObj, ITypeDefOrRef parent)    
     {
@@ -374,14 +526,14 @@ public partial class Compiler
         sig.GenericParameterCount = generics.Count;
         sig.IsGeneric = generics.Count > 0;
         
-        var m = new MethodDefinition(name, attributes, sig);
+        var m = new MethodDefinition(name, attributes, sig) { IsStatic = funcObj.Static};
         foreach (var i in generics) m.GenericParameters.Add(i);
         
         foreach (var i in parameterDefinitions) m.ParameterDefinitions.Add(i);
         parentTypedef.Methods.Add(m);
 
         if (funcObj.Export == "main") _module.ManagedEntryPointMethod = m;
-        return new FunctionData(m, m.Signature!);
+        return new FunctionData(m);
     }
     private FieldDefinition DeclareField(FieldObject fieldobj, ITypeDefOrRef parent)
     {

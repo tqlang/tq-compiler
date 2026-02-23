@@ -112,8 +112,7 @@ public class Lexer
                 src.Discard();
                 continue;
             }
-
-
+            
             switch (c)
             {
                 // Check single characters
@@ -126,12 +125,13 @@ public class Lexer
                 case '[': tokens.Add(Tokenize(TokenType.LeftSquareBracketChar, src.GetSlice())); break;
                 case ']': tokens.Add(Tokenize(TokenType.RightSquareBracketChar, src.GetSlice())); break;
                 case '?': tokens.Add(Tokenize(TokenType.QuestionChar, src.GetSlice())); break;
-                case '!': tokens.Add(Tokenize(TokenType.BangChar, src.GetSlice())); break;
                 case '@': tokens.Add(Tokenize(TokenType.AtSiginChar, src.GetSlice())); break;
                 case ',': tokens.Add(Tokenize(TokenType.CommaChar, src.GetSlice())); break;
                 case '.': tokens.Add(Tokenize(TokenType.DotChar, src.GetSlice())); break;
                 case ':': tokens.Add(Tokenize(TokenType.ColonChar, src.GetSlice())); break;
                 case '~': tokens.Add(Tokenize(TokenType.TildeChar, src.GetSlice())); break;
+                case '|': tokens.Add(Tokenize(TokenType.PipeChar, src.GetSlice())); break;
+                case '&': tokens.Add(Tokenize(TokenType.AmpersandChar, src.GetSlice())); break;
 
                 case '<':
                 {
@@ -192,14 +192,10 @@ public class Lexer
                     ? Tokenize(TokenType.BitwiseXorAssign, src.GetSlice())
                     : Tokenize(TokenType.CircumflexChar, src.GetSlice())); break;
                 
-                case '|': tokens.Add(src.NextIs('=')
-                    ? Tokenize(TokenType.BitwiseOrAssign, src.GetSlice())
-                    : Tokenize(TokenType.PipeChar, src.GetSlice())); break;
+                case '!': tokens.Add(src.NextIs('=')
+                    ? Tokenize(TokenType.UnequalOperator, src.GetSlice())
+                    : Tokenize(TokenType.BangChar, src.GetSlice())); break;
                 
-                case '&': tokens.Add(src.NextIs('=')
-                    ? Tokenize(TokenType.BitwiseAndAssign, src.GetSlice())
-                    : Tokenize(TokenType.AmpersandChar, src.GetSlice())); break;
-
                 // ignore comments
                 case '#':
                 {

@@ -17,7 +17,7 @@ public partial class Compiler
         TypeSignature self;
         
         methods = [];
-        type = _module.DefaultImporter.ImportType(TypeDescriptorExtensions.CreateTypeReference(cl.CorLibScope, "System", "ValueType"));
+        type = _module.DefaultImporter.ImportType(cl.CorLibScope.CreateTypeReference("System", "ValueType"));
         self = _module.DefaultImporter.ImportTypeSignature(type.ToTypeSignature());
         {
             
@@ -36,7 +36,7 @@ public partial class Compiler
         _coreLib.Add(type.Name!, (self, methods));
         
         methods = [];
-        type = _module.DefaultImporter.ImportType(TypeDescriptorExtensions.CreateTypeReference(cl.CorLibScope, "System", "Enum"));
+        type = _module.DefaultImporter.ImportType(cl.CorLibScope.CreateTypeReference("System", "Enum"));
         self = _module.DefaultImporter.ImportTypeSignature(type.ToTypeSignature());
         {
             
@@ -46,7 +46,7 @@ public partial class Compiler
         
         
         methods = [];
-        type = _module.DefaultImporter.ImportType(TypeDescriptorExtensions.CreateTypeReference(cl.CorLibScope, "System", "Int128"));
+        type = _module.DefaultImporter.ImportType(cl.CorLibScope.CreateTypeReference("System", "Int128"));
         self = _module.DefaultImporter.ImportTypeSignature(type.ToTypeSignature());
         {
             methods.Add("new", CreateMethodRef(type, ".ctor", MethodSignature.CreateInstance(cl.Void, cl.UInt64, cl.UInt64)));

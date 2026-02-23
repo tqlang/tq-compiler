@@ -43,7 +43,9 @@ public partial class Compiler
                 sb.Append("\n\tmethod ");
                 sb.Append(method.IsPublic ? "public " : "private ");
                 sb.Append(method.IsStatic ? "static " : "instance ");
-                sb.Append($"{method.Name} ({string.Join<Parameter>(", ", method.Parameters)}) ");
+                sb.Append($"{method.Name}");
+                if (method.Signature!.IsGeneric) sb.Append($" <{string.Join(", ", method.GenericParameters)}>");
+                sb.Append($" ({string.Join(", ", method.Parameters)}) ");
                 sb.Append($"{method.Signature!.ReturnType} ");
                 sb.AppendLine("{");
                 if (method.CilMethodBody != null)
@@ -108,7 +110,7 @@ public partial class Compiler
 
             case DotnetTypeReference @d:
             {
-                var imported = _module.DefaultImporter.ImportType(d.Reference.TypeDescriptor.ToTypeDefOrRef());
+                var imported = _module.DefaultImporter.ImportType(d.Reference.Reference);
                 return imported.ToTypeSignature();
             }
 
@@ -123,21 +125,21 @@ public partial class Compiler
         return _module.DefaultImporter.ImportMethod(meth);
     }
 
-    private bool IsExplicitInteger(CorLibTypeSignature typeSig, out bool signed, out int size)
+    private bool IsExplicitInteger(CorLibTypeSignature typeSig, out bool signed, out int? size)
     {
         switch (typeSig.ElementType)
         {
             case ElementType.I1: signed = true; size = 1; return true;
             case ElementType.I2: signed = true; size = 2; return true;
             case ElementType.I4: signed = true; size = 4; return true;
-            case ElementType.I:
             case ElementType.I8: signed = true; size = 8; return true;
+            case ElementType.I: signed = true; size = null; return true;
             
             case ElementType.U1: signed = false; size = 1; return true;
             case ElementType.U2: signed = false; size = 2; return true;
             case ElementType.U4: signed = false; size = 4; return true;
-            case ElementType.U:
             case ElementType.U8: signed = false; size = 8; return true;
+            case ElementType.U: signed = false; size = null; return true;
             
             default: signed = false; size = 0; return false;
         }
@@ -167,49 +169,14 @@ public partial class Compiler
         public IFieldDescriptor GetItem(TypedefNamedValue namedValue) => Items[namedValue];
     }
 
-    private class FunctionData
+    private class FunctionData(IMethodDefOrRef method)
     {
-        public readonly MemberReference? MemberReference;
-        public readonly IMethodDescriptor? MethodDescriptor;
-        public readonly MethodDefinition? Definition;
+        public readonly IMethodDefOrRef Method = method;
         
-        public readonly MethodSignature Signature;
-
-        
-        public FunctionData(MemberReference d1, MethodDefinition d2, MethodSignature sig)
-        {
-            MemberReference = null;
-            MethodDescriptor = d1;
-            Definition = d2;
-            Signature = sig;
-        }
-        public FunctionData(IMethodDescriptor d1, MethodDefinition d2, MethodSignature sig)
-        {
-            MemberReference = d2.CreateMemberReference(d2.Name!, sig);
-            MethodDescriptor = d1;
-            Definition = d2;
-            Signature = sig;
-        }
-        public FunctionData(MemberReference d, MethodSignature sig)
-        {
-            MemberReference = d;
-            MethodDescriptor = null;
-            Definition = null;
-            Signature = sig;
-        }
-        public FunctionData(MethodDefinition d, MethodSignature sig)
-        {
-            MemberReference = d.CreateMemberReference(d.Name!, sig);
-            MethodDescriptor = d;
-            Definition = d;
-            Signature = sig;
-        }
-
-
-        public bool IsStatic => Definition?.IsStatic ?? false;
-        public bool ReturnsValue => Signature.ReturnsValue;
-        public TypeSignature ReturnType => Signature.ReturnType;
-        public TypeDefinition? InstanceType => IsStatic ? null : Definition?.DeclaringType;
+        public bool IsStatic => Method.Signature!.HasThis;
+        public bool ReturnsValue => Method.Signature!.ReturnsValue;
+        public TypeSignature ReturnType => Method.Signature!.ReturnType;
+        public ITypeDefOrRef? InstanceType => Method.DeclaringType;
     }
     
     private class Context(ITypeDefOrRef? selfType, CilMethodBody body, ReferenceImporter importer, Parameter[] args, CilLocalVariable[] locals)
@@ -220,7 +187,6 @@ public partial class Compiler
         public ReferenceImporter Importer = importer;
         public List<TypeSignature> Stack = [];
         public Stack<ContextFrame> Frame = [];
-
         
         private Parameter[] _args = args;
         private CilLocalVariable[] _locals = locals;
@@ -231,10 +197,11 @@ public partial class Compiler
         public void StackPush(TypeSignature type) => Stack.Add(type);
         public void StackPop() => Stack.RemoveAt(Stack.Count - 1);
         public void StackPop(int count) => Stack.RemoveRange(Stack.Count - count, count);
+        public TypeSignature PeekStack() => Stack[^1];
         
         public void FramePush(ContextFrame frame) => Frame.Push(frame);
         public void FramePop() => Frame.Pop();
-        public ContextFrame GetFrame() => Frame.Peek();
+        public ContextFrame GetFrame() => Frame.Peek();//Frame.Count > 0 ? Frame.Peek() : null;
         
         public Parameter GetArg(int i) => _args[i];
         public CilLocalVariable GetLoc(int i) => _locals[i];
@@ -256,5 +223,15 @@ public partial class Compiler
     {
         public readonly CilInstructionLabel IfTrue = ifTrue;
         public readonly CilInstructionLabel IfFalse = ifFalse;
+    }
+    private class LoopCheckFrame(CilInstructionLabel _continue, CilInstructionLabel _break) : ContextFrame
+    {
+        public readonly CilInstructionLabel Continue = _continue;
+        public readonly CilInstructionLabel Break = _break;
+    }
+    private class LoopBodyFrame(CilInstructionLabel _continue, CilInstructionLabel _break) : ContextFrame
+    {
+        public readonly CilInstructionLabel Continue = _continue;
+        public readonly CilInstructionLabel Break = _break;
     }
 }
