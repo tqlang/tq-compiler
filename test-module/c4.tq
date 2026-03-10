@@ -59,9 +59,6 @@ let string pval
 		next()
 		id[IdentifierOffsets.tk as uint] = idx1
 	}
-
-	Console.writeln("Ok until here")
-
 	let idx2 = OpCodes.open as uint
 	while idx2 <= OpCodes.exit as uint : idx2++ do {
 		next()
@@ -76,9 +73,10 @@ func next() {
 	let uint pp = 0
 
 	tk = p
-	while pval[p] < pval.len do {
+	while p < pval.len do {
 		++p
 
+		let v = pval[p]
 		if (pval[tk] == '\n') {
 			if (src != 0) {
 				Console.write(line)
@@ -98,8 +96,8 @@ func next() {
 			}
 			++line
 		}
-		elif (tk == '#') while (p < pval.len and pval[p] != '\n') do ++p		
-		elif ((pval[p] >= 'a' and pval[p] <= 'z') or (pval[p] >= 'A' and pval[p] <= 'Z') or pval[p] == '_') {
+		elif (tk == '#') while (p < pval.len and pval[p] != '\n') do ++p
+		elif ((v >= 'a' and v <= 'z') or (v >= 'A' and v <= 'Z') or v == '_') {
 			pp = p - 1
 			while ((pval[p] >= 'a' and pval[p] <= 'z')
 				or (pval[p] >= 'A' and pval[p] <= 'Z')

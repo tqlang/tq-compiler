@@ -39,622 +39,660 @@ class Program.Static extends System.Object {
 		IL_0028: sub
 		IL_0029: ldc.i8 0
 		IL_0032: cgt
-		IL_0034: brfalse IL_009A
-		IL_0039: ldloc V_0
-		IL_003D: ldloc V_2
-		IL_0041: conv.i4
-		IL_0042: ldelem System.String
-		IL_0047: ldc.i8 0
-		IL_0050: conv.i4
-		IL_0051: call System.Char System.String::get_Chars(System.Int32)
-		IL_0056: ldc.i4.s 45
-		IL_0058: ceq
-		IL_005A: brfalse IL_009A
-		IL_005F: ldloc V_0
-		IL_0063: ldloc V_2
-		IL_0067: conv.i4
-		IL_0068: ldelem System.String
-		IL_006D: ldstr "-s"
-		IL_0072: call System.Boolean System.String::Equals(System.String, System.String)
-		IL_0077: brfalse IL_009A
-		IL_007C: nop
-		IL_007D: ldloc V_2
-		IL_0081: dup
-		IL_0082: ldc.i8 1
-		IL_008B: add
-		IL_008C: stloc V_2
-		IL_0090: stsfld System.Int64 Program.Static::src
-		IL_0095: br IL_009A
-		IL_009A: nop
-		IL_009B: ldloc V_1
-		IL_009F: ldloc V_2
-		IL_00A3: sub
-		IL_00A4: ldc.i8 0
-		IL_00AD: cgt
-		IL_00AF: brfalse IL_0115
-		IL_00B4: ldloc V_0
-		IL_00B8: ldloc V_2
-		IL_00BC: conv.i4
-		IL_00BD: ldelem System.String
-		IL_00C2: ldc.i8 0
-		IL_00CB: conv.i4
-		IL_00CC: call System.Char System.String::get_Chars(System.Int32)
-		IL_00D1: ldc.i4.s 45
-		IL_00D3: ceq
-		IL_00D5: brfalse IL_0115
-		IL_00DA: ldloc V_0
-		IL_00DE: ldloc V_2
-		IL_00E2: conv.i4
-		IL_00E3: ldelem System.String
-		IL_00E8: ldstr "-d"
-		IL_00ED: call System.Boolean System.String::Equals(System.String, System.String)
-		IL_00F2: brfalse IL_0115
-		IL_00F7: nop
-		IL_00F8: ldloc V_2
-		IL_00FC: dup
-		IL_00FD: ldc.i8 1
-		IL_0106: add
-		IL_0107: stloc V_2
-		IL_010B: stsfld System.Int64 Program.Static::debug
-		IL_0110: br IL_0115
-		IL_0115: nop
-		IL_0116: ldloc V_1
-		IL_011A: ldloc V_2
-		IL_011E: sub
-		IL_011F: ldc.i8 1
-		IL_0128: clt
-		IL_012A: brfalse IL_014E
-		IL_012F: nop
-		IL_0130: ldstr "usage: c4 [-s] [-d] file ..."
-		IL_0135: call System.Void Std.ConsoleStatic::writeln(System.String)
-		IL_013A: ldc.i8 1
-		IL_0143: conv.ovf.u8.un
-		IL_0144: call System.Void Std.ProcessStatic::exit(System.UInt64)
-		IL_0149: br IL_014E
-		IL_014E: nop
-		IL_014F: ldloc V_0
-		IL_0153: ldloc V_2
-		IL_0157: conv.i4
-		IL_0158: ldelem System.String
-		IL_015D: call Std.Fs.File Std.FsStatic::open(System.String)
-		IL_0162: stloc V_3
-		IL_0166: ldc.i8 262144
-		IL_016F: stloc V_4
-		IL_0173: ldloc V_4
-		IL_0177: conv.ovf.u8.un
-		IL_0178: ldc.i8 0
-		IL_0181: call !!0[] Std.MemStatic::alloc<System.Byte>(System.UInt64, Std.Mem.Alignment)
-		IL_0186: stsfld System.Byte[] Program.Static::sym
-		IL_018B: ldloc V_4
-		IL_018F: conv.ovf.u8.un
-		IL_0190: ldc.i8 0
-		IL_0199: call !!0[] Std.MemStatic::alloc<System.Byte>(System.UInt64, Std.Mem.Alignment)
-		IL_019E: stsfld System.Byte[] Program.Static::le
-		IL_01A3: ldloc V_4
-		IL_01A7: conv.ovf.u8.un
-		IL_01A8: ldc.i8 0
-		IL_01B1: call !!0[] Std.MemStatic::alloc<System.Byte>(System.UInt64, Std.Mem.Alignment)
-		IL_01B6: stsfld System.Byte[] Program.Static::data
-		IL_01BB: ldloc V_4
-		IL_01BF: conv.ovf.u8.un
-		IL_01C0: ldc.i8 0
-		IL_01C9: call !!0[] Std.MemStatic::alloc<System.Byte>(System.UInt64, Std.Mem.Alignment)
-		IL_01CE: stsfld System.Byte[] Program.Static::sp
-		IL_01D3: ldstr "char else enum if int return sizeof while open read close printf malloc free memset memcmp exit void main"
-		IL_01D8: stsfld System.String Program.Static::pval
-		IL_01DD: ldstr "Everything fine until here"
-		IL_01E2: call System.Void Std.ConsoleStatic::writeln(System.String)
-		IL_01E7: ldc.i8 0
-		IL_01F0: conv.i8
-		IL_01F1: stloc V_5
-		IL_01F5: br IL_022A
-		IL_01FA: call System.Void Program.Static::next()
-		IL_01FF: ldsfld System.String[] Program.Static::id
-		IL_0204: ldc.i8 0
-		IL_020D: conv.u8
-		IL_020E: conv.ovf.i4.un
-		IL_020F: ldloc V_5
-		IL_0213: stelem System.String
-		IL_0218: ldloc V_5
-		IL_021C: ldc.i8 1
-		IL_0225: add
-		IL_0226: stloc V_5
-		IL_022A: ldloc V_5
-		IL_022E: ldc.i8 0
-		IL_0237: conv.i8
-		IL_0238: cgt.un
-		IL_023A: ldc.i4.0
-		IL_023B: ceq
-		IL_023D: brtrue IL_01FA
-		IL_0242: nop
-		IL_0243: ldstr "Ok until here"
-		IL_0248: call System.Void Std.ConsoleStatic::writeln(System.String)
-		IL_024D: ldc.i8 0
-		IL_0256: conv.i8
-		IL_0257: stloc V_6
-		IL_025B: br IL_0290
-		IL_0260: call System.Void Program.Static::next()
-		IL_0265: ldsfld System.String[] Program.Static::id
-		IL_026A: ldc.i8 3
-		IL_0273: conv.u8
-		IL_0274: conv.ovf.i4.un
-		IL_0275: ldloc V_6
-		IL_0279: stelem System.String
-		IL_027E: ldloc V_6
-		IL_0282: ldc.i8 1
-		IL_028B: add
-		IL_028C: stloc V_6
-		IL_0290: ldloc V_6
-		IL_0294: ldc.i8 0
-		IL_029D: conv.i8
-		IL_029E: cgt.un
-		IL_02A0: ldc.i4.0
-		IL_02A1: ceq
-		IL_02A3: brtrue IL_0260
-		IL_02A8: nop
-		IL_02A9: ldstr "Not bad until here"
-		IL_02AE: call System.Void Std.ConsoleStatic::writeln(System.String)
-		IL_02B3: ret
+		IL_0034: brfalse IL_00A1
+		IL_0039: nop
+		IL_003A: ldloc V_0
+		IL_003E: ldloc V_2
+		IL_0042: conv.i4
+		IL_0043: ldelem System.String
+		IL_0048: ldc.i8 0
+		IL_0051: conv.i4
+		IL_0052: call System.Char System.String::get_Chars(System.Int32)
+		IL_0057: ldc.i4.s 45
+		IL_0059: ceq
+		IL_005B: brfalse IL_00A1
+		IL_0060: nop
+		IL_0061: ldloc V_0
+		IL_0065: ldloc V_2
+		IL_0069: conv.i4
+		IL_006A: ldelem System.String
+		IL_006F: ldstr "-s"
+		IL_0074: call System.Boolean System.String::Equals(System.String, System.String)
+		IL_0079: brfalse IL_00A1
+		IL_007E: br IL_0083
+		IL_0083: nop
+		IL_0084: ldloc V_2
+		IL_0088: dup
+		IL_0089: ldc.i8 1
+		IL_0092: add
+		IL_0093: stloc V_2
+		IL_0097: stsfld System.Int64 Program.Static::src
+		IL_009C: br IL_00A1
+		IL_00A1: nop
+		IL_00A2: ldloc V_1
+		IL_00A6: ldloc V_2
+		IL_00AA: sub
+		IL_00AB: ldc.i8 0
+		IL_00B4: cgt
+		IL_00B6: brfalse IL_0123
+		IL_00BB: nop
+		IL_00BC: ldloc V_0
+		IL_00C0: ldloc V_2
+		IL_00C4: conv.i4
+		IL_00C5: ldelem System.String
+		IL_00CA: ldc.i8 0
+		IL_00D3: conv.i4
+		IL_00D4: call System.Char System.String::get_Chars(System.Int32)
+		IL_00D9: ldc.i4.s 45
+		IL_00DB: ceq
+		IL_00DD: brfalse IL_0123
+		IL_00E2: nop
+		IL_00E3: ldloc V_0
+		IL_00E7: ldloc V_2
+		IL_00EB: conv.i4
+		IL_00EC: ldelem System.String
+		IL_00F1: ldstr "-d"
+		IL_00F6: call System.Boolean System.String::Equals(System.String, System.String)
+		IL_00FB: brfalse IL_0123
+		IL_0100: br IL_0105
+		IL_0105: nop
+		IL_0106: ldloc V_2
+		IL_010A: dup
+		IL_010B: ldc.i8 1
+		IL_0114: add
+		IL_0115: stloc V_2
+		IL_0119: stsfld System.Int64 Program.Static::debug
+		IL_011E: br IL_0123
+		IL_0123: nop
+		IL_0124: ldloc V_1
+		IL_0128: ldloc V_2
+		IL_012C: sub
+		IL_012D: ldc.i8 1
+		IL_0136: clt
+		IL_0138: brfalse IL_015C
+		IL_013D: nop
+		IL_013E: ldstr "usage: c4 [-s] [-d] file ..."
+		IL_0143: call System.Void Std.ConsoleStatic::writeln(System.String)
+		IL_0148: ldc.i8 1
+		IL_0151: conv.ovf.u8.un
+		IL_0152: call System.Void Std.ProcessStatic::exit(System.UInt64)
+		IL_0157: br IL_015C
+		IL_015C: nop
+		IL_015D: ldloc V_0
+		IL_0161: ldloc V_2
+		IL_0165: conv.i4
+		IL_0166: ldelem System.String
+		IL_016B: call Std.Fs.File Std.FsStatic::open(System.String)
+		IL_0170: stloc V_3
+		IL_0174: ldc.i8 262144
+		IL_017D: stloc V_4
+		IL_0181: ldloc V_4
+		IL_0185: conv.ovf.u8.un
+		IL_0186: ldc.i8 0
+		IL_018F: call !!0[] Std.MemStatic::alloc<System.Byte>(System.UInt64, Std.Mem.Alignment)
+		IL_0194: stsfld System.Byte[] Program.Static::sym
+		IL_0199: ldloc V_4
+		IL_019D: conv.ovf.u8.un
+		IL_019E: ldc.i8 0
+		IL_01A7: call !!0[] Std.MemStatic::alloc<System.Byte>(System.UInt64, Std.Mem.Alignment)
+		IL_01AC: stsfld System.Byte[] Program.Static::le
+		IL_01B1: ldloc V_4
+		IL_01B5: conv.ovf.u8.un
+		IL_01B6: ldc.i8 0
+		IL_01BF: call !!0[] Std.MemStatic::alloc<System.Byte>(System.UInt64, Std.Mem.Alignment)
+		IL_01C4: stsfld System.Byte[] Program.Static::data
+		IL_01C9: ldloc V_4
+		IL_01CD: conv.ovf.u8.un
+		IL_01CE: ldc.i8 0
+		IL_01D7: call !!0[] Std.MemStatic::alloc<System.Byte>(System.UInt64, Std.Mem.Alignment)
+		IL_01DC: stsfld System.Byte[] Program.Static::sp
+		IL_01E1: ldstr "char else enum if int return sizeof while open read close printf malloc free memset memcmp exit void main"
+		IL_01E6: stsfld System.String Program.Static::pval
+		IL_01EB: ldstr "Everything fine until here"
+		IL_01F0: call System.Void Std.ConsoleStatic::writeln(System.String)
+		IL_01F5: ldc.i8 0
+		IL_01FE: conv.i8
+		IL_01FF: stloc V_5
+		IL_0203: br IL_0242
+		IL_0208: ldloc V_5
+		IL_020C: conv.ovf.u8.un
+		IL_020D: call System.Void Std.ConsoleStatic::writeln(System.UInt64)
+		IL_0212: call System.Void Program.Static::next()
+		IL_0217: ldsfld System.String[] Program.Static::id
+		IL_021C: ldc.i8 0
+		IL_0225: conv.u8
+		IL_0226: conv.ovf.i4.un
+		IL_0227: ldloc V_5
+		IL_022B: stelem System.String
+		IL_0230: ldloc V_5
+		IL_0234: ldc.i8 1
+		IL_023D: add
+		IL_023E: stloc V_5
+		IL_0242: ldloc V_5
+		IL_0246: ldc.i8 0
+		IL_024F: conv.i8
+		IL_0250: cgt.un
+		IL_0252: ldc.i4.0
+		IL_0253: ceq
+		IL_0255: brtrue IL_0208
+		IL_025A: nop
+		IL_025B: ldc.i8 0
+		IL_0264: conv.i8
+		IL_0265: stloc V_6
+		IL_0269: br IL_02A8
+		IL_026E: ldloc V_6
+		IL_0272: conv.ovf.u8.un
+		IL_0273: call System.Void Std.ConsoleStatic::writeln(System.UInt64)
+		IL_0278: call System.Void Program.Static::next()
+		IL_027D: ldsfld System.String[] Program.Static::id
+		IL_0282: ldc.i8 3
+		IL_028B: conv.u8
+		IL_028C: conv.ovf.i4.un
+		IL_028D: ldloc V_6
+		IL_0291: stelem System.String
+		IL_0296: ldloc V_6
+		IL_029A: ldc.i8 1
+		IL_02A3: add
+		IL_02A4: stloc V_6
+		IL_02A8: ldloc V_6
+		IL_02AC: ldc.i8 0
+		IL_02B5: conv.i8
+		IL_02B6: cgt.un
+		IL_02B8: ldc.i4.0
+		IL_02B9: ceq
+		IL_02BB: brtrue IL_026E
+		IL_02C0: nop
+		IL_02C1: ldstr "Not bad until here"
+		IL_02C6: call System.Void Std.ConsoleStatic::writeln(System.String)
+		IL_02CB: ret
 	}
 
 	method private static next () System.Void {
 		.locals init (System.UInt64 V_0)
-		.locals init (System.String[] V_1)
+		.locals init (System.Int64 V_1)
+		.locals init (System.Char V_2)
+		.locals init (System.String[] V_3)
 		IL_0000: ldc.i8 0
 		IL_0009: stloc V_0
 		IL_000D: ldsfld System.UInt64 Program.Static::p
 		IL_0012: stsfld System.UInt64 Program.Static::tk
-		IL_0017: br IL_060E
+		IL_0017: br IL_066A
 		IL_001C: ldsfld System.UInt64 Program.Static::p
 		IL_0021: ldc.i8 1
 		IL_002A: add
 		IL_002B: stsfld System.UInt64 Program.Static::p
-		IL_0030: ldsfld System.String Program.Static::pval
-		IL_0035: ldsfld System.UInt64 Program.Static::tk
-		IL_003A: conv.i4
-		IL_003B: call System.Char System.String::get_Chars(System.Int32)
-		IL_0040: ldc.i4.s 92
-		IL_0042: ceq
-		IL_0044: brfalse IL_033D
-		IL_0049: nop
-		IL_004A: ldsfld System.Int64 Program.Static::src
-		IL_004F: ldc.i8 0
-		IL_0058: ceq
-		IL_005A: ldc.i4.0
-		IL_005B: ceq
-		IL_005D: brfalse IL_0323
-		IL_0062: nop
-		IL_0063: ldsfld System.UInt64 Program.Static::line
-		IL_0068: conv.ovf.u8.un
-		IL_0069: call System.Void Std.ConsoleStatic::write(System.UInt64)
-		IL_006E: ldstr ": "
-		IL_0073: call System.Void Std.ConsoleStatic::write(System.String)
-		IL_0078: ldsfld System.String Program.Static::pval
-		IL_007D: ldsfld System.UInt64 Program.Static::lp
-		IL_0082: conv.ovf.i4.un
-		IL_0083: ldsfld System.UInt64 Program.Static::p
-		IL_0088: ldsfld System.UInt64 Program.Static::lp
-		IL_008D: sub.ovf
-		IL_008E: conv.ovf.i4.un
-		IL_008F: call System.String System.String::Substring(System.Int32, System.Int32)
-		IL_0094: call System.Void Std.ConsoleStatic::writeln(System.String)
-		IL_0099: ldsfld System.UInt64 Program.Static::p
-		IL_009E: stsfld System.UInt64 Program.Static::lp
-		IL_00A3: br IL_030C
-		IL_00A8: ldc.i4.s 39
-		IL_00AA: newarr System.String
-		IL_00AF: dup
-		IL_00B0: ldc.i4.0
-		IL_00B1: ldstr "LEA"
-		IL_00B6: stelem System.String
-		IL_00BB: dup
-		IL_00BC: ldc.i4.1
-		IL_00BD: ldstr "IMM"
-		IL_00C2: stelem System.String
-		IL_00C7: dup
-		IL_00C8: ldc.i4.2
-		IL_00C9: ldstr "JMP"
-		IL_00CE: stelem System.String
-		IL_00D3: dup
-		IL_00D4: ldc.i4.3
-		IL_00D5: ldstr "JSR"
-		IL_00DA: stelem System.String
-		IL_00DF: dup
-		IL_00E0: ldc.i4.4
-		IL_00E1: ldstr "BZ"
-		IL_00E6: stelem System.String
-		IL_00EB: dup
-		IL_00EC: ldc.i4.5
-		IL_00ED: ldstr "BNZ"
-		IL_00F2: stelem System.String
-		IL_00F7: dup
-		IL_00F8: ldc.i4.6
-		IL_00F9: ldstr "ENT"
-		IL_00FE: stelem System.String
-		IL_0103: dup
-		IL_0104: ldc.i4.7
-		IL_0105: ldstr "ADJ"
-		IL_010A: stelem System.String
-		IL_010F: dup
-		IL_0110: ldc.i4.8
-		IL_0111: ldstr "LEV"
-		IL_0116: stelem System.String
-		IL_011B: dup
-		IL_011C: ldc.i4.s 9
-		IL_011E: ldstr "LI"
-		IL_0123: stelem System.String
-		IL_0128: dup
-		IL_0129: ldc.i4.s 10
-		IL_012B: ldstr "LC"
-		IL_0130: stelem System.String
-		IL_0135: dup
-		IL_0136: ldc.i4.s 11
-		IL_0138: ldstr "SI"
-		IL_013D: stelem System.String
-		IL_0142: dup
-		IL_0143: ldc.i4.s 12
-		IL_0145: ldstr "SC"
-		IL_014A: stelem System.String
-		IL_014F: dup
-		IL_0150: ldc.i4.s 13
-		IL_0152: ldstr "PSH"
-		IL_0157: stelem System.String
-		IL_015C: dup
-		IL_015D: ldc.i4.s 14
-		IL_015F: ldstr "OR"
-		IL_0164: stelem System.String
-		IL_0169: dup
-		IL_016A: ldc.i4.s 15
-		IL_016C: ldstr "XOR"
-		IL_0171: stelem System.String
-		IL_0176: dup
-		IL_0177: ldc.i4.s 16
-		IL_0179: ldstr "AND"
-		IL_017E: stelem System.String
-		IL_0183: dup
-		IL_0184: ldc.i4.s 17
-		IL_0186: ldstr "EQ"
-		IL_018B: stelem System.String
-		IL_0190: dup
-		IL_0191: ldc.i4.s 18
-		IL_0193: ldstr "NE"
-		IL_0198: stelem System.String
-		IL_019D: dup
-		IL_019E: ldc.i4.s 19
-		IL_01A0: ldstr "LT"
-		IL_01A5: stelem System.String
-		IL_01AA: dup
-		IL_01AB: ldc.i4.s 20
-		IL_01AD: ldstr "GT"
-		IL_01B2: stelem System.String
-		IL_01B7: dup
-		IL_01B8: ldc.i4.s 21
-		IL_01BA: ldstr "LE"
-		IL_01BF: stelem System.String
-		IL_01C4: dup
-		IL_01C5: ldc.i4.s 22
-		IL_01C7: ldstr "GE"
-		IL_01CC: stelem System.String
-		IL_01D1: dup
-		IL_01D2: ldc.i4.s 23
-		IL_01D4: ldstr "SHL"
-		IL_01D9: stelem System.String
-		IL_01DE: dup
-		IL_01DF: ldc.i4.s 24
-		IL_01E1: ldstr "SHR"
-		IL_01E6: stelem System.String
-		IL_01EB: dup
-		IL_01EC: ldc.i4.s 25
-		IL_01EE: ldstr "ADD"
-		IL_01F3: stelem System.String
-		IL_01F8: dup
-		IL_01F9: ldc.i4.s 26
-		IL_01FB: ldstr "SUB"
-		IL_0200: stelem System.String
-		IL_0205: dup
-		IL_0206: ldc.i4.s 27
-		IL_0208: ldstr "MUL"
-		IL_020D: stelem System.String
-		IL_0212: dup
-		IL_0213: ldc.i4.s 28
-		IL_0215: ldstr "DIV"
-		IL_021A: stelem System.String
-		IL_021F: dup
-		IL_0220: ldc.i4.s 29
-		IL_0222: ldstr "MOD"
-		IL_0227: stelem System.String
-		IL_022C: dup
-		IL_022D: ldc.i4.s 30
-		IL_022F: ldstr "OPEN"
-		IL_0234: stelem System.String
-		IL_0239: dup
-		IL_023A: ldc.i4.s 31
-		IL_023C: ldstr "READ"
-		IL_0241: stelem System.String
-		IL_0246: dup
-		IL_0247: ldc.i4.s 32
-		IL_0249: ldstr "CLOS"
-		IL_024E: stelem System.String
-		IL_0253: dup
-		IL_0254: ldc.i4.s 33
-		IL_0256: ldstr "PRTF"
-		IL_025B: stelem System.String
-		IL_0260: dup
-		IL_0261: ldc.i4.s 34
-		IL_0263: ldstr "MALC"
-		IL_0268: stelem System.String
-		IL_026D: dup
-		IL_026E: ldc.i4.s 35
-		IL_0270: ldstr "FREE"
-		IL_0275: stelem System.String
-		IL_027A: dup
-		IL_027B: ldc.i4.s 36
-		IL_027D: ldstr "MSET"
-		IL_0282: stelem System.String
-		IL_0287: dup
-		IL_0288: ldc.i4.s 37
-		IL_028A: ldstr "MCMP"
-		IL_028F: stelem System.String
-		IL_0294: dup
-		IL_0295: ldc.i4.s 38
-		IL_0297: ldstr "EXIT"
-		IL_029C: stelem System.String
-		IL_02A1: stloc V_1
-		IL_02A5: ldloc V_1
-		IL_02A9: ldsfld System.UInt64 Program.Static::lePtr
-		IL_02AE: ldc.i8 1
-		IL_02B7: add
-		IL_02B8: dup
-		IL_02B9: stsfld System.UInt64 Program.Static::lePtr
-		IL_02BE: conv.i4
-		IL_02BF: ldelem System.String
-		IL_02C4: call System.Void Std.ConsoleStatic::write(System.String)
-		IL_02C9: ldsfld System.UInt64 Program.Static::lePtr
-		IL_02CE: ldc.i8 0
-		IL_02D7: conv.i8
-		IL_02D8: clt.un
-		IL_02DA: brfalse IL_0300
-		IL_02DF: nop
-		IL_02E0: ldsfld System.UInt64 Program.Static::lePtr
-		IL_02E5: ldc.i8 1
-		IL_02EE: add
-		IL_02EF: dup
-		IL_02F0: stsfld System.UInt64 Program.Static::lePtr
-		IL_02F5: conv.ovf.u8.un
-		IL_02F6: call System.Void Std.ConsoleStatic::writeln(System.UInt64)
-		IL_02FB: br IL_030B
-		IL_0300: nop
-		IL_0301: ldstr ""
-		IL_0306: call System.Void Std.ConsoleStatic::writeln(System.String)
-		IL_030B: nop
-		IL_030C: ldsfld System.UInt64 Program.Static::lePtr
-		IL_0311: ldsfld System.UInt64 Program.Static::e
-		IL_0316: clt.un
-		IL_0318: brtrue IL_00A8
-		IL_031D: nop
-		IL_031E: br IL_0323
-		IL_0323: nop
-		IL_0324: ldsfld System.UInt64 Program.Static::line
-		IL_0329: ldc.i8 1
-		IL_0332: add
-		IL_0333: stsfld System.UInt64 Program.Static::line
-		IL_0338: br IL_0603
-		IL_033D: nop
-		IL_033E: ldsfld System.UInt64 Program.Static::tk
-		IL_0343: ldc.i4.s 35
-		IL_0345: ceq
-		IL_0347: brfalse IL_039F
-		IL_034C: nop
-		IL_034D: br IL_0366
-		IL_0352: ldsfld System.UInt64 Program.Static::p
-		IL_0357: ldc.i8 1
-		IL_0360: add
-		IL_0361: stsfld System.UInt64 Program.Static::p
-		IL_0366: ldsfld System.UInt64 Program.Static::p
-		IL_036B: ldsfld System.String Program.Static::pval
-		IL_0370: ldlen
-		IL_0371: clt.un
-		IL_0373: brfalse IL_0399
-		IL_0378: ldsfld System.String Program.Static::pval
-		IL_037D: ldsfld System.UInt64 Program.Static::p
-		IL_0382: conv.i4
-		IL_0383: call System.Char System.String::get_Chars(System.Int32)
-		IL_0388: ldc.i4.s 92
-		IL_038A: ceq
-		IL_038C: ldc.i4.0
-		IL_038D: ceq
-		IL_038F: brfalse IL_0399
-		IL_0394: br IL_0352
-		IL_0399: nop
-		IL_039A: br IL_0603
-		IL_039F: nop
-		IL_03A0: ldsfld System.String Program.Static::pval
-		IL_03A5: ldsfld System.UInt64 Program.Static::p
-		IL_03AA: conv.i4
-		IL_03AB: call System.Char System.String::get_Chars(System.Int32)
-		IL_03B0: ldc.i4.s 97
-		IL_03B2: cgt.un
-		IL_03B4: ldc.i4.0
-		IL_03B5: ceq
-		IL_03B7: brfalse IL_0603
-		IL_03BC: ldsfld System.String Program.Static::pval
-		IL_03C1: ldsfld System.UInt64 Program.Static::p
-		IL_03C6: conv.i4
-		IL_03C7: call System.Char System.String::get_Chars(System.Int32)
-		IL_03CC: ldc.i4.s 122
-		IL_03CE: cgt.un
-		IL_03D0: ldc.i4.0
-		IL_03D1: ceq
-		IL_03D3: brfalse IL_0603
+		IL_0030: ldc.i8 0
+		IL_0039: stloc V_1
+		IL_003D: ldstr "p: "
+		IL_0042: call System.Void Std.ConsoleStatic::write(System.String)
+		IL_0047: ldsfld System.UInt64 Program.Static::p
+		IL_004C: conv.ovf.u8.un
+		IL_004D: call System.Void Std.ConsoleStatic::write(System.UInt64)
+		IL_0052: ldstr " pval: "
+		IL_0057: call System.Void Std.ConsoleStatic::write(System.String)
+		IL_005C: ldsfld System.String Program.Static::pval
+		IL_0061: ldloc V_1
+		IL_0065: conv.ovf.i4.un
+		IL_0066: ldsfld System.UInt64 Program.Static::p
+		IL_006B: ldloc V_1
+		IL_006F: sub.ovf
+		IL_0070: conv.ovf.i4.un
+		IL_0071: call System.String System.String::Substring(System.Int32, System.Int32)
+		IL_0076: call System.Void Std.ConsoleStatic::writeln(System.String)
+		IL_007B: ldsfld System.String Program.Static::pval
+		IL_0080: ldsfld System.UInt64 Program.Static::p
+		IL_0085: conv.i4
+		IL_0086: call System.Char System.String::get_Chars(System.Int32)
+		IL_008B: stloc V_2
+		IL_008F: ldsfld System.String Program.Static::pval
+		IL_0094: ldsfld System.UInt64 Program.Static::tk
+		IL_0099: conv.i4
+		IL_009A: call System.Char System.String::get_Chars(System.Int32)
+		IL_009F: ldc.i4.s 92
+		IL_00A1: ceq
+		IL_00A3: brfalse IL_039C
+		IL_00A8: nop
+		IL_00A9: ldsfld System.Int64 Program.Static::src
+		IL_00AE: ldc.i8 0
+		IL_00B7: ceq
+		IL_00B9: ldc.i4.0
+		IL_00BA: ceq
+		IL_00BC: brfalse IL_0382
+		IL_00C1: nop
+		IL_00C2: ldsfld System.UInt64 Program.Static::line
+		IL_00C7: conv.ovf.u8.un
+		IL_00C8: call System.Void Std.ConsoleStatic::write(System.UInt64)
+		IL_00CD: ldstr ": "
+		IL_00D2: call System.Void Std.ConsoleStatic::write(System.String)
+		IL_00D7: ldsfld System.String Program.Static::pval
+		IL_00DC: ldsfld System.UInt64 Program.Static::lp
+		IL_00E1: conv.ovf.i4.un
+		IL_00E2: ldsfld System.UInt64 Program.Static::p
+		IL_00E7: ldsfld System.UInt64 Program.Static::lp
+		IL_00EC: sub.ovf
+		IL_00ED: conv.ovf.i4.un
+		IL_00EE: call System.String System.String::Substring(System.Int32, System.Int32)
+		IL_00F3: call System.Void Std.ConsoleStatic::writeln(System.String)
+		IL_00F8: ldsfld System.UInt64 Program.Static::p
+		IL_00FD: stsfld System.UInt64 Program.Static::lp
+		IL_0102: br IL_036B
+		IL_0107: ldc.i4.s 39
+		IL_0109: newarr System.String
+		IL_010E: dup
+		IL_010F: ldc.i4.0
+		IL_0110: ldstr "LEA"
+		IL_0115: stelem System.String
+		IL_011A: dup
+		IL_011B: ldc.i4.1
+		IL_011C: ldstr "IMM"
+		IL_0121: stelem System.String
+		IL_0126: dup
+		IL_0127: ldc.i4.2
+		IL_0128: ldstr "JMP"
+		IL_012D: stelem System.String
+		IL_0132: dup
+		IL_0133: ldc.i4.3
+		IL_0134: ldstr "JSR"
+		IL_0139: stelem System.String
+		IL_013E: dup
+		IL_013F: ldc.i4.4
+		IL_0140: ldstr "BZ"
+		IL_0145: stelem System.String
+		IL_014A: dup
+		IL_014B: ldc.i4.5
+		IL_014C: ldstr "BNZ"
+		IL_0151: stelem System.String
+		IL_0156: dup
+		IL_0157: ldc.i4.6
+		IL_0158: ldstr "ENT"
+		IL_015D: stelem System.String
+		IL_0162: dup
+		IL_0163: ldc.i4.7
+		IL_0164: ldstr "ADJ"
+		IL_0169: stelem System.String
+		IL_016E: dup
+		IL_016F: ldc.i4.8
+		IL_0170: ldstr "LEV"
+		IL_0175: stelem System.String
+		IL_017A: dup
+		IL_017B: ldc.i4.s 9
+		IL_017D: ldstr "LI"
+		IL_0182: stelem System.String
+		IL_0187: dup
+		IL_0188: ldc.i4.s 10
+		IL_018A: ldstr "LC"
+		IL_018F: stelem System.String
+		IL_0194: dup
+		IL_0195: ldc.i4.s 11
+		IL_0197: ldstr "SI"
+		IL_019C: stelem System.String
+		IL_01A1: dup
+		IL_01A2: ldc.i4.s 12
+		IL_01A4: ldstr "SC"
+		IL_01A9: stelem System.String
+		IL_01AE: dup
+		IL_01AF: ldc.i4.s 13
+		IL_01B1: ldstr "PSH"
+		IL_01B6: stelem System.String
+		IL_01BB: dup
+		IL_01BC: ldc.i4.s 14
+		IL_01BE: ldstr "OR"
+		IL_01C3: stelem System.String
+		IL_01C8: dup
+		IL_01C9: ldc.i4.s 15
+		IL_01CB: ldstr "XOR"
+		IL_01D0: stelem System.String
+		IL_01D5: dup
+		IL_01D6: ldc.i4.s 16
+		IL_01D8: ldstr "AND"
+		IL_01DD: stelem System.String
+		IL_01E2: dup
+		IL_01E3: ldc.i4.s 17
+		IL_01E5: ldstr "EQ"
+		IL_01EA: stelem System.String
+		IL_01EF: dup
+		IL_01F0: ldc.i4.s 18
+		IL_01F2: ldstr "NE"
+		IL_01F7: stelem System.String
+		IL_01FC: dup
+		IL_01FD: ldc.i4.s 19
+		IL_01FF: ldstr "LT"
+		IL_0204: stelem System.String
+		IL_0209: dup
+		IL_020A: ldc.i4.s 20
+		IL_020C: ldstr "GT"
+		IL_0211: stelem System.String
+		IL_0216: dup
+		IL_0217: ldc.i4.s 21
+		IL_0219: ldstr "LE"
+		IL_021E: stelem System.String
+		IL_0223: dup
+		IL_0224: ldc.i4.s 22
+		IL_0226: ldstr "GE"
+		IL_022B: stelem System.String
+		IL_0230: dup
+		IL_0231: ldc.i4.s 23
+		IL_0233: ldstr "SHL"
+		IL_0238: stelem System.String
+		IL_023D: dup
+		IL_023E: ldc.i4.s 24
+		IL_0240: ldstr "SHR"
+		IL_0245: stelem System.String
+		IL_024A: dup
+		IL_024B: ldc.i4.s 25
+		IL_024D: ldstr "ADD"
+		IL_0252: stelem System.String
+		IL_0257: dup
+		IL_0258: ldc.i4.s 26
+		IL_025A: ldstr "SUB"
+		IL_025F: stelem System.String
+		IL_0264: dup
+		IL_0265: ldc.i4.s 27
+		IL_0267: ldstr "MUL"
+		IL_026C: stelem System.String
+		IL_0271: dup
+		IL_0272: ldc.i4.s 28
+		IL_0274: ldstr "DIV"
+		IL_0279: stelem System.String
+		IL_027E: dup
+		IL_027F: ldc.i4.s 29
+		IL_0281: ldstr "MOD"
+		IL_0286: stelem System.String
+		IL_028B: dup
+		IL_028C: ldc.i4.s 30
+		IL_028E: ldstr "OPEN"
+		IL_0293: stelem System.String
+		IL_0298: dup
+		IL_0299: ldc.i4.s 31
+		IL_029B: ldstr "READ"
+		IL_02A0: stelem System.String
+		IL_02A5: dup
+		IL_02A6: ldc.i4.s 32
+		IL_02A8: ldstr "CLOS"
+		IL_02AD: stelem System.String
+		IL_02B2: dup
+		IL_02B3: ldc.i4.s 33
+		IL_02B5: ldstr "PRTF"
+		IL_02BA: stelem System.String
+		IL_02BF: dup
+		IL_02C0: ldc.i4.s 34
+		IL_02C2: ldstr "MALC"
+		IL_02C7: stelem System.String
+		IL_02CC: dup
+		IL_02CD: ldc.i4.s 35
+		IL_02CF: ldstr "FREE"
+		IL_02D4: stelem System.String
+		IL_02D9: dup
+		IL_02DA: ldc.i4.s 36
+		IL_02DC: ldstr "MSET"
+		IL_02E1: stelem System.String
+		IL_02E6: dup
+		IL_02E7: ldc.i4.s 37
+		IL_02E9: ldstr "MCMP"
+		IL_02EE: stelem System.String
+		IL_02F3: dup
+		IL_02F4: ldc.i4.s 38
+		IL_02F6: ldstr "EXIT"
+		IL_02FB: stelem System.String
+		IL_0300: stloc V_3
+		IL_0304: ldloc V_3
+		IL_0308: ldsfld System.UInt64 Program.Static::lePtr
+		IL_030D: ldc.i8 1
+		IL_0316: add
+		IL_0317: dup
+		IL_0318: stsfld System.UInt64 Program.Static::lePtr
+		IL_031D: conv.i4
+		IL_031E: ldelem System.String
+		IL_0323: call System.Void Std.ConsoleStatic::write(System.String)
+		IL_0328: ldsfld System.UInt64 Program.Static::lePtr
+		IL_032D: ldc.i8 0
+		IL_0336: conv.i8
+		IL_0337: clt.un
+		IL_0339: brfalse IL_035F
+		IL_033E: nop
+		IL_033F: ldsfld System.UInt64 Program.Static::lePtr
+		IL_0344: ldc.i8 1
+		IL_034D: add
+		IL_034E: dup
+		IL_034F: stsfld System.UInt64 Program.Static::lePtr
+		IL_0354: conv.ovf.u8.un
+		IL_0355: call System.Void Std.ConsoleStatic::writeln(System.UInt64)
+		IL_035A: br IL_036A
+		IL_035F: nop
+		IL_0360: ldstr ""
+		IL_0365: call System.Void Std.ConsoleStatic::writeln(System.String)
+		IL_036A: nop
+		IL_036B: ldsfld System.UInt64 Program.Static::lePtr
+		IL_0370: ldsfld System.UInt64 Program.Static::e
+		IL_0375: clt.un
+		IL_0377: brtrue IL_0107
+		IL_037C: nop
+		IL_037D: br IL_0382
+		IL_0382: nop
+		IL_0383: ldsfld System.UInt64 Program.Static::line
+		IL_0388: ldc.i8 1
+		IL_0391: add
+		IL_0392: stsfld System.UInt64 Program.Static::line
+		IL_0397: br IL_065F
+		IL_039C: nop
+		IL_039D: ldsfld System.UInt64 Program.Static::tk
+		IL_03A2: ldc.i4.s 35
+		IL_03A4: ceq
+		IL_03A6: brfalse IL_0404
+		IL_03AB: nop
+		IL_03AC: br IL_03C5
+		IL_03B1: ldsfld System.UInt64 Program.Static::p
+		IL_03B6: ldc.i8 1
+		IL_03BF: add
+		IL_03C0: stsfld System.UInt64 Program.Static::p
+		IL_03C5: ldsfld System.UInt64 Program.Static::p
+		IL_03CA: ldsfld System.String Program.Static::pval
+		IL_03CF: ldlen
+		IL_03D0: clt.un
+		IL_03D2: brfalse IL_03FE
+		IL_03D7: nop
 		IL_03D8: ldsfld System.String Program.Static::pval
 		IL_03DD: ldsfld System.UInt64 Program.Static::p
 		IL_03E2: conv.i4
 		IL_03E3: call System.Char System.String::get_Chars(System.Int32)
-		IL_03E8: ldc.i4.s 65
-		IL_03EA: cgt.un
+		IL_03E8: ldc.i4.s 92
+		IL_03EA: ceq
 		IL_03EC: ldc.i4.0
 		IL_03ED: ceq
-		IL_03EF: brfalse IL_0603
-		IL_03F4: ldsfld System.String Program.Static::pval
-		IL_03F9: ldsfld System.UInt64 Program.Static::p
-		IL_03FE: conv.i4
-		IL_03FF: call System.Char System.String::get_Chars(System.Int32)
-		IL_0404: ldc.i4.s 90
-		IL_0406: cgt.un
-		IL_0408: ldc.i4.0
-		IL_0409: ceq
-		IL_040B: brfalse IL_0603
-		IL_0410: ldsfld System.String Program.Static::pval
-		IL_0415: ldsfld System.UInt64 Program.Static::p
-		IL_041A: conv.i4
-		IL_041B: call System.Char System.String::get_Chars(System.Int32)
-		IL_0420: ldc.i4.s 95
-		IL_0422: ceq
-		IL_0424: brtrue IL_0429
-		IL_0429: nop
-		IL_042A: ldsfld System.UInt64 Program.Static::p
-		IL_042F: ldc.i8 1
-		IL_0438: sub
-		IL_0439: stloc V_0
-		IL_043D: br IL_0478
-		IL_0442: ldsfld System.UInt64 Program.Static::tk
-		IL_0447: ldc.i8 147
-		IL_0450: mul.ovf.un
-		IL_0451: ldsfld System.String Program.Static::pval
-		IL_0456: ldsfld System.UInt64 Program.Static::p
-		IL_045B: dup
-		IL_045C: ldc.i8 1
-		IL_0465: add
-		IL_0466: stsfld System.UInt64 Program.Static::p
-		IL_046B: conv.i4
-		IL_046C: call System.Char System.String::get_Chars(System.Int32)
-		IL_0471: conv.u8
-		IL_0472: add
-		IL_0473: stsfld System.UInt64 Program.Static::tk
-		IL_0478: ldsfld System.String Program.Static::pval
-		IL_047D: ldsfld System.UInt64 Program.Static::p
-		IL_0482: conv.i4
-		IL_0483: call System.Char System.String::get_Chars(System.Int32)
-		IL_0488: ldc.i4.s 97
-		IL_048A: cgt.un
-		IL_048C: ldc.i4.0
-		IL_048D: ceq
-		IL_048F: brfalse IL_053E
-		IL_0494: ldsfld System.String Program.Static::pval
-		IL_0499: ldsfld System.UInt64 Program.Static::p
-		IL_049E: conv.i4
-		IL_049F: call System.Char System.String::get_Chars(System.Int32)
-		IL_04A4: ldc.i4.s 122
-		IL_04A6: cgt.un
-		IL_04A8: ldc.i4.0
-		IL_04A9: ceq
-		IL_04AB: brfalse IL_053E
-		IL_04B0: ldsfld System.String Program.Static::pval
-		IL_04B5: ldsfld System.UInt64 Program.Static::p
-		IL_04BA: conv.i4
-		IL_04BB: call System.Char System.String::get_Chars(System.Int32)
-		IL_04C0: ldc.i4.s 65
-		IL_04C2: cgt.un
-		IL_04C4: ldc.i4.0
-		IL_04C5: ceq
-		IL_04C7: brfalse IL_053E
-		IL_04CC: ldsfld System.String Program.Static::pval
-		IL_04D1: ldsfld System.UInt64 Program.Static::p
-		IL_04D6: conv.i4
-		IL_04D7: call System.Char System.String::get_Chars(System.Int32)
-		IL_04DC: ldc.i4.s 90
-		IL_04DE: cgt.un
-		IL_04E0: ldc.i4.0
-		IL_04E1: ceq
-		IL_04E3: brfalse IL_053E
-		IL_04E8: ldsfld System.String Program.Static::pval
-		IL_04ED: ldsfld System.UInt64 Program.Static::p
-		IL_04F2: conv.i4
-		IL_04F3: call System.Char System.String::get_Chars(System.Int32)
-		IL_04F8: ldc.i4.s 48
-		IL_04FA: cgt.un
-		IL_04FC: ldc.i4.0
-		IL_04FD: ceq
-		IL_04FF: brfalse IL_053E
-		IL_0504: ldsfld System.String Program.Static::pval
-		IL_0509: ldsfld System.UInt64 Program.Static::p
-		IL_050E: conv.i4
-		IL_050F: call System.Char System.String::get_Chars(System.Int32)
-		IL_0514: ldc.i4.s 57
-		IL_0516: cgt.un
-		IL_0518: ldc.i4.0
-		IL_0519: ceq
-		IL_051B: brfalse IL_053E
-		IL_0520: ldsfld System.String Program.Static::pval
-		IL_0525: ldsfld System.UInt64 Program.Static::p
-		IL_052A: conv.i4
-		IL_052B: call System.Char System.String::get_Chars(System.Int32)
-		IL_0530: ldc.i4.s 95
-		IL_0532: ceq
-		IL_0534: brtrue IL_0478
-		IL_0539: br IL_0442
-		IL_053E: nop
-		IL_053F: ldsfld System.UInt64 Program.Static::tk
-		IL_0544: ldc.i8 64
-		IL_054D: mul.ovf.un
-		IL_054E: ldsfld System.UInt64 Program.Static::p
-		IL_0553: ldloc V_0
-		IL_0557: sub
-		IL_0558: add
-		IL_0559: stsfld System.UInt64 Program.Static::tk
-		IL_055E: ldsfld System.Byte[] Program.Static::sym
-		IL_0563: stsfld System.String[] Program.Static::id
-		IL_0568: br IL_05E7
-		IL_056D: ldsfld System.UInt64 Program.Static::tk
-		IL_0572: ldsfld System.String[] Program.Static::id
-		IL_0577: ldc.i8 1
-		IL_0580: conv.i4
-		IL_0581: ldelem System.String
-		IL_0586: ceq
-		IL_0588: brfalse IL_05E6
-		IL_058D: ldsfld System.String[] Program.Static::id
-		IL_0592: ldc.i8 2
-		IL_059B: conv.i4
-		IL_059C: ldelem System.String
-		IL_05A1: ldsfld System.String Program.Static::pval
-		IL_05A6: ldsfld System.UInt64 Program.Static::p
-		IL_05AB: conv.ovf.i4.un
-		IL_05AC: ldloc V_0
-		IL_05B0: ldsfld System.UInt64 Program.Static::p
-		IL_05B5: sub.ovf
-		IL_05B6: conv.ovf.i4.un
-		IL_05B7: call System.String System.String::Substring(System.Int32, System.Int32)
-		IL_05BC: call System.Boolean System.String::Equals(System.String, System.String)
-		IL_05C1: brfalse IL_05E6
-		IL_05C6: nop
-		IL_05C7: ldsfld System.String[] Program.Static::id
-		IL_05CC: ldc.i8 0
-		IL_05D5: conv.i4
-		IL_05D6: ldelem System.String
-		IL_05DB: stsfld System.UInt64 Program.Static::tk
-		IL_05E0: ret
-		IL_05E1: br IL_05E6
-		IL_05E6: nop
-		IL_05E7: ldsfld System.String[] Program.Static::id
-		IL_05EC: ldlen
-		IL_05ED: ldc.i8 0
-		IL_05F6: clt.un
-		IL_05F8: brtrue IL_056D
-		IL_05FD: nop
-		IL_05FE: br IL_0603
-		IL_0603: nop
-		IL_0604: ldsfld System.UInt64 Program.Static::p
-		IL_0609: stsfld System.UInt64 Program.Static::tk
-		IL_060E: ldsfld System.String Program.Static::pval
-		IL_0613: ldsfld System.UInt64 Program.Static::p
-		IL_0618: conv.i4
-		IL_0619: call System.Char System.String::get_Chars(System.Int32)
-		IL_061E: ldsfld System.String Program.Static::pval
-		IL_0623: ldlen
-		IL_0624: clt.un
-		IL_0626: brtrue IL_001C
-		IL_062B: nop
-		IL_062C: ret
+		IL_03EF: brfalse IL_03FE
+		IL_03F4: br IL_03B1
+		IL_03F9: br IL_03B1
+		IL_03FE: nop
+		IL_03FF: br IL_065F
+		IL_0404: nop
+		IL_0405: ldloc V_2
+		IL_0409: ldc.i4.s 97
+		IL_040B: clt.un
+		IL_040D: ldc.i4.0
+		IL_040E: ceq
+		IL_0410: brfalse IL_042B
+		IL_0415: nop
+		IL_0416: ldloc V_2
+		IL_041A: ldc.i4.s 122
+		IL_041C: cgt.un
+		IL_041E: ldc.i4.0
+		IL_041F: ceq
+		IL_0421: brfalse IL_042B
+		IL_0426: br IL_0465
+		IL_042B: nop
+		IL_042C: ldloc V_2
+		IL_0430: ldc.i4.s 65
+		IL_0432: clt.un
+		IL_0434: ldc.i4.0
+		IL_0435: ceq
+		IL_0437: brfalse IL_0452
+		IL_043C: nop
+		IL_043D: ldloc V_2
+		IL_0441: ldc.i4.s 90
+		IL_0443: cgt.un
+		IL_0445: ldc.i4.0
+		IL_0446: ceq
+		IL_0448: brfalse IL_0452
+		IL_044D: br IL_0465
+		IL_0452: nop
+		IL_0453: ldloc V_2
+		IL_0457: ldc.i4.s 95
+		IL_0459: ceq
+		IL_045B: brtrue IL_0465
+		IL_0460: br IL_065F
+		IL_0465: nop
+		IL_0466: ldsfld System.UInt64 Program.Static::p
+		IL_046B: ldc.i8 1
+		IL_0474: sub
+		IL_0475: stloc V_0
+		IL_0479: br IL_04B4
+		IL_047E: ldsfld System.UInt64 Program.Static::tk
+		IL_0483: ldc.i8 147
+		IL_048C: mul.ovf.un
+		IL_048D: ldsfld System.String Program.Static::pval
+		IL_0492: ldsfld System.UInt64 Program.Static::p
+		IL_0497: dup
+		IL_0498: ldc.i8 1
+		IL_04A1: add
+		IL_04A2: stsfld System.UInt64 Program.Static::p
+		IL_04A7: conv.i4
+		IL_04A8: call System.Char System.String::get_Chars(System.Int32)
+		IL_04AD: conv.u8
+		IL_04AE: add
+		IL_04AF: stsfld System.UInt64 Program.Static::tk
+		IL_04B4: ldsfld System.String Program.Static::pval
+		IL_04B9: ldsfld System.UInt64 Program.Static::p
+		IL_04BE: conv.i4
+		IL_04BF: call System.Char System.String::get_Chars(System.Int32)
+		IL_04C4: ldc.i4.s 97
+		IL_04C6: clt.un
+		IL_04C8: ldc.i4.0
+		IL_04C9: ceq
+		IL_04CB: brfalse IL_04F2
+		IL_04D0: nop
+		IL_04D1: ldsfld System.String Program.Static::pval
+		IL_04D6: ldsfld System.UInt64 Program.Static::p
+		IL_04DB: conv.i4
+		IL_04DC: call System.Char System.String::get_Chars(System.Int32)
+		IL_04E1: ldc.i4.s 122
+		IL_04E3: cgt.un
+		IL_04E5: ldc.i4.0
+		IL_04E6: ceq
+		IL_04E8: brfalse IL_04F2
+		IL_04ED: br IL_047E
+		IL_04F2: nop
+		IL_04F3: ldsfld System.String Program.Static::pval
+		IL_04F8: ldsfld System.UInt64 Program.Static::p
+		IL_04FD: conv.i4
+		IL_04FE: call System.Char System.String::get_Chars(System.Int32)
+		IL_0503: ldc.i4.s 65
+		IL_0505: clt.un
+		IL_0507: ldc.i4.0
+		IL_0508: ceq
+		IL_050A: brfalse IL_0531
+		IL_050F: nop
+		IL_0510: ldsfld System.String Program.Static::pval
+		IL_0515: ldsfld System.UInt64 Program.Static::p
+		IL_051A: conv.i4
+		IL_051B: call System.Char System.String::get_Chars(System.Int32)
+		IL_0520: ldc.i4.s 90
+		IL_0522: cgt.un
+		IL_0524: ldc.i4.0
+		IL_0525: ceq
+		IL_0527: brfalse IL_0531
+		IL_052C: br IL_047E
+		IL_0531: nop
+		IL_0532: ldsfld System.String Program.Static::pval
+		IL_0537: ldsfld System.UInt64 Program.Static::p
+		IL_053C: conv.i4
+		IL_053D: call System.Char System.String::get_Chars(System.Int32)
+		IL_0542: ldc.i4.s 48
+		IL_0544: clt.un
+		IL_0546: ldc.i4.0
+		IL_0547: ceq
+		IL_0549: brfalse IL_0570
+		IL_054E: nop
+		IL_054F: ldsfld System.String Program.Static::pval
+		IL_0554: ldsfld System.UInt64 Program.Static::p
+		IL_0559: conv.i4
+		IL_055A: call System.Char System.String::get_Chars(System.Int32)
+		IL_055F: ldc.i4.s 57
+		IL_0561: cgt.un
+		IL_0563: ldc.i4.0
+		IL_0564: ceq
+		IL_0566: brfalse IL_0570
+		IL_056B: br IL_047E
+		IL_0570: nop
+		IL_0571: ldsfld System.String Program.Static::pval
+		IL_0576: ldsfld System.UInt64 Program.Static::p
+		IL_057B: conv.i4
+		IL_057C: call System.Char System.String::get_Chars(System.Int32)
+		IL_0581: ldc.i4.s 95
+		IL_0583: ceq
+		IL_0585: brtrue IL_047E
+		IL_058A: br IL_0594
+		IL_058F: br IL_047E
+		IL_0594: nop
+		IL_0595: ldsfld System.UInt64 Program.Static::tk
+		IL_059A: ldc.i8 64
+		IL_05A3: mul.ovf.un
+		IL_05A4: ldsfld System.UInt64 Program.Static::p
+		IL_05A9: ldloc V_0
+		IL_05AD: sub
+		IL_05AE: add
+		IL_05AF: stsfld System.UInt64 Program.Static::tk
+		IL_05B4: ldsfld System.Byte[] Program.Static::sym
+		IL_05B9: stsfld System.String[] Program.Static::id
+		IL_05BE: br IL_0643
+		IL_05C3: ldsfld System.UInt64 Program.Static::tk
+		IL_05C8: ldsfld System.String[] Program.Static::id
+		IL_05CD: ldc.i8 1
+		IL_05D6: conv.i4
+		IL_05D7: ldelem System.String
+		IL_05DC: ceq
+		IL_05DE: brfalse IL_0642
+		IL_05E3: nop
+		IL_05E4: ldsfld System.String[] Program.Static::id
+		IL_05E9: ldc.i8 2
+		IL_05F2: conv.i4
+		IL_05F3: ldelem System.String
+		IL_05F8: ldsfld System.String Program.Static::pval
+		IL_05FD: ldsfld System.UInt64 Program.Static::p
+		IL_0602: conv.ovf.i4.un
+		IL_0603: ldloc V_0
+		IL_0607: ldsfld System.UInt64 Program.Static::p
+		IL_060C: sub.ovf
+		IL_060D: conv.ovf.i4.un
+		IL_060E: call System.String System.String::Substring(System.Int32, System.Int32)
+		IL_0613: call System.Boolean System.String::Equals(System.String, System.String)
+		IL_0618: brfalse IL_0642
+		IL_061D: br IL_0622
+		IL_0622: nop
+		IL_0623: ldsfld System.String[] Program.Static::id
+		IL_0628: ldc.i8 0
+		IL_0631: conv.i4
+		IL_0632: ldelem System.String
+		IL_0637: stsfld System.UInt64 Program.Static::tk
+		IL_063C: ret
+		IL_063D: br IL_0642
+		IL_0642: nop
+		IL_0643: ldsfld System.String[] Program.Static::id
+		IL_0648: ldlen
+		IL_0649: ldc.i8 0
+		IL_0652: clt.un
+		IL_0654: brtrue IL_05C3
+		IL_0659: nop
+		IL_065A: br IL_065F
+		IL_065F: nop
+		IL_0660: ldsfld System.UInt64 Program.Static::p
+		IL_0665: stsfld System.UInt64 Program.Static::tk
+		IL_066A: ldsfld System.UInt64 Program.Static::p
+		IL_066F: ldsfld System.String Program.Static::pval
+		IL_0674: ldlen
+		IL_0675: clt.un
+		IL_0677: brtrue IL_001C
+		IL_067C: nop
+		IL_067D: ret
 	}
 
 	method private static .cctor () System.Void {

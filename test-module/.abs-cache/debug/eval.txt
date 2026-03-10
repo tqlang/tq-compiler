@@ -165,13 +165,14 @@ module Program {
 			call Callable<Std.Console.writeln> ((Undefined) "Everything fine until here")
 			local.05 = Tokens._char as u64
 			while (cmp LessThanOrEqual local.05 Tokens._while as u64) {
-				step { local.05++ }	call Callable<Program.next> ()
+				step { local.05++ }	call Callable<Std.Console.writeln> (local.05)
+				call Callable<Program.next> ()
 				Field<Program.id>[IdentifierOffsets.tk as u64] = local.05}
 
-			call Callable<Std.Console.writeln> ((Undefined) "Ok until here")
 			local.06 = OpCodes.open as u64
 			while (cmp LessThanOrEqual local.06 OpCodes.exit as u64) {
-				step { local.06++ }	call Callable<Program.next> ()
+				step { local.06++ }	call Callable<Std.Console.writeln> (local.06)
+				call Callable<Program.next> ()
 				Field<Program.id>[IdentifierOffsets.class as u64] = local.06}
 
 			call Callable<Std.Console.writeln> ((Undefined) "Not bad until here")
@@ -181,11 +182,19 @@ module Program {
 		; funcgroup next
 		private static concrete func next() void {
 			$(00) Local 'pp': u64
-			$(01) Local 'values': []string
+			$(01) Local 'fuck': i64
+			$(02) Local 'v': char
+			$(03) Local 'values': []string
 			local.00 = (u64)0
 			Field<Program.tk> = Field<Program.p>
-			while (cmp LessThan Field<Program.pval>[Field<Program.p>] lenof Field<Program.pval>) {
+			while (cmp LessThan Field<Program.p> lenof Field<Program.pval>) {
 				++Field<Program.p>
+				local.01 = (i64)0
+				call Callable<Std.Console.write> ((Undefined) "p: ")
+				call Callable<Std.Console.write> (Field<Program.p>)
+				call Callable<Std.Console.write> ((Undefined) " pval: ")
+				call Callable<Std.Console.writeln> (call @slice (Field<Program.pval>, local.01, Field<Program.p>))
+				local.02 = Field<Program.pval>[Field<Program.p>]
 				if (cmp Equality Field<Program.pval>[Field<Program.tk>] (char) '\') {
 					if (cmp Inequality Field<Program.src> (i64)0) {
 						call Callable<Std.Console.write> (Field<Program.line>)
@@ -193,8 +202,8 @@ module Program {
 						call Callable<Std.Console.writeln> (call @slice (Field<Program.pval>, Field<Program.lp>, Field<Program.p>))
 						Field<Program.lp> = Field<Program.p>
 						while (cmp LessThan Field<Program.lePtr> Field<Program.e>) {
-							local.01 = []string[(Undefined) "LEA", (Undefined) "IMM", (Undefined) "JMP", (Undefined) "JSR", (Undefined) "BZ", (Undefined) "BNZ", (Undefined) "ENT", (Undefined) "ADJ", (Undefined) "LEV", (Undefined) "LI", (Undefined) "LC", (Undefined) "SI", (Undefined) "SC", (Undefined) "PSH", (Undefined) "OR", (Undefined) "XOR", (Undefined) "AND", (Undefined) "EQ", (Undefined) "NE", (Undefined) "LT", (Undefined) "GT", (Undefined) "LE", (Undefined) "GE", (Undefined) "SHL", (Undefined) "SHR", (Undefined) "ADD", (Undefined) "SUB", (Undefined) "MUL", (Undefined) "DIV", (Undefined) "MOD", (Undefined) "OPEN", (Undefined) "READ", (Undefined) "CLOS", (Undefined) "PRTF", (Undefined) "MALC", (Undefined) "FREE", (Undefined) "MSET", (Undefined) "MCMP", (Undefined) "EXIT"]
-							call Callable<Std.Console.write> (local.01[++Field<Program.lePtr>])
+							local.03 = []string[(Undefined) "LEA", (Undefined) "IMM", (Undefined) "JMP", (Undefined) "JSR", (Undefined) "BZ", (Undefined) "BNZ", (Undefined) "ENT", (Undefined) "ADJ", (Undefined) "LEV", (Undefined) "LI", (Undefined) "LC", (Undefined) "SI", (Undefined) "SC", (Undefined) "PSH", (Undefined) "OR", (Undefined) "XOR", (Undefined) "AND", (Undefined) "EQ", (Undefined) "NE", (Undefined) "LT", (Undefined) "GT", (Undefined) "LE", (Undefined) "GE", (Undefined) "SHL", (Undefined) "SHR", (Undefined) "ADD", (Undefined) "SUB", (Undefined) "MUL", (Undefined) "DIV", (Undefined) "MOD", (Undefined) "OPEN", (Undefined) "READ", (Undefined) "CLOS", (Undefined) "PRTF", (Undefined) "MALC", (Undefined) "FREE", (Undefined) "MSET", (Undefined) "MCMP", (Undefined) "EXIT"]
+							call Callable<Std.Console.write> (local.03[++Field<Program.lePtr>])
 							if (cmp LessThan Field<Program.lePtr> OpCodes.adj as u64) {
 								call Callable<Std.Console.writeln> (++Field<Program.lePtr>)} else {
 								call Callable<Std.Console.writeln> ((Undefined) "")}}}
@@ -202,11 +211,11 @@ module Program {
 					++Field<Program.line>} else if (cmp Equality Field<Program.tk> (char) '#') {
 					while (cmp LessThan Field<Program.p> lenof Field<Program.pval>
 							and cmp Inequality Field<Program.pval>[Field<Program.p>] (char) '\') {
-						++Field<Program.p>}} else if (cmp GreaterThanOrEqual Field<Program.pval>[Field<Program.p>] (char) 'a'
-					and cmp LessThanOrEqual Field<Program.pval>[Field<Program.p>] (char) 'z'
-					or cmp GreaterThanOrEqual Field<Program.pval>[Field<Program.p>] (char) 'A'
-					and cmp LessThanOrEqual Field<Program.pval>[Field<Program.p>] (char) 'Z'
-					or cmp Equality Field<Program.pval>[Field<Program.p>] (char) '_') {
+						++Field<Program.p>}} else if (cmp GreaterThanOrEqual local.02 (char) 'a'
+					and cmp LessThanOrEqual local.02 (char) 'z'
+					or cmp GreaterThanOrEqual local.02 (char) 'A'
+					and cmp LessThanOrEqual local.02 (char) 'Z'
+					or cmp Equality local.02 (char) '_') {
 					local.00 = Subtract Field<Program.p>, (u64)1
 					while (cmp GreaterThanOrEqual Field<Program.pval>[Field<Program.p>] (char) 'a'
 							and cmp LessThanOrEqual Field<Program.pval>[Field<Program.p>] (char) 'z'

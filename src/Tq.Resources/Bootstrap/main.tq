@@ -2,6 +2,7 @@ from Std.Console import
 
 @public func main() {
 
+    let helloWorld = "Hello, World!"
     writeln("Hello, World!")
 
 }

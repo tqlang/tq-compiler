@@ -225,9 +225,9 @@ public partial class Compiler
         public readonly CilInstructionLabel IfTrue = ifTrue;
         public readonly CilInstructionLabel IfFalse = ifFalse;
     }
-    private class LoopCheckFrame(CilInstructionLabel @continue, CilInstructionLabel @break) : ContextFrame
+    private class LoopCheckFrame(CilInstructionLabel @execute, CilInstructionLabel @break) : ContextFrame
     {
-        public readonly CilInstructionLabel Continue = @continue;
+        public readonly CilInstructionLabel Execute = @execute;
         public readonly CilInstructionLabel Break = @break;
     }
     private class LoopBodyFrame(CilInstructionLabel @continue, CilInstructionLabel @break) : ContextFrame

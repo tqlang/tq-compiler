@@ -663,7 +663,7 @@ public partial class Compiler
                                 break;
                             
                             case IRCompareExp.Operators.GreaterThanOrEqual:
-                                ctx.Gen.Add(CilOpCodes.Cgt_Un);
+                                ctx.Gen.Add(CilOpCodes.Clt_Un);
                                 ctx.Gen.Add(CilOpCodes.Ldc_I4_0);
                                 ctx.Gen.Add(CilOpCodes.Ceq);
                                 break;
@@ -704,7 +704,7 @@ public partial class Compiler
                 if (ctx.GetFrame() is ConditionalExpressionFrame @cef)
                     (shortcutMode, shortcutIfTrueLabel, shortcutIfFalseLabel) = (true, cef.IfTrue, cef.IfFalse);
                 else if (ctx.GetFrame() is LoopCheckFrame @lcf)
-                    (shortcutMode, shortcutIfTrueLabel, shortcutIfFalseLabel) = (true, lcf.Continue, lcf.Break);
+                    (shortcutMode, shortcutIfTrueLabel, shortcutIfFalseLabel) = (true, lcf.Execute, lcf.Break);
                 else if (ctx.GetFrame() is ShortcutFrame @scf)
                     (shortcutMode, shortcutIfTrueLabel, shortcutIfFalseLabel) = (true, scf.IfTrue, scf.IfFalse);
                 
@@ -714,52 +714,59 @@ public partial class Compiler
                     {
                         case IrLogicalExp.Operators.And:
                         {
-                            var _nextCondition = new CilInstructionLabel();
-                            ctx.FramePush(new ShortcutFrame(shortcutIfTrueLabel, _nextCondition));
+                            var labelRightSide = new CilInstructionLabel(); 
+                            
+                            ctx.FramePush(new ShortcutFrame(labelRightSide, shortcutIfFalseLabel));
                             CompileIrNodeLoad(log.Left, false, ctx);
                             ctx.FramePop();
-
+                            
                             if (log.Left is not IrLogicalExp)
                             {
-                                ctx.StackPop();
                                 ctx.Gen.Add(CilOpCodes.Brfalse, shortcutIfFalseLabel);
+                                ctx.StackPop();
                             }
 
-                            var lasti = ctx.Gen.Count;
+                            labelRightSide.Instruction = ctx.Gen.Add(CilOpCodes.Nop);
+                            
                             ctx.FramePush(new ShortcutFrame(shortcutIfTrueLabel, shortcutIfFalseLabel));
                             CompileIrNodeLoad(log.Right, false, ctx);
                             ctx.FramePop();
-                            _nextCondition.Instruction = ctx.Gen[lasti];
 
                             if (log.Right is not IrLogicalExp)
                             {
-                                ctx.StackPop();
                                 ctx.Gen.Add(CilOpCodes.Brfalse, shortcutIfFalseLabel);
+                                ctx.Gen.Add(CilOpCodes.Br, shortcutIfTrueLabel); 
+                                ctx.StackPop();
                             }
                         } break;
 
                         case IrLogicalExp.Operators.Or:
                         {
-                            var _nextCondition = new CilInstructionLabel();
-                            ctx.FramePush(new ShortcutFrame(_nextCondition, shortcutIfFalseLabel));
+                            // No OR: Se a esquerda é verdadeira -> pula pro True Global.
+                            // Se a esquerda é falsa -> avalia a direita.
+                            var labelRightSide = new CilInstructionLabel();
+
+                            ctx.FramePush(new ShortcutFrame(shortcutIfTrueLabel, labelRightSide));
                             CompileIrNodeLoad(log.Left, false, ctx);
-                            
+                            ctx.FramePop();
+
                             if (log.Left is not IrLogicalExp)
                             {
-                                ctx.StackPop();
                                 ctx.Gen.Add(CilOpCodes.Brtrue, shortcutIfTrueLabel);
+                                ctx.StackPop();
                             }
 
-                            var lasti = ctx.Gen.Count;
+                            labelRightSide.Instruction = ctx.Gen.Add(CilOpCodes.Nop);
+
                             ctx.FramePush(new ShortcutFrame(shortcutIfTrueLabel, shortcutIfFalseLabel));
                             CompileIrNodeLoad(log.Right, false, ctx);
                             ctx.FramePop();
-                            _nextCondition.Instruction = ctx.Gen[lasti];
-                            
+
                             if (log.Right is not IrLogicalExp)
                             {
-                                ctx.StackPop();
                                 ctx.Gen.Add(CilOpCodes.Brtrue, shortcutIfTrueLabel);
+                                ctx.Gen.Add(CilOpCodes.Br, shortcutIfFalseLabel);
+                                ctx.StackPop();
                             }
                         } break;
 
@@ -882,7 +889,6 @@ public partial class Compiler
     
             case IRWhile @while:
             {
-                var a = ctx;
                 var checkLabel = new CilInstructionLabel();
                 var bodyLabel = new CilInstructionLabel();
                 var breakLabel = new CilInstructionLabel();
@@ -902,7 +908,7 @@ public partial class Compiler
                 if (@while.Step != null) CompileIr(@while.Step, ctx);
                 
                 // Check
-                ctx.FramePush(new LoopCheckFrame(checkLabel, breakLabel));
+                ctx.FramePush(new LoopCheckFrame(bodyLabel, breakLabel));
                 var stackBefore = ctx.Stack.Count;
                 lastIdx = ctx.Gen.Count;
                 CompileIrNodeLoad(@while.Condition, false, ctx);
