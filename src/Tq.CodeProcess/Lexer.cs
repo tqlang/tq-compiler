@@ -35,6 +35,10 @@ public class Lexer
             TokenType.CircumflexChar, TokenType.PipeChar,
             TokenType.BitShiftLeftOperator, TokenType.BitShiftRightOperator,
             TokenType.BitwiseXorAssign, TokenType.BitwiseAndAssign, TokenType.BitwiseOrAssign,
+            
+            TokenType.AndOperator,
+            TokenType.OrOperator,
+            TokenType.DoKeyword,
         ] },
     };
 

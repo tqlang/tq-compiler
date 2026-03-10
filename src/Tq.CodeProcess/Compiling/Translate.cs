@@ -677,7 +677,7 @@ public partial class Compiler
                         switch (cmp.Operator)
                         {
                             case IRCompareExp.Operators.Equality:
-                                ctx.Gen.Add(CilOpCodes.Call, (IMethodDescriptor)_coreLib["String"].m["Equals"]);
+                                ctx.Gen.Add(CilOpCodes.Call, _coreLib["String"].m["Equals"]);
                                 break;
 
                             case IRCompareExp.Operators.Inequality:
@@ -700,46 +700,69 @@ public partial class Compiler
                 var shortcutMode = false;
                 CilInstructionLabel shortcutIfTrueLabel = null!;
                 CilInstructionLabel shortcutIfFalseLabel = null!;
-
+                
                 if (ctx.GetFrame() is ConditionalExpressionFrame @cef)
                     (shortcutMode, shortcutIfTrueLabel, shortcutIfFalseLabel) = (true, cef.IfTrue, cef.IfFalse);
                 else if (ctx.GetFrame() is LoopCheckFrame @lcf)
                     (shortcutMode, shortcutIfTrueLabel, shortcutIfFalseLabel) = (true, lcf.Continue, lcf.Break);
-
+                else if (ctx.GetFrame() is ShortcutFrame @scf)
+                    (shortcutMode, shortcutIfTrueLabel, shortcutIfFalseLabel) = (true, scf.IfTrue, scf.IfFalse);
+                
                 if (shortcutMode)
                 {
                     switch (log.Operator)
                     {
                         case IrLogicalExp.Operators.And:
+                        {
+                            var _nextCondition = new CilInstructionLabel();
+                            ctx.FramePush(new ShortcutFrame(shortcutIfTrueLabel, _nextCondition));
                             CompileIrNodeLoad(log.Left, false, ctx);
+                            ctx.FramePop();
+
                             if (log.Left is not IrLogicalExp)
                             {
                                 ctx.StackPop();
                                 ctx.Gen.Add(CilOpCodes.Brfalse, shortcutIfFalseLabel);
                             }
+
+                            var lasti = ctx.Gen.Count;
+                            ctx.FramePush(new ShortcutFrame(shortcutIfTrueLabel, shortcutIfFalseLabel));
                             CompileIrNodeLoad(log.Right, false, ctx);
+                            ctx.FramePop();
+                            _nextCondition.Instruction = ctx.Gen[lasti];
+
                             if (log.Right is not IrLogicalExp)
                             {
                                 ctx.StackPop();
                                 ctx.Gen.Add(CilOpCodes.Brfalse, shortcutIfFalseLabel);
                             }
-                            break;
-                        
+                        } break;
+
                         case IrLogicalExp.Operators.Or:
+                        {
+                            var _nextCondition = new CilInstructionLabel();
+                            ctx.FramePush(new ShortcutFrame(_nextCondition, shortcutIfFalseLabel));
                             CompileIrNodeLoad(log.Left, false, ctx);
+                            
                             if (log.Left is not IrLogicalExp)
                             {
                                 ctx.StackPop();
                                 ctx.Gen.Add(CilOpCodes.Brtrue, shortcutIfTrueLabel);
                             }
+
+                            var lasti = ctx.Gen.Count;
+                            ctx.FramePush(new ShortcutFrame(shortcutIfTrueLabel, shortcutIfFalseLabel));
                             CompileIrNodeLoad(log.Right, false, ctx);
+                            ctx.FramePop();
+                            _nextCondition.Instruction = ctx.Gen[lasti];
+                            
                             if (log.Right is not IrLogicalExp)
                             {
                                 ctx.StackPop();
                                 ctx.Gen.Add(CilOpCodes.Brtrue, shortcutIfTrueLabel);
                             }
-                            break;
-                        
+                        } break;
+
                         default: throw new ArgumentOutOfRangeException();
                     }
                 }
@@ -1099,6 +1122,22 @@ public partial class Compiler
                         }
                     } break;
 
+                    case SliceCallReference @sliceCall:
+                    {
+                        var fref = _coreLib["String"].m["Substring"];
+                        CompileIrNodeLoad(allArgs[0], false, ctx);
+                        
+                        CompileIrNodeLoad(allArgs[1], false, ctx);
+                        ctx.Gen.Add(CilOpCodes.Conv_Ovf_I4_Un);
+                        
+                        CompileIrNodeLoad(allArgs[2], false, ctx);
+                        CompileIrNodeLoad(allArgs[1], false, ctx);
+                        ctx.Gen.Add(CilOpCodes.Sub_Ovf);
+                        ctx.Gen.Add(CilOpCodes.Conv_Ovf_I4_Un);
+
+                        ctx.Gen.Add(CilOpCodes.Call, fref);
+                    } break;
+                    
                     default: throw new UnreachableException();
                 }
             } break;

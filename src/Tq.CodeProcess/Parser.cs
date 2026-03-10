@@ -240,7 +240,7 @@ public class Parser(ErrorHandler errHandler)
             case TokenType.LeftBracketChar:
             try {
                 
-                node = ParseBlock((BlockNode n, ref bool _)
+                node = ParseBlock((n, ref _)
                     => n.AppendChild(ParseFunctionBody()));
                 
             } catch { DiscardUntil(TokenType.RightBracketChar); throw; }
@@ -1117,7 +1117,7 @@ public class Parser(ErrorHandler errHandler)
     }
     private void DiscardUntil(TokenType t)
     {
-        while (!Taste(t) || IsEOF()) Eat();
+        while (!Taste(t) && !IsEOF()) Eat();
     }
     #endregion
 

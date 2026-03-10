@@ -135,9 +135,10 @@ public partial class Compiler
         self = cl.String;
         type = _module.DefaultImporter.ImportType(self.ToTypeDefOrRef());
         {
-            methods.Add("charAt", CreateMethodRef(type, "get_Chars", MethodSignature.CreateInstance(cl.Char, [cl.Int32])));
+            methods.Add("charAt", CreateMethodRef(type, "get_Chars", MethodSignature.CreateInstance(cl.Char, cl.Int32)));
             methods.Add("Concat", CreateMethodRef(type, "Concat", MethodSignature.CreateStatic(cl.String.MakeArrayType(1))));
             methods.Add("Equals", CreateMethodRef(type, "Equals", MethodSignature.CreateStatic(cl.Boolean, cl.String, cl.String)));
+            methods.Add("Substring", CreateMethodRef(type, "Substring", MethodSignature.CreateInstance(cl.String, cl.Int32, cl.Int32)));
         }
         methods.TrimExcess();
         _coreLib.Add(type.Name!, (self, methods));

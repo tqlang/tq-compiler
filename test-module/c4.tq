@@ -21,7 +21,7 @@ let uint e = 0 # emmited pointer
 let uint p = 0 # source pointer
 let uint lp = 0 # source base
 let uint tk = 0
-let []uint id
+let []string id
 let uint line = 0
 
 let string pval
@@ -59,6 +59,9 @@ let string pval
 		next()
 		id[IdentifierOffsets.tk as uint] = idx1
 	}
+
+	Console.writeln("Ok until here")
+
 	let idx2 = OpCodes.open as uint
 	while idx2 <= OpCodes.exit as uint : idx2++ do {
 		next()
@@ -78,9 +81,9 @@ func next() {
 
 		if (pval[tk] == '\n') {
 			if (src != 0) {
-				#Console.write(line)
-				#Console.write(": ")
-				#Console.writeln(source[lp .. p])
+				Console.write(line)
+				Console.write(": ")
+				Console.writeln(pval.slice(lp, p))
 
 				lp = p
 
@@ -98,10 +101,21 @@ func next() {
 		elif (tk == '#') while (p < pval.len and pval[p] != '\n') do ++p		
 		elif ((pval[p] >= 'a' and pval[p] <= 'z') or (pval[p] >= 'A' and pval[p] <= 'Z') or pval[p] == '_') {
 			pp = p - 1
-			while ((pval[p] >= 'a' and pval[p] <= 'z') or (pval[p] >= 'A' and pval[p] <= 'Z') or (pval[p] >= '0' and pval[p] <= '9') or pval[p] == '_') do
+			while ((pval[p] >= 'a' and pval[p] <= 'z')
+				or (pval[p] >= 'A' and pval[p] <= 'Z')
+				or (pval[p] >= '0' and pval[p] <= '9')
+				or pval[p] == '_')
+			do
 				tk = tk * 147 + (pval[p++] as uint)
 			tk = (tk * 64) + (p - pp)
 			id = sym
+
+			while (id.len < IdentifierOffsets.tk) do {
+				if (tk == id[IdentifierOffsets.hash] and id[IdentifierOffsets.name] == pval.slice(p, pp)) {
+					tk = id[IdentifierOffsets.tk]
+					return
+				}
+			}
 		}
 
 		tk = p
@@ -127,6 +141,15 @@ typedef CTypes {
 	case ptr
 }
 
-typedef IdentifierOffsets {
-	case tk, hash, name, class, _type, val, hClass, hType, hVal, idsz
+typedef(uint) IdentifierOffsets {
+	case tk = 0
+	case hash = 1
+	case name = 2
+	case class = 3
+	case _type = 4
+	case val = 5
+	case hClass = 6
+	case hType = 7
+	case hVal = 8
+	case idsz = 9
 }

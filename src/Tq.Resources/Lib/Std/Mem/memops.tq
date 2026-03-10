@@ -1,0 +1,7 @@
+@public func copy() {
+
+}
+
+@public func compare() bool {
+	return false
+}

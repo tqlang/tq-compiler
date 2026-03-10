@@ -22,7 +22,7 @@ module Program {
 		 = (u64)0
 		private static concrete var 'tk' u64
 		 = (u64)0
-		private static concrete var 'id' []u64
+		private static concrete var 'id' []string
 
 		private static concrete var 'line' u64
 		 = (u64)0
@@ -116,17 +116,17 @@ module Program {
 			case ptr,
 		}
 
-		typedef 'IdentifierOffsets' {
-			case tk,
-			case hash,
-			case name,
-			case class,
-			case _type,
-			case val,
-			case hClass,
-			case hType,
-			case hVal,
-			case idsz,
+		typedef(u64) 'IdentifierOffsets' {
+			case tk = (comptime_int)0,
+			case hash = (comptime_int)1,
+			case name = (comptime_int)2,
+			case class = (comptime_int)3,
+			case _type = (comptime_int)4,
+			case val = (comptime_int)5,
+			case hClass = (comptime_int)6,
+			case hType = (comptime_int)7,
+			case hVal = (comptime_int)8,
+			case idsz = (comptime_int)9,
 		}
 
 		; funcgroup main
@@ -168,6 +168,7 @@ module Program {
 				step { local.05++ }	call Callable<Program.next> ()
 				Field<Program.id>[IdentifierOffsets.tk as u64] = local.05}
 
+			call Callable<Std.Console.writeln> ((Undefined) "Ok until here")
 			local.06 = OpCodes.open as u64
 			while (cmp LessThanOrEqual local.06 OpCodes.exit as u64) {
 				step { local.06++ }	call Callable<Program.next> ()
@@ -187,6 +188,9 @@ module Program {
 				++Field<Program.p>
 				if (cmp Equality Field<Program.pval>[Field<Program.tk>] (char) '\') {
 					if (cmp Inequality Field<Program.src> (i64)0) {
+						call Callable<Std.Console.write> (Field<Program.line>)
+						call Callable<Std.Console.write> ((Undefined) ": ")
+						call Callable<Std.Console.writeln> (call @slice (Field<Program.pval>, Field<Program.lp>, Field<Program.p>))
 						Field<Program.lp> = Field<Program.p>
 						while (cmp LessThan Field<Program.lePtr> Field<Program.e>) {
 							local.01 = []string[(Undefined) "LEA", (Undefined) "IMM", (Undefined) "JMP", (Undefined) "JSR", (Undefined) "BZ", (Undefined) "BNZ", (Undefined) "ENT", (Undefined) "ADJ", (Undefined) "LEV", (Undefined) "LI", (Undefined) "LC", (Undefined) "SI", (Undefined) "SC", (Undefined) "PSH", (Undefined) "OR", (Undefined) "XOR", (Undefined) "AND", (Undefined) "EQ", (Undefined) "NE", (Undefined) "LT", (Undefined) "GT", (Undefined) "LE", (Undefined) "GE", (Undefined) "SHL", (Undefined) "SHR", (Undefined) "ADD", (Undefined) "SUB", (Undefined) "MUL", (Undefined) "DIV", (Undefined) "MOD", (Undefined) "OPEN", (Undefined) "READ", (Undefined) "CLOS", (Undefined) "PRTF", (Undefined) "MALC", (Undefined) "FREE", (Undefined) "MSET", (Undefined) "MCMP", (Undefined) "EXIT"]
@@ -214,7 +218,12 @@ module Program {
 						Field<Program.tk> = Add Multiply Field<Program.tk>, (u64)147, Field<Program.pval>[Field<Program.p>++] as u64}
 
 					Field<Program.tk> = Add Multiply Field<Program.tk>, (u64)64, Subtract Field<Program.p>, local.00
-					Field<Program.id> = Field<Program.sym>}
+					Field<Program.id> = Field<Program.sym>
+					while (cmp LessThan lenof Field<Program.id> IdentifierOffsets.tk) {
+						if (cmp Equality Field<Program.tk> Field<Program.id>[IdentifierOffsets.hash]
+							and cmp Equality Field<Program.id>[IdentifierOffsets.name] call @slice (Field<Program.pval>, Field<Program.p>, local.00)) {
+							Field<Program.tk> = Field<Program.id>[IdentifierOffsets.tk]
+							(ret)}}}
 
 
 
@@ -269,6 +278,18 @@ module Std {
 				case _16,
 				case _32,
 			}
+
+			; funcgroup copy
+			public static concrete func copy() void {
+
+			}
+
+
+			; funcgroup compare
+			public static concrete func compare() bool {
+				ret false
+			}
+
 
 			; funcgroup alloc
 			public static concrete generic func alloc(type, u64, Typedef<Std.Mem.Alignment>) []T {

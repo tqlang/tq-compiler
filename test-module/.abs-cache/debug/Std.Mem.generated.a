@@ -1,4 +1,9 @@
 @public()
+func copy () { }
+@public()
+func compare () bool { return False }
+
+@public()
 typedef Alignment {
 	_1,
 	_2,

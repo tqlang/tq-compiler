@@ -28,6 +28,8 @@ FnGp	Std.Process.getProgramArguments
 FnGp	Std.Process.exit
 Nmsp	Std.Mem
 TDef	Std.Mem.Alignment
+FnGp	Std.Mem.copy
+FnGp	Std.Mem.compare
 FnGp	Std.Mem.alloc
 Nmsp	Std.Test
 FnGp	Std.Test.testValue

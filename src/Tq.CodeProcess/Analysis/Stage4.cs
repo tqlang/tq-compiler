@@ -261,6 +261,12 @@ public partial class Analyser
         
         for (var i = 0; i < node.Arguments.Length; i++)
             node.Arguments[i] = (IrExpression)NodeSemaAnal(node.Arguments[i], ctx);
+
+        // extreme exceptions, mainly intrinsic shit
+        switch (targetRef)
+        {
+            case SliceCallReference: return new IrInvoke(node.Origin, node.Target, [instance!, ..node.Arguments]);
+        }
         
         var res = targetRef switch
         {
@@ -741,6 +747,7 @@ public partial class Analyser
             StringTypeReference @stringBuiltin => accessName switch
             {
                 "len" => new IrLenOf(origin, accessBase),
+                "slice" => new IRAccess(origin, accessBase, new IrSolvedReference(origin, new SliceCallReference(stringBuiltin.Encoding))),
                 _ =>  throw new NotImplementedException(),
             },
             

@@ -186,7 +186,7 @@ public partial class Compiler
         public CilInstructionCollection Gen = body.Instructions;
         public ReferenceImporter Importer = importer;
         public List<TypeSignature> Stack = [];
-        public Stack<ContextFrame> Frame = [];
+        public List<ContextFrame> Frame = [];
         
         private Parameter[] _args = args;
         private CilLocalVariable[] _locals = locals;
@@ -199,9 +199,10 @@ public partial class Compiler
         public void StackPop(int count) => Stack.RemoveRange(Stack.Count - count, count);
         public TypeSignature PeekStack() => Stack[^1];
         
-        public void FramePush(ContextFrame frame) => Frame.Push(frame);
-        public void FramePop() => Frame.Pop();
-        public ContextFrame GetFrame() => Frame.Peek();//Frame.Count > 0 ? Frame.Peek() : null;
+        public void FramePush(ContextFrame frame) => Frame.Add(frame);
+        public void FramePop() => Frame.RemoveAt(Frame.Count - 1);
+        public ContextFrame GetFrame() => Frame[^1];
+        public T? GetFrame<T>() where T : ContextFrame => (T?)Frame.FindLast(e => e is T);
         
         public Parameter GetArg(int i) => _args[i];
         public CilLocalVariable GetLoc(int i) => _locals[i];
@@ -224,14 +225,19 @@ public partial class Compiler
         public readonly CilInstructionLabel IfTrue = ifTrue;
         public readonly CilInstructionLabel IfFalse = ifFalse;
     }
-    private class LoopCheckFrame(CilInstructionLabel _continue, CilInstructionLabel _break) : ContextFrame
+    private class LoopCheckFrame(CilInstructionLabel @continue, CilInstructionLabel @break) : ContextFrame
     {
-        public readonly CilInstructionLabel Continue = _continue;
-        public readonly CilInstructionLabel Break = _break;
+        public readonly CilInstructionLabel Continue = @continue;
+        public readonly CilInstructionLabel Break = @break;
     }
-    private class LoopBodyFrame(CilInstructionLabel _continue, CilInstructionLabel _break) : ContextFrame
+    private class LoopBodyFrame(CilInstructionLabel @continue, CilInstructionLabel @break) : ContextFrame
     {
-        public readonly CilInstructionLabel Continue = _continue;
-        public readonly CilInstructionLabel Break = _break;
+        public readonly CilInstructionLabel Continue = @continue;
+        public readonly CilInstructionLabel Break = @break;
+    }
+    private class ShortcutFrame(CilInstructionLabel iftrue, CilInstructionLabel iffalse) : ContextFrame
+    {
+        public readonly CilInstructionLabel IfTrue = iftrue;
+        public readonly CilInstructionLabel IfFalse = iffalse;
     }
 }

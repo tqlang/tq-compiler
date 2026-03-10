@@ -373,31 +373,51 @@ public partial class Compiler
             HashSet<ulong> usedValues = [];
             foreach (var (d, o) in fieldsWithDefaultValue)
             {
-                var constant = o.Value switch
+                if (o.Value is IrIntegerLiteral @intlit)
                 {
-                    IrSolvedReference @r => r.Reference switch
+                    var largeVal = (Int128)intlit.Value;
+                    switch (valueType.ElementType)
                     {
-                        DotnetFieldReference @fr => fr.Reference.Reference.Constant!,
-                        _ => throw new NotImplementedException(),
-                    },
-                    _ => throw new NotImplementedException(),
-                };
-                d.Constant = constant;
-
-                var constBytes = constant.Value!.Data;
-                var entryValue = valueType.ElementType switch
+                        case ElementType.I1 or ElementType.U1: bytes[0] = (byte)largeVal; break;
+                        case ElementType.I2: BinaryPrimitives.WriteInt16LittleEndian(bytes.AsSpan(), unchecked((short)largeVal)); break;
+                        case ElementType.U2: BinaryPrimitives.WriteUInt16LittleEndian(bytes.AsSpan(), unchecked((ushort)largeVal)); break;
+                        case ElementType.I4: BinaryPrimitives.WriteInt32LittleEndian(bytes.AsSpan(), unchecked((int)largeVal)); break;
+                        case ElementType.U4: BinaryPrimitives.WriteUInt32LittleEndian(bytes.AsSpan(), unchecked((uint)largeVal));break;
+                        case ElementType.I8: BinaryPrimitives.WriteInt64LittleEndian(bytes.AsSpan(), unchecked((long)largeVal)); break;
+                        case ElementType.U8: BinaryPrimitives.WriteUInt64LittleEndian(bytes.AsSpan(), unchecked((ulong)largeVal)); break;
+                        default: throw new ArgumentOutOfRangeException();
+                    }
+                    d.Constant = new Constant(valueType.ElementType, new DataBlobSignature(bytes.ToArray()));
+                    usedValues.Add(unchecked((ulong)largeVal));
+                }
+                else
                 {
-                    ElementType.I1 or ElementType.U1 => constBytes[0],
-                    ElementType.I2 => unchecked((ulong)BinaryPrimitives.ReadInt16LittleEndian(constBytes)),
-                    ElementType.U2 => BinaryPrimitives.ReadUInt16LittleEndian(constBytes),
-                    ElementType.I4 => unchecked((ulong)BinaryPrimitives.ReadInt32LittleEndian(constBytes)),
-                    ElementType.U4 => BinaryPrimitives.ReadUInt32LittleEndian(constBytes),
-                    ElementType.I8 => unchecked((ulong)BinaryPrimitives.ReadInt64LittleEndian(constBytes)),
-                    ElementType.U8 => BinaryPrimitives.ReadUInt64LittleEndian(constBytes),
+                    var constant = o.Value switch
+                    {
+                        IrSolvedReference @r => r.Reference switch
+                        {
+                            DotnetFieldReference @fr => fr.Reference.Reference.Constant!,
+                            _ => throw new NotImplementedException(),
+                        },
+                        _ => throw new NotImplementedException(),
+                    };
+                    d.Constant = constant;
 
-                    _ => throw new ArgumentOutOfRangeException()
-                };
-                usedValues.Add(entryValue);
+                    var constBytes = constant.Value!.Data;
+                    var entryValue = valueType.ElementType switch
+                    {
+                        ElementType.I1 or ElementType.U1 => constBytes[0],
+                        ElementType.I2 => unchecked((ulong)BinaryPrimitives.ReadInt16LittleEndian(constBytes)),
+                        ElementType.U2 => BinaryPrimitives.ReadUInt16LittleEndian(constBytes),
+                        ElementType.I4 => unchecked((ulong)BinaryPrimitives.ReadInt32LittleEndian(constBytes)),
+                        ElementType.U4 => BinaryPrimitives.ReadUInt32LittleEndian(constBytes),
+                        ElementType.I8 => unchecked((ulong)BinaryPrimitives.ReadInt64LittleEndian(constBytes)),
+                        ElementType.U8 => BinaryPrimitives.ReadUInt64LittleEndian(constBytes),
+
+                        _ => throw new ArgumentOutOfRangeException()
+                    };
+                    usedValues.Add(entryValue);
+                }
             }
 
             ulong val = 0;
@@ -532,7 +552,7 @@ public partial class Compiler
         foreach (var i in parameterDefinitions) m.ParameterDefinitions.Add(i);
         parentTypedef.Methods.Add(m);
 
-        if (funcObj.Export == "main") _module.ManagedEntryPointMethod = m;
+        if (funcObj.Name == "main") _module.ManagedEntryPointMethod = m;
         return new FunctionData(m);
     }
     private FieldDefinition DeclareField(FieldObject fieldobj, ITypeDefOrRef parent)
