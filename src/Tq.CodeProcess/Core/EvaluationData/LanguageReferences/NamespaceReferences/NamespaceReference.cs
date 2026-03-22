@@ -4,8 +4,8 @@ using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.TypeReferences
 
 namespace Abstract.CodeProcess.Core.EvaluationData.LanguageReferences;
 
-public class NamespaceReference(TqNamespaceObject nmsp) : LanguageReference
+public class NamespaceReference(BaseNamespaceObject nmsp) : LanguageReference
 {
-    public readonly TqNamespaceObject TqNamespaceObject = nmsp;
-    public override TypeReference FieldType => new SolvedNamespaceTypeReference(nmsp);
+    public readonly BaseNamespaceObject NamespaceObject = nmsp;
+    public override TypeReference Type => new SolvedNamespaceTypeReference(nmsp);
 }

@@ -820,11 +820,11 @@ public partial class Compiler
                 ctx.StackPop(2);
                 ctx.StackPush(elmtype);
             } break;
-            case IrLenOf @lenof:
+            case IrLenOf lenOf:
             {
-                CompileIrNodeLoad(lenof.OfValue, false, ctx);
+                CompileIrNodeLoad(lenOf.OfValue, false, ctx);
                 ctx.Gen.Add(CilOpCodes.Ldlen);
-                ctx.Stack[^1] = TypeFromRef(lenof.Type);
+                ctx.Stack[^1] = TypeFromRef(lenOf.Type);
             } break;
             
             case IRIf @if:

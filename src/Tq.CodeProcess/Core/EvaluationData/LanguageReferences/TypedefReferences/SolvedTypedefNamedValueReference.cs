@@ -5,7 +5,7 @@ namespace Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.TypedefRef
 
 public class SolvedTypedefNamedValueReference(TypedefNamedValue namedValue) : LanguageReference
 {
-    public override TypeReference FieldType => new SolvedTypedefTypeReference((TypedefObject)NamedValue.Parent);
+    public override TypeReference Type => new SolvedTypedefTypeReference((TypedefObject)NamedValue.Parent);
     public readonly TypedefNamedValue NamedValue = namedValue;
     public override string ToString() => $"{NamedValue:sig}";
 }

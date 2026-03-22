@@ -63,7 +63,7 @@ public partial class Analyser
         {
             refStatic.Static = reference.Parent switch
             {
-                ModuleObject or TqNamespaceObject => true,
+                BaseModuleObject or TqNamespaceObject => true,
                 IStaticModifier @parentStatic => parentStatic.Static,
                 _ => refStatic.Static
             };

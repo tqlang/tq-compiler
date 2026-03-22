@@ -1,35 +1,35 @@
 using System.Text;
-using Abstract.CodeProcess.Core.EvaluationData.LanguageObjects.Containers;
+using AsmResolver.DotNet;
 
 namespace Abstract.CodeProcess.Core.EvaluationData.LanguageObjects;
 
-public class DotnetNamespaceObject(string n) : BaseNamespaceObject(n),
-    INamespaceContainer,
-    IDotnetTypeContainer
+public class DotnetNamespaceObject(string fullNamespace) : BaseNamespaceObject(fullNamespace)
 {
-
-    public List<DotnetTypeObject> Types { get; } = [];
-    public List<BaseNamespaceObject> Namespaces { get; } = [];
+    public readonly string FullNamespace = fullNamespace;
+    public List<ITypeDefOrRef> DotnetTypes = [];
+    public readonly List<DotnetTypeObject> Types = [];
     
     public override string ToString()
     {
         var sb = new StringBuilder();
-        sb.AppendLine($"Namespace '{Name}' ('{string.Join('.', Global)}') {{");
+        sb.AppendLine($"(.NET) Namespace '{FullNamespace}' {{");
 
-        foreach (var i in Namespaces) sb.AppendLine($"{i}".TabAll());
-        foreach (var i in Types) sb.AppendLine($"{i}".TabAll());
-
+        
         sb.AppendLine("}");
         return sb.ToString();
     }
     public override string ToSignature() => $"Namespace {string.Join('.', Global)}";
 
-    public override LangObject? SearchChild(string name, SearchChildMode mode) => mode switch
+    public override LangObject? SearchChild(string name, SearchChildMode mode)
     {
-        SearchChildMode.All or SearchChildMode.OnlyStatic =>
-            (LangObject?)Types.FirstOrDefault(e => e.Name == name)
-            ?? Namespaces.FirstOrDefault(e => e.Name == Name),
+        var module = (DotnetModuleObject)Module!;
 
-        _ => null,
-    };
+        var cacheType = Types.FirstOrDefault(e => e.Name == name);
+        if (cacheType != null) return cacheType;
+        
+        var type = DotnetTypes.FirstOrDefault(e => e.Name == name);
+        if (type != null) return DotnetMembers.GetOrCreateTypeObject(type, module);
+
+        return null;
+    }
 }

@@ -374,7 +374,7 @@ public partial class Analyser
         node.Target = (IrExpression)NodeSemaAnal(node.Target, ctx);
         node.Value = (IrExpression)NodeSemaAnal(node.Value, ctx);
 
-        if (node.Target is IrSolvedReference { Reference: LocalReference { FieldType: null } @l })
+        if (node.Target is IrSolvedReference { Reference: LocalReference { Type: null } @l })
         {
             var typefrom = GetEffectiveTypeReference(node.Value);
             if (typefrom is ComptimeIntegerTypeReference) typefrom = new RuntimeIntegerTypeReference(true);
@@ -728,7 +728,7 @@ public partial class Analyser
     {
         var baseRef = ReferenceOf(accessBase);
         var accessName = ((IdentifierNode)accessMember.Origin).Value;
-        var typeref = baseRef.FieldType;
+        var typeref = baseRef.Type;
 
         while (true)
         {
@@ -762,6 +762,11 @@ public partial class Analyser
                         ? new IrSolvedReference(origin, GetObjectReference(refe))
                         : new IRUnknownReference(origin),
                 
+                SolvedNamespaceTypeReference @staticTypedef
+                    => staticTypedef.Namespace.SearchChild(accessName, SearchChildMode.OnlyStatic) is {} @refe
+                        ? new IrSolvedReference(origin, GetObjectReference(refe))
+                        : new IRUnknownReference(origin),
+                
                 _ => throw new NotImplementedException(),
             },
             
@@ -771,7 +776,7 @@ public partial class Analyser
                     : new IRUnknownReference(origin),
             
             SolvedNamespaceTypeReference @staticTypedef
-                => staticTypedef.TqNamespace.SearchChild(accessName, SearchChildMode.OnlyStatic) is {} @refe
+                => staticTypedef.Namespace.SearchChild(accessName, SearchChildMode.OnlyStatic) is {} @refe
                     ? new IrSolvedReference(origin, GetObjectReference(refe))
                     : new IRUnknownReference(origin),
             

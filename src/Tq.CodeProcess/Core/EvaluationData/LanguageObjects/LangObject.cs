@@ -33,12 +33,12 @@ public abstract class LangObject(SourceScript sourceScript, string name) : IForm
     }
     public readonly SourceScript SourceScript = sourceScript;
     
-    public ModuleObject? Module
+    public BaseModuleObject? Module
     {
         get
         {
             if (_parent == null) return null;
-            if (_parent is ModuleObject @mod) return mod;
+            if (_parent is BaseModuleObject @mod) return mod;
             return _parent.Module;
         }
     }

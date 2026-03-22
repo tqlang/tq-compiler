@@ -65,7 +65,7 @@ public static class Builder
                     err.SetFile(i);
                     var fileContent = File.ReadAllText(i);
                     var lex = lexer.Lex(fileContent);
-                    var tree = parser.Parse(lex);
+                    var tree = parser.Parse(i, lex);
                     
                     namespaceNode.AddTree(tree);
                 }
@@ -106,6 +106,12 @@ public static class Builder
         Console.WriteLine($"Analysis done ({analysis.Elapsed})");
         
         var binaryEmission = Stopwatch.StartNew();
+        
+        if (progObj == null || err.ErrorCount > 0)
+        {
+            err.Dump();
+            Environment.Exit(1);
+        }
         
         compiler.Compile(progObj);
         

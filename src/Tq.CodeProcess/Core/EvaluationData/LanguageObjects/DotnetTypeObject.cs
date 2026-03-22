@@ -1,23 +1,18 @@
 using System.Text;
-using Abstract.CodeProcess.Core.EvaluationData.LanguageObjects.Containers;
 using AsmResolver.DotNet;
 
 namespace Abstract.CodeProcess.Core.EvaluationData.LanguageObjects;
 
-public class DotnetTypeObject(TypeDefinition definition) : ContainerObject(null!, definition.Name!),
-    IDotnetTypeContainer,
-    IDotnetFieldContainer,
-    IDotnetMethodContainer,
-    IDotnetCtorDtorContainer
+public class DotnetTypeObject(TypeDefinition definition) : ContainerObject(null!, definition.Name!)
 {
     public readonly TypeDefinition Reference = definition;
     public DotnetTypeObject? ParentType = null;
 
-    public List<DotnetTypeObject> Types { get; } = [];
-    public List<DotnetFieldObject> Fields { get; } = [];
-    public List<DotnetMethodGroupObject> Methods { get; } = [];
-    public List<DotnetMethodObject> Constructors { get; } = [];
-    public DotnetTypeObject? Destructor { get; set; }
+    public List<DotnetTypeObject> Types = [];
+    public List<DotnetFieldObject> Fields = [];
+    public List<DotnetMethodGroupObject> Methods = [];
+    public List<DotnetMethodObject> Constructors = [];
+    public DotnetTypeObject? Destructor = null;
 
     public bool IsStatic => Reference is { IsAbstract: true, IsSealed: true };
     public bool IsValueType => Reference.IsValueType;
@@ -47,19 +42,37 @@ public class DotnetTypeObject(TypeDefinition definition) : ContainerObject(null!
     }
     public override string ToSignature() => Name;
 
-    public override LangObject? SearchChild(string name, SearchChildMode mode) => mode switch
+    public override LangObject? SearchChild(string name, SearchChildMode mode)
     {
-        SearchChildMode.All or SearchChildMode.OnlyStatic =>
-            (LangObject?)Types.FirstOrDefault(e => e.Name == name)
-            ?? Fields.FirstOrDefault(e => !e.IsStatic && e.Name == name)
-            ?? Methods.FirstOrDefault(e => e.Name == name)
-            ?? ParentType?.SearchChild(name, mode),
+        var module = (DotnetModuleObject)Module!;
         
-        SearchChildMode.OnlyInstance =>
-            Fields.FirstOrDefault(e => e.IsStatic && e.Name == name)
-            ?? Methods.FirstOrDefault(e => e.Name == name)
-            ?? ParentType?.SearchChild(name, mode),
+        var cacheMethod = Methods.FirstOrDefault(e => e.Name == name);
+        if (cacheMethod != null) return cacheMethod;
+        var methods = Reference.Methods.Where(e => e.Name == name).ToArray();
+        if (methods.Length > 0)
+        {
+            var methodGroup = new DotnetMethodGroupObject(methods[0].Name!);
+            foreach (var i in methods)
+                methodGroup.Overloads.Add(DotnetMembers.GetOrCreateFunctionObject(i, module));
+            return methodGroup;
+        }
 
-        _ => throw new ArgumentOutOfRangeException(nameof(mode), mode, null)
-    };
+        var cacheField = Fields.FirstOrDefault(e => e.Name == name);
+        if (cacheField != null) return cacheField;
+        var field = Reference.Fields.FirstOrDefault(e => e.Name == name);
+        if (field != null)
+        {
+            return DotnetMembers.GetOrCreateFieldObject(field, module);
+        }
+        
+        var cacheType = Types.FirstOrDefault(e => e.Name == name);
+        if (cacheType != null) return cacheType;
+        var type = Reference.NestedTypes.FirstOrDefault(e => e.Name == name);
+        if (type != null)
+        {
+            return DotnetMembers.GetOrCreateTypeObject(type, module);
+        }
+
+        return null;
+    }
 }

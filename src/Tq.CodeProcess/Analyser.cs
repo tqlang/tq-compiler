@@ -12,8 +12,8 @@ namespace Abstract.CodeProcess;
 public partial class Analyser(ErrorHandler handler)
 {
     private readonly ErrorHandler _errorHandler = handler;
-
-    private readonly List<ModuleObject> _modules = [];
+    
+    private readonly List<BaseModuleObject> _modules = [];
     private readonly List<TqNamespaceObject> _namespaces = [];
     private readonly Dictionary<string[], LangObject> _globalReferenceTable = new(new IdentifierComparer());
     private readonly Stack<List<AttributeReference>> _onHoldAttributes = [];
@@ -21,7 +21,7 @@ public partial class Analyser(ErrorHandler handler)
     private AssemblyResolver _assemblyResolver = null!;
     private readonly List<AssemblyDefinition> _assemblies = [];
     
-    public ProgramObject Analyze(
+    public ProgramObject? Analyze(
         Module[] modules,
         string[] includes,
         bool dumpGlobalTable = false,
@@ -35,12 +35,16 @@ public partial class Analyser(ErrorHandler handler)
         
         if (dumpEvaluatedData) DumpEvaluatedData();
         if (dumpGlobalTable) DumpGlobalTable();
+
+        if (_errorHandler.ErrorCount > 0) return null!;
         
         // Stage 2
         ScanHeadersMetadata();
         
         if (dumpEvaluatedData) DumpEvaluatedData();
         if (dumpGlobalTable) DumpGlobalTable();
+        
+        if (_errorHandler.ErrorCount > 0) return null!;
         
         // Stage 3
         ScanObjectHeaders();
@@ -49,13 +53,15 @@ public partial class Analyser(ErrorHandler handler)
         if (dumpEvaluatedData) DumpEvaluatedData();
         if (dumpGlobalTable) DumpGlobalTable();
         
+        if (_errorHandler.ErrorCount > 0) return null!;
+        
         // Stage 4
         DoSemanticAnalysis();
         
-        // Debug shit
         if (dumpEvaluatedData) DumpEvaluatedData();
         if (dumpGlobalTable) DumpGlobalTable();
 
+        if (_errorHandler.ErrorCount > 0) return null!;
         return new ProgramObject(_assemblyResolver, [.. _modules], [.. _namespaces]);
     }
     
@@ -68,7 +74,7 @@ public partial class Analyser(ErrorHandler handler)
         {
             var kind = i.Value switch
             {
-                ModuleObject => "Modl",
+                BaseModuleObject => "Modl",
                 TqNamespaceObject => "Nmsp",
                 FunctionGroupObject => "FnGp",
                 FunctionObject => "Func",

@@ -4,6 +4,6 @@ namespace Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.CodeRefere
 
 public class SelfReference : LanguageReference
 {
-    public override TypeReference FieldType => null!;
+    public override TypeReference Type => null!;
     public override string ToString() => "self";
 }

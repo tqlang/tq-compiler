@@ -24,21 +24,23 @@ public class AssemblyResolver : DotNetCoreAssemblyResolver
     
     protected override string? ProbeRuntimeDirectories(AssemblyDescriptor assembly)
     {
+        throw new NotImplementedException();
+    }
+    protected override AssemblyDefinition? ResolveImpl(AssemblyDescriptor assembly)
+    {
+        Console.WriteLine($"Resolving {assembly.Name}");
+        
         var asmName = assembly.Name;
         var asmVersion = assembly.Version;
 
-        return _resolvingDirectories
+        var path = _resolvingDirectories
             .Select(dir => Path.Combine(dir, $"{asmName}.dll"))
             .Where(File.Exists)
             .FirstOrDefault(file => asmVersion == null!
                                     || asmVersion == ZeroVersion
                                     || asmVersion == NullVersion
                                     || AssemblyDefinition.FromFile(file).Version == asmVersion);
-    }
-    protected override AssemblyDefinition? ResolveImpl(AssemblyDescriptor assembly)
-    {
-        Console.WriteLine($"Resolving {assembly.Name}");
-        var path = ProbeRuntimeDirectories(assembly);
+        
         return path == null ? null : LoadAssemblyFromFile(path);
     }
     

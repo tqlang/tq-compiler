@@ -4,6 +4,7 @@ using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences;
 using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.Dotnet;
 using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.FieldReferences;
 using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.FunctionReferences;
+using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.NamespaceReferences;
 using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.TypedefReferences;
 using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.TypeReferences;
 using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.TypeReferences.Builtin;
@@ -30,8 +31,9 @@ public partial class Analyser
             
             DotnetTypeObject @t => new DotnetTypeReference(t),
             DotnetFieldObject @f => new DotnetFieldReference(f),
-            DotnetNamespaceObject @n => new DotnetNamespaceReference(n),
+            DotnetNamespaceObject @n => new SolvedNamespaceTypeReference(n),
             DotnetMethodGroupObject @mg => new DotnetMethodGroupReference(mg),
+            DotnetStaticClassObject @sc => new SolvedNamespaceTypeReference(sc),
             
             _ => throw new NotImplementedException(),
         };

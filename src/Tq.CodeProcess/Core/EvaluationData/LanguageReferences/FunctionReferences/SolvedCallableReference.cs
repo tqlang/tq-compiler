@@ -7,7 +7,7 @@ namespace Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.FunctionRe
 public class SolvedCallableReference(ICallable callable) : FunctionReference
 {
     public readonly ICallable Callable = callable;
-    public override TypeReference FieldType => new FunctionTypeReference(
+    public override TypeReference Type => new FunctionTypeReference(
         Callable.ReturnType!,
         Callable.Parameters.Select(e => e.Type).ToArray());
 

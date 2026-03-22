@@ -7,5 +7,5 @@ public class SourceScript(string path)
     public List<ImportObject> Imports { get; } = [];
     
     public readonly string Path = path;
-    public override string ToString() => throw new NotImplementedException();
+    public override string ToString() => $"Src '{Path}'";
 }

@@ -4,7 +4,7 @@ namespace Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.TypeRefere
 
 public abstract class TypeReference: LanguageReference
 {
-    public override TypeReference FieldType => new TypeTypeReference(this);
+    public override TypeReference Type => new TypeTypeReference(this);
     
     public abstract Alignment Length { get; }
     public abstract Alignment Alignment { get; }

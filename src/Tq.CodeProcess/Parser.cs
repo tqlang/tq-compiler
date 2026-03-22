@@ -19,12 +19,12 @@ public class Parser(ErrorHandler errHandler)
     private Token[] _tokens = null!;
     private uint _tokens_cursor = 0;
 
-    public SyntaxTree Parse(Token[] tkns)
+    public SyntaxTree Parse(string srcPath, Token[] tkns)
     {
         _tokens = tkns;
         _tokens_cursor = 0;
 
-        var tree = new SyntaxTree();
+        var tree = new SyntaxTree(srcPath);
 
         while(!IsEOF())
         {

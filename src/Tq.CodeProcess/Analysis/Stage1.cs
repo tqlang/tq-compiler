@@ -1,13 +1,9 @@
 using System.Diagnostics;
 using Abstract.CodeProcess.Core.EvaluationData.LanguageObjects;
-using Abstract.CodeProcess.Core.EvaluationData.LanguageObjects.CodeObjects;
 using Abstract.CodeProcess.Core.EvaluationData.LanguageObjects.Containers;
 using Abstract.CodeProcess.Core.EvaluationData.LanguageObjects.Imports;
 using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.AttributeReferences;
-using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.Dotnet;
 using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.TypeReferences;
-using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.TypeReferences.Builtin;
-using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.TypeReferences.Builtin.Integer;
 using Abstract.CodeProcess.Core.Language;
 using Abstract.CodeProcess.Core.Language.Module;
 using Abstract.CodeProcess.Core.Language.SyntaxNodes.Control;
@@ -15,9 +11,6 @@ using Abstract.CodeProcess.Core.Language.SyntaxNodes.Expression;
 using Abstract.CodeProcess.Core.Language.SyntaxNodes.Misc;
 using Abstract.CodeProcess.Core.Language.SyntaxNodes.Value;
 using AsmResolver.DotNet;
-using AsmResolver.DotNet.Serialized;
-using AsmResolver.DotNet.Signatures.Types;
-using TypeReference = Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.TypeReferences.TypeReference;
 
 namespace Abstract.CodeProcess;
 
@@ -34,31 +27,32 @@ public partial class Analyser
     private void SearchReferences(Module[] modules, string[] includes)
     {
         _modules.Clear();
-        _namespaces.Clear();
-        _globalReferenceTable.Clear();
-        _onHoldAttributes.Clear();
         _assemblies.Clear();
+        _namespaces.Clear();
+        _onHoldAttributes.Clear();
+        _globalReferenceTable.Clear();
         
         // Search tq references
         foreach (var m in modules)
         {
-            var module = new ModuleObject(m.name);
-            Dictionary<string, TqNamespaceObject> _moduleNamespaces = [];
+            Dictionary<string, TqNamespaceObject> moduleNamespaces = [];
+            var module = new TqModuleObject(m.name);
+            
             foreach (var n in m.Namespaces)
             {
-                var a = string.Join('.', n.Identifier);
-                List<string> name = [m.name];
-                if (n.Identifier.Length > 0) name.AddRange(n.Identifier);
                 var obj = new TqNamespaceObject(n.Identifier[0], n);
-
-                if (n.Identifier.Length > 1 || !string.IsNullOrEmpty(n.Identifier[0]))
+                if (n.Identifier.Length == 1 && string.IsNullOrEmpty(n.Identifier[0])) module.Root = obj;
+                else
                 {
-                    var parent = _moduleNamespaces[string.Join('.', n.Identifier[0..^1])];
-                    parent.Namespaces.Add(obj);
+                    obj = new TqNamespaceObject(n.Identifier[0], n);
+                    if (n.Identifier.Length > 1 || !string.IsNullOrEmpty(n.Identifier[0]))
+                    {
+                        var parent = moduleNamespaces[string.Join('.', n.Identifier[0..^1])];
+                        parent.Namespaces.Add(obj);
+                    }
                 }
-                else module.Namespaces.Add(obj);
-                _moduleNamespaces.Add(string.Join('.', n.Identifier), obj);
                 
+                moduleNamespaces.Add(string.Join('.', n.Identifier), obj);
                 _namespaces.Add(obj);
                 SearchNamespaceRecursive(obj);
             }
@@ -68,8 +62,7 @@ public partial class Analyser
         }
         
         // Search dotnet included references
-        var dotnetModule = new ModuleObject("Dotnet") { ReferenceOnly = true};
-        var dotnetTypesMap = new Dictionary<string, DotnetTypeObject>();
+        var dotnetModule = new DotnetModuleObject("Dotnet");
         foreach (var i in includes)
         {
             var asmRef = new AssemblyReference(i, new Version());
@@ -77,19 +70,14 @@ public partial class Analyser
             if (res == null) throw new Exception($"Assembly '{i}' not found");
             _assemblies.Add(res);
             
-            var manifest = res.ManifestModule;
-            if (manifest != null) BuildDotnetAssemblyTree(dotnetModule, manifest, dotnetTypesMap);
+            if (res.ManifestModule != null) dotnetModule.AddModule(res.ManifestModule);
         }
         LoadGlobalsRecursive(dotnetModule);
         _modules.Add(dotnetModule);
-
-        foreach (var (ik, iv) in dotnetTypesMap)
-            DotnetRescanTypes(iv, dotnetTypesMap);
         
         _modules.TrimExcess();
-        _namespaces.TrimExcess();
-        _globalReferenceTable.TrimExcess();
         _assemblies.TrimExcess();
+        _namespaces.TrimExcess();
         _onHoldAttributes.Clear();
     }
 
@@ -98,7 +86,7 @@ public partial class Analyser
         _onHoldAttributes.Push([]);
         foreach (var t in nmsp.SyntaxNode.Trees)
         {
-            var script = new SourceScript("no path provided bruh");
+            var script = new SourceScript(t.Path);
             foreach (var n in t.Children) SearchGenericScopeRecursive(nmsp, (ControlNode)n, script);
             nmsp.Scripts.Add(script);
         }
@@ -175,19 +163,19 @@ public partial class Analyser
             var namespaceParts = ((AccessNode)fromImport.Children[1]).StringValues;
 
             if (namespaceParts.Any(string.IsNullOrEmpty)) throw new Exception("Invalid expression inside namespace identifier");
-            sourceScript.Imports.Add(new GeneralImportObject(namespaceParts));
+            sourceScript.Imports.Add(new GeneralImportObject(fromImport, namespaceParts));
         }
         else
         {
             var namespacePartsNode = fromImport.Children[1];
             var namespaceParts = namespacePartsNode is AccessNode @accessNode
-                ? (accessNode).StringValues
+                ? accessNode.StringValues
                 : [((IdentifierNode)namespacePartsNode).Value];
             
             var imports = (ImportCollectionNode)fromImport.Children[3];
             if (namespaceParts.Any(string.IsNullOrEmpty)) throw new Exception("Invalid expression inside namespace identifier");
 
-            var importObj = new SpecificImportObject(namespaceParts);
+            var importObj = new SpecificImportObject(fromImport, namespaceParts);
             
             foreach (var i in imports.Content.OfType<ImportItemNode>())
             {
@@ -311,8 +299,14 @@ public partial class Analyser
 
     private void LoadGlobalsRecursive(LangObject obj)
     {
-        if (obj is not ModuleObject) _globalReferenceTable.Add(obj.Global, obj);
-
+        if (obj is not BaseModuleObject) _globalReferenceTable.Add(obj.Global, obj);
+        
+        if (obj is TqModuleObject { Root: not null } @m)
+        {
+            m.Root.Parent = m;
+            LoadGlobalsRecursive(m.Root);
+        }
+        
         if (obj is INamespaceContainer @nc)
         {
             foreach (var i in nc.Namespaces)
@@ -443,185 +437,4 @@ public partial class Analyser
         return new UnsolvedAttributeReference(node);
     }
 
-    
-    private void BuildDotnetAssemblyTree(ModuleObject root, ModuleDefinition dotnetModule, Dictionary<string, DotnetTypeObject> typesMap)
-    {
-        foreach (var type in dotnetModule.ExportedTypes) DotnetInsertType(root, type.Resolve()!, typesMap);
-        foreach (var type in dotnetModule.GetAllTypes()) DotnetInsertType(root, type, typesMap);
-    }
-    
-    private void DotnetInsertType(ModuleObject root, TypeDefinition type, Dictionary<string, DotnetTypeObject> map)
-    {
-        try
-        {
-            if (type.FullName == "<Module>") return;
-            if (type is SerializedTypeDefinition { IsPublic: false }) return;
-            
-            var ns = type.Namespace?.ToString().Split('.') ?? ["Global"];
-            if (ns.Length < 1) throw new Exception();
-
-            var current = type is SerializedTypeDefinition { IsNested: true } nested
-                ? map[nested.DeclaringType!.FullName]
-                : ns.Aggregate((ContainerObject)root, (current1, part) => GetOrCreateNamespace((INamespaceContainer)current1, part));
-            
-            if (current is not IDotnetTypeContainer @container) throw new Exception();
-            var obj = new DotnetTypeObject(type);
-            container.Types.Add(obj);
-
-            map.Add(type.FullName, obj);
-        }
-        catch (Exception e)
-        {
-            Console.WriteLine($"Error importing type '{type.FullName}': {e.Message}");
-        }
-    }
-
-    private void DotnetRescanTypes(DotnetTypeObject obj, Dictionary<string, DotnetTypeObject> map)
-    {
-        foreach (var i in obj.Reference.Fields) DotnetTryInsertField(obj,  i, map);
-        foreach (var i in obj.Reference.Methods) DotnetTryInsertMethod(obj, i, map);
-    }
-
-    private void DotnetTryInsertField(DotnetTypeObject parent, FieldDefinition field,
-        Dictionary<string, DotnetTypeObject> map)
-    {
-        try
-        {
-            if (field.IsPrivate) return;
-            var obj = new DotnetFieldObject(field, DotnetTypeToRef(field.Signature!.FieldType, map));
-            parent.Fields.Add(obj);
-        }
-        catch (Exception e) { Console.WriteLine($"Error importing field '{field.FullName}': {e.Message}"); }
-    }
-    private void DotnetTryInsertMethod(DotnetTypeObject parent, MethodDefinition method,
-        Dictionary<string, DotnetTypeObject> typesMap)
-    {
-        try
-        {
-            if (method.IsPrivate) return;
-            
-            var parameters = new ParameterObject[method.GenericParameters.Count + method.Parameters.Count];
-            for ( var i = 0; i < method.GenericParameters.Count; i++)
-            {
-                parameters[i] = new ParameterObject(
-                    new TypeTypeReference(null),
-                    method.GenericParameters[i].Name!);
-            }
-
-            for (var i = 0; i < method.Parameters.Count; i++)
-            {
-                var idx = method.GenericParameters.Count + i;
-                var ptype = method.Parameters[i].ParameterType;
-                var pname = method.Parameters[i].Name!;
-                
-                if (ptype is GenericParameterSignature gp)
-                    parameters[idx] = new ParameterObject(new GenericTypeReference(parameters[gp.Index]), pname);
-                else
-                    parameters[idx] = new ParameterObject(DotnetTypeToRef(ptype, typesMap), pname);
-            }
-            
-            var obj = new DotnetMethodObject(
-                method.Name!,
-                method, method,
-                DotnetTypeToRef(method.Signature!.ReturnType,  typesMap),
-                parameters);
-            
-            if (method.IsConstructor) parent.Constructors.Add(obj);
-            else
-            {
-                var group = parent.Methods.FirstOrDefault(e => e.Name == method.Name);
-                if (group == null)
-                {
-                    group = new DotnetMethodGroupObject(method.Name!);
-                    parent.Methods.Add(group);
-                }
-                group.Overloads.Add(obj);
-            }
-        }
-        catch (Exception e) { Console.WriteLine($"Error importing method '{method.FullName}': {e.Message}"); }
-    }
-    
-    private ContainerObject GetOrCreateNamespace(INamespaceContainer container, string name)
-    {
-        var val = container.Namespaces.FirstOrDefault(e => e.Name == name);
-        if (val != null) return val;
-
-        val = new DotnetNamespaceObject(name);
-        container.Namespaces.Add(val);
-        val.Parent = (LangObject)container;
-        return val;
-    }
-
-    private TypeReference DotnetTypeToRef(TypeSignature t, Dictionary<string, DotnetTypeObject> typesMap)
-    {
-        switch (t)
-        {
-            case ByReferenceTypeSignature byRef:
-                return new ReferenceTypeReference(DotnetTypeToRef(byRef.BaseType, typesMap));
-            
-            case PointerTypeSignature pt:
-                return new ReferenceTypeReference(DotnetTypeToRef(pt.BaseType, typesMap));
-            
-            case SzArrayTypeSignature sza:
-                return new SliceTypeReference(DotnetTypeToRef(sza.BaseType, typesMap));
-            
-            case GenericInstanceTypeSignature { GenericType.FullName: "System.Nullable`1" }:
-                throw new NotImplementedException("nullable");
-                //return new AnytypeTypeReference();
-
-            case GenericInstanceTypeSignature generic when generic.GenericType.FullName.StartsWith("System.Func"):
-                throw new NotImplementedException("lambda");
-                //return new FunctionTypeReference(null, []);
-            
-            case GenericInstanceTypeSignature g:
-            {
-                var args = new TypeReference[g.TypeArguments.Count];
-                for (var i = 0; i < g.TypeArguments.Count; i++)
-                    args[i] = DotnetTypeToRef(g.TypeArguments[i], typesMap);
-                return new DotnetGenericTypeReference(typesMap[g.GenericType.ToTypeSignature().FullName], args);
-            }
-
-            case GenericParameterSignature g:
-            {
-                return g.ParameterType switch
-                {
-                    GenericParameterType.Type => new DotnetGenericTypeParamReference(g.Index),
-                    GenericParameterType.Method => new DotnetGenericMethodParamReference(g.Index),
-                    _ => throw new UnreachableException()
-                };
-            }
-            
-            case CorLibTypeSignature corLib:
-                return corLib.FullName switch
-                {
-                    "System.Void" => new VoidTypeReference(),
-                    "System.Object" => new AnytypeTypeReference(),
-            
-                    "System.IntPtr" => new RuntimeIntegerTypeReference(true),
-                    "System.UIntPtr" => new RuntimeIntegerTypeReference(false),
-                    "System.SByte" => new RuntimeIntegerTypeReference(true, 8),
-                    "System.Byte" => new RuntimeIntegerTypeReference(false, 8),
-                    "System.Int16" => new RuntimeIntegerTypeReference(true, 16),
-                    "System.UInt16" => new RuntimeIntegerTypeReference(false, 16),
-                    "System.Int32" => new RuntimeIntegerTypeReference(true, 32),
-                    "System.UInt32" => new RuntimeIntegerTypeReference(false, 32),
-                    "System.Int64" => new RuntimeIntegerTypeReference(true, 64),
-                    "System.UInt64" => new RuntimeIntegerTypeReference(false, 64),
-            
-                    "System.Single" => new RuntimeIntegerTypeReference(true, 32),
-                    "System.Double" => new RuntimeIntegerTypeReference(true, 64),
-                    
-                    "System.Boolean" => new BooleanTypeReference(),
-                    "System.String" => new StringTypeReference(StringEncoding.Utf16),
-                    "System.Char" => new CharTypeReference(),
-                    "System.Type" => new TypeTypeReference(null),
-            
-                    _ => throw new NotImplementedException($"core lib type {corLib.FullName} not implemented")
-                };
-        }
-        
-        if (t is not TypeDefOrRefSignature) throw new Exception($"{t.FullName} is {t.GetType().FullName}");
-        var res = new DotnetTypeReference(typesMap[t.FullName]);
-        return t.IsValueType ? res : new ReferenceTypeReference(res);
-    }
 }

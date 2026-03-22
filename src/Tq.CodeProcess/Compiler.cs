@@ -50,8 +50,7 @@ public partial class Compiler
         
         LoadCoreLibResources();
         
-        foreach (var m in program.Modules) 
-            if (!m.ReferenceOnly) SearchRecursive(m);
+        foreach (var m in program.Modules) SearchRecursive(m);
         
         DeclareTypes();
         ResolveContent();
@@ -66,9 +65,11 @@ public partial class Compiler
     {
         switch (obj)
         {
-            case ModuleObject @a:
-                foreach (var i in a.Namespaces) SearchRecursive(i);
+            case TqModuleObject @a:
+                if (a.Root == null) throw new Exception($"Module '{a.Name}'s root is null");
+                SearchRecursive(a.Root);
                 break;
+            case DotnetModuleObject: return;
 
             case TqNamespaceObject @a:
             {
@@ -108,6 +109,10 @@ public partial class Compiler
             
             case TypedefObject @a:
                 _enumsMap.Add(a, null!);
+                break;
+            
+            case DotnetNamespaceObject:
+            case DotnetTypeObject:
                 break;
             
             default: throw new UnreachableException();

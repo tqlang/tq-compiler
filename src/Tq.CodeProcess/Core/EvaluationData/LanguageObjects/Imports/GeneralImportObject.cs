@@ -1,7 +1,10 @@
+using Abstract.CodeProcess.Core.Language.SyntaxNodes.Base;
+
 namespace Abstract.CodeProcess.Core.EvaluationData.LanguageObjects.Imports;
 
-public class GeneralImportObject(string[] path) : ImportObject
+public class GeneralImportObject(SyntaxNode node, string[] path) : ImportObject
 {
+    public readonly SyntaxNode Node = node;
     public string[] NamespacePath = path;
     public BaseNamespaceObject NamespaceObject = null!;
 

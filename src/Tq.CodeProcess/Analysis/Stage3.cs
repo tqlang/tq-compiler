@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using Abstract.CodeProcess.Core;
 using Abstract.CodeProcess.Core.EvaluationData;
+using Abstract.CodeProcess.Core.EvaluationData.Exceptions;
 using Abstract.CodeProcess.Core.EvaluationData.IntermediateTree;
 using Abstract.CodeProcess.Core.EvaluationData.IntermediateTree.Expressions;
 using Abstract.CodeProcess.Core.EvaluationData.IntermediateTree.Statements;
@@ -18,6 +19,7 @@ using Abstract.CodeProcess.Core.Language.SyntaxNodes.Base;
 using Abstract.CodeProcess.Core.Language.SyntaxNodes.Expression;
 using Abstract.CodeProcess.Core.Language.SyntaxNodes.Statement;
 using Abstract.CodeProcess.Core.Language.SyntaxNodes.Value;
+using AsmResolver.DotNet;
 using TypeReference = Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.TypeReferences.TypeReference;
 
 namespace Abstract.CodeProcess;
@@ -74,35 +76,42 @@ public partial class Analyser
     {
         foreach (var a in sourceScript.Imports)
         {
-            switch (a)
+            try
             {
-                case GeneralImportObject @general:
+                switch (a)
                 {
-                    var r = _globalReferenceTable[general.NamespacePath];
-                    if (r is not BaseNamespaceObject @namespaceObject) throw new Exception("Not a namespace");
-                    general.NamespaceObject = namespaceObject;
-                } break;
-
-                case SpecificImportObject @specific:
-                {
-                    var r = _globalReferenceTable[specific.NamespacePath];
-                    specific.Container = r switch
+                    case GeneralImportObject @general:
                     {
-                        BaseNamespaceObject @namespaceObject => namespaceObject,
-                        DotnetTypeObject { IsStatic: true } @staticClass => staticClass,
-                        _ => throw new Exception("Not a namespace")
-                    };
+                        var namespaceObject = TryFindNamespace(general.NamespacePath)
+                                              ?? throw new CompilationException(
+                                                  $"Reference to '{string.Join('.', general.NamespacePath)}' not found " +
+                                                  $"at {general:pos}");
+                        general.NamespaceObject = namespaceObject;
+                    } break;
 
-                    foreach (var i in specific.Imports)
+                    case SpecificImportObject @specific:
                     {
-                        var r2 = specific.Container.SearchChild(i.Value.path, SearchChildMode.All);
-                        if (r2 == null) throw new Exception($"Reference {i.Value.path} not found" +
-                                                            $" in base {string.Join('.', specific.NamespacePath)}");
-                        specific.Imports[i.Key] = (i.Value.path, r2);
-                    }
-                } break;
+                        specific.Container = TryFindNamespace(specific.NamespacePath)
+                                             ?? throw new CompilationException(
+                                                 $"Reference to '{string.Join('.', specific.NamespacePath)}' not found " +
+                                                 $"at {specific.Node:pos}");
 
-                default: throw new Exception();
+                        foreach (var (key, value) in specific.Imports)
+                        {
+                            var r2 = specific.Container.SearchChild(value.path, SearchChildMode.All);
+                            if (r2 == null) throw new Exception($"Reference {value.path} not found" +
+                                                                $" in base {string.Join('.', specific.NamespacePath)}");
+                            specific.Imports[key] = (value.path, r2);
+                        }
+                    } break;
+
+                    default: throw new Exception();
+                }
+            }
+            catch (CompilationException e)
+            {
+                _errorHandler.SetFile(sourceScript);
+                _errorHandler.RegisterError(e);
             }
         }
     }
@@ -110,13 +119,29 @@ public partial class Analyser
     {
         foreach (var i in structure.Fields)
         {
-            if (!IsSolved(i.Type)) i.Type = SolveTypeLazy(i.Type, null, structure);
+            try
+            {
+                if (!IsSolved(i.Type)) i.Type = SolveTypeLazy(i.Type, null, structure);
+            }
+            catch (CompilationException e)
+            {
+                _errorHandler.SetFile(structure.SourceScript);
+                _errorHandler.RegisterError(e);
+            }
         }
     }
     private void ScanTypedefMeta(TypedefObject typedef)
     {
-        if (typedef.BackType != null && !IsSolved(typedef.BackType))
-            typedef.BackType = SolveTypeLazy(typedef.BackType, null, typedef);
+        try
+        {
+            if (typedef.BackType != null && !IsSolved(typedef.BackType))
+                typedef.BackType = SolveTypeLazy(typedef.BackType, null, typedef);
+        }
+        catch (CompilationException e)
+        {
+            _errorHandler.SetFile(typedef.SourceScript);
+            _errorHandler.RegisterError(e);
+        }
     }
     private void ScanFunctionMeta(FunctionObject function)
     {
@@ -288,24 +313,24 @@ public partial class Analyser
                 irif.Else = a;
                 return (a, false);
             }
-            case ElseStatementNode @_else:
+            case ElseStatementNode @else:
             {
-                if (ctx.Last is not IRIf @irif)
+                if (ctx.Last is not IRIf irIf)
                     throw new Exception("else blocks only allowed after if or elif statements");
                 
-                IrBlock then = new IrBlock(_else.Then);
+                IrBlock then = new IrBlock(@else.Then);
                 ctx.PushBlock(then);
 
-                if (_else.Then is BlockNode @block) then = UnwrapExecutionContext_Block(ctx, block);
+                if (@else.Then is BlockNode @block) then = UnwrapExecutionContext_Block(ctx, block);
                 else
                 {
-                    var (res, _) = UnwrapExecutionContext_Statement(_else.Then, ctx);
+                    var (res, _) = UnwrapExecutionContext_Statement(@else.Then, ctx);
                     if (res != null) then.Content.Add(res);
                 }
                 ctx.PopBlock();
 
-                var a = new IRElse(_else, then);
-                irif.Else = a;
+                var a = new IRElse(@else, then);
+                irIf.Else = a;
                 return (a, false);
             }
 
@@ -368,7 +393,7 @@ public partial class Analyser
 
                 if (def != null) ctx.PopBlock();
                 return (new IRWhile(@while, def, condition, step, then), true);
-            } break;
+            }
             
             case ReturnStatementNode @ret:
             {
@@ -580,59 +605,64 @@ public partial class Analyser
     
     private void LazyScanStructureMeta(StructObject structure)
     {
-        Console.WriteLine(string.Join('.', structure.Global));
-        
-        // This functions ensures that the structure's dependency tree
+        // This function requires that the structure's dependency tree
         // was already scanned!
-        
-        var parent = (structure.Extends as SolvedStructTypeReference)?.Struct;
-        var virtualCount = structure.Functions.SelectMany(e => e.Overloads).Count(e => e.Abstract || e.Virtual);
-        virtualCount += parent?.VirtualTable?.Length ?? 0;
 
-        structure.VirtualTable = new (FunctionObject, FunctionObject?, bool)[virtualCount];
-        if (parent is { VirtualTable: not null })
+        try
         {
-            foreach (var (idx, e) in parent.VirtualTable.Index())
-                structure.VirtualTable[idx].parent = e.overrided ?? e.parent;
-        }
+            var parent = (structure.Extends as SolvedStructTypeReference)?.Struct;
+            var virtualCount = structure.Functions.SelectMany(e => e.Overloads).Count(e => e.Abstract || e.Virtual);
+            virtualCount += parent?.VirtualTable?.Length ?? 0;
 
-        var virtualStartAt = parent?.VirtualTable?.Length ?? 0;
-
-        uint i = 0;
-        foreach (var func in structure.Functions.SelectMany(e => e.Overloads))
-        {
-            // Checking if it is virtual, so a new entries
-            // Should be allocated in the vtable
-            if (func.Abstract || func.Virtual)
+            structure.VirtualTable = new (FunctionObject, FunctionObject?, bool)[virtualCount];
+            if (parent is { VirtualTable: not null })
             {
-                structure.VirtualTable[i].parent = func;
-                structure.VirtualTable[i].overrided = func;
-                //func.VirtualIndex = i;
-                i++;
+                foreach (var (idx, e) in parent.VirtualTable.Index())
+                    structure.VirtualTable[idx].parent = e.overrided ?? e.parent;
             }
+
+            var virtualStartAt = parent?.VirtualTable?.Length ?? 0;
+
+            uint i = 0;
+            foreach (var func in structure.Functions.SelectMany(e => e.Overloads))
+            {
+                // Checking if it is virtual, so a new entries
+                // Should be allocated in the vtable
+                if (func.Abstract || func.Virtual)
+                {
+                    structure.VirtualTable[i].parent = func;
+                    structure.VirtualTable[i].overrided = func;
+                    //func.VirtualIndex = i;
+                    i++;
+                }
+                
+                // Solving a override function
+                if (func.Override) SolveOverridingFunction(func, structure);
+            }
+
+            Alignment fieldOffset = parent != null ? parent.Length!.Value : 0;
+            Alignment bestAlignment = parent != null ? parent.Alignment!.Value : 0;
+
+            // Sorting the fields by alignment order
+            var fields = structure.Fields.ToArray();
+            fields.Sort((a, b) => b.Alignment.Bits - a.Alignment.Bits);
             
-            // Solving a override function
-            if (func.Override) SolveOverridingFunction(func, structure);
+            foreach (var field in fields)
+            {
+                if (!IsSolved(field.Type)) field.Type = SolveTypeLazy(field.Type, null, field);
+                var flen = Alignment.Align(field.Type.Length, field.Type.Alignment);
+                bestAlignment = Alignment.Max(bestAlignment, flen);
+                field.Offset = fieldOffset;
+                fieldOffset += flen;
+            }
+            structure.Length = fieldOffset;
+            structure.Alignment = bestAlignment;
         }
-
-        Alignment fieldOffset = parent != null ? parent.Length!.Value : 0;
-        Alignment bestAlignment = parent != null ? parent.Alignment!.Value : 0;
-
-        // Sorting the fields by alignment order
-        var fields = structure.Fields.ToArray();
-        fields.Sort((a, b) => b.Alignment.Bits - a.Alignment.Bits);
-        
-        foreach (var field in fields)
+        catch (CompilationException e)
         {
-            if (!IsSolved(field.Type)) field.Type = SolveTypeLazy(field.Type, null, field);
-            var flen = Alignment.Align(field.Type.Length, field.Type.Alignment);
-            bestAlignment = Alignment.Max(bestAlignment, flen);
-            field.Offset = fieldOffset;
-            fieldOffset += flen;
+            _errorHandler.SetFile(structure.SourceScript);
+            _errorHandler.RegisterError(e);
         }
-        structure.Length = fieldOffset;
-        structure.Alignment = bestAlignment;
-
     }
     
     private void SolveOverridingFunction(FunctionObject func, StructObject parent)
@@ -761,13 +791,78 @@ public partial class Analyser
                     if (r7.Key != null) return (TypeReference)GetObjectReference(r7.Value);
                 }
                 
-                throw new Exception($"Cannot find reference to {idnode:pos}");
+                throw new CompilationException($"Cannot find reference to {idnode:pos}");
             }
             
             default: throw new UnreachableException();
         }
     }
+    private BaseNamespaceObject? TryFindNamespace(string[] path)
+    {
+        var module = _modules.FirstOrDefault(e => e!.Name == path[0], null);
 
+        switch (module)
+        {
+            case TqModuleObject @tqModule:
+            {
+                var root = tqModule.Root;
+                if (root == null) return null;
+                
+                LangObject? parent = root;
+                for (var i = 1; i < path.Length; i++)
+                {
+                    parent = parent.SearchChild(path[i], SearchChildMode.OnlyStatic);
+                    if (parent == null) return null;
+                }
+
+                return parent as BaseNamespaceObject;
+            }
+            case DotnetModuleObject dotnetModule:
+            {
+                var stringNamespace = string.Join('.', path[1..]);
+                if (dotnetModule.Namespaces.TryGetValue(stringNamespace, out var ns)) return ns;
+
+                List<ITypeDefOrRef> foundTypes = [];
+                ITypeDefOrRef? foundType = null;
+                
+                foreach (var m in dotnetModule.ManifestModules)
+                {
+                    foreach (var exported in m.ExportedTypes)
+                    {
+                        if (exported.Namespace == stringNamespace) foundTypes.Add(exported.Resolve()!);
+                        else if (exported.Namespace + '.' + exported.Name == stringNamespace) foundType = exported.Resolve();
+                    }
+
+                    foreach (var type in m.TopLevelTypes)
+                    {
+                        if (type.Namespace == stringNamespace) foundTypes.Add(type);
+                        else if (type.Namespace + '.' + type.Name == stringNamespace) foundType = type;
+                    }
+                }
+                if (foundTypes.Count == 0 && foundType == null) return null;
+
+                if (foundType != null)
+                {
+                    var nmsp = new DotnetStaticClassObject(stringNamespace, foundType.Resolve()!);
+
+                    nmsp.Parent = dotnetModule;
+                    dotnetModule.Namespaces.Add(stringNamespace, nmsp);
+                    return nmsp;
+                }
+                else
+                {
+                    var nmsp = new DotnetNamespaceObject(stringNamespace);
+                    foreach (var i in foundTypes) nmsp.DotnetTypes.Add(i);
+
+                    nmsp.Parent = dotnetModule;
+                    dotnetModule.Namespaces.Add(stringNamespace, nmsp);
+                    return nmsp;
+                }
+            }
+            
+            default: throw new UnreachableException();
+        }
+    }
     
     private List<StructObject> TopologicalSort(IEnumerable<StructObject> structs)
     {

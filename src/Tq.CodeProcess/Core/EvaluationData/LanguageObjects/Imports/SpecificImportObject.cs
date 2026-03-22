@@ -1,12 +1,14 @@
 using System.Text;
+using Abstract.CodeProcess.Core.Language.SyntaxNodes.Control;
 
 namespace Abstract.CodeProcess.Core.EvaluationData.LanguageObjects.Imports;
 
-public class SpecificImportObject(string[] namespacePath) : ImportObject
+public class SpecificImportObject(FromImportNode node, string[] namespacePath) : ImportObject
 {
+    public readonly FromImportNode Node = node;
     public readonly string[] NamespacePath = namespacePath;
     public ContainerObject Container = null!;
-    public readonly Dictionary<string, (string path, LangObject obj)> Imports = [];
+    public Dictionary<string, (string path, LangObject obj)> Imports { get; } = [];
 
     public override string ToString()
     {

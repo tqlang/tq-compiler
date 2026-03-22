@@ -4,5 +4,5 @@ namespace Abstract.CodeProcess.Core.EvaluationData.LanguageReferences;
 
 public abstract class LanguageReference
 {
-    public abstract TypeReference FieldType { get; }
+    public abstract TypeReference Type { get; }
 }

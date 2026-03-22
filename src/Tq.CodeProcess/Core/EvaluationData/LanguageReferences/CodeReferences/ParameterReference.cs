@@ -6,7 +6,7 @@ namespace Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.CodeRefere
 public class ParameterReference(ParameterObject param) : LanguageReference
 {
     public readonly ParameterObject Parameter = param;
-    public override TypeReference FieldType => Parameter.Type;
+    public override TypeReference Type => Parameter.Type;
 
     public override string ToString() => $"arg.{Parameter.Index:D2}";
 }
