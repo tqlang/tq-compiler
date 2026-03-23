@@ -36,6 +36,22 @@ public partial class Compiler
     
     private CorLibTypeFactory _corLibFactory;
     private Dictionary<string, (TypeSignature t, Dictionary<string, IMethodDescriptor> m)> _coreLib = [];
+
+    private string launchConfig = 
+        """
+        {
+            \"runtimeOptions": {
+                "tfm": "net10.0",
+                "framework": {
+                    "name": "Microsoft.NETCore.App",
+                    "version": "10.0.0"
+                },
+                "configProperties": {
+                    "System.Runtime.Serialization.EnableUnsafeBinaryFormatterSerialization": false
+                }
+            }
+        }
+        """;
     
     public void Compile(ProgramObject program)
     {
@@ -59,6 +75,7 @@ public partial class Compiler
         
         DumpModule();
         _module.Write($".abs-out/{programName}.dll");
+        File.WriteAllText($".abs-out/{programName}.runtimeconfig.dll", launchConfig);
     }
     
     private void SearchRecursive(LangObject obj)

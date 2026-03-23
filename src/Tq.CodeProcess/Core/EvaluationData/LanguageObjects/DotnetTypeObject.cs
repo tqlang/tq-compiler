@@ -73,6 +73,7 @@ public class DotnetTypeObject(TypeDefinition definition) : ContainerObject(null!
             return DotnetMembers.GetOrCreateTypeObject(type, module);
         }
 
-        return null;
+        if (ParentType == null) return null;
+        return ParentType.SearchChild(name, mode);
     }
 }

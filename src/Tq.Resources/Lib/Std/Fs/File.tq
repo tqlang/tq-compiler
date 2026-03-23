@@ -16,7 +16,7 @@ from Dotnet.System.IO import {
     }
 
 	func close() void {
-		#_filestream.Close()
+		_filestream.Close()
 	}
 }
 

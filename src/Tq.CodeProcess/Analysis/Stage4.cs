@@ -632,7 +632,8 @@ public partial class Analyser
 
     private IrNode NodeSemaAnal_Access(IRAccess node, IrBlockExecutionContextData ctx)
     {
-        return SolveAccessInExpression(node.Origin, (IrExpression)NodeSemaAnal(node.A, ctx), (IRUnknownReference)node.B);
+        return node.B is not IRUnknownReference b ? node
+            : SolveAccessInExpression(node.Origin, (IrExpression)NodeSemaAnal(node.A, ctx), b);
     }
     private IrNode NodeSemaAnal_Collection(IrCollectionLiteral node, IrBlockExecutionContextData ctx)
     {
