@@ -1,0 +1,81 @@
+name: Release Desktop App
+
+on:
+  push:
+    branches: [ "main" ]
+    tags:
+      - 'v*'
+  pull_request:
+    branches: [ "main" ]
+
+permissions:
+  contents: write
+
+jobs:
+
+  build:
+
+    strategy:
+      matrix:
+        configuration: [Release]
+
+    runs-on: windows-latest
+
+    env:
+      Solution_Path: src/TqCompiler.sln
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    # Install the .NET Core workload
+    - name: Install .NET Core
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: 10.0.x
+
+    # Add  MSBuild to the PATH
+    - name: Setup MSBuild.exe
+      uses: microsoft/setup-msbuild@v2
+
+    # Restore the application
+    - name: Restore the application
+      run: msbuild $env:Solution_Path /t:Restore /p:Configuration=$env:Configuration
+      env:
+        Configuration: ${{ matrix.configuration }}
+
+    # Publish to Linux
+    - name: Publish for Linux
+      run: dotnet publish ${{ env.Solution_Path }} -c ${{ matrix.configuration }} -r linux-x64 -o ./publish/linux
+
+    # Compress Linux binaries
+    - name: Zip Linux Binaries
+      shell: bash
+      run: tar -czvf tqc-linux.tar.gz -C ./publish/linux .
+
+
+    # Publish to Windows
+    - name: Publish for Microslop
+      run: dotnet publish ${{ env.Solution_Path }} -c ${{ matrix.configuration }} -r win-x64 -o ./publish/windows
+    
+    # Compress windows binaries
+    - name: Zip Linux Binaries
+      run: Compress-Archive -Path ./publish/windows/* -DestinationPath ./tqc-win.zip
+      
+    # Create Release
+    - name: Create Release
+      if: startsWith(github.ref, 'refs/tags/')
+      uses: softprops/action-gh-release@v2
+      with:
+        tag_name: ${{ github.ref_name }}
+        name: Release ${{ github.ref_name }}
+        draft: false
+        prerelease: false
+        files: |
+          tqc-linux.tar.gz
+          tqc-win.zip
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+   
