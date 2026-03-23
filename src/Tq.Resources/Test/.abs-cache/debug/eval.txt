@@ -1,0 +1,458 @@
+module Program {
+	Namespace '' ('Program') {
+		private static concrete var 'src' i64
+		 = (i64)0
+		private static concrete var 'debug' i64
+		 = (i64)0
+		private static concrete var 'sym' []u8
+
+		private static concrete var 'le' []u8
+
+		private static concrete var 'data' []u8
+
+		private static concrete var 'sp' []u8
+
+		private static concrete var 'lePtr' u64
+		 = (u64)0
+		private static concrete var 'e' u64
+		 = (u64)0
+		private static concrete var 'p' u64
+		 = (u64)0
+		private static concrete var 'lp' u64
+		 = (u64)0
+		private static concrete var 'tk' u64
+		 = (u64)0
+		private static concrete var 'id' []string
+
+		private static concrete var 'line' u64
+		 = (u64)0
+		private static concrete var 'pval' string
+
+		typedef 'Tokens' {
+			case num,
+			case fun,
+			case sys,
+			case glo,
+			case loc,
+			case id,
+			case _char,
+			case _else,
+			case enum,
+			case _if,
+			case _int,
+			case ret,
+			case sizeof,
+			case _while,
+			case assign,
+			case cond,
+			case opLor,
+			case opLan,
+			case opOr,
+			case opXor,
+			case opAnd,
+			case opEq,
+			case opNe,
+			case poLt,
+			case opGt,
+			case opLe,
+			case opGe,
+			case opShl,
+			case opShr,
+			case opAdd,
+			case opSub,
+			case opMul,
+			case opDiv,
+			case opMod,
+			case opInc,
+			case opDec,
+			case _break,
+		}
+
+		typedef 'OpCodes' {
+			case lea,
+			case imm,
+			case jmp,
+			case jsr,
+			case bz,
+			case bnz,
+			case ent,
+			case adj,
+			case lev,
+			case li,
+			case lc,
+			case si,
+			case sc,
+			case psh,
+			case _or,
+			case xor,
+			case _and,
+			case eq,
+			case ne,
+			case lt,
+			case gt,
+			case le,
+			case ge,
+			case shl,
+			case shr,
+			case add,
+			case sub,
+			case mul,
+			case div,
+			case mod,
+			case open,
+			case read,
+			case close,
+			case printf,
+			case malloc,
+			case free,
+			case memset,
+			case memcmp,
+			case exit,
+		}
+
+		typedef 'CTypes' {
+			case _char,
+			case _int,
+			case ptr,
+		}
+
+		typedef(u64) 'IdentifierOffsets' {
+			case tk = (comptime_int)0,
+			case hash = (comptime_int)1,
+			case name = (comptime_int)2,
+			case class = (comptime_int)3,
+			case _type = (comptime_int)4,
+			case val = (comptime_int)5,
+			case hClass = (comptime_int)6,
+			case hType = (comptime_int)7,
+			case hVal = (comptime_int)8,
+			case idsz = (comptime_int)9,
+		}
+
+		; funcgroup main
+		private static concrete func main() void {
+			$(00) Local 'argv': []string
+			$(01) Local 'argc': i64
+			$(02) Local 'i': i64
+			$(03) Local 'file': Struct<Std.Fs.File>
+			$(04) Local 'poolsz': u64
+			$(05) Local 'idx1': u64
+			$(06) Local 'idx2': u64
+			local.00 = call Callable<Std.Process.getProgramArguments> ()
+			local.01 = lenof local.00 as i64
+			local.02 = (i64)1
+			if (cmp GreaterThan Subtract local.01, local.02 (i64)0
+				and cmp Equality local.00[local.02][(u64)0] (char) '-'
+				and cmp Equality local.00[local.02] (Undefined) "-s") {
+				Field<Program.src> = local.02++}
+
+			if (cmp GreaterThan Subtract local.01, local.02 (i64)0
+				and cmp Equality local.00[local.02][(u64)0] (char) '-'
+				and cmp Equality local.00[local.02] (Undefined) "-d") {
+				Field<Program.debug> = local.02++}
+
+			if (cmp LessThan Subtract local.01, local.02 (i64)1) {
+				call Callable<Std.Console.writeln> ((Undefined) "usage: c4 [-s] [-d] file ...")
+				call Callable<Std.Process.exit> ((u64)1)}
+
+			local.03 = call Callable<Std.Fs.open> (local.00[local.02])
+			local.04 = (u64)262144
+			Field<Program.sym> = call Callable<Std.Mem.alloc> (u8, local.04, Alignment._1)
+			Field<Program.le> = call Callable<Std.Mem.alloc> (u8, local.04, Alignment._1)
+			Field<Program.data> = call Callable<Std.Mem.alloc> (u8, local.04, Alignment._1)
+			Field<Program.sp> = call Callable<Std.Mem.alloc> (u8, local.04, Alignment._1)
+			Field<Program.pval> = (Undefined) "char else enum if int return sizeof while open read close printf malloc free memset memcmp exit void main"
+			call Callable<Std.Console.writeln> ((Undefined) "Everything fine until here")
+			local.05 = Tokens._char as u64
+			while (cmp LessThanOrEqual local.05 Tokens._while as u64) {
+				step { local.05++ }	call Callable<Program.next> ()
+				Field<Program.id>[IdentifierOffsets.tk as u64] = local.05}
+
+			local.06 = OpCodes.open as u64
+			while (cmp LessThanOrEqual local.06 OpCodes.exit as u64) {
+				step { local.06++ }	call Callable<Program.next> ()
+				Field<Program.id>[IdentifierOffsets.class as u64] = local.06}
+
+			call Callable<Std.Console.writeln> ((Undefined) "Not bad until here")
+		}
+
+
+		; funcgroup next
+		private static concrete func next() void {
+			$(00) Local 'pp': u64
+			$(01) Local 'v': char
+			$(02) Local 'values': []string
+			local.00 = (u64)0
+			Field<Program.tk> = Field<Program.p>
+			while (cmp LessThan Field<Program.p> lenof Field<Program.pval>) {
+				++Field<Program.p>
+				local.01 = Field<Program.pval>[Field<Program.p>]
+				if (cmp Equality Field<Program.pval>[Field<Program.tk>] (char) '\') {
+					if (cmp Inequality Field<Program.src> (i64)0) {
+						call Callable<Std.Console.write> (Field<Program.line>)
+						call Callable<Std.Console.write> ((Undefined) ": ")
+						call Callable<Std.Console.writeln> (call @slice (Field<Program.pval>, Field<Program.lp>, Field<Program.p>))
+						Field<Program.lp> = Field<Program.p>
+						while (cmp LessThan Field<Program.lePtr> Field<Program.e>) {
+							local.02 = []string[(Undefined) "LEA", (Undefined) "IMM", (Undefined) "JMP", (Undefined) "JSR", (Undefined) "BZ", (Undefined) "BNZ", (Undefined) "ENT", (Undefined) "ADJ", (Undefined) "LEV", (Undefined) "LI", (Undefined) "LC", (Undefined) "SI", (Undefined) "SC", (Undefined) "PSH", (Undefined) "OR", (Undefined) "XOR", (Undefined) "AND", (Undefined) "EQ", (Undefined) "NE", (Undefined) "LT", (Undefined) "GT", (Undefined) "LE", (Undefined) "GE", (Undefined) "SHL", (Undefined) "SHR", (Undefined) "ADD", (Undefined) "SUB", (Undefined) "MUL", (Undefined) "DIV", (Undefined) "MOD", (Undefined) "OPEN", (Undefined) "READ", (Undefined) "CLOS", (Undefined) "PRTF", (Undefined) "MALC", (Undefined) "FREE", (Undefined) "MSET", (Undefined) "MCMP", (Undefined) "EXIT"]
+							call Callable<Std.Console.write> (local.02[++Field<Program.lePtr>])
+							if (cmp LessThan Field<Program.lePtr> OpCodes.adj as u64) {
+								call Callable<Std.Console.writeln> (++Field<Program.lePtr>)} else {
+								call Callable<Std.Console.writeln> ((Undefined) "")}}}
+
+					++Field<Program.line>} else if (cmp Equality Field<Program.tk> (char) '#') {
+					while (cmp LessThan Field<Program.p> lenof Field<Program.pval>
+							and cmp Inequality Field<Program.pval>[Field<Program.p>] (char) '\') {
+						++Field<Program.p>}} else if (cmp GreaterThanOrEqual local.01 (char) 'a'
+					and cmp LessThanOrEqual local.01 (char) 'z'
+					or cmp GreaterThanOrEqual local.01 (char) 'A'
+					and cmp LessThanOrEqual local.01 (char) 'Z'
+					or cmp Equality local.01 (char) '_') {
+					local.00 = Subtract Field<Program.p>, (u64)1
+					while (cmp GreaterThanOrEqual Field<Program.pval>[Field<Program.p>] (char) 'a'
+							and cmp LessThanOrEqual Field<Program.pval>[Field<Program.p>] (char) 'z'
+							or cmp GreaterThanOrEqual Field<Program.pval>[Field<Program.p>] (char) 'A'
+							and cmp LessThanOrEqual Field<Program.pval>[Field<Program.p>] (char) 'Z'
+							or cmp GreaterThanOrEqual Field<Program.pval>[Field<Program.p>] (char) '0'
+							and cmp LessThanOrEqual Field<Program.pval>[Field<Program.p>] (char) '9'
+							or cmp Equality Field<Program.pval>[Field<Program.p>] (char) '_') {
+						Field<Program.tk> = Add Multiply Field<Program.tk>, (u64)147, Field<Program.pval>[Field<Program.p>++] as u64}
+
+					Field<Program.tk> = Add Multiply Field<Program.tk>, (u64)64, Subtract Field<Program.p>, local.00
+					Field<Program.id> = Field<Program.sym>
+					while (cmp LessThan lenof Field<Program.id> IdentifierOffsets.tk) {
+						if (cmp Equality Field<Program.tk> Field<Program.id>[IdentifierOffsets.hash]
+							and cmp Equality Field<Program.id>[IdentifierOffsets.name] call @slice (Field<Program.pval>, Field<Program.p>, local.00)) {
+							Field<Program.tk> = Field<Program.id>[IdentifierOffsets.tk]
+							(ret)}}}
+
+
+
+				Field<Program.tk> = Field<Program.p>}
+		}
+
+
+	}
+
+}
+
+module Std {
+	Namespace '' ('Std') {
+		Namespace 'Io' ('Std.Io') {
+			public instance concrete struct 'Reader' {
+				ctor() {
+
+				}
+
+			}
+
+			public instance concrete struct 'Writer' {
+				ctor() {
+
+				}
+
+			}
+
+		}
+
+		Namespace 'Process' ('Std.Process') {
+			; funcgroup getProgramArguments
+			public static concrete func getProgramArguments() []string {
+				ret call Callable<GetCommandLineArgs> ()
+			}
+
+
+			; funcgroup exit
+			public static concrete func exit(u64) noreturn {
+				call Callable<Exit> (arg.00 as i32)
+			}
+
+
+		}
+
+		Namespace 'Mem' ('Std.Mem') {
+			typedef 'Alignment' {
+				case _1,
+				case _2,
+				case _4,
+				case _8,
+				case _16,
+				case _32,
+			}
+
+			; funcgroup copy
+			public static concrete func copy() void {
+
+			}
+
+
+			; funcgroup compare
+			public static concrete func compare() bool {
+				ret false
+			}
+
+
+			; funcgroup alloc
+			public static concrete generic func alloc(type, u64, Typedef<Std.Mem.Alignment>) []T {
+				ret call Callable<AllocateArray> (arg.00, arg.01 as i32, false)
+			}
+
+
+		}
+
+		Namespace 'Test' ('Std.Test') {
+			; funcgroup testValue
+			public static concrete func testValue(u8, u8) void {
+				call Callable<Std.Test.printStatusMessage> (cmp Equality arg.00 arg.01)
+			}
+
+
+			; funcgroup printStatusMessage
+			private static concrete func printStatusMessage(bool) void {
+				if (arg.00) {
+					call Callable<Std.Console.writeln> ((Undefined) "TEST PASSED")} else {
+					call Callable<Std.Console.write> ((Undefined) "TEST FAILED")}
+			}
+
+
+		}
+
+		Namespace 'Console' ('Std.Console') {
+			; funcgroup write
+			private static concrete func write(i64) void {
+				call Callable<Write> (arg.00 as string)
+			}
+
+			private static concrete func write(u64) void {
+				call Callable<Write> (arg.00 as string)
+			}
+
+			private static concrete func write(i128) void {
+				call Callable<Write> (arg.00 as string)
+			}
+
+			private static concrete func write(u128) void {
+				call Callable<Write> (arg.00 as string)
+			}
+
+			private static concrete func write(string) void {
+				call Callable<Write> (arg.00)
+			}
+
+
+			; funcgroup writeln
+			private static concrete func writeln(i64) void {
+				call Callable<WriteLine> (arg.00 as string)
+			}
+
+			private static concrete func writeln(u64) void {
+				call Callable<WriteLine> (arg.00 as string)
+			}
+
+			private static concrete func writeln(i128) void {
+				call Callable<WriteLine> (arg.00 as string)
+			}
+
+			private static concrete func writeln(u128) void {
+				call Callable<WriteLine> (arg.00 as string)
+			}
+
+			private static concrete func writeln(string) void {
+				call Callable<WriteLine> (arg.00)
+			}
+
+
+		}
+
+		Namespace 'Fs' ('Std.Fs') {
+			public instance concrete struct 'File' {
+				private instance concrete var '_filestream' *FileStream
+
+				; funcgroup close
+				private instance concrete func close() void {
+					call Callable<Close> (self->Field<Std.Fs.File._filestream>)
+				}
+
+
+				ctor(*FileStream) {
+					self->Field<Std.Fs.File._filestream> = arg.00
+				}
+
+			}
+
+			public instance concrete struct 'FileReader' extends Struct<Std.Io.Reader> {
+				ctor() {
+
+				}
+
+			}
+
+			public instance concrete struct 'FileWriter' extends Struct<Std.Io.Writer> {
+				ctor() {
+
+				}
+
+			}
+
+			public instance concrete struct 'FileInfo' {
+				private instance concrete var '_fileInfo' *FileInfo
+
+				public instance concrete var 'name' string
+
+				public instance concrete var 'directory' string
+
+				public instance concrete var 'length' u64
+
+				ctor(*FileInfo) {
+					self->Field<Std.Fs.FileInfo._fileInfo> = arg.00
+					self->Field<Std.Fs.FileInfo.name> = call Callable<get_Name> (arg.00)
+					self->Field<Std.Fs.FileInfo.directory> = call Callable<get_DirectoryName> (arg.00)
+					self->Field<Std.Fs.FileInfo.length> = call Callable<get_Length> (arg.00)
+				}
+
+			}
+
+			typedef(SeekOrigin) 'SeekOrigin' {
+				case begin = Fld<Begin>,
+				case current = Fld<Current>,
+				case end = Fld<End>,
+			}
+
+			typedef(FileMode) 'FileMode' {
+				case createNew = Fld<CreateNew>,
+				case create = Fld<Create>,
+				case open = Fld<Open>,
+				case openOrCreate = Fld<OpenOrCreate>,
+				case truncate = Fld<Truncate>,
+				case append = Fld<Append>,
+			}
+
+			typedef(FileAccess) 'FileAccess' {
+				case RO = Fld<Read>,
+				case WO = Fld<Write>,
+				case RW = Fld<ReadWrite>,
+			}
+
+			; funcgroup open
+			public static concrete func open(string) Struct<Std.Fs.File> {
+				$(00) Local 'filestream': *FileStream
+				local.00 = new Callable<.ctor>(arg.00, FileMode.openOrCreate, FileAccess.RO)
+				ret new Callable<Std.Fs.File.constructor>(local.00)
+			}
+
+
+			; funcgroup readAllText
+			public static concrete func readAllText(string) string {
+				ret call Callable<ReadAllText> (arg.00)
+			}
+
+
+		}
+
+	}
+
+}
+
+module Dotnet refonly {
+}
+

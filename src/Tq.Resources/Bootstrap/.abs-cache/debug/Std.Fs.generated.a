@@ -1,0 +1,40 @@
+from Std.Io import
+from Dotnet.System.IO import { FileStream as CsFStream , SeekOrigin as CsSeekOrigin , FileMode as CsFileMode , FileAccess as CsFileAccess }
+@public()
+struct File { let * CsFStream _filestream constructor (* CsFStream stream) { _filestream = stream } func close () void { } }
+@public()
+struct FileReader extends Reader { }
+@public()
+struct FileWriter extends Writer { }
+
+from Dotnet.System.IO import { FileInfo as CsFileInfo , }
+@public()
+struct FileInfo { let * CsFileInfo _fileInfo @public() let string name @public() let string directory @public() let uint length constructor (* CsFileInfo fInfo) { _fileInfo = fInfo name = fInfo.get_Name() directory = fInfo.get_DirectoryName() length = fInfo.get_Length() } }
+
+from Dotnet.System.IO import { FileStream as CsFStream , SeekOrigin as CsSeekOrigin , FileMode as CsFileMode , FileAccess as CsFileAccess , File as CsFile }
+@public()
+func open (string path) File { let filestream = new CsFStream(path, FileMode.openOrCreate, FileAccess.RO) return new File(filestream) }
+@public()
+func readAllText (string path) string { return CsFile.ReadAllText(path) }
+@public()
+typedef( CsSeekOrigin ) SeekOrigin {
+	begin = CsSeekOrigin.Begin,
+	current = CsSeekOrigin.Current,
+	end = CsSeekOrigin.End
+}
+@public()
+typedef( CsFileMode ) FileMode {
+	createNew = CsFileMode.CreateNew,
+	create = CsFileMode.Create,
+	open = CsFileMode.Open,
+	openOrCreate = CsFileMode.OpenOrCreate,
+	truncate = CsFileMode.Truncate,
+	append = CsFileMode.Append
+}
+@public()
+typedef( CsFileAccess ) FileAccess {
+	RO = CsFileAccess.Read,
+	WO = CsFileAccess.Write,
+	RW = CsFileAccess.ReadWrite
+}
+

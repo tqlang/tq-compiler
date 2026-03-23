@@ -50,6 +50,11 @@ jobs:
     - name: Publish for Linux
       run: dotnet publish ${{ env.Solution_Path }} -c ${{ matrix.configuration }} -r linux-x64 -o ./publish/linux
 
+    # Rename exe
+    - name: Rename Linux Binary
+      shell: bash
+      run: mv ./publish/linux/Tq.Cli ./publish/linux/tqc
+
     # Compress Linux binaries
     - name: Zip Linux Binaries
       shell: bash
@@ -60,6 +65,11 @@ jobs:
     - name: Publish for Microslop
       run: dotnet publish ${{ env.Solution_Path }} -c ${{ matrix.configuration }} -r win-x64 -o ./publish/windows
     
+    # Rename exe
+    - name: Rename Windows Binary
+      shell: bash
+      run: mv ./publish/windows/Tq.Cli.exe ./publish/windows/tqc.exe
+
     # Compress windows binaries
     - name: Zip Linux Binaries
       run: Compress-Archive -Path ./publish/windows/* -DestinationPath ./tqc-win.zip
