@@ -6,6 +6,7 @@ using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.TypeReferences
 using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.TypeReferences.Builtin.Integer;
 using AsmResolver.DotNet;
 using AsmResolver.DotNet.Signatures.Types;
+using AsmResolver.PE.DotNet.Metadata.Tables.Rows;
 using TypeReference = Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.TypeReferences.TypeReference;
 
 namespace Abstract.CodeProcess.Core.EvaluationData;
@@ -51,32 +52,59 @@ public static class DotnetMembers
             }
             
             case CorLibTypeSignature corLib:
-                return corLib.FullName switch
+                return corLib.ElementType switch
                 {
-                    "System.Void" => new VoidTypeReference(),
-                    "System.Object" => new AnytypeTypeReference(),
-            
-                    "System.IntPtr" => new RuntimeIntegerTypeReference(true),
-                    "System.UIntPtr" => new RuntimeIntegerTypeReference(false),
-                    "System.SByte" => new RuntimeIntegerTypeReference(true, 8),
-                    "System.Byte" => new RuntimeIntegerTypeReference(false, 8),
-                    "System.Int16" => new RuntimeIntegerTypeReference(true, 16),
-                    "System.UInt16" => new RuntimeIntegerTypeReference(false, 16),
-                    "System.Int32" => new RuntimeIntegerTypeReference(true, 32),
-                    "System.UInt32" => new RuntimeIntegerTypeReference(false, 32),
-                    "System.Int64" => new RuntimeIntegerTypeReference(true, 64),
-                    "System.UInt64" => new RuntimeIntegerTypeReference(false, 64),
-            
-                    "System.Single" => new RuntimeIntegerTypeReference(true, 32),
-                    "System.Double" => new RuntimeIntegerTypeReference(true, 64),
+                    ElementType.None => new VoidTypeReference(),
+                    ElementType.Void => new VoidTypeReference(),
+                    ElementType.Object => new AnytypeTypeReference(),
                     
-                    "System.Boolean" => new BooleanTypeReference(),
-                    "System.String" => new StringTypeReference(StringEncoding.Utf16),
-                    "System.Char" => new CharTypeReference(),
-                    "System.Type" => new TypeTypeReference(null),
-            
+                    ElementType.I => new RuntimeIntegerTypeReference(true),
+                    ElementType.U => new RuntimeIntegerTypeReference(false),
+                    ElementType.I1 => new RuntimeIntegerTypeReference(true, 8),
+                    ElementType.U1 => new RuntimeIntegerTypeReference(false, 8),
+                    ElementType.I2 => new RuntimeIntegerTypeReference(true, 16),
+                    ElementType.U2 => new RuntimeIntegerTypeReference(false, 16),
+                    ElementType.I4 => new RuntimeIntegerTypeReference(true, 32),
+                    ElementType.U4 => new RuntimeIntegerTypeReference(false, 32),
+                    ElementType.I8 => new RuntimeIntegerTypeReference(true, 64),
+                    ElementType.U8 => new RuntimeIntegerTypeReference(false, 64),
+                    
+                    ElementType.R4 => new RuntimeIntegerTypeReference(true, 32),
+                    ElementType.R8 => new RuntimeIntegerTypeReference(true, 64),
+                    
+                    ElementType.Boolean => new BooleanTypeReference(),
+                    ElementType.Char => new CharTypeReference(),
+                    ElementType.String => new StringTypeReference(StringEncoding.Utf16),
+                    ElementType.Type => new TypeTypeReference(null),
+                    
+                    ElementType.Ptr or
+                    ElementType.ByRef or
+                    ElementType.ValueType or
+                    ElementType.Class or
+                    ElementType.Var or
+                    ElementType.Array or
+                    ElementType.GenericInst or
+                    ElementType.TypedByRef or
+                    ElementType.FnPtr or
+                    ElementType.SzArray or
+                    ElementType.MVar or
+                    ElementType.CModReqD or
+                    ElementType.CModOpt or
+                    ElementType.Internal or
+                    ElementType.Modifier or
+                    ElementType.Sentinel or
+                    ElementType.Pinned or
+                    ElementType.Boxed or
+                    ElementType.Enum => throw new NotImplementedException(),
+                    
                     _ => throw new NotImplementedException($"core lib type {corLib.FullName} not implemented")
                 };
+        }
+
+        // Some last manual checking because apparently some types are able to not match the shit before
+        switch (t.FullName)
+        {
+            case "System.Type": return new TypeTypeReference(null);
         }
         
         if (t is not TypeDefOrRefSignature) throw new Exception($"{t.FullName} is {t.GetType().FullName}");
@@ -150,9 +178,9 @@ public static class DotnetMembers
                 
         foreach (var p in m.Parameters)
             parameters.Add(new ParameterObject(DotnetTypeToRef(p.ParameterType, module), p.Name!));
-                
-        return new DotnetMethodObject(m.Name!, m, m,
-            DotnetTypeToRef(m.Signature!.ReturnType, module), [..parameters]);
+
+        var method = new DotnetMethodObject(m.Name!, m, m, DotnetTypeToRef(m.Signature!.ReturnType, module), [..parameters]);
+        return method;
     }
 
     public static DotnetFieldObject GetOrCreateFieldObject(FieldDefinition f, DotnetModuleObject module)

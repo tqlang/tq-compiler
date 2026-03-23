@@ -776,10 +776,16 @@ public partial class Analyser
                     ? new IRAccess(origin, accessBase, new IrSolvedReference(origin, GetObjectReference(refe)))
                     : new IRUnknownReference(origin),
             
+            SolvedStructTypeReference instanceRef
+                => instanceRef.Struct.SearchChild(accessName, SearchChildMode.OnlyInstance) is {} @refe
+                    ? new IRAccess(origin, accessBase, new IrSolvedReference(origin, GetObjectReference(refe)))
+                    : new IRUnknownReference(origin),
+            
             SolvedNamespaceTypeReference @staticTypedef
                 => staticTypedef.Namespace.SearchChild(accessName, SearchChildMode.OnlyStatic) is {} @refe
                     ? new IrSolvedReference(origin, GetObjectReference(refe))
                     : new IRUnknownReference(origin),
+            
             
             _ => throw new NotImplementedException(),
         };

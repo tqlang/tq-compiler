@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.Text;
 using Abstract.CodeProcess.Core.EvaluationData.LanguageObjects;
 using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.Dotnet;
+using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.NamespaceReferences;
 using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.TypeReferences;
 using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.TypeReferences.Builtin;
 using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.TypeReferences.Builtin.Integer;
@@ -113,7 +114,12 @@ public partial class Compiler
                 var imported = _module.DefaultImporter.ImportType(d.Reference.Reference);
                 return imported.ToTypeSignature();
             }
-
+            case SolvedNamespaceTypeReference { Namespace: DotnetStaticClassObject @staticClassObject }:
+            {
+                var imported = _module.DefaultImporter.ImportType(staticClassObject.Type);
+                return imported.ToTypeSignature();
+            }
+            
             default: throw new UnreachableException();
         }
     }

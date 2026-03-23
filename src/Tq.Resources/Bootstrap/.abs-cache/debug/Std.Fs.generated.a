@@ -1,7 +1,7 @@
 from Std.Io import
 from Dotnet.System.IO import { FileStream as CsFStream , SeekOrigin as CsSeekOrigin , FileMode as CsFileMode , FileAccess as CsFileAccess }
 @public()
-struct File { let * CsFStream _filestream constructor (* CsFStream stream) { _filestream = stream } func close () void { } }
+struct File { let * CsFStream _filestream constructor (* CsFStream stream) { _filestream = stream } func close () void { _filestream.Close() } }
 @public()
 struct FileReader extends Reader { }
 @public()

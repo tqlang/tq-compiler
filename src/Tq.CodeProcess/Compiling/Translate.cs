@@ -161,8 +161,19 @@ public partial class Compiler
                         break;
     
                     case ParameterReference @pr:
-                        ctx.Gen.Add(CilOpCodes.Ldarg, ctx.GetArg(pr.Parameter.Index));
-                        ctx.StackPush(ctx.GetArg(pr.Parameter.Index).ParameterType);
+                        if (pr.Parameter.IsGeneric)
+                        {
+                            var genericParam = ctx.Body.Owner.GenericParameters[pr.Parameter.Index];
+                            var typeSig = new GenericParameterSignature(GenericParameterType.Method, genericParam.Number);
+                            ctx.Gen.Add(CilOpCodes.Ldtoken, ctx.Importer.ImportTypeSignature(typeSig).ToTypeDefOrRef());
+                            ctx.Gen.Add(CilOpCodes.Call, _coreLib["Type"].m["GetTypeFromHandle"]);
+                            ctx.StackPush(typeSig);
+                        }
+                        else
+                        {
+                            ctx.Gen.Add(CilOpCodes.Ldarg, ctx.GetArg(pr.Parameter.Index));
+                            ctx.StackPush(ctx.GetArg(pr.Parameter.Index).ParameterType);
+                        }
                         break;
 
                     case SolvedFieldReference @fr:
@@ -407,6 +418,15 @@ public partial class Compiler
                             default: throw new NotImplementedException();
                         }
                         
+                    } break;
+
+                    case GenericTypeReference @generic:
+                    {
+                        CompileIrNodeLoad(c.Expression, false, ctx);
+                        var genericParam = ctx.Body.Owner.GenericParameters[generic.Parameter.Index];
+                        var typeSig = new GenericParameterSignature(GenericParameterType.Method, genericParam.Number);
+                        ctx.Gen.Add(CilOpCodes.Unbox_Any, ctx.Importer.ImportTypeSignature(typeSig).ToTypeDefOrRef());
+                        ctx.StackPush(typeSig);
                     } break;
                     
                     default: throw new UnreachableException();
@@ -1066,10 +1086,11 @@ public partial class Compiler
                         {
                             switch (i)
                             {
-                                case IrSolvedReference { Type: TypeTypeReference, Reference: TypeReference @type }:
+                                case IrSolvedReference { Type: TypeTypeReference, Reference: TypeReference @type } when sfr.Callable.IsGeneric:
                                     generics.Add(type);
                                     break;
-                                case IrSolvedReference { Type: TypeTypeReference, Reference: ParameterReference @param }:
+                                
+                                case IrSolvedReference { Type: TypeTypeReference, Reference: ParameterReference @param } when sfr.Callable.IsGeneric:
                                     generics.Add(new GenericTypeReference(param.Parameter));
                                     break;
                                 

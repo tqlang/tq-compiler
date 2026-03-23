@@ -1,4 +1,5 @@
 from Dotnet.System import { GC }
+from Dotnet.System.Runtime.CompilerServices import { RuntimeHelpers }
 
 # Allocates a slice in heap memory
 @public func alloc(type T, uint length, Alignment alignment) []T {
@@ -6,6 +7,6 @@ from Dotnet.System import { GC }
 }
 
 # Allocates a struct in heap memory
-#@public func create(type T, Alignment alignment) T {
-#
-#}
+@public func create(type T, Alignment alignment) T {
+    return RuntimeHelpers.GetUninitializedObject(T) as T
+}

@@ -55,6 +55,14 @@ class Std.MemStatic extends System.Object {
 		IL_0007: call !!0[] System.GC::AllocateArray<!!0>(System.Int32, System.Boolean)
 		IL_000C: ret
 	}
+
+	method public static create <T> (Std.Mem.Alignment alignment) !!0 {
+		IL_0000: ldtoken !!0
+		IL_0005: call System.Type System.Type::GetTypeFromHandle(System.RuntimeTypeHandle)
+		IL_000A: call System.Object System.Runtime.CompilerServices.RuntimeHelpers::GetUninitializedObject(System.Type)
+		IL_000F: unbox.any !!0
+		IL_0014: ret
+	}
 }
 
 class Std.TestStatic extends System.Object {
@@ -210,7 +218,11 @@ struct Std.Fs.File extends System.ValueType {
 	}
 
 	method private instance close () System.Void {
-		IL_0000: ret
+		IL_0000: ldarg.0
+		IL_0001: ldflda System.IO.FileStream Std.Fs.File::_filestream
+		IL_0006: ldobj System.IO.FileStream
+		IL_000B: call System.Void System.IO.Stream::Close()
+		IL_0010: ret
 	}
 }
 

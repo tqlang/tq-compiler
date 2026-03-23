@@ -144,9 +144,18 @@ public partial class Compiler
         _coreLib.Add(type.Name!, (self, methods));
         
         methods = [];
+        type = _module.DefaultImporter.ImportType(cl.CorLibScope.CreateTypeReference("System", "RuntimeTypeHandle"));
+        self = _module.DefaultImporter.ImportTypeSignature(type.ToTypeSignature());
+        {
+        }
+        methods.TrimExcess();
+        _coreLib.Add(type.Name!, (self, methods));
+        
+        methods = [];
         type = _module.DefaultImporter.ImportType(cl.CorLibScope.CreateTypeReference("System", "Type"));
         self = _module.DefaultImporter.ImportTypeSignature(type.ToTypeSignature());
         {
+            methods.Add("GetTypeFromHandle", CreateMethodRef(type, "GetTypeFromHandle", MethodSignature.CreateStatic(self, _coreLib["RuntimeTypeHandle"].t)));
         }
         methods.TrimExcess();
         _coreLib.Add(type.Name!, (self, methods));

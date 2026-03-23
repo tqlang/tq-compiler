@@ -298,6 +298,12 @@ module Std {
 			}
 
 
+			; funcgroup create
+			public static concrete generic func create(type, Typedef<Std.Mem.Alignment>) T {
+				ret call Callable<GetUninitializedObject> (arg.00) as T
+			}
+
+
 		}
 
 		Namespace 'Test' ('Std.Test') {

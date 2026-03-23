@@ -40,7 +40,7 @@ public partial class Compiler
     private string launchConfig = 
         """
         {
-            \"runtimeOptions": {
+            "runtimeOptions": {
                 "tfm": "net10.0",
                 "framework": {
                     "name": "Microsoft.NETCore.App",
@@ -75,7 +75,7 @@ public partial class Compiler
         
         DumpModule();
         _module.Write($".abs-out/{programName}.dll");
-        File.WriteAllText($".abs-out/{programName}.runtimeconfig.dll", launchConfig);
+        File.WriteAllText($".abs-out/{programName}.runtimeconfig.json", launchConfig);
     }
     
     private void SearchRecursive(LangObject obj)

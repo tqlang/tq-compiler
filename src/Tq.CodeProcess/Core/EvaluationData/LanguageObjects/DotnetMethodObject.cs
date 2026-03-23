@@ -28,7 +28,7 @@ public class DotnetMethodObject(
     public TypeReference ReturnType { get; } = returnType ?? new VoidTypeReference();
     
     public bool IsStatic => MethodDefinition.IsStatic;
-    public bool IsGeneric => false;
+    public bool IsGeneric => MethodDefinition.GenericParameters.Count > 0;
     public IrBlock? Body { get => null; set {} }
     
     public void AddParameter(params ParameterObject[] parameter)

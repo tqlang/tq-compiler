@@ -1,3 +1,4 @@
 @public typedef Alignment {
+	# case 1, 2, 4, 8, 16, 32
 	case _1, _2, _4, _8, _16, _32
 }

@@ -14,6 +14,9 @@ typedef Alignment {
 }
 
 from Dotnet.System import { GC }
+from Dotnet.System.Runtime.CompilerServices import { RuntimeHelpers }
 @public()
 func alloc (type T, uint length, Alignment alignment) []T { return GC.AllocateArray(T, length as i32, False) }
+@public()
+func create (type T, Alignment alignment) T { return RuntimeHelpers.GetUninitializedObject(T) as T }
 
