@@ -12,7 +12,6 @@ TDef	Std.Mem.Alignment
 FnGp	Std.Mem.copy
 FnGp	Std.Mem.compare
 FnGp	Std.Mem.alloc
-FnGp	Std.Mem.create
 Nmsp	Std.Test
 FnGp	Std.Test.testValue
 FnGp	Std.Test.printStatusMessage
@@ -35,3 +34,4 @@ TDef	Std.Fs.FileMode
 TDef	Std.Fs.FileAccess
 FnGp	Std.Fs.open
 FnGp	Std.Fs.readAllText
+FnGp	Std.Fs.writeAllText

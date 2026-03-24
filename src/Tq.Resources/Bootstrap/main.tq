@@ -1,9 +1,23 @@
 from Std.Console import
+from Std.Fs import
+from Std.Process import
 
 @public func main() {
 
     let helloWorld = "Hello, World!"
     writeln("Hello, World!")
+
+    let args = getProgramArguments()
+    if (args.len < 2) {
+        writeln("Expected 1 argument!")
+        exit(1)
+    }
+
+    let oldContent = readAllText("test.txt")
+    write("Old content was: ")
+    writeln(oldContent)
+
+    writeAllText("test.txt", args[1])
 
 }
 

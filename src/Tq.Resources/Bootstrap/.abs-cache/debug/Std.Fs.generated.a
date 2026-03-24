@@ -17,6 +17,8 @@ func open (string path) File { let filestream = new CsFStream(path, FileMode.ope
 @public()
 func readAllText (string path) string { return CsFile.ReadAllText(path) }
 @public()
+func writeAllText (string path, string content) { CsFile.WriteAllText(path, content) }
+@public()
 typedef( CsSeekOrigin ) SeekOrigin {
 	begin = CsSeekOrigin.Begin,
 	current = CsSeekOrigin.Current,

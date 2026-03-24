@@ -6,7 +6,7 @@ from Dotnet.System.Runtime.CompilerServices import { RuntimeHelpers }
     return GC.AllocateArray(T, length as i32, false)
 }
 
-# Allocates a struct in heap memory
-@public func create(type T, Alignment alignment) T {
-    return RuntimeHelpers.GetUninitializedObject(T) as T
-}
+# Allocates an object in heap memory
+#@public func create(type T, Alignment alignment) *T {
+#    return RuntimeHelpers.GetUninitializedObject(T) as *T
+#}

@@ -15,6 +15,10 @@ from Dotnet.System.IO import {
 	return CsFile.ReadAllText(path)
 }
 
+@public func writeAllText(string path, string content) {
+	CsFile.WriteAllText(path, content)
+}
+
 
 @public typedef(CsSeekOrigin) SeekOrigin {
 	case begin = CsSeekOrigin.Begin

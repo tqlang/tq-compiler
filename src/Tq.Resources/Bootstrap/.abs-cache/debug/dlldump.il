@@ -6,11 +6,41 @@ class Bootstrap.Static extends System.Object {
 
 	method public static main () System.Void {
 		.locals init (System.String V_0)
+		.locals init (System.String[] V_1)
+		.locals init (System.String V_2)
 		IL_0000: ldstr "Hello, World!"
 		IL_0005: stloc V_0
 		IL_0009: ldstr "Hello, World!"
 		IL_000E: call System.Void Std.ConsoleStatic::writeln(System.String)
-		IL_0013: ret
+		IL_0013: call System.String[] Std.ProcessStatic::getProgramArguments()
+		IL_0018: stloc V_1
+		IL_001C: ldloc V_1
+		IL_0020: ldlen
+		IL_0021: ldc.i8 2
+		IL_002A: clt.un
+		IL_002C: brfalse IL_0050
+		IL_0031: nop
+		IL_0032: ldstr "Expected 1 argument!"
+		IL_0037: call System.Void Std.ConsoleStatic::writeln(System.String)
+		IL_003C: ldc.i8 1
+		IL_0045: conv.ovf.u8.un
+		IL_0046: call System.Void Std.ProcessStatic::exit(System.UInt64)
+		IL_004B: br IL_0050
+		IL_0050: nop
+		IL_0051: ldstr "test.txt"
+		IL_0056: call System.String Std.FsStatic::readAllText(System.String)
+		IL_005B: stloc V_2
+		IL_005F: ldstr "Old content was: "
+		IL_0064: call System.Void Std.ConsoleStatic::write(System.String)
+		IL_0069: ldloc V_2
+		IL_006D: call System.Void Std.ConsoleStatic::writeln(System.String)
+		IL_0072: ldstr "test.txt"
+		IL_0077: ldloc V_1
+		IL_007B: ldc.i8 1
+		IL_0084: conv.i4
+		IL_0085: ldelem System.String
+		IL_008A: call System.Void Std.FsStatic::writeAllText(System.String, System.String)
+		IL_008F: ret
 	}
 }
 
@@ -54,14 +84,6 @@ class Std.MemStatic extends System.Object {
 		IL_0006: ldc.i4.0
 		IL_0007: call !!0[] System.GC::AllocateArray<!!0>(System.Int32, System.Boolean)
 		IL_000C: ret
-	}
-
-	method public static create <T> (Std.Mem.Alignment alignment) !!0 {
-		IL_0000: ldtoken !!0
-		IL_0005: call System.Type System.Type::GetTypeFromHandle(System.RuntimeTypeHandle)
-		IL_000A: call System.Object System.Runtime.CompilerServices.RuntimeHelpers::GetUninitializedObject(System.Type)
-		IL_000F: unbox.any !!0
-		IL_0014: ret
 	}
 }
 
@@ -190,6 +212,13 @@ class Std.FsStatic extends System.Object {
 		IL_0000: ldarg System.String path
 		IL_0004: call System.String System.IO.File::ReadAllText(System.String)
 		IL_0009: ret
+	}
+
+	method public static writeAllText (System.String path, System.String content) System.Void {
+		IL_0000: ldarg System.String path
+		IL_0004: ldarg System.String content
+		IL_0008: call System.Void System.IO.File::WriteAllText(System.String, System.String)
+		IL_000D: ret
 	}
 }
 
