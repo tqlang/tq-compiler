@@ -16,8 +16,6 @@ public class IRUnaryExp(SyntaxNode origin, IRUnaryExp.UnaryOperation op, IrExpre
         Minus,
         Not,
         
-        Reference,
-        
         BitwiseNot,
         
         PreIncrement, PostIncrement,
@@ -30,7 +28,6 @@ public class IRUnaryExp(SyntaxNode origin, IRUnaryExp.UnaryOperation op, IrExpre
         UnaryOperation.Minus => $"-{Value}",
         UnaryOperation.Not => $"!{Value}",
         
-        UnaryOperation.Reference => $"&{Value}",
         UnaryOperation.BitwiseNot => $"~{Value}",
         
         UnaryOperation.PreIncrement => $"++{Value}",

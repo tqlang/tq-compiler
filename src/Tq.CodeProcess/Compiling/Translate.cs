@@ -34,7 +34,7 @@ public partial class Compiler
     {
         switch (node)
         {
-            case IRAssign @ass:
+            case IrAssign @ass:
                 CompileIrNodeStore(ass.Target, ass.Value, ctx);
                 break;
 
@@ -433,6 +433,8 @@ public partial class Compiler
                 }
             } break;
             
+            case IrRef @r: CompileIrNodeLoadAsRef(r.Expression, ctx); break;
+            
             case IRUnaryExp @ue:
             {
                 RuntimeIntegerTypeReference it;
@@ -440,11 +442,6 @@ public partial class Compiler
                 
                 switch (ue.Operation)
                 {
-                    case IRUnaryExp.UnaryOperation.Reference:
-                        if (ignoreValue) return;
-                        CompileIrNodeLoadAsRef(ue.Value, ctx);
-                        break;
-
                     case IRUnaryExp.UnaryOperation.BitwiseNot:
                     {
                         if (ignoreValue) return;
@@ -492,10 +489,17 @@ public partial class Compiler
                         ctx.Stack.Add(TypeFromRef(ue.Type));
                         break;
                     
+                    case IRUnaryExp.UnaryOperation.Not:
+                        if (ignoreValue) return;
+                        CompileIrNodeLoad(ue.Value, false, ctx);
+                        ctx.Gen.Add(CilOpCodes.Ldc_I4_0);
+                        ctx.Gen.Add(CilOpCodes.Ceq);
+                        break;
+                    
                     default: throw new ArgumentOutOfRangeException();
                 }
             } break;
-            case IRBinaryExp @bin:
+            case IrBinaryExp @bin:
             {
                 if (ignoreValue) return;
                 CompileIrNodeLoad(bin.Left, false, ctx);
@@ -510,89 +514,92 @@ public partial class Compiler
 
                         switch (bin.Operator)
                         {
-                            case IRBinaryExp.Operators.Add:
+                            case IrBinaryExp.Operators.Add:
                                 if (is128) ctx.Gen.Add(CilOpCodes.Call, (IMethodDescriptor)_coreLib[isSigned ? "Int128" : "UInt128"].m["Add"]);
                                 else ctx.Gen.Add(CilOpCodes.Add);
                                 break;
 
-                            case IRBinaryExp.Operators.AddWarpAround:
+                            case IrBinaryExp.Operators.AddWarpAround:
                                 if (is128) ctx.Gen.Add(CilOpCodes.Call, (IMethodDescriptor)_coreLib[isSigned ? "Int128" : "UInt128"].m["AddOvf"]);
                                 else ctx.Gen.Add(isSigned ? CilOpCodes.Add_Ovf : CilOpCodes.Add_Ovf_Un);
                                 break;
 
 
-                            case IRBinaryExp.Operators.Subtract:
+                            case IrBinaryExp.Operators.Subtract:
                                 if (is128) ctx.Gen.Add(CilOpCodes.Call, (IMethodDescriptor)_coreLib[isSigned ? "Int128" : "UInt128"].m["Sub"]);
                                 else ctx.Gen.Add(CilOpCodes.Sub);
                                 break;
 
-                            case IRBinaryExp.Operators.SubtractWarpAround:
+                            case IrBinaryExp.Operators.SubtractWarpAround:
                                 if (is128) ctx.Gen.Add(CilOpCodes.Call, (IMethodDescriptor)_coreLib[isSigned ? "Int128" : "UInt128"].m["SubOvf"]);
                                 else ctx.Gen.Add(isSigned ? CilOpCodes.Sub_Ovf : CilOpCodes.Sub_Ovf_Un);
                                 break;
 
-                            case IRBinaryExp.Operators.Multiply:
+                            case IrBinaryExp.Operators.Multiply:
                                 if (is128) ctx.Gen.Add(CilOpCodes.Call, (IMethodDescriptor)_coreLib[isSigned ? "Int128" : "UInt128"].m["Mul"]);
                                 else ctx.Gen.Add(isSigned ? CilOpCodes.Mul_Ovf : CilOpCodes.Mul_Ovf_Un);
                                 break;
 
-                            case IRBinaryExp.Operators.Divide:
+                            case IrBinaryExp.Operators.Divide:
                                 if (is128) ctx.Gen.Add(CilOpCodes.Call, (IMethodDescriptor)_coreLib[isSigned ? "Int128" : "UInt128"].m["Div"]);
                                 else ctx.Gen.Add(isSigned ? CilOpCodes.Div : CilOpCodes.Div_Un);
                                 break;
 
-                            case IRBinaryExp.Operators.Reminder:
+                            case IrBinaryExp.Operators.Reminder:
                                 if (is128) ctx.Gen.Add(CilOpCodes.Call, (IMethodDescriptor)_coreLib[isSigned ? "Int128" : "UInt128"].m["Rem"]);
                                 else ctx.Gen.Add(isSigned ? CilOpCodes.Rem : CilOpCodes.Rem_Un);
                                 break;
 
-                            case IRBinaryExp.Operators.BitwiseAnd:
+                            case IrBinaryExp.Operators.BitwiseAnd:
                                 if (is128)
                                     ctx.Gen.Add(CilOpCodes.Call, (IMethodDescriptor)_coreLib[isSigned ? "Int128" : "UInt128"].m["BitwiseAnd"]);
                                 else ctx.Gen.Add(CilOpCodes.And);
                                 break;
 
-                            case IRBinaryExp.Operators.BitwiseOr:
+                            case IrBinaryExp.Operators.BitwiseOr:
                                 if (is128)
                                     ctx.Gen.Add(CilOpCodes.Call, (IMethodDescriptor)_coreLib[isSigned ? "Int128" : "UInt128"].m["BitwiseOr"]);
                                 else ctx.Gen.Add(CilOpCodes.Or);
                                 break;
 
-                            case IRBinaryExp.Operators.BitwiseXor:
+                            case IrBinaryExp.Operators.BitwiseXor:
                                 if (is128)
                                     ctx.Gen.Add(CilOpCodes.Call, _coreLib[isSigned ? "Int128" : "UInt128"].m["BitwiseXor"]);
                                 else ctx.Gen.Add(CilOpCodes.Xor);
                                 break;
 
-                            case IRBinaryExp.Operators.LeftShift:
+                            case IrBinaryExp.Operators.LeftShift:
                                 if (is128)
                                     ctx.Gen.Add(CilOpCodes.Call, _coreLib[isSigned ? "Int128" : "UInt128"].m["LeftShift"]);
                                 else ctx.Gen.Add(CilOpCodes.Shl);
                                 break;
 
-                            case IRBinaryExp.Operators.RightShift:
+                            case IrBinaryExp.Operators.RightShift:
                                 if (is128)
                                     ctx.Gen.Add(CilOpCodes.Call, (IMethodDescriptor)_coreLib[isSigned ? "Int128" : "UInt128"].m["RightShift"]);
                                 else ctx.Gen.Add(CilOpCodes.Shr_Un);
                                 break;
                             
-                            case IRBinaryExp.Operators.AddOnBounds:
-                            case IRBinaryExp.Operators.SubtractOnBounds:
-                            case IRBinaryExp.Operators.DivideFloor:
-                            case IRBinaryExp.Operators.DivideCeil:
+                            case IrBinaryExp.Operators.AddOnBounds:
+                            case IrBinaryExp.Operators.SubtractOnBounds:
+                            case IrBinaryExp.Operators.DivideFloor:
+                            case IrBinaryExp.Operators.DivideCeil:
                             default: throw new ArgumentOutOfRangeException();
                         }
                         break;
                     }
                     
-                    default:
-                        throw new UnreachableException();
+                    case StringTypeReference when bin.Right.Type is StringTypeReference:
+                        ctx.Gen.Add(CilOpCodes.Call, _coreLib["String"].m["Concat_s0_s1"]);
+                        break;
+                    
+                    default: throw new UnreachableException();
                 }
                 
                 ctx.StackPop(2);
                 ctx.StackPush(TypeFromRef(bin.Type));
             } break;
-            case IRCompareExp @cmp:
+            case IrCompareExp @cmp:
             {
                 if (ignoreValue) return;
                 CompileIrNodeLoad(cmp.Left, false, ctx);
@@ -608,25 +615,25 @@ public partial class Compiler
                         switch (cmp.Operator)
                         {
 
-                            case IRCompareExp.Operators.Equality:
+                            case IrCompareExp.Operators.Equality:
                                 ctx.Gen.Add(CilOpCodes.Ceq);
                                 break;
                         
-                            case IRCompareExp.Operators.Inequality:
+                            case IrCompareExp.Operators.Inequality:
                                 ctx.Gen.Add(CilOpCodes.Ceq);
                                 ctx.Gen.Add(CilOpCodes.Ldc_I4_0);
                                 ctx.Gen.Add(CilOpCodes.Ceq);
                                 break;
                         
-                            case IRCompareExp.Operators.LessThan: ctx.Gen.Add(isSigned ? CilOpCodes.Clt : CilOpCodes.Clt_Un); break;
-                            case IRCompareExp.Operators.GreaterThan: ctx.Gen.Add(isSigned ? CilOpCodes.Cgt : CilOpCodes.Cgt_Un); break;
+                            case IrCompareExp.Operators.LessThan: ctx.Gen.Add(isSigned ? CilOpCodes.Clt : CilOpCodes.Clt_Un); break;
+                            case IrCompareExp.Operators.GreaterThan: ctx.Gen.Add(isSigned ? CilOpCodes.Cgt : CilOpCodes.Cgt_Un); break;
                             
-                            case IRCompareExp.Operators.LessThanOrEqual:
+                            case IrCompareExp.Operators.LessThanOrEqual:
                                 ctx.Gen.Add(isSigned ? CilOpCodes.Cgt : CilOpCodes.Cgt_Un);
                                 ctx.Gen.Add(CilOpCodes.Ldc_I4_0);
                                 ctx.Gen.Add(CilOpCodes.Ceq);
                                 break;
-                            case IRCompareExp.Operators.GreaterThanOrEqual:
+                            case IrCompareExp.Operators.GreaterThanOrEqual:
                                 ctx.Gen.Add(isSigned ? CilOpCodes.Clt : CilOpCodes.Clt_Un);
                                 ctx.Gen.Add(CilOpCodes.Ldc_I4_0);
                                 ctx.Gen.Add(CilOpCodes.Ceq);
@@ -640,11 +647,11 @@ public partial class Compiler
                     case BooleanTypeReference:
                         switch (cmp.Operator)
                         {
-                            case IRCompareExp.Operators.Equality:
+                            case IrCompareExp.Operators.Equality:
                                 ctx.Gen.Add(CilOpCodes.Ceq);
                                 break;
 
-                            case IRCompareExp.Operators.Inequality:
+                            case IrCompareExp.Operators.Inequality:
                                 ctx.Gen.Add(CilOpCodes.Ceq);
                                 ctx.Gen.Add(CilOpCodes.Ldc_I4_1);
                                 ctx.Gen.Add(CilOpCodes.Xor);
@@ -658,31 +665,31 @@ public partial class Compiler
                     {
                         switch (cmp.Operator)
                         {
-                            case IRCompareExp.Operators.Equality:
+                            case IrCompareExp.Operators.Equality:
                                 ctx.Gen.Add(CilOpCodes.Ceq);
                                 break;
 
-                            case IRCompareExp.Operators.Inequality:
+                            case IrCompareExp.Operators.Inequality:
                                 ctx.Gen.Add(CilOpCodes.Ceq);
                                 ctx.Gen.Add(CilOpCodes.Ldc_I4_0);
                                 ctx.Gen.Add(CilOpCodes.Ceq);
                                 break;
                             
-                            case IRCompareExp.Operators.LessThan:
+                            case IrCompareExp.Operators.LessThan:
                                 ctx.Gen.Add(CilOpCodes.Clt_Un);
                                 break;
                             
-                            case IRCompareExp.Operators.LessThanOrEqual:
+                            case IrCompareExp.Operators.LessThanOrEqual:
                                 ctx.Gen.Add(CilOpCodes.Cgt_Un);
                                 ctx.Gen.Add(CilOpCodes.Ldc_I4_0);
                                 ctx.Gen.Add(CilOpCodes.Ceq);
                                 break;
                             
-                            case IRCompareExp.Operators.GreaterThan:
+                            case IrCompareExp.Operators.GreaterThan:
                                 ctx.Gen.Add(CilOpCodes.Cgt_Un);
                                 break;
                             
-                            case IRCompareExp.Operators.GreaterThanOrEqual:
+                            case IrCompareExp.Operators.GreaterThanOrEqual:
                                 ctx.Gen.Add(CilOpCodes.Clt_Un);
                                 ctx.Gen.Add(CilOpCodes.Ldc_I4_0);
                                 ctx.Gen.Add(CilOpCodes.Ceq);
@@ -696,11 +703,11 @@ public partial class Compiler
                     {
                         switch (cmp.Operator)
                         {
-                            case IRCompareExp.Operators.Equality:
+                            case IrCompareExp.Operators.Equality:
                                 ctx.Gen.Add(CilOpCodes.Call, _coreLib["String"].m["Equals"]);
                                 break;
 
-                            case IRCompareExp.Operators.Inequality:
+                            case IrCompareExp.Operators.Inequality:
                                 ctx.Gen.Add(CilOpCodes.Call, (IMethodDescriptor)_coreLib["String"].m["Equals"]);
                                 ctx.Gen.Add(CilOpCodes.Ldc_I4_0);
                                 ctx.Gen.Add(CilOpCodes.Ceq);
@@ -844,7 +851,8 @@ public partial class Compiler
             {
                 CompileIrNodeLoad(lenOf.OfValue, false, ctx);
                 ctx.Gen.Add(CilOpCodes.Ldlen);
-                ctx.Stack[^1] = TypeFromRef(lenOf.Type);
+                ctx.Gen.Add(CilOpCodes.Conv_U8);
+                ctx.Stack[^1] = _corLibFactory.UInt64;
             } break;
             
             case IRIf @if:
@@ -1117,7 +1125,13 @@ public partial class Compiler
                                 }
                                 else descriptor = ctx.Importer.ImportMethod(dotnetMethod.MethodReference);
                                 
-                                ctx.Gen.Add(useNewObj ? CilOpCodes.Newobj : CilOpCodes.Call, descriptor);
+                                var opcode = useNewObj
+                                    ? CilOpCodes.Newobj
+                                    : dotnetMethod.IsVirtual
+                                        ? CilOpCodes.Callvirt
+                                        : CilOpCodes.Call;
+                                
+                                ctx.Gen.Add(opcode, descriptor);
                                 ctx.StackPop(argsCount); 
                                 if (signature.ReturnsValue)
                                 {

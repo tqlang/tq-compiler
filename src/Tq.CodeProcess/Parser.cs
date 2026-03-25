@@ -501,12 +501,15 @@ public class Parser(ErrorHandler errHandler)
     private ExpressionNode ParseUnaryExpression(bool recursive)
     {
         ExpressionNode node;
-
+        
+        // pre-op
         if(Taste(
                TokenType.CrossChar, // +
                TokenType.MinusChar,  // -
                TokenType.AmpersandChar,  // &
                TokenType.TildeChar,  // ~
+               TokenType.BangChar,  // !
+               TokenType.QuestionChar,  // ?
                TokenType.IncrementOperator, // ++
                TokenType.DecrementOperator // --
            ))
@@ -517,9 +520,12 @@ public class Parser(ErrorHandler errHandler)
         }
         else node = ParseRangeExpression(recursive);
 
+        // post-op
         if (Taste(
-                TokenType.IncrementOperator, // ++,
-                TokenType.DecrementOperator // --
+                TokenType.IncrementOperator, // ++
+                TokenType.DecrementOperator, // --
+                TokenType.BangChar,  // !
+                TokenType.QuestionChar  // ?
             ))
         {
             var n = new UnaryPostfixExpressionNode();
@@ -933,7 +939,7 @@ public class Parser(ErrorHandler errHandler)
     {
         if (Taste(TokenType.TypeKeyword)) return new IdentifierNode(Eat());
 
-        else if (TryEatAsNode(TokenType.LeftSquareBracketChar, out var leftBrac))
+        if (TryEatAsNode(TokenType.LeftSquareBracketChar, out var leftBrac))
         {
             var arrayMod = new ArrayTypeModifierNode();
 
@@ -943,13 +949,13 @@ public class Parser(ErrorHandler errHandler)
                 throw new NotImplementedException();
             }
             arrayMod.AppendChild(DietAsNode(TokenType.RightSquareBracketChar,
-            (t) => throw new Exception($"Unexpected token '{Bite()}'")));
+                (t) => throw new Exception($"Unexpected token '{Bite()}'")));
 
             arrayMod.AppendChild(ParseType());
             return arrayMod;
         }
 
-        else if (TryEatAsNode(TokenType.QuestionChar, out var question))
+        if (TryEatAsNode(TokenType.QuestionChar, out var question))
         {
             var nullableMod = new NullableTypeModifierNode();
 
@@ -958,16 +964,7 @@ public class Parser(ErrorHandler errHandler)
             return nullableMod;
         }
 
-        else if (TryEatAsNode(TokenType.BangChar, out var bang))
-        {
-            var failableMod = new FailableTypeModifierNode();
-
-            failableMod.AppendChild(bang);
-            failableMod.AppendChild(ParseType());
-            return failableMod;
-        }
-
-        else if (TryEatAsNode(TokenType.StarChar, out var star))
+        if (TryEatAsNode(TokenType.StarChar, out var star))
         {
             var refMod = new ReferenceTypeModifierNode();
 

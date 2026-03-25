@@ -4,9 +4,9 @@ using Abstract.CodeProcess.Core.Language.SyntaxNodes.Expression;
 
 namespace Abstract.CodeProcess.Core.EvaluationData.IntermediateTree.Expressions;
 
-public class IRCompareExp(
+public class IrCompareExp(
     BinaryExpressionNode origin,
-    IRCompareExp.Operators ope,
+    IrCompareExp.Operators ope,
     IrExpression left,
     IrExpression right) : IrExpression(origin)
 {

@@ -219,14 +219,14 @@ public partial class Analyser
             case IrStringLiteral:
             case IrCharLiteral:
             case IRBooleanLiteral:
-            case IRBinaryExp:
+            case IrBinaryExp:
             case IRAccess:
             case IrReference:
             case IrConv:
             case IrIndex:
             case IrInvoke:
             case IrLenOf:
-            case IRCompareExp:
+            case IrCompareExp:
             case IRUnaryExp:
             case IrLogicalExp:
             case IrNewObject:

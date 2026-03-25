@@ -5,10 +5,10 @@ using Abstract.CodeProcess.Core.Language.SyntaxNodes.Base;
 
 namespace Abstract.CodeProcess.Core.EvaluationData.IntermediateTree.Values;
 
-public class IrNewObject(SyntaxNode origin, IrReference type, IrExpression[] args, IRAssign[] inlineAssigns) : IrExpression(origin)
+public class IrNewObject(SyntaxNode origin, IrReference type, IrExpression[] args, IrAssign[] inlineAssigns) : IrExpression(origin)
 {
     public IrExpression[] Arguments = args;
-    public IRAssign[] InlineAssignments = inlineAssigns;
+    public IrAssign[] InlineAssignments = inlineAssigns;
 
     public TypeReference InstanceType = null!;
     public TypeReference? OverrideReturnType = null;

@@ -5,42 +5,64 @@ class <Module> extends  {
 class Bootstrap.Static extends System.Object {
 
 	method public static main () System.Void {
-		.locals init (System.String V_0)
-		.locals init (System.String[] V_1)
+		.locals init (System.String[] V_0)
+		.locals init (System.String V_1)
 		.locals init (System.String V_2)
-		IL_0000: ldstr "Hello, World!"
+		.locals init (System.String V_3)
+		IL_0000: call System.String[] Std.ProcessStatic::getProgramArguments()
 		IL_0005: stloc V_0
-		IL_0009: ldstr "Hello, World!"
-		IL_000E: call System.Void Std.ConsoleStatic::writeln(System.String)
-		IL_0013: call System.String[] Std.ProcessStatic::getProgramArguments()
-		IL_0018: stloc V_1
-		IL_001C: ldloc V_1
-		IL_0020: ldlen
-		IL_0021: ldc.i8 2
-		IL_002A: clt.un
-		IL_002C: brfalse IL_0050
-		IL_0031: nop
-		IL_0032: ldstr "Expected 1 argument!"
-		IL_0037: call System.Void Std.ConsoleStatic::writeln(System.String)
-		IL_003C: ldc.i8 1
-		IL_0045: conv.ovf.u8.un
-		IL_0046: call System.Void Std.ProcessStatic::exit(System.UInt64)
-		IL_004B: br IL_0050
-		IL_0050: nop
-		IL_0051: ldstr "test.txt"
-		IL_0056: call System.String Std.FsStatic::readAllText(System.String)
-		IL_005B: stloc V_2
-		IL_005F: ldstr "Old content was: "
-		IL_0064: call System.Void Std.ConsoleStatic::write(System.String)
-		IL_0069: ldloc V_2
-		IL_006D: call System.Void Std.ConsoleStatic::writeln(System.String)
-		IL_0072: ldstr "test.txt"
-		IL_0077: ldloc V_1
-		IL_007B: ldc.i8 1
-		IL_0084: conv.i4
-		IL_0085: ldelem System.String
-		IL_008A: call System.Void Std.FsStatic::writeAllText(System.String, System.String)
-		IL_008F: ret
+		IL_0009: ldloc V_0
+		IL_000D: ldlen
+		IL_000E: conv.u8
+		IL_000F: ldc.i8 3
+		IL_0018: clt.un
+		IL_001A: brfalse IL_003E
+		IL_001F: nop
+		IL_0020: ldstr "usage: write <filename> <content>"
+		IL_0025: call System.Void Std.ConsoleStatic::writeln(System.String)
+		IL_002A: ldc.i8 1
+		IL_0033: conv.ovf.u8.un
+		IL_0034: call System.Void Std.ProcessStatic::exit(System.UInt64)
+		IL_0039: br IL_003E
+		IL_003E: nop
+		IL_003F: ldloc V_0
+		IL_0043: ldc.i8 1
+		IL_004C: conv.i4
+		IL_004D: ldelem System.String
+		IL_0052: stloc V_1
+		IL_0056: ldloc V_0
+		IL_005A: ldc.i8 2
+		IL_0063: conv.i4
+		IL_0064: ldelem System.String
+		IL_0069: stloc V_2
+		IL_006D: ldloc V_1
+		IL_0071: call System.Boolean Std.FsStatic::fileExists(System.String)
+		IL_0076: ldc.i4.0
+		IL_0077: ceq
+		IL_0079: brfalse IL_00B0
+		IL_007E: nop
+		IL_007F: ldstr "file '"
+		IL_0084: ldloc V_1
+		IL_0088: ldstr "' does not exist!"
+		IL_008D: call System.String System.String::Concat(System.String, System.String)
+		IL_0092: call System.String System.String::Concat(System.String, System.String)
+		IL_0097: call System.Void Std.ConsoleStatic::writeln(System.String)
+		IL_009C: ldc.i8 1
+		IL_00A5: conv.ovf.u8.un
+		IL_00A6: call System.Void Std.ProcessStatic::exit(System.UInt64)
+		IL_00AB: br IL_00B0
+		IL_00B0: nop
+		IL_00B1: ldloc V_1
+		IL_00B5: call System.String Std.FsStatic::readAllText(System.String)
+		IL_00BA: stloc V_3
+		IL_00BE: ldstr "Old content was: "
+		IL_00C3: call System.Void Std.ConsoleStatic::write(System.String)
+		IL_00C8: ldloc V_3
+		IL_00CC: call System.Void Std.ConsoleStatic::writeln(System.String)
+		IL_00D1: ldloc V_1
+		IL_00D5: ldloc V_2
+		IL_00D9: call System.Void Std.FsStatic::writeAllText(System.String, System.String)
+		IL_00DE: ret
 	}
 }
 
@@ -208,6 +230,12 @@ class Std.FsStatic extends System.Object {
 		IL_0020: ret
 	}
 
+	method public static fileExists (System.String path) System.Boolean {
+		IL_0000: ldarg System.String path
+		IL_0004: call System.Boolean System.IO.File::Exists(System.String)
+		IL_0009: ret
+	}
+
 	method public static readAllText (System.String path) System.String {
 		IL_0000: ldarg System.String path
 		IL_0004: call System.String System.IO.File::ReadAllText(System.String)
@@ -250,7 +278,7 @@ struct Std.Fs.File extends System.ValueType {
 		IL_0000: ldarg.0
 		IL_0001: ldflda System.IO.FileStream Std.Fs.File::_filestream
 		IL_0006: ldobj System.IO.FileStream
-		IL_000B: call System.Void System.IO.Stream::Close()
+		IL_000B: callvirt System.Void System.IO.Stream::Close()
 		IL_0010: ret
 	}
 }
@@ -283,7 +311,7 @@ struct Std.Fs.FileInfo extends System.ValueType {
 		IL_0005: stfld System.IO.FileInfo Std.Fs.FileInfo::_fileInfo
 		IL_000A: ldarg.0
 		IL_000B: ldarg System.IO.FileInfo fInfo
-		IL_000F: call System.String System.IO.FileInfo::get_Name()
+		IL_000F: callvirt System.String System.IO.FileInfo::get_Name()
 		IL_0014: stfld System.String Std.Fs.FileInfo::name
 		IL_0019: ldarg.0
 		IL_001A: ldarg System.IO.FileInfo fInfo

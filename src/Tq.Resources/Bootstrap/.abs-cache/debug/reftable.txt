@@ -33,5 +33,6 @@ TDef	Std.Fs.SeekOrigin
 TDef	Std.Fs.FileMode
 TDef	Std.Fs.FileAccess
 FnGp	Std.Fs.open
+FnGp	Std.Fs.fileExists
 FnGp	Std.Fs.readAllText
 FnGp	Std.Fs.writeAllText

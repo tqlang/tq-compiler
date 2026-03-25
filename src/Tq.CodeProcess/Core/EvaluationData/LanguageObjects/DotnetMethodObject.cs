@@ -21,6 +21,7 @@ public class DotnetMethodObject(
     public MethodDefinition MethodDefinition { get; } = definition;
     
     public bool IsConstructor => MethodDefinition.IsConstructor;
+    public bool IsVirtual => MethodDefinition.IsVirtual;
     
     public SourceScript Script => throw new NotImplementedException();
     public List<ParameterObject> Parameters { get; } = parameters.ToList();

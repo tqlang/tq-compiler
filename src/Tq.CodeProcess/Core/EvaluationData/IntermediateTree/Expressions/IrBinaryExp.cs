@@ -3,9 +3,9 @@ using Abstract.CodeProcess.Core.Language.SyntaxNodes.Expression;
 
 namespace Abstract.CodeProcess.Core.EvaluationData.IntermediateTree.Expressions;
 
-public class IRBinaryExp(
+public class IrBinaryExp(
     BinaryExpressionNode origin,
-    IRBinaryExp.Operators ope,
+    IrBinaryExp.Operators ope,
     IrExpression left,
     IrExpression right) : IrExpression(origin)
 {

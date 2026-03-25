@@ -202,10 +202,10 @@ public partial class Analyser
             return node switch
             {
                 IrInvoke @iv => NodeSemaAnal_Invoke(iv, ctx),
-                IRAssign @ass => NodeSemaAnal_Assign(ass, ctx),
+                IrAssign @ass => NodeSemaAnal_Assign(ass, ctx),
                 IRUnaryExp @ue => NodeSemaAnal_UnExp(ue, ctx),
-                IRBinaryExp @be => NodeSemaAnal_BinExp(be, ctx),
-                IRCompareExp @ce => NodeSemaAnal_CmpExp(ce, ctx),
+                IrBinaryExp @be => NodeSemaAnal_BinExp(be, ctx),
+                IrCompareExp @ce => NodeSemaAnal_CmpExp(ce, ctx),
                 IrLogicalExp @ce => NodeSemaAnal_LogicalExp(ce, ctx),
                 IrIndex @ix => NodeSemaAnal_Index(ix, ctx),
                 IrConv @tc =>NodeSemaAnal_Conv(tc, ctx),
@@ -291,7 +291,12 @@ public partial class Analyser
                 
                 node.Arguments = newArgs;
                 node.Target = new IrSolvedReference(node.Target.Origin, new SolvedCallableReference(s.Callable));
-                if (instance != null) node.Arguments = [(IrExpression)NodeSemaAnal(instance, ctx), ..node.Arguments];
+                if (instance != null)
+                {
+                    node.Arguments = instance.Type is not ReferenceTypeReference
+                        ? node.Arguments = [new IrRef(instance.Origin, (IrExpression)NodeSemaAnal(instance, ctx)), ..node.Arguments]
+                        : node.Arguments = [(IrExpression)NodeSemaAnal(instance, ctx), ..node.Arguments];
+                }
                 return node;
             }
             
@@ -368,7 +373,7 @@ public partial class Analyser
         
         return node;
     }
-    private IrNode NodeSemaAnal_Assign(IRAssign node, IrBlockExecutionContextData ctx)
+    private IrNode NodeSemaAnal_Assign(IrAssign node, IrBlockExecutionContextData ctx)
     {
         var a = node;
         node.Target = (IrExpression)NodeSemaAnal(node.Target, ctx);
@@ -412,7 +417,7 @@ public partial class Analyser
         
         return node;
     }
-    private IrNode NodeSemaAnal_BinExp(IRBinaryExp node, IrBlockExecutionContextData ctx)
+    private IrNode NodeSemaAnal_BinExp(IrBinaryExp node, IrBlockExecutionContextData ctx)
     {
         node.Left = (IrExpression)NodeSemaAnal(node.Left, ctx);
         node.Right = (IrExpression)NodeSemaAnal(node.Right, ctx);
@@ -431,8 +436,8 @@ public partial class Analyser
         switch (node.Operator)
         {
 
-            case IRBinaryExp.Operators.LeftShift:
-            case IRBinaryExp.Operators.RightShift:
+            case IrBinaryExp.Operators.LeftShift:
+            case IrBinaryExp.Operators.RightShift:
                 node.Right = SolveTypeCast(new RuntimeIntegerTypeReference(false), node.Right);
                 break;
             
@@ -494,17 +499,17 @@ public partial class Analyser
             {
                 _ => new IrIntegerLiteral(node.Origin, node.Operator switch
                     {
-                        IRBinaryExp.Operators.Add => leftInt.Value + rightInt.Value,
-                        IRBinaryExp.Operators.Subtract => leftInt.Value - rightInt.Value,
-                        IRBinaryExp.Operators.Multiply => leftInt.Value * rightInt.Value,
-                        IRBinaryExp.Operators.Divide => leftInt.Value / rightInt.Value,
-                        IRBinaryExp.Operators.Reminder => leftInt.Value % rightInt.Value,
+                        IrBinaryExp.Operators.Add => leftInt.Value + rightInt.Value,
+                        IrBinaryExp.Operators.Subtract => leftInt.Value - rightInt.Value,
+                        IrBinaryExp.Operators.Multiply => leftInt.Value * rightInt.Value,
+                        IrBinaryExp.Operators.Divide => leftInt.Value / rightInt.Value,
+                        IrBinaryExp.Operators.Reminder => leftInt.Value % rightInt.Value,
 
-                        IRBinaryExp.Operators.BitwiseAnd => leftInt.Value & rightInt.Value,
-                        IRBinaryExp.Operators.BitwiseOr => leftInt.Value | rightInt.Value,
-                        IRBinaryExp.Operators.BitwiseXor => leftInt.Value ^ rightInt.Value,
-                        IRBinaryExp.Operators.LeftShift => leftInt.Value << (int)rightInt.Value,
-                        IRBinaryExp.Operators.RightShift => leftInt.Value >> (int)rightInt.Value,
+                        IrBinaryExp.Operators.BitwiseAnd => leftInt.Value & rightInt.Value,
+                        IrBinaryExp.Operators.BitwiseOr => leftInt.Value | rightInt.Value,
+                        IrBinaryExp.Operators.BitwiseXor => leftInt.Value ^ rightInt.Value,
+                        IrBinaryExp.Operators.LeftShift => leftInt.Value << (int)rightInt.Value,
+                        IrBinaryExp.Operators.RightShift => leftInt.Value >> (int)rightInt.Value,
 
                         _ => throw new NotImplementedException(),
                     }, (IntegerTypeReference)ftype),
@@ -513,13 +518,13 @@ public partial class Analyser
             { Left: IrStringLiteral @leftStr, Right: IrStringLiteral @rightStr } => new IrStringLiteral(node.Origin,
                 node.Operator switch
                 {
-                    IRBinaryExp.Operators.Add => leftStr.Data + rightStr.Data,
+                    IrBinaryExp.Operators.Add => leftStr.Data + rightStr.Data,
                     _ => throw new UnreachableException()
                 }),
             _ => node
         };
     }
-    private IrNode NodeSemaAnal_CmpExp(IRCompareExp node, IrBlockExecutionContextData ctx)
+    private IrNode NodeSemaAnal_CmpExp(IrCompareExp node, IrBlockExecutionContextData ctx)
     {
         node.Left = (IrExpression)NodeSemaAnal(node.Left, ctx);
         var leftTypeRef = GetEffectiveTypeReference(node.Left);
@@ -530,10 +535,10 @@ public partial class Analyser
             case { Left: IrIntegerLiteral @leftInt, Right: IrIntegerLiteral @rightInt }:
                 return new IRBooleanLiteral(node.Origin, node.Operator switch
                 {
-                    IRCompareExp.Operators.GreaterThan => leftInt.Value > rightInt.Value,
-                    IRCompareExp.Operators.LessThan => leftInt.Value < rightInt.Value,
-                    IRCompareExp.Operators.LessThanOrEqual => leftInt.Value <= rightInt.Value,
-                    IRCompareExp.Operators.GreaterThanOrEqual => leftInt.Value >= rightInt.Value,
+                    IrCompareExp.Operators.GreaterThan => leftInt.Value > rightInt.Value,
+                    IrCompareExp.Operators.LessThan => leftInt.Value < rightInt.Value,
+                    IrCompareExp.Operators.LessThanOrEqual => leftInt.Value <= rightInt.Value,
+                    IrCompareExp.Operators.GreaterThanOrEqual => leftInt.Value >= rightInt.Value,
                     _ => throw new UnreachableException()
                 });
         }

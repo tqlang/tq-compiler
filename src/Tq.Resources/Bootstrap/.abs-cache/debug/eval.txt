@@ -2,20 +2,25 @@ module Bootstrap {
 	Namespace '' ('Bootstrap') {
 		; funcgroup main
 		public static concrete func main() void {
-			$(00) Local 'helloWorld': string
-			$(01) Local 'args': []string
-			$(02) Local 'oldContent': string
-			local.00 = (Undefined) "Hello, World!"
-			call Callable<Std.Console.writeln> ((Undefined) "Hello, World!")
-			local.01 = call Callable<Std.Process.getProgramArguments> ()
-			if (cmp LessThan lenof local.01 (u64)2) {
-				call Callable<Std.Console.writeln> ((Undefined) "Expected 1 argument!")
+			$(00) Local 'args': []string
+			$(01) Local 'fileName': string
+			$(02) Local 'newContent': string
+			$(03) Local 'oldContent': string
+			local.00 = call Callable<Std.Process.getProgramArguments> ()
+			if (cmp LessThan lenof local.00 (u64)3) {
+				call Callable<Std.Console.writeln> ((Undefined) "usage: write <filename> <content>")
 				call Callable<Std.Process.exit> ((u64)1)}
 
-			local.02 = call Callable<Std.Fs.readAllText> ((Undefined) "test.txt")
+			local.01 = local.00[(u64)1]
+			local.02 = local.00[(u64)2]
+			if (!call Callable<Std.Fs.fileExists> (local.01)) {
+				call Callable<Std.Console.writeln> (Add (Undefined) "file '", Add local.01, (Undefined) "' does not exist!")
+				call Callable<Std.Process.exit> ((u64)1)}
+
+			local.03 = call Callable<Std.Fs.readAllText> (local.01)
 			call Callable<Std.Console.write> ((Undefined) "Old content was: ")
-			call Callable<Std.Console.writeln> (local.02)
-			call Callable<Std.Fs.writeAllText> ((Undefined) "test.txt", local.01[(u64)1])
+			call Callable<Std.Console.writeln> (local.03)
+			call Callable<Std.Fs.writeAllText> (local.01, local.02)
 		}
 
 
@@ -225,6 +230,12 @@ module Std {
 				$(00) Local 'filestream': *FileStream
 				local.00 = new Callable<.ctor>(arg.00, FileMode.openOrCreate, FileAccess.RO)
 				ret new Callable<Std.Fs.File.constructor>(local.00)
+			}
+
+
+			; funcgroup fileExists
+			public static concrete func fileExists(string) bool {
+				ret call Callable<Exists> (arg.00)
 			}
 
 

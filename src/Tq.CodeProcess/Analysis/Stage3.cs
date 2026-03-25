@@ -281,23 +281,23 @@ public partial class Analyser
             {
                 var left = UnwrapExecutionContext_Expression(assign.Left, ctx);
                 var right = UnwrapExecutionContext_Expression(assign.Right, ctx);
-                IRBinaryExp.Operators? op = null;
+                IrBinaryExp.Operators? op = null;
                 
                 switch (assign.Operator)
                 { 
                     case "=": break;
 
-                    case "+=": op = IRBinaryExp.Operators.Add; break;
-                    case "-=": op = IRBinaryExp.Operators.Subtract; break;
-                    case "*=": op = IRBinaryExp.Operators.Multiply; break;
-                    case "/=": op = IRBinaryExp.Operators.Divide; break;
-                    case "%=": op = IRBinaryExp.Operators.Reminder; break;
+                    case "+=": op = IrBinaryExp.Operators.Add; break;
+                    case "-=": op = IrBinaryExp.Operators.Subtract; break;
+                    case "*=": op = IrBinaryExp.Operators.Multiply; break;
+                    case "/=": op = IrBinaryExp.Operators.Divide; break;
+                    case "%=": op = IrBinaryExp.Operators.Reminder; break;
                     
                     default: throw new NotImplementedException();
                 }
                 
-                if (op != null) right = new IRBinaryExp(assign, op.Value, left, right);
-                return (new IRAssign(assign, left, right), true);
+                if (op != null) right = new IrBinaryExp(assign, op.Value, left, right);
+                return (new IrAssign(assign, left, right), true);
             }
 
             case IfStatementNode @if:
@@ -450,13 +450,13 @@ public partial class Analyser
     
             case BinaryExpressionNode @bexp:
             {
-                if (bexp.Operator is ">" or "<" or ">=" or "<=") return new IRCompareExp(bexp,
+                if (bexp.Operator is ">" or "<" or ">=" or "<=") return new IrCompareExp(bexp,
                     bexp.Operator switch
                     {
-                        ">" => IRCompareExp.Operators.GreaterThan,
-                        ">=" => IRCompareExp.Operators.GreaterThanOrEqual,
-                        "<" => IRCompareExp.Operators.LessThan,
-                        "<=" => IRCompareExp.Operators.LessThanOrEqual,
+                        ">" => IrCompareExp.Operators.GreaterThan,
+                        ">=" => IrCompareExp.Operators.GreaterThanOrEqual,
+                        "<" => IrCompareExp.Operators.LessThan,
+                        "<=" => IrCompareExp.Operators.LessThanOrEqual,
                         _ => throw new UnreachableException(),
                     },
                     UnwrapExecutionContext_Expression(bexp.Left, ctx),
@@ -467,35 +467,35 @@ public partial class Analyser
                 
                 return bexp.Operator switch
                     {
-                        "+" => new IRBinaryExp(bexp, IRBinaryExp.Operators.Add, l, r),
-                        "+%" => new IRBinaryExp(bexp, IRBinaryExp.Operators.AddWarpAround, l, r),
-                        "+|" => new IRBinaryExp(bexp, IRBinaryExp.Operators.AddOnBounds, l, r),
+                        "+" => new IrBinaryExp(bexp, IrBinaryExp.Operators.Add, l, r),
+                        "+%" => new IrBinaryExp(bexp, IrBinaryExp.Operators.AddWarpAround, l, r),
+                        "+|" => new IrBinaryExp(bexp, IrBinaryExp.Operators.AddOnBounds, l, r),
                         
-                        "-" => new IRBinaryExp(bexp, IRBinaryExp.Operators.Subtract, l, r),
-                        "-%" =>  new IRBinaryExp(bexp, IRBinaryExp.Operators.SubtractWarpAround, l, r),
-                        "-|" => new IRBinaryExp(bexp, IRBinaryExp.Operators.SubtractOnBounds, l, r),
+                        "-" => new IrBinaryExp(bexp, IrBinaryExp.Operators.Subtract, l, r),
+                        "-%" =>  new IrBinaryExp(bexp, IrBinaryExp.Operators.SubtractWarpAround, l, r),
+                        "-|" => new IrBinaryExp(bexp, IrBinaryExp.Operators.SubtractOnBounds, l, r),
                         
-                        "*" => new IRBinaryExp(bexp, IRBinaryExp.Operators.Multiply, l, r),
+                        "*" => new IrBinaryExp(bexp, IrBinaryExp.Operators.Multiply, l, r),
                         
-                        "/" => new IRBinaryExp(bexp, IRBinaryExp.Operators.Divide, l, r),
-                        "/_" => new IRBinaryExp(bexp, IRBinaryExp.Operators.DivideFloor, l, r),
-                        "/^" => new IRBinaryExp(bexp, IRBinaryExp.Operators.DivideCeil, l, r),
+                        "/" => new IrBinaryExp(bexp, IrBinaryExp.Operators.Divide, l, r),
+                        "/_" => new IrBinaryExp(bexp, IrBinaryExp.Operators.DivideFloor, l, r),
+                        "/^" => new IrBinaryExp(bexp, IrBinaryExp.Operators.DivideCeil, l, r),
                         
-                        "%" => new IRBinaryExp(bexp, IRBinaryExp.Operators.Reminder, l, r),
+                        "%" => new IrBinaryExp(bexp, IrBinaryExp.Operators.Reminder, l, r),
 
-                        "AND" => new IRBinaryExp(bexp, IRBinaryExp.Operators.BitwiseAnd, l, r),
-                        "OR" => new IRBinaryExp(bexp, IRBinaryExp.Operators.BitwiseOr, l, r),
-                        "XOR" => new IRBinaryExp(bexp, IRBinaryExp.Operators.BitwiseXor, l, r),
+                        "AND" => new IrBinaryExp(bexp, IrBinaryExp.Operators.BitwiseAnd, l, r),
+                        "OR" => new IrBinaryExp(bexp, IrBinaryExp.Operators.BitwiseOr, l, r),
+                        "XOR" => new IrBinaryExp(bexp, IrBinaryExp.Operators.BitwiseXor, l, r),
 
-                        "<<" => new IRBinaryExp(bexp, IRBinaryExp.Operators.LeftShift, l, r),
-                        ">>" => new IRBinaryExp(bexp, IRBinaryExp.Operators.RightShift, l, r),
+                        "<<" => new IrBinaryExp(bexp, IrBinaryExp.Operators.LeftShift, l, r),
+                        ">>" => new IrBinaryExp(bexp, IrBinaryExp.Operators.RightShift, l, r),
                         
-                        "==" => new IRCompareExp(bexp, IRCompareExp.Operators.Equality, l, r),
-                        "!=" => new IRCompareExp(bexp, IRCompareExp.Operators.Inequality, l, r),
-                        "<" => new IRCompareExp(bexp, IRCompareExp.Operators.LessThan, l, r),
-                        "<=" => new IRCompareExp(bexp, IRCompareExp.Operators.LessThanOrEqual, l, r),
-                        ">" => new IRCompareExp(bexp, IRCompareExp.Operators.GreaterThan, l, r),
-                        ">=" => new IRCompareExp(bexp, IRCompareExp.Operators.GreaterThanOrEqual, l, r),
+                        "==" => new IrCompareExp(bexp, IrCompareExp.Operators.Equality, l, r),
+                        "!=" => new IrCompareExp(bexp, IrCompareExp.Operators.Inequality, l, r),
+                        "<" => new IrCompareExp(bexp, IrCompareExp.Operators.LessThan, l, r),
+                        "<=" => new IrCompareExp(bexp, IrCompareExp.Operators.LessThanOrEqual, l, r),
+                        ">" => new IrCompareExp(bexp, IrCompareExp.Operators.GreaterThan, l, r),
+                        ">=" => new IrCompareExp(bexp, IrCompareExp.Operators.GreaterThanOrEqual, l, r),
                         
                         "or" => new IrLogicalExp(bexp, IrLogicalExp.Operators.Or, l, r),
                         "and" => new IrLogicalExp(bexp, IrLogicalExp.Operators.And, l, r),
@@ -505,21 +505,23 @@ public partial class Analyser
             }
             case UnaryPrefixExpressionNode @uexp:
             {
-                return new IRUnaryExp(uexp, uexp.Operator switch
+                return uexp.Operator switch
                 {
-                    "+" => IRUnaryExp.UnaryOperation.Plus,
-                    "-" => IRUnaryExp.UnaryOperation.Minus,
-                    "!" => IRUnaryExp.UnaryOperation.Not,
-                    
-                    "&" => IRUnaryExp.UnaryOperation.Reference,
-                    "~" => IRUnaryExp.UnaryOperation.BitwiseNot,
-                    
-                    "++" => IRUnaryExp.UnaryOperation.PreIncrement,
-                    "--" => IRUnaryExp.UnaryOperation.PreDecrement,
-                    
-                    _ => throw new UnreachableException(),
-                },
-                    UnwrapExecutionContext_Expression(uexp.Expression, ctx));
+                    "&" => new IrRef(uexp, UnwrapExecutionContext_Expression(uexp.Expression, ctx)),
+                    _ => new IRUnaryExp(uexp, uexp.Operator switch
+                    {
+                        "+" => IRUnaryExp.UnaryOperation.Plus,
+                        "-" => IRUnaryExp.UnaryOperation.Minus,
+                        "!" => IRUnaryExp.UnaryOperation.Not,
+
+                        "~" => IRUnaryExp.UnaryOperation.BitwiseNot,
+
+                        "++" => IRUnaryExp.UnaryOperation.PreIncrement,
+                        "--" => IRUnaryExp.UnaryOperation.PreDecrement,
+
+                        _ => throw new UnreachableException(),
+                    }, UnwrapExecutionContext_Expression(uexp.Expression, ctx))
+                };
             }
             case UnaryPostfixExpressionNode @uexp:
             {
@@ -568,14 +570,14 @@ public partial class Analyser
             
             case NewObjectNode @newobj:
             {
-                List<IRAssign> asisgns = [];
+                List<IrAssign> asisgns = [];
                 
                 if (newobj.Inlined != null)
                 {
                     foreach (var i in newobj.Inlined.Content)
                     {
                         if (i is not AssignmentExpressionNode @ass) throw new UnreachableException();
-                        asisgns.Add(new IRAssign(ass,
+                        asisgns.Add(new IrAssign(ass,
                             new IRUnknownReference(ass.Left),
                             UnwrapExecutionContext_Expression(ass.Right, ctx)));
                     }

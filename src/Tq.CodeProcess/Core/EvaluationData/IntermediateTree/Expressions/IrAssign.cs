@@ -3,7 +3,7 @@ using Abstract.CodeProcess.Core.Language.SyntaxNodes.Expression;
 
 namespace Abstract.CodeProcess.Core.EvaluationData.IntermediateTree.Expressions;
 
-public class IRAssign(
+public class IrAssign(
     AssignmentExpressionNode origin, 
     IrExpression targ,
     IrExpression val

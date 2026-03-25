@@ -11,6 +11,10 @@ from Dotnet.System.IO import {
 	return new File(filestream)
 }
 
+@public func fileExists(string path) bool {
+	return CsFile.Exists(path)
+}
+
 @public func readAllText(string path) string {
 	return CsFile.ReadAllText(path)
 }
