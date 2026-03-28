@@ -100,7 +100,7 @@ public partial class Compiler
                 var name = a.Name + "Static";
                 var nmsp = isroot ? obj.Module!.Name : string.Join('.', a.Global[0..^1]);
                 
-                var moduledef = new TypeDefinition(nmsp, name, attributes, _coreLib["Object"].t.ToTypeDefOrRef());
+                var moduledef = new TypeDefinition(nmsp, name, attributes, _coreLib["System.Object"].t.ToTypeDefOrRef());
                 _module.TopLevelTypes.Add(moduledef);
                 _namespacesMap.Add(a, moduledef);
                 
@@ -293,7 +293,7 @@ public partial class Compiler
         if (structobj.Abstract) attributes |= TypeAttributes.Abstract;
         if (structobj.Final) attributes |= TypeAttributes.Sealed;
 
-        var typedef = new TypeDefinition(nmsp, name, attributes, _coreLib["ValueType"].t.ToTypeDefOrRef());
+        var typedef = new TypeDefinition(nmsp, name, attributes, _coreLib["System.ValueType"].t.ToTypeDefOrRef());
         typedef.ClassLayout = new ClassLayout((ushort)structobj.Alignment!.Value.Bytes, (uint)structobj.Length!.Value.Bytes);
         _module.TopLevelTypes.Add(typedef);
         
@@ -349,7 +349,7 @@ public partial class Compiler
 
         if (isPrimitiveType)
         {
-            var enumType = new TypeDefinition(ns, name, attributes, _coreLib["Enum"].t.ToTypeDefOrRef());
+            var enumType = new TypeDefinition(ns, name, attributes, _coreLib["System.Enum"].t.ToTypeDefOrRef());
             _module.TopLevelTypes.Add(enumType);
 
             var valueField = new FieldDefinition(

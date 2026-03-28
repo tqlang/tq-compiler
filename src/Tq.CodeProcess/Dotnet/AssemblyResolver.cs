@@ -28,8 +28,6 @@ public class AssemblyResolver : DotNetCoreAssemblyResolver
     }
     protected override AssemblyDefinition? ResolveImpl(AssemblyDescriptor assembly)
     {
-        Console.WriteLine($"Resolving {assembly.Name}");
-        
         var asmName = assembly.Name;
         var asmVersion = assembly.Version;
 

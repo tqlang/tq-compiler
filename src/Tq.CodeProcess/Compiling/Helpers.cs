@@ -91,7 +91,7 @@ public partial class Compiler
                     <= 16 => i.Signed ? _corLibFactory.Int16 : _corLibFactory.UInt16,
                     <= 32 => i.Signed ? _corLibFactory.Int32 : _corLibFactory.UInt32,
                     <= 64 => i.Signed ? _corLibFactory.Int64 : _corLibFactory.UInt64,
-                    <= 128 => _coreLib[i.Signed ? "Int128" : "UInt128"].t,
+                    <= 128 => _coreLib[i.Signed ? "System.Int128" : "System.UInt128"].t,
                     _ => throw new UnreachableException()
                 };
             }

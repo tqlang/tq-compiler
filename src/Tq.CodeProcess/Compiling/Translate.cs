@@ -236,7 +236,7 @@ public partial class Compiler
                         CompileIrNodeLoad(c.Expression, false, ctx);
                         ctx.StackPop();
                         ctx.Gen.Add(CilOpCodes.Box, baseTypeRef.ToTypeDefOrRef());
-                        ctx.Gen.Add(CilOpCodes.Callvirt, (IMethodDescriptor)_coreLib["Object"].m["ToString"]);
+                        ctx.Gen.Add(CilOpCodes.Callvirt, (IMethodDescriptor)_coreLib["System.Object"].m["ToString"]);
                         ctx.StackPush(_corLibFactory.String);
                     } break;
 
@@ -590,7 +590,7 @@ public partial class Compiler
                     }
                     
                     case StringTypeReference when bin.Right.Type is StringTypeReference:
-                        ctx.Gen.Add(CilOpCodes.Call, _coreLib["String"].m["Concat_s0_s1"]);
+                        ctx.Gen.Add(CilOpCodes.Call, _coreLib["System.String"].m["Concat_s0_s1"]);
                         break;
                     
                     default: throw new UnreachableException();
