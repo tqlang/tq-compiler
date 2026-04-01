@@ -637,8 +637,8 @@ public partial class Analyser
 
     private IrNode NodeSemaAnal_Access(IRAccess node, IrBlockExecutionContextData ctx)
     {
-        return node.B is not IRUnknownReference b ? node
-            : SolveAccessInExpression(node.Origin, (IrExpression)NodeSemaAnal(node.A, ctx), b);
+        if (node.B is not IRUnknownReference b) return node;
+        return SolveAccessInExpression(node.Origin, (IrExpression)NodeSemaAnal(node.A, ctx), b);
     }
     private IrNode NodeSemaAnal_Collection(IrCollectionLiteral node, IrBlockExecutionContextData ctx)
     {
@@ -663,6 +663,8 @@ public partial class Analyser
     /// </returns>
     private ISolvedOverloadResult SolveFunctionOverload(ICallable[] options, IrExpression[] arguments, SyntaxNode origin)
     {
+        var a = options[0];
+        
         ICallable? betterFound = null;
         var betterFoundSum = 0;
         Dictionary<ParameterObject, TypeReference>? betterFoundGenerics = null;
@@ -867,12 +869,12 @@ public partial class Analyser
         }
     }
     
-    
     private LanguageReference ReferenceOf(IrNode node) => node switch
         {
             IRAccess @acc => ReferenceOf(acc.B),
             IrSolvedReference @sr => sr.Reference,
             IrInvoke @iv => iv.Type!,
+            IrConv @cv => cv.Type!,
             _ => throw new UnreachableException(),
         };
     private TypeReference SolveTypeLazy2(TypeReference typeref, IrBlockExecutionContextData? ctx, LangObject? obj)

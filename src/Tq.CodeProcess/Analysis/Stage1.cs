@@ -4,7 +4,6 @@ using Abstract.CodeProcess.Core.EvaluationData.LanguageObjects.Containers;
 using Abstract.CodeProcess.Core.EvaluationData.LanguageObjects.Imports;
 using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.AttributeReferences;
 using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.TypeReferences;
-using Abstract.CodeProcess.Core.Language;
 using Abstract.CodeProcess.Core.Language.Module;
 using Abstract.CodeProcess.Core.Language.SyntaxNodes.Control;
 using Abstract.CodeProcess.Core.Language.SyntaxNodes.Expression;
@@ -179,10 +178,10 @@ public partial class Analyser
             
             foreach (var i in imports.Content.OfType<ImportItemNode>())
             {
-                if (i.Children is [_, TokenNode { Token.type: TokenType.AsKeyword }, _, ..])
+                if (i.Children[0] is TypeCastNode @tc)
                 {
-                    var original = (IdentifierNode)i.Children[0];
-                    var alias = (IdentifierNode)i.Children[2];
+                    var original = tc.Value as IdentifierNode ?? throw new Exception("Invalid expression inside namespace identifier");
+                    var alias = tc.TargetType as IdentifierNode ?? throw new Exception("Invalid expression inside namespace alias");
                     importObj.Imports.Add(alias.Value, (original.Value, null!));
                 }
                 else

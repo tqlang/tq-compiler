@@ -13,7 +13,7 @@ public class DotnetMethodObject(
     IMethodDescriptor descriptor, MethodDefinition definition,
     TypeReference? returnType,
     ParameterObject[] parameters)
-    : LangObject(null!, name),
+    : DotnetMemberObject(null!, name),
     ICallable
 {
     public DotnetMethodGroupObject MethodGroup = null!;

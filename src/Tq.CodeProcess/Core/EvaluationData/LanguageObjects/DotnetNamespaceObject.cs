@@ -27,9 +27,7 @@ public class DotnetNamespaceObject(string fullNamespace) : BaseNamespaceObject(f
         var cacheType = Types.FirstOrDefault(e => e.Name == name);
         if (cacheType != null) return cacheType;
         
-        var type = DotnetTypes.FirstOrDefault(e => e.Name == name);
-        if (type != null) return DotnetMembers.GetOrCreateTypeObject(type, module);
-
-        return null;
+        var type = DotnetTypes.FirstOrDefault(e => DotnetMembers.NormalizeTypeName(e.Name!) == name);
+        return type != null ? DotnetMembers.GetOrCreateTypeObject(type, module) : null;
     }
 }

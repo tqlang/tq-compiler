@@ -16,6 +16,7 @@ using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.TypeReferences
 using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.TypeReferences.Builtin.Integer;
 using AsmResolver.DotNet;
 using AsmResolver.DotNet.Code.Cil;
+using AsmResolver.DotNet.Signatures;
 using AsmResolver.DotNet.Signatures.Types;
 using AsmResolver.PE.DotNet.Cil;
 using AsmResolver.PE.DotNet.Metadata.Tables.Rows;
@@ -419,7 +420,7 @@ public partial class Compiler
                         }
                         
                     } break;
-
+                    
                     case GenericTypeReference @generic:
                     {
                         CompileIrNodeLoad(c.Expression, false, ctx);
@@ -427,6 +428,29 @@ public partial class Compiler
                         var typeSig = new GenericParameterSignature(GenericParameterType.Method, genericParam.Number);
                         ctx.Gen.Add(CilOpCodes.Unbox_Any, ctx.Importer.ImportTypeSignature(typeSig).ToTypeDefOrRef());
                         ctx.StackPush(typeSig);
+                    } break;
+
+                    case DotnetTypeReference @dotnet:
+                    {
+                        switch (dotnet.Reference.Reference.FullName)
+                        {
+                            case "System.Span`1" when fromType is SliceTypeReference @sliceTypeRef:
+                            {
+                                var elementTypeRef = TypeFromRef(sliceTypeRef.InternalType);
+                                var spanType = _coreLib["System.MemoryExtensions"];
+                                var methodGeneric = spanType.m["AsSpan_i32"];
+                                var methodInstance = new GenericInstanceMethodSignature(elementTypeRef);
+                                var methodSpec = new MethodSpecification((IMethodDefOrRef)methodGeneric, methodInstance);
+
+                                CompileIrNodeLoad(c.Expression, false, ctx);
+                                ctx.StackPop();
+                                ctx.Gen.Add(CilOpCodes.Ldc_I4_0);
+                                ctx.Gen.Add(CilOpCodes.Call, methodSpec);
+                                ctx.Stack.Add(elementTypeRef);
+
+                            } break;
+                            default: throw new UnreachableException();
+                        }
                     } break;
                     
                     default: throw new UnreachableException();

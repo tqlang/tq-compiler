@@ -38,7 +38,7 @@ public static class DotnetMembers
             {
                 var args = new TypeReference[g.TypeArguments.Count];
                 for (var i = 0; i < g.TypeArguments.Count; i++) args[i] = DotnetTypeToRef(g.TypeArguments[i], module);
-                return new DotnetGenericTypeReference((DotnetTypeObject)GetOrCreateTypeObject(g, module), args);
+                return new DotnetGenericTypeReference((DotnetTypeObject)GetOrCreateTypeObject(g, module), g, args);
             }
 
             case GenericParameterSignature g:
@@ -141,14 +141,14 @@ public static class DotnetMembers
         => GetOrCreateTypeObject(tsig.Resolve()!, module);
     public static ContainerObject GetOrCreateTypeObject(ITypeDefOrRef t, DotnetModuleObject module)
     {
-        var fullName = string.Join('.', (string)t.Namespace!, (string)t.Name!);
+        var fullName = NormalizeTypeName(string.Join('.', (string)t.Namespace!, (string)t.Name!));
         
         if (module.Types.TryGetValue(fullName, out var value)) return value;
         var resolved = t.Resolve()!;
-
+        
         ContainerObject type = resolved is { IsAbstract: true, IsSealed: true }
             ? new DotnetStaticClassObject(fullName, resolved)
-            : new DotnetTypeObject(resolved);
+            : new DotnetTypeObject(fullName, resolved);
         
         type.Parent = resolved.DeclaringType == null
             ? GetOrCreateNamespaceObject(resolved.Namespace!, module)!
@@ -186,5 +186,11 @@ public static class DotnetMembers
     public static DotnetFieldObject GetOrCreateFieldObject(FieldDefinition f, DotnetModuleObject module)
     {
         return new DotnetFieldObject(f, DotnetTypeToRef(f.Signature!.FieldType, module));
+    }
+
+    public static string NormalizeTypeName(string s)
+    {
+        var i = s.LastIndexOf('`');
+        return i == -1 ? s : s[..i];
     }
 }

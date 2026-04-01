@@ -3,7 +3,7 @@ using AsmResolver.DotNet;
 
 namespace Abstract.CodeProcess.Core.EvaluationData.LanguageObjects;
 
-public class DotnetTypeObject(TypeDefinition definition) : ContainerObject(null!, definition.Name!)
+public class DotnetTypeObject(string name, TypeDefinition definition) : ContainerObject(null!, name)
 {
     public readonly TypeDefinition Reference = definition;
     public DotnetTypeObject? ParentType = null;

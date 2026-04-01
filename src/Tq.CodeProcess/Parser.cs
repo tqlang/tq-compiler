@@ -57,7 +57,7 @@ public class Parser(ErrorHandler errHandler)
                 if (TryEatAsNode(TokenType.ExtendsKeyword, out var extends)) // extends
                 {
                     extendsImplements.AppendChild(extends);
-                    extendsImplements.AppendChild(ParseIdentifierAccess());
+                    extendsImplements.AppendChild(ParseExpression());
                     useExtendsImplements = true;
                 }
 
@@ -185,7 +185,7 @@ public class Parser(ErrorHandler errHandler)
 
                 node = new AttributeNode();
                 node.AppendChild(EatAsNode());
-                node.AppendChild(ParseIdentifierAccess());
+                node.AppendChild(ParseExpression());
 
                 if (Taste(TokenType.LeftParenthesisChar))
                     node.AppendChild(ParseArgumentCollection());
@@ -533,17 +533,7 @@ public class Parser(ErrorHandler errHandler)
             n.AppendChild(EatAsNode());
             node = n;
         }
-
-        while (Taste(
-                TokenType.LeftSquareBracketChar // [
-            ))
-        {
-            var n = new IndexExpressionNode();
-            n.AppendChild(node);
-            n.AppendChild(ParseIndexing());
-            node = n;
-        }
-
+        
         return node;
     }
 
@@ -588,24 +578,12 @@ public class Parser(ErrorHandler errHandler)
 
         switch (Bite().type)
         {
-            // Identifiers & function calls
+            // Identifiers
             case TokenType.Identifier or
             TokenType.DotChar:
             try
             {
-               
-                var identifier = recursive
-                    ? ParseSingleIdentifier()
-                    : ParseIdentifierAccess();
-
-                if (Taste(TokenType.LeftParenthesisChar))
-                {
-                    node = new FunctionCallExpressionNode();
-                    node.AppendChild(identifier);
-                    node.AppendChild(ParseArgumentCollection());
-                }
-                else node = identifier;
-
+                node = ParseSingleIdentifier();
             } catch { DiscardLine(); throw; }
             break;
             
@@ -681,7 +659,7 @@ public class Parser(ErrorHandler errHandler)
                     {
                         var i = new AssignmentExpressionNode();
 
-                        i.AppendChild(ParseIdentifierAccess());
+                        i.AppendChild(ParseExpression());
                         i.AppendChild(DietAsNode(TokenType.EqualsChar,
                             t => throw new Exception("Expected assignment operator")));
                         i.AppendChild(ParseExpression());
@@ -782,15 +760,42 @@ public class Parser(ErrorHandler errHandler)
             default: throw new Exception($"Unexpected token {Eat()}");
         }
 
-        while (TryEatAsNode(TokenType.DotChar, out var n))
+        if (recursive) goto skipRecursiveTests;
+        retryRecursiveTests:
         {
-            var newnode = new AccessNode();
-            newnode.AppendChild(node);
-            newnode.AppendChild(n);
-            newnode.AppendChild(ParseExpression());
-            node = newnode;
+            // Test for access
+            if (TryEatAsNode(TokenType.DotChar, out var n))
+            {
+                var newnode = new AccessNode();
+                newnode.AppendChild(node);
+                newnode.AppendChild(n);
+                newnode.AppendChild(ParseValue(true));
+                node = newnode;
+                goto retryRecursiveTests;
+            }
+
+            // Test for invoke
+            if (Taste(TokenType.LeftParenthesisChar))
+            {
+                var newnode = new FunctionCallExpressionNode();
+                newnode.AppendChild(node);
+                newnode.AppendChild(ParseArgumentCollection());
+                node = newnode;
+                goto retryRecursiveTests;
+            }
+
+            // Test for indexing
+            if (Taste(TokenType.LeftSquareBracketChar))
+            {
+                var newnode = new IndexExpressionNode();
+                newnode.AppendChild(node);
+                newnode.AppendChild(ParseIndexing());
+                node = newnode;
+                goto retryRecursiveTests;
+            }
         }
-        
+        skipRecursiveTests:
+
         return node;
     }
 
@@ -818,7 +823,7 @@ public class Parser(ErrorHandler errHandler)
     {
         var range = new RangeExpressionNode();
 
-        range.AppendChild(ParseIdentifierAccess()); // <identifier>
+        range.AppendChild(ParseExpression()); // <identifier>
         range.AppendChild(DietAsNode(TokenType.InKeyword, (t)
             => throw new Exception($"Unexpected token '{Bite()}'"))); // in
 
@@ -834,7 +839,7 @@ public class Parser(ErrorHandler errHandler)
         nodebase.AppendChild(DietAsNode(TokenType.FromKeyword, (t)
             => throw new Exception($"Unexpected token '{Bite()}'")));
 
-        nodebase.AppendChild(ParseIdentifierAccess());
+        nodebase.AppendChild(ParseExpression());
 
         nodebase.AppendChild(DietAsNode(TokenType.ImportKeyword, (t)
             => throw new Exception($"Unexpected token '{Bite()}'")));
@@ -851,10 +856,10 @@ public class Parser(ErrorHandler errHandler)
             {
                 var item = new ImportItemNode();
                 
-                item.AppendChild(ParseIdentifierAccess());
+                item.AppendChild(ParseExpression());
                 if (TryEatAsNode(TokenType.AsKeyword, out var asNode)) {
                     item.AppendChild(asNode);
-                    item.AppendChild(ParseIdentifierAccess());
+                    item.AppendChild(ParseExpression());
                 }
 
                 collection.AppendChild(item);
@@ -982,41 +987,7 @@ public class Parser(ErrorHandler errHandler)
         ti.AppendChild(ParseSingleIdentifier());
         return ti;
     }
-
-    private ExpressionNode ParseIdentifierAccess()
-    {
-        ExpressionNode node;
-
-        if (TryEatAsNode(TokenType.DotChar, out var n))
-        {
-            node = new AccessNode();
-            node.AppendChild(new ImplicitAccessNode());
-            node.AppendChild(n);
-            node.AppendChild(ParseExpression());
-        }
-        else node = ParseSingleIdentifier();
-
-
-        while (true)
-        {
-            switch (Bite().type)
-            {
-                case TokenType.DotChar:
-                {
-                    var newnode = new AccessNode();
-                    newnode.AppendChild(node);
-                    newnode.AppendChild(EatAsNode());
-                    newnode.AppendChild(ParseSingleIdentifier());
-                    node = newnode;
-                } break;
-                
-                default: goto loopbreak;
-            }
-        }
-        loopbreak:
-
-        return node;
-    }
+    
     private IdentifierNode ParseSingleIdentifier()
     {
         return new IdentifierNode(Diet(TokenType.Identifier, (e) => {}));

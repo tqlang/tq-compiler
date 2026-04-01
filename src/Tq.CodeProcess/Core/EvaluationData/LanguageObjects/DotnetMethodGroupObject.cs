@@ -2,9 +2,9 @@ using System.Text;
 
 namespace Abstract.CodeProcess.Core.EvaluationData.LanguageObjects;
 
-public class DotnetMethodGroupObject(string n) : LangObject(null!, n)
+public class DotnetMethodGroupObject(string n) : DotnetMemberObject(null!, n)
 {
-    public List<DotnetMethodObject> Overloads = [];
+    public readonly List<DotnetMethodObject> Overloads = [];
 
     public override string ToString()
     {

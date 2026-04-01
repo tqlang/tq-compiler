@@ -90,8 +90,12 @@ class Std.ProcessStatic extends System.Object {
 
 class Std.MemStatic extends System.Object {
 
-	method public static copy () System.Void {
-		IL_0000: ret
+	method public static copy (System.Object[] source, System.Object[] target) System.Void {
+		IL_0000: ldarg System.Object[] target
+		IL_0004: ldc.i4.0
+		IL_0005: call System.Span`1<!!0> System.MemoryExtensions::AsSpan<System.Object>(!!0[])
+		IL_000A: call System.Void System.Span`1::CopyTo(System.Span`1<!0>)
+		IL_000F: ret
 	}
 
 	method public static compare () System.Boolean {

@@ -1,5 +1,6 @@
+from Dotnet.System import { Span }
 @public()
-func copy () { }
+func copy ([]anytype source, []anytype target) { (source as Span).CopyTo(target as Span) }
 @public()
 func compare () bool { return False }
 

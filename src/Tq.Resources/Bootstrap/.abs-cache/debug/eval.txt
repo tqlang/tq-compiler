@@ -73,8 +73,8 @@ module Std {
 			}
 
 			; funcgroup copy
-			public static concrete func copy() void {
-
+			public static concrete func copy([]anytype, []anytype) void {
+				call Callable<CopyTo> (arg.01 as System.Span)
 			}
 
 
@@ -158,7 +158,7 @@ module Std {
 
 		Namespace 'Fs' ('Std.Fs') {
 			public instance concrete struct 'File' {
-				private instance concrete var '_filestream' *FileStream
+				private instance concrete var '_filestream' *System.IO.FileStream
 
 				; funcgroup close
 				private instance concrete func close() void {
@@ -166,7 +166,7 @@ module Std {
 				}
 
 
-				ctor(*FileStream) {
+				ctor(*System.IO.FileStream) {
 					self->Field<Std.Fs.File._filestream> = arg.00
 				}
 
@@ -187,7 +187,7 @@ module Std {
 			}
 
 			public instance concrete struct 'FileInfo' {
-				private instance concrete var '_fileInfo' *FileInfo
+				private instance concrete var '_fileInfo' *System.IO.FileInfo
 
 				public instance concrete var 'name' string
 
@@ -195,7 +195,7 @@ module Std {
 
 				public instance concrete var 'length' u64
 
-				ctor(*FileInfo) {
+				ctor(*System.IO.FileInfo) {
 					self->Field<Std.Fs.FileInfo._fileInfo> = arg.00
 					self->Field<Std.Fs.FileInfo.name> = call Callable<get_Name> (arg.00)
 					self->Field<Std.Fs.FileInfo.directory> = call Callable<get_DirectoryName> (arg.00)
@@ -204,13 +204,13 @@ module Std {
 
 			}
 
-			typedef(SeekOrigin) 'SeekOrigin' {
+			typedef(System.IO.SeekOrigin) 'SeekOrigin' {
 				case begin = Fld<Begin>,
 				case current = Fld<Current>,
 				case end = Fld<End>,
 			}
 
-			typedef(FileMode) 'FileMode' {
+			typedef(System.IO.FileMode) 'FileMode' {
 				case createNew = Fld<CreateNew>,
 				case create = Fld<Create>,
 				case open = Fld<Open>,
@@ -219,7 +219,7 @@ module Std {
 				case append = Fld<Append>,
 			}
 
-			typedef(FileAccess) 'FileAccess' {
+			typedef(System.IO.FileAccess) 'FileAccess' {
 				case RO = Fld<Read>,
 				case WO = Fld<Write>,
 				case RW = Fld<ReadWrite>,
@@ -227,7 +227,7 @@ module Std {
 
 			; funcgroup open
 			public static concrete func open(string) Struct<Std.Fs.File> {
-				$(00) Local 'filestream': *FileStream
+				$(00) Local 'filestream': *System.IO.FileStream
 				local.00 = new Callable<.ctor>(arg.00, FileMode.openOrCreate, FileAccess.RO)
 				ret new Callable<Std.Fs.File.constructor>(local.00)
 			}

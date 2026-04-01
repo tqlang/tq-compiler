@@ -281,7 +281,7 @@ public partial class Analyser
     private Suitability CalculateTypeSuitability(TypeReference typeTo, TypeReference typeFrom, bool allowImplicit)
     {
         switch (typeTo)
-        { 
+        {
             case AnytypeTypeReference: return Suitability.NeedsSoftCast;
             
             case RuntimeIntegerTypeReference intParam:
@@ -377,10 +377,25 @@ public partial class Analyser
                     default: return Suitability.None;
                 }
             }
-                
+
             case DotnetGenericTypeReference gd:
+            {
+                switch (typeTo)
+                {
+                    case DotnetGenericTypeReference dotnetType:
+                    {
+                        if (gd.Signature.GenericType == dotnetType.Signature.GenericType
+                            && gd.Signature.ElementType == dotnetType.Signature.ElementType)
+                            return Suitability.Perfect;
+                        return Suitability.None;
+                    }
+
+                    case SliceTypeReference when gd.Reference.Reference.FullName == "System.Span`1":
+                        return Suitability.NeedsSoftCast;
+                }
                 return Suitability.None;
-                
+            }
+
             default: throw new UnreachableException();
         }
     }

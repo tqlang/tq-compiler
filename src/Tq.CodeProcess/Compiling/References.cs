@@ -14,6 +14,7 @@ public partial class Compiler
         var objectType = ImportType(cl.Object);
         var stringType = ImportType(cl.String);
         var typeType = ImportType(typeof(Type));
+        var nullable = ImportType(typeof(Nullable<>));
         
         var valueType = ImportType(typeof(ValueType));
         var enumType = ImportType(typeof(Enum));
@@ -22,6 +23,8 @@ public partial class Compiler
         
         var runtimeTypeHandle = ImportType(typeof(RuntimeTypeHandle));
         var spanType = ImportType(typeof(Span<>));
+        
+        var memExtensions = ImportType(typeof(MemoryExtensions));
         
         // --- Object ---
         {
@@ -127,8 +130,31 @@ public partial class Compiler
 
             methods.TrimExcess();
         }
+        
+        // --- Mem Extensions ---
+        {
+            var (t, _, methods) = memExtensions;
+            
+            methods["AsSpan_i32"] = Static(t, "AsSpan", Gen(spanType.sig, Gm(0)), Arr(Gm(0)));
+
+            methods.TrimExcess();
+        }
+        
+        return;
+        IMethodDescriptor Inst(ITypeDefOrRef type, string name, TypeSignature ret, params TypeSignature[] args)
+        {
+            return CreateMethodRef(type, name, MethodSignature.CreateInstance(ret, args));
+        }
+        IMethodDescriptor Static(ITypeDefOrRef type, string name, TypeSignature ret, params TypeSignature[] args)
+        {
+            return CreateMethodRef(type, name, MethodSignature.CreateStatic(ret, args));
+        }
+        
+        TypeSignature Arr(TypeSignature element) => new SzArrayTypeSignature(element);
+        TypeSignature Nil(TypeSignature element) => new GenericInstanceTypeSignature(
+            nullable.sig.ToTypeDefOrRef(), true, element);
     }
- 
+    
     private (ITypeDefOrRef type, TypeSignature sig, Dictionary<string, IMethodDescriptor> methods) ImportType(string ns, string name)
     {
         var type = _module.DefaultImporter.ImportType(_module.CorLibTypeFactory.CorLibScope.CreateTypeReference(ns, name));
@@ -145,16 +171,8 @@ public partial class Compiler
         _coreLib.Add(type.FullName, (type, met));
         return (_module.DefaultImporter.ImportType(type.ToTypeDefOrRef()), type, met);
     }
-    
-    private IMethodDescriptor Inst(ITypeDefOrRef type, string name, TypeSignature ret, params TypeSignature[] args)
-    {
-        return CreateMethodRef(type, name, MethodSignature.CreateInstance(ret, args));
-    }
-    private IMethodDescriptor Static(ITypeDefOrRef type, string name, TypeSignature ret, params TypeSignature[] args)
-    {
-        return CreateMethodRef(type, name, MethodSignature.CreateStatic(ret, args));
-    }
 
-    private GenericParameterSignature Gt(int i) => new (GenericParameterType.Type, i);
-    private GenericParameterSignature Gm(int i) => new (GenericParameterType.Method, i);
+    GenericParameterSignature Gt(int i) => new (GenericParameterType.Type, i);
+    GenericParameterSignature Gm(int i) => new (GenericParameterType.Method, i);
+    GenericInstanceTypeSignature Gen(TypeSignature t, TypeSignature e) => new GenericInstanceTypeSignature(t.ToTypeDefOrRef(), t.IsValueType, e);
 }

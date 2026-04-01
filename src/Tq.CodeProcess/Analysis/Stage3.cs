@@ -547,7 +547,7 @@ public partial class Analyser
             {
                 return new IrConv(tcast,
                     UnwrapExecutionContext_Expression(tcast.Value, ctx),
-                    SolveTypeLazy(new UnsolvedTypeReference(tcast.TargetType), ctx, null));
+                    SolveTypeLazy(new UnsolvedTypeReference(tcast.TargetType), ctx, ctx.Parent));
             }
             
             case AccessNode @identc: return SolveReferenceChain(identc, ctx, null);
