@@ -1,9 +1,46 @@
 from Dotnet.System import { Span }
 
+@public func copy([]u8 source, []u8 target) {
+    while let i = 0 : i < source.len : i++ do target[i] = source[i]
+}
+@public func copy([]i8 source, []i8 target) {
+    while let i = 0 : i < source.len : i++ do target[i] = source[i]
+}
+@public func copy([]u16 source, []u16 target) {
+    while let i = 0 : i < source.len : i++ do target[i] = source[i]
+}
+@public func copy([]i16 source, []i16 target) {
+    while let i = 0 : i < source.len : i++ do target[i] = source[i]
+}
+@public func copy([]u32 source, []u32 target) {
+    while let i = 0 : i < source.len : i++ do target[i] = source[i]
+}
+@public func copy([]i32 source, []i32 target) {
+    while let i = 0 : i < source.len : i++ do target[i] = source[i]
+}
+@public func copy([]u64 source, []u64 target) {
+    while let i = 0 : i < source.len : i++ do target[i] = source[i]
+}
+@public func copy([]i64 source, []i64 target) {
+    while let i = 0 : i < source.len : i++ do target[i] = source[i]
+}
+@public func copy([]u128 source, []u128 target) {
+    while let i = 0 : i < source.len : i++ do target[i] = source[i]
+}
+@public func copy([]bool source, []bool target) {
+    while let i = 0 : i < source.len : i++ do target[i] = source[i]
+}
 @public func copy([]anytype source, []anytype target) {
-    (source as Span).CopyTo(target as Span)
+    while let i = 0 : i < source.len : i++ do target[i] = source[i]
 }
 
-@public func compare() bool {
-	return false
+@public func compare([]u8 a, []u8 b) bool {
+    if (a.len != b.len) return false
+	while let i = 0 : i < a.len : i++ do if (a[i] != b[i]) return false
+    return true
+}
+@public func compare([]anytype a, []anytype b) bool {
+    if (a.len != b.len) return false
+	while let i = 0 : i < a.len : i++ do if (a[i] != b[i]) return false
+    return true
 }

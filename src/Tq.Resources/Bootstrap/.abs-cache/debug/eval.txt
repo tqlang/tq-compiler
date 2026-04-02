@@ -2,25 +2,20 @@ module Bootstrap {
 	Namespace '' ('Bootstrap') {
 		; funcgroup main
 		public static concrete func main() void {
-			$(00) Local 'args': []string
-			$(01) Local 'fileName': string
-			$(02) Local 'newContent': string
-			$(03) Local 'oldContent': string
-			local.00 = call Callable<Std.Process.getProgramArguments> ()
-			if (cmp LessThan lenof local.00 (u64)3) {
-				call Callable<Std.Console.writeln> ((Undefined) "usage: write <filename> <content>")
-				call Callable<Std.Process.exit> ((u64)1)}
-
-			local.01 = local.00[(u64)1]
-			local.02 = local.00[(u64)2]
-			if (!call Callable<Std.Fs.fileExists> (local.01)) {
-				call Callable<Std.Console.writeln> (Add (Undefined) "file '", Add local.01, (Undefined) "' does not exist!")
-				call Callable<Std.Process.exit> ((u64)1)}
-
-			local.03 = call Callable<Std.Fs.readAllText> (local.01)
-			call Callable<Std.Console.write> ((Undefined) "Old content was: ")
-			call Callable<Std.Console.writeln> (local.03)
-			call Callable<Std.Fs.writeAllText> (local.01, local.02)
+			$(00) Local 'arr0': []u8
+			$(01) Local 'arr1': []u8
+			local.00 = []u8[(u8)10, (u8)20, (u8)30, (u8)40, (u8)50]
+			local.01 = []u8[(u8)0, (u8)0, (u8)0, (u8)0, (u8)0]
+			call Callable<Std.Console.writeln> ((Undefined) "Before:")
+			call Callable<Std.Console.writeln> (Add (Undefined) "arr0 ", Add local.00 as string, Add (Undefined) " (len ", Add lenof local.00 as string, (Undefined) ")")
+			call Callable<Std.Console.writeln> (Add (Undefined) "arr1 ", Add local.01 as string, Add (Undefined) " (len ", Add lenof local.01 as string, (Undefined) ")")
+			call Callable<Std.Mem.copy> (local.00, local.01)
+			call Callable<Std.Console.writeln> ((Undefined) "After:")
+			call Callable<Std.Console.writeln> (Add (Undefined) "arr0 ", Add local.00 as string, Add (Undefined) " (len ", Add lenof local.00 as string, (Undefined) ")")
+			call Callable<Std.Console.writeln> (Add (Undefined) "arr1 ", Add local.01 as string, Add (Undefined) " (len ", Add lenof local.01 as string, (Undefined) ")")
+			if (call Callable<Std.Mem.compare> (local.00, local.01)) {
+				call Callable<Std.Console.writeln> ((Undefined) "Arrays are equal!")} else {
+				call Callable<Std.Console.writeln> ((Undefined) "Error! arrays are not equal!")}
 		}
 
 
@@ -73,14 +68,96 @@ module Std {
 			}
 
 			; funcgroup copy
+			public static concrete func copy([]u8, []u8) void {
+				$(00) Local 'i': i64
+				while (cmp LessThan local.00 lenof arg.00) {
+					def { local.00 = (i64)0 }	step { local.00++ }	arg.01[local.00] = arg.00[local.00]}
+			}
+
+			public static concrete func copy([]i8, []i8) void {
+				$(00) Local 'i': i64
+				while (cmp LessThan local.00 lenof arg.00) {
+					def { local.00 = (i64)0 }	step { local.00++ }	arg.01[local.00] = arg.00[local.00]}
+			}
+
+			public static concrete func copy([]u16, []u16) void {
+				$(00) Local 'i': i64
+				while (cmp LessThan local.00 lenof arg.00) {
+					def { local.00 = (i64)0 }	step { local.00++ }	arg.01[local.00] = arg.00[local.00]}
+			}
+
+			public static concrete func copy([]i16, []i16) void {
+				$(00) Local 'i': i64
+				while (cmp LessThan local.00 lenof arg.00) {
+					def { local.00 = (i64)0 }	step { local.00++ }	arg.01[local.00] = arg.00[local.00]}
+			}
+
+			public static concrete func copy([]u32, []u32) void {
+				$(00) Local 'i': i64
+				while (cmp LessThan local.00 lenof arg.00) {
+					def { local.00 = (i64)0 }	step { local.00++ }	arg.01[local.00] = arg.00[local.00]}
+			}
+
+			public static concrete func copy([]i32, []i32) void {
+				$(00) Local 'i': i64
+				while (cmp LessThan local.00 lenof arg.00) {
+					def { local.00 = (i64)0 }	step { local.00++ }	arg.01[local.00] = arg.00[local.00]}
+			}
+
+			public static concrete func copy([]u64, []u64) void {
+				$(00) Local 'i': i64
+				while (cmp LessThan local.00 lenof arg.00) {
+					def { local.00 = (i64)0 }	step { local.00++ }	arg.01[local.00] = arg.00[local.00]}
+			}
+
+			public static concrete func copy([]i64, []i64) void {
+				$(00) Local 'i': i64
+				while (cmp LessThan local.00 lenof arg.00) {
+					def { local.00 = (i64)0 }	step { local.00++ }	arg.01[local.00] = arg.00[local.00]}
+			}
+
+			public static concrete func copy([]u128, []u128) void {
+				$(00) Local 'i': i64
+				while (cmp LessThan local.00 lenof arg.00) {
+					def { local.00 = (i64)0 }	step { local.00++ }	arg.01[local.00] = arg.00[local.00]}
+			}
+
+			public static concrete func copy([]bool, []bool) void {
+				$(00) Local 'i': i64
+				while (cmp LessThan local.00 lenof arg.00) {
+					def { local.00 = (i64)0 }	step { local.00++ }	arg.01[local.00] = arg.00[local.00]}
+			}
+
 			public static concrete func copy([]anytype, []anytype) void {
-				call Callable<CopyTo> (arg.01 as System.Span)
+				$(00) Local 'i': i64
+				while (cmp LessThan local.00 lenof arg.00) {
+					def { local.00 = (i64)0 }	step { local.00++ }	arg.01[local.00] = arg.00[local.00]}
 			}
 
 
 			; funcgroup compare
-			public static concrete func compare() bool {
-				ret false
+			public static concrete func compare([]u8, []u8) bool {
+				$(00) Local 'i': i64
+				if (cmp Inequality lenof arg.00 lenof arg.01) {
+					ret false}
+
+				while (cmp LessThan local.00 lenof arg.00) {
+					def { local.00 = (i64)0 }	step { local.00++ }	if (cmp Inequality arg.00[local.00] arg.01[local.00]) {
+						ret false}}
+
+				ret true
+			}
+
+			public static concrete func compare([]anytype, []anytype) bool {
+				$(00) Local 'i': i64
+				if (cmp Inequality lenof arg.00 lenof arg.01) {
+					ret false}
+
+				while (cmp LessThan local.00 lenof arg.00) {
+					def { local.00 = (i64)0 }	step { local.00++ }	if (cmp Inequality arg.00[local.00] arg.01[local.00]) {
+						ret false}}
+
+				ret true
 			}
 
 

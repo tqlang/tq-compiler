@@ -15,6 +15,7 @@ using Abstract.CodeProcess.Core.Language.SyntaxNodes.Base;
 using Abstract.CodeProcess.Core.Language.SyntaxNodes.Expression;
 using Abstract.CodeProcess.Core.Language.SyntaxNodes.Expression.TypeModifiers;
 using Abstract.CodeProcess.Core.Language.SyntaxNodes.Value;
+using AsmResolver.DotNet.Signatures.Types;
 
 namespace Abstract.CodeProcess;
 
@@ -175,6 +176,18 @@ public partial class Analyser
     /// <returns></returns>
     private IrExpression SolveTypeCast(TypeReference typeTo, IrExpression value, IrExpression origin, bool @explicit = false)
     {
+        switch (typeTo)
+        {
+            case DotnetTypeReference { Reference.Reference.FullName: "System.Span`1" } @span when value.Type is SliceTypeReference slice:
+            {
+                var elementType = slice.ElementType;
+                return new IrConv(origin.Origin, value, new DotnetGenericTypeReference(
+                    span.Reference,
+                    new GenericInstanceTypeSignature(span.Reference.Reference, true),
+                    [elementType]));
+            }
+        }
+        
         switch (value)
         {
             case IrIntegerLiteral @lit:
@@ -210,7 +223,7 @@ public partial class Analyser
             
             case IrCollectionLiteral clit when typeTo is SliceTypeReference @s:
             {
-                var elmtype = s.InternalType;
+                var elmtype = s.ElementType;
                 var items = clit.Items.Select(e => SolveTypeCast(elmtype, e)).ToArray();
                 return new IrCollectionLiteral(clit.Origin, elmtype, items);
             }
@@ -233,49 +246,7 @@ public partial class Analyser
                 return origin ?? value;
             
             default: throw new UnreachableException();
-    }
-        
-        // switch (typeTo)
-        // {
-        //     case RuntimeIntegerTypeReference typetoRi when value is IrIntegerLiteral @lit:
-        //         return new IrIntegerLiteral(lit.Origin, lit.Value, typetoRi);
-        //     
-        //     case RuntimeIntegerTypeReference typetoRi:
-        //     {
-        //         var valType = GetEffectiveTypeReference(value);
-        //         if (valType is not RuntimeIntegerTypeReference valueRi) return value;
-        //         
-        //         // If same type, do nothing
-        //         if (typetoRi.BitSize == valueRi.BitSize && typetoRi.Signed == valueRi.Signed) return value;
-        //         
-        //         // If pointer sized, delegate check for backend
-        //         else if (valueRi.PtrSized || typetoRi.PtrSized)
-        //             return new IRIntCast(value.Origin, value, typetoRi);
-        //
-        //         var val = valueRi;
-        //         var tar = typetoRi;
-        //         var o = value.Origin;
-        //
-        //         if (val.Signed == tar.Signed && val.BitSize == tar.BitSize) return value;
-        //         return new IRIntCast(o, value, tar);
-        //     }
-        //
-        //     case StringTypeReference typetoSr:
-        //     {
-        //         if (value is IRStringLiteral @sr)
-        //             return new IRStringLiteral(sr.Origin, typetoSr.Encoding, sr.Data);
-        //
-        //         else throw new Exception("TODO see how to handle this shit");
-        //     }
-        //     
-        //     case SliceTypeReference @s when value is IrCollectionLiteral @clit:
-        //     {
-        //         var elmtype = s.InternalType;
-        //         var items = clit.Items.Select(e => SolveTypeCast(elmtype, e)).ToArray();
-        //         return new IrCollectionLiteral(clit.Origin, elmtype, items);
-        //     }
-        // }
-        return origin ?? throw new UnreachableException();
+        }
     }
     
     private Suitability CalculateTypeSuitability(TypeReference typeTo, TypeReference typeFrom, bool allowImplicit)
@@ -338,8 +309,7 @@ public partial class Analyser
                     : Suitability.None;
             
             case SliceTypeReference @refe:
-                return typeFrom is SliceTypeReference @sliceArg 
-                       && CalculateTypeSuitability(refe.InternalType, sliceArg.InternalType, false) == Suitability.Perfect
+                return typeFrom is SliceTypeReference @sliceArg && IsAssignableTo(sliceArg.ElementType, refe.ElementType)
                     ? Suitability.Perfect
                     : Suitability.None;
 
@@ -385,10 +355,9 @@ public partial class Analyser
                     case DotnetGenericTypeReference dotnetType:
                     {
                         if (gd.Signature.GenericType == dotnetType.Signature.GenericType
-                            && gd.Signature.ElementType == dotnetType.Signature.ElementType)
+                            && IsAssignableTo(gd.Signature.TypeArguments[0], dotnetType.Signature.TypeArguments[0]))
                             return Suitability.Perfect;
-                        return Suitability.None;
-                    }
+                    } break;
 
                     case SliceTypeReference when gd.Reference.Reference.FullName == "System.Span`1":
                         return Suitability.NeedsSoftCast;
@@ -400,6 +369,39 @@ public partial class Analyser
         }
     }
 
+    // FIXME polymorphism
+    private bool IsAssignableTo(TypeReference typeFrom, TypeReference typeTo)
+    {
+        switch (typeTo)
+        {
+            case AnytypeTypeReference: return true;
+            
+            case SolvedStructTypeReference @toStruct:
+            {
+                if (typeFrom is SolvedStructTypeReference @fromStruct && toStruct == fromStruct) return true;
+            } break;
+
+            case DotnetTypeReference @toDotnet:
+            {
+                if (toDotnet.Reference.Reference.FullName == "System.Object") return true;
+                if (typeFrom is DotnetTypeReference @fromDotnet && fromDotnet.Reference == toDotnet.Reference) return true;
+            } break;
+
+            case RuntimeIntegerTypeReference @toRuntime when typeFrom is RuntimeIntegerTypeReference @fromRuntime:
+            {
+                if (toRuntime.Signed != fromRuntime.Signed) return false;
+                return toRuntime.Length >= fromRuntime.Length;
+            }
+        }
+        
+        return false;
+    }
+    private bool IsAssignableTo(TypeSignature typeFrom, TypeSignature typeTo)
+    {
+        if (typeTo.FullName == "System.Object") return true;
+        return typeFrom == typeTo;
+    }
+    
     private enum Suitability
     {
         None = 0,

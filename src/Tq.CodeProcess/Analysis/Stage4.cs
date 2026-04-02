@@ -583,7 +583,7 @@ public partial class Analyser
                 // FIXME put message here
                 if (node.Indices.Length != 1) throw new Exception("too much indices for this op");
                 node.Indices[0] = SolveTypeCast(new RuntimeIntegerTypeReference(false), node.Indices[0]);
-                node.ResultType = s.InternalType;
+                node.ResultType = s.ElementType;
             } break;
             
             case StringTypeReference:
@@ -627,10 +627,12 @@ public partial class Analyser
 
     private IrNode NodeSemaAnal_While(IRWhile node, IrBlockExecutionContextData ctx)
     {
+        ctx.PushFrame();
         if (node.Define != null) BlockSemaAnal(node.Define, ctx, false);
         node.Condition = (IrExpression)NodeSemaAnal(node.Condition, ctx);
         if (node.Step != null) BlockSemaAnal(node.Step, ctx);
         BlockSemaAnal(node.Process, ctx);
+        ctx.PopFrame();
         
         return node;
     }
@@ -663,8 +665,6 @@ public partial class Analyser
     /// </returns>
     private ISolvedOverloadResult SolveFunctionOverload(ICallable[] options, IrExpression[] arguments, SyntaxNode origin)
     {
-        var a = options[0];
-        
         ICallable? betterFound = null;
         var betterFoundSum = 0;
         Dictionary<ParameterObject, TypeReference>? betterFoundGenerics = null;
@@ -770,6 +770,11 @@ public partial class Analyser
                         ? new IrSolvedReference(origin, GetObjectReference(refe))
                         : new IRUnknownReference(origin),
                 
+                DotnetGenericTypeReference @dotnetGenericType
+                    => dotnetGenericType.Reference.SearchChild(accessName, SearchChildMode.OnlyStatic) is {} @refe
+                        ? new IrSolvedReference(origin, GetObjectReference(refe))
+                        : new IRUnknownReference(origin),
+                
                 SolvedNamespaceTypeReference @staticTypedef
                     => staticTypedef.Namespace.SearchChild(accessName, SearchChildMode.OnlyStatic) is {} @refe
                         ? new IrSolvedReference(origin, GetObjectReference(refe))
@@ -799,6 +804,7 @@ public partial class Analyser
     }
     private IrNode SolveReferenceLazy(IRUnknownReference node, IrBlockExecutionContextData? ctx, LangObject? reference)
     {
+      
         var syntaxNode = node.Origin;
         var parent = reference;
         if (ctx == null && parent == null) throw new UnreachableException();
@@ -882,7 +888,7 @@ public partial class Analyser
         switch (typeref)
         {
             case UnsolvedTypeReference @unsolved: typeref = SolveTypeLazy(new UnsolvedTypeReference(unsolved.SyntaxNode), null, obj); break;
-            case SliceTypeReference @slice: slice.InternalType = SolveTypeLazy2(@slice.InternalType, ctx, obj); break;
+            case SliceTypeReference @slice: slice.ElementType = SolveTypeLazy2(@slice.ElementType, ctx, obj); break;
             case ReferenceTypeReference @refer: refer.InternalType = SolveTypeLazy2(@refer.InternalType, ctx, obj); break;
             case NullableTypeReference @nullable: nullable.InternalType = SolveTypeLazy2(@nullable.InternalType, ctx, obj); break;
         }

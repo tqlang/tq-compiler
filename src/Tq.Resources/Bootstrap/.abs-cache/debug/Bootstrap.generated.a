@@ -1,6 +1,4 @@
-from Std.Console import
-from Std.Fs import
-from Std.Process import
+from Std import { Console , Fs , Mem }
 @public()
-func main () { let args = getProgramArguments() if (args.len < 3) { writeln("usage: write <filename> <content>") exit(1) } let fileName = args[1] let newContent = args[2] if (!fileExists(fileName)) { writeln("file '" + fileName + "' does not exist!") exit(1) } let oldContent = readAllText(fileName) write("Old content was: ") writeln(oldContent) writeAllText(fileName, newContent) }
+func main () { let []u8 arr0 = [ 10, 20, 30, 40, 50 ] let []u8 arr1 = [ 0, 0, 0, 0, 0 ] Console.writeln("Before:") Console.writeln("arr0 " + (arr0 as string) + " (len " + (arr0.len as string) + ")") Console.writeln("arr1 " + (arr1 as string) + " (len " + (arr1.len as string) + ")") Mem.copy(arr0, arr1) Console.writeln("After:") Console.writeln("arr0 " + (arr0 as string) + " (len " + (arr0.len as string) + ")") Console.writeln("arr1 " + (arr1 as string) + " (len " + (arr1.len as string) + ")") if (Mem.compare(arr0, arr1)) Console.writeln("Arrays are equal!") else Console.writeln("Error! arrays are not equal!") }
 

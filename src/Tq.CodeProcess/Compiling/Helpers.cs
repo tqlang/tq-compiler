@@ -78,7 +78,7 @@ public partial class Compiler
                 return b.IsValueType ? b.MakeByReferenceType() : b;
             }
             case SliceTypeReference @s:
-                return new SzArrayTypeSignature(TypeFromRef(s.InternalType));
+                return new SzArrayTypeSignature(TypeFromRef(s.ElementType));
             case GenericTypeReference @g:
                 return new GenericParameterSignature(_module, GenericParameterType.Method, g.Parameter.Index);
             
@@ -113,6 +113,12 @@ public partial class Compiler
             {
                 var imported = _module.DefaultImporter.ImportType(d.Reference.Reference);
                 return imported.ToTypeSignature();
+            }
+            case DotnetGenericTypeReference @dg:
+            {
+                var genericSignature = new GenericInstanceTypeSignature(
+                    dg.Reference.Reference, dg.Reference.IsValueType, dg.GenericArguments.Select(TypeFromRef).ToArray());
+                return _module.DefaultImporter.ImportTypeSignature(genericSignature);;
             }
             case SolvedNamespaceTypeReference { Namespace: DotnetStaticClassObject @staticClassObject }:
             {
@@ -196,7 +202,7 @@ public partial class Compiler
         
         private Parameter[] _args = args;
         private CilLocalVariable[] _locals = locals;
-        private Dictionary<TypeSignature, CilLocalVariable> _tmp = [];
+        private Dictionary<TypeSignature, Stack<CilLocalVariable>> _tmpPool = new();
 
         public void MarkLabel(CilInstructionLabel label) => label.Instruction = Gen.Add(CilOpCodes.Nop);
         
@@ -213,14 +219,22 @@ public partial class Compiler
         public Parameter GetArg(int i) => _args[i];
         public CilLocalVariable GetLoc(int i) => _locals[i];
 
+        
         public CilLocalVariable AllocTmp(TypeSignature type)
         {
-            if (_tmp.TryGetValue(type, out var tmp)) return tmp;
-            
+            if (_tmpPool.TryGetValue(type, out var stack) && stack.Count > 0) return stack.Pop();
             var l = new CilLocalVariable(type);
             Body.LocalVariables.Add(l);
-            _tmp.Add(type, l);
             return l;
+        }
+        public void FreeTmp(TypeSignature type, CilLocalVariable var)
+        {
+            if (!_tmpPool.TryGetValue(type, out var stack))
+            {
+                stack = new Stack<CilLocalVariable>();
+                _tmpPool[type] = stack;
+            }
+            stack.Push(var);
         }
         
     }

@@ -1,3 +1,4 @@
+using System.Text;
 using AsmResolver.DotNet;
 using AsmResolver.DotNet.Signatures;
 using AsmResolver.DotNet.Signatures.Types;
@@ -23,6 +24,9 @@ public partial class Compiler
         
         var runtimeTypeHandle = ImportType(typeof(RuntimeTypeHandle));
         var spanType = ImportType(typeof(Span<>));
+        var stringBuilder = ImportType(typeof(StringBuilder));
+        var iEnumerator = ImportType(typeof(IEnumerator<>));
+        var iEnumerable = ImportType(typeof(IEnumerable<>));
         
         var memExtensions = ImportType(typeof(MemoryExtensions));
         
@@ -30,6 +34,7 @@ public partial class Compiler
         {
             var (t, obj, methods) = objectType;
 
+            methods["Equals"] = Inst(t, "Equals", cl.Boolean, cl.String);
             methods["ToString"] = Inst(t, "ToString", cl.String);
             methods["MemberwiseClone"] = Inst(t, "MemberwiseClone", cl.Object);
             
@@ -42,9 +47,11 @@ public partial class Compiler
 
             methods["charAt"] = Inst(t, "get_Chars", cl.Char, cl.Int32);
             methods["Concat_s0_s1"] = Static(t, "Concat", str, str, str);
+            methods["Concat_s0_s1_s2"] = Static(t, "Concat", str, str, str, str);
             methods["Equals"] = Static(t, "Equals", cl.Boolean, str, str);
             methods["Substring"] = Inst(t, "Substring", str, cl.Int32, cl.Int32);
-
+            methods["Join_str_enum"] = GenStatic(t, "Join", str, 1, str, Enum(Gm(0)));
+            
             methods.TrimExcess();
         }
         
@@ -140,17 +147,42 @@ public partial class Compiler
             methods.TrimExcess();
         }
         
-        return;
-        IMethodDescriptor Inst(ITypeDefOrRef type, string name, TypeSignature ret, params TypeSignature[] args)
+        // --- StringBuilder ---
         {
-            return CreateMethodRef(type, name, MethodSignature.CreateInstance(ret, args));
-        }
-        IMethodDescriptor Static(ITypeDefOrRef type, string name, TypeSignature ret, params TypeSignature[] args)
-        {
-            return CreateMethodRef(type, name, MethodSignature.CreateStatic(ret, args));
+            var (t, sb, methods) = stringBuilder;
+            
+            methods["new"] = Inst(t, ".ctor", cl.Void);
+            methods["Append_char"] = Inst(t, "Append", sb, cl.Char);
+            methods["Append_str"] = Inst(t, "Append", sb, cl.String);
+            methods["get_Len"] = Inst(t, "get_Length", cl.Int32);
+            methods["set_Len"] = Inst(t, "set_Length", cl.Void, cl.Int32);
+            methods["ToString"] = Inst(t, "ToString", cl.String);
+
+            methods.TrimExcess();
         }
         
+        // --- IEnumerable ---
+        {
+            var (t, enumerable, methods) = iEnumerable;
+            
+            methods["GetEnumerator"] = Inst(t, "GetEnumerator", Enum(Gt(0)), Gen(iEnumerator.sig, Gt(0)));
+
+            methods.TrimExcess();
+        }
+        
+        return;
+        IMethodDescriptor Inst(ITypeDefOrRef type, string name, TypeSignature ret, params TypeSignature[] args)
+            => CreateMethodRef(type, name, MethodSignature.CreateInstance(ret, args));
+        IMethodDescriptor Static(ITypeDefOrRef type, string name, TypeSignature ret, params TypeSignature[] args)
+            => CreateMethodRef(type, name, MethodSignature.CreateStatic(ret, args));
+        IMethodDescriptor GenInst(ITypeDefOrRef type, string name, TypeSignature ret, int gargs, params TypeSignature[] args)
+            => CreateMethodRef(type, name, MethodSignature.CreateInstance(ret, gargs, args));
+        IMethodDescriptor GenStatic(ITypeDefOrRef type, string name, TypeSignature ret, int gargs, params TypeSignature[] args)
+            => CreateMethodRef(type, name, MethodSignature.CreateStatic(ret, gargs, args));
+        
         TypeSignature Arr(TypeSignature element) => new SzArrayTypeSignature(element);
+        TypeSignature Enum(TypeSignature element) => new GenericInstanceTypeSignature(
+            iEnumerable.sig.ToTypeDefOrRef(), false, element);
         TypeSignature Nil(TypeSignature element) => new GenericInstanceTypeSignature(
             nullable.sig.ToTypeDefOrRef(), true, element);
     }

@@ -26,8 +26,8 @@ public class ExecutionContextData(LangObject parent)
 
     public void PopBlock()
     {
-        var stackSize = _stack.Pop().stacklen;
-        Locals.RemoveRange(Locals.Count - stackSize, stackSize);
+        var baseIndex = _stack.Pop().stacklen;
+        Locals.RemoveRange(baseIndex, Locals.Count - baseIndex);
     }
 
 
@@ -35,7 +35,11 @@ public class ExecutionContextData(LangObject parent)
     {
         switch (_parent)
         {
-            case FunctionObject @func: func.AddLocal(local); break;
+            case FunctionObject @func:
+            {
+                func.AddLocal(local);
+                Locals.AddRange(local);
+            } break;
             default: throw new NotImplementedException();
         }
     }

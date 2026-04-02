@@ -372,7 +372,7 @@ public partial class Analyser
                     def = new IrBlock(@while.Children[defidx]);
                     ctx.PushBlock(def);
                     var res = UnwrapExecutionContext_Statement(@while.Children[defidx], ctx);
-                    if (res.include && res.node != null) def.Content.Add(res.node);
+                    if (res is { include: true, node: not null }) def.Content.Add(res.node);
                 }
                 if (stepidx != -1)
                 {
@@ -725,7 +725,7 @@ public partial class Analyser
                 return r;
             
             case SliceTypeReference @s:
-                s.InternalType = SolveTypeLazy(s.InternalType, ctx, obj);
+                s.ElementType = SolveTypeLazy(s.ElementType, ctx, obj);
                 return s;
         }
         

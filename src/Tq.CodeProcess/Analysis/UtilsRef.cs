@@ -52,7 +52,7 @@ public partial class Analyser
             switch (typeRef)
             {
                 case UnsolvedTypeReference @unsolv: unsolved = unsolv; return false;
-                case SliceTypeReference @slice: typeRef = slice.InternalType; continue;
+                case SliceTypeReference @slice: typeRef = slice.ElementType; continue;
                 case ReferenceTypeReference @refe: typeRef = refe.InternalType; continue;
                 case NullableTypeReference @nullable: typeRef = nullable.InternalType; continue;
                 
