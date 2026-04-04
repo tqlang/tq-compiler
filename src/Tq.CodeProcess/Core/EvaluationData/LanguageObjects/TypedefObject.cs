@@ -13,10 +13,10 @@ public class TypedefObject(SourceScript script, string n, TypeDefinitionNode syn
     IInternalModifier,
     IAbstractModifier
 {
-    bool IPublicModifier.Public { get; set; } = false;
-    bool IStaticModifier.Static { get; set; } = false;
-    bool IInternalModifier.Internal { get; set; } = false;
-    bool IAbstractModifier.Abstract { get; set; } = false;
+    public bool Public { get; set; } = false;
+    public bool Static { get; set; } = false;
+    public bool Internal { get; set; } = false;
+    public bool Abstract { get; set; } = false;
 
     public TypeReference? BackType = null;
     

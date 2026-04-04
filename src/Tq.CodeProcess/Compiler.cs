@@ -25,7 +25,8 @@ namespace Abstract.CodeProcess;
 
 public partial class Compiler
 {
-    private Dictionary<TqNamespaceObject, TypeDefinition> _namespacesMap = [];
+    private Dictionary<LangObject, LangObject?> _parentMap = [];
+    private Dictionary<LangObject, TypeDefinition> _namespacesMap = [];
     private Dictionary<ICallable, FunctionData> _functionsMap = [];
     private Dictionary<StructObject, StructData> _typesMap = [];
     private Dictionary<TypedefObject, EnumData> _enumsMap = [];
@@ -65,8 +66,9 @@ public partial class Compiler
         _assembly.Modules.Add(_module);
         
         LoadCoreLibResources();
+        LoadRuntimeHelpers();
         
-        foreach (var m in program.Modules) SearchRecursive(m);
+        foreach (var m in program.Modules) SearchRecursive(null, m);
         
         DeclareTypes();
         ResolveContent();
@@ -78,53 +80,84 @@ public partial class Compiler
         File.WriteAllText($".abs-out/{programName}.runtimeconfig.json", launchConfig);
     }
     
-    private void SearchRecursive(LangObject obj)
+    private void SearchRecursive(LangObject? parent, LangObject obj)
     {
         switch (obj)
         {
             case TqModuleObject @a:
+            {
                 if (a.Root == null) throw new Exception($"Module '{a.Name}'s root is null");
-                SearchRecursive(a.Root);
-                break;
+                
+                const TypeAttributes attributes = TypeAttributes.AnsiClass
+                                                  | TypeAttributes.Class
+                                                  | TypeAttributes.Sealed
+                                                  | TypeAttributes.Public
+                                                  | TypeAttributes.Abstract;
+                
+                var namespaceDef = new TypeDefinition(a.Name, a.Name, attributes, _coreLib["System.Object"].t.ToTypeDefOrRef());
+                _module.TopLevelTypes.Add(namespaceDef);
+                _namespacesMap.Add(a, namespaceDef);
+                
+                _parentMap.Add(a, null);
+                SearchRecursive(a, a.Root);
+            } break;
             case DotnetModuleObject: return;
-
+            
             case TqNamespaceObject @a:
             {
-                var attributes = TypeAttributes.AnsiClass
-                                 | TypeAttributes.Class
-                                 | TypeAttributes.Sealed
-                                 | TypeAttributes.Public
-                                 | TypeAttributes.Abstract;
+                if (a.Name == "")
+                {
+                    foreach (var i in a.Fields) SearchRecursive(parent, i);
+                    foreach (var i in a.Structs) SearchRecursive(parent, i);
+                    foreach (var i in a.Typedefs) SearchRecursive(parent, i);
+                    foreach (var i in a.Functions) SearchRecursive(parent, i);
+                    foreach (var i in a.Namespaces) SearchRecursive(parent, i);
+                    return;
+                }
 
-                var isroot = string.IsNullOrEmpty(a.Name);
-                var name = a.Name + "Static";
-                var nmsp = isroot ? obj.Module!.Name : string.Join('.', a.Global[0..^1]);
+                const TypeAttributes attributes = TypeAttributes.AnsiClass
+                                                  | TypeAttributes.Class
+                                                  | TypeAttributes.Sealed
+                                                  | TypeAttributes.Abstract
+                                                  | TypeAttributes.NestedPublic;
                 
-                var moduledef = new TypeDefinition(nmsp, name, attributes, _coreLib["System.Object"].t.ToTypeDefOrRef());
-                _module.TopLevelTypes.Add(moduledef);
-                _namespacesMap.Add(a, moduledef);
+                var p = parent switch
+                {
+                    TqNamespaceObject @tqno => _namespacesMap[tqno],
+                    TqModuleObject @tqmo => _namespacesMap[tqmo],
+                    _ =>  throw new UnreachableException()
+                };
                 
-                foreach (var i in a.Fields) SearchRecursive(i);
-                foreach (var i in a.Structs) SearchRecursive(i);
-                foreach (var i in a.Typedefs) SearchRecursive(i);
-                foreach (var i in a.Functions) SearchRecursive(i);
-                foreach (var i in a.Namespaces) SearchRecursive(i);
+                var namespaceDef = new TypeDefinition(null, a.Name, attributes, _coreLib["System.Object"].t.ToTypeDefOrRef());
+                p.NestedTypes.Add(namespaceDef);
+                _namespacesMap.Add(a, namespaceDef);
+                
+                foreach (var i in a.Fields) SearchRecursive(a, i);
+                foreach (var i in a.Structs) SearchRecursive(a, i);
+                foreach (var i in a.Typedefs) SearchRecursive(a, i);
+                foreach (var i in a.Functions) SearchRecursive(a, i);
+                foreach (var i in a.Namespaces) SearchRecursive(a, i);
             } break;
 
             case FieldObject @a:
+                _parentMap.Add(a, parent);
                 _fieldsMap.Add(a, null!);
                 break;
             
             case FunctionGroupObject @a:
                 foreach (var i in a.Overloads)
+                {
+                    _parentMap.Add(i, parent);
                     _functionsMap.Add(i, null!);
-                break;
+                } break;
 
             case StructObject @a:
+                _parentMap.Add(a, parent);
                 _typesMap.Add(a, null!);
                 break;
             
             case TypedefObject @a:
+                _parentMap.Add(a, parent);
                 _enumsMap.Add(a, null!);
                 break;
             
@@ -138,16 +171,16 @@ public partial class Compiler
     
     private void DeclareTypes()
     {
-        foreach (var (k, v) in _typesMap)
+        foreach (var (k, _) in _typesMap)
         {
-            var newstruct = DeclareType(k);
-            _typesMap[k] = newstruct;
+            var declaredType = DeclareType(ResolveParent(k), k);
+            _typesMap[k] = declaredType;
         }
 
-        foreach (var (k, v) in _enumsMap)
+        foreach (var (k, _) in _enumsMap)
         {
-            var enumdata = DeclareTypedef(k);
-            _enumsMap[k] = enumdata;
+            var declareTypedef = DeclareTypedef(ResolveParent(k), k);
+            _enumsMap[k] = declareTypedef;
         }
     }
 
@@ -155,11 +188,11 @@ public partial class Compiler
     {
         foreach (var (k, _) in _functionsMap)
         {
-            var parent = _namespacesMap[((LangObject)k).Namespace!];
+            var parent = ResolveParent((LangObject)k);
             var fun = k switch
             {
-                FunctionObject @f => DeclareFunction(f, parent),
-                ConstructorObject @c => DeclareCtor(c, parent), 
+                FunctionObject @f => DeclareFunction(f, parent!),
+                ConstructorObject @c => DeclareCtor(c, parent!), 
                 _ => throw new NotImplementedException(),
             };
             _functionsMap[k] = fun;
@@ -184,13 +217,13 @@ public partial class Compiler
             foreach (var i in k.Fields)
             {
                 var f = DeclareField(i, v.Type);
-                _fieldsMap.Add(i, f);
+                _fieldsMap[i] = f;
             }
             
             foreach (var i in k.Constructors)
             {
                 var f = DeclareCtor(i, v.Type);
-                _functionsMap.Add(i, f);
+                _functionsMap[i] = f;
             }
             
             foreach (var i in k.Destructors)
@@ -227,7 +260,7 @@ public partial class Compiler
             var body = new CilMethodBody(staticCtor);
             staticCtor.CilMethodBody = body;
             
-            foreach (var i in k.Fields)
+            if (k is TqNamespaceObject @namespace) foreach (var i in @namespace.Fields)
             {
                 if (i.Value == null) continue;
                 var fieldDef = _fieldsMap[i];
@@ -282,35 +315,39 @@ public partial class Compiler
     }
 
 
-    private StructData DeclareType(StructObject structobj)
+    private StructData DeclareType(TypeDefinition? parent, StructObject structObj)
     {
-        var nmsp = string.Join('.', structobj.Global[0..^1]);
-        var name = structobj.Name;
+        var name = structObj.Name;
 
         var attributes = TypeAttributes.AnsiClass;
 
-        if (structobj.Public) attributes |= TypeAttributes.Public;
-        if (structobj.Abstract) attributes |= TypeAttributes.Abstract;
-        if (structobj.Final) attributes |= TypeAttributes.Sealed;
+        if (structObj.Public) attributes |= TypeAttributes.NestedPublic;
+        else if (parent != null) attributes |= TypeAttributes.NestedPrivate;
+        if (structObj.Abstract) attributes |= TypeAttributes.Abstract;
+        if (structObj.Final) attributes |= TypeAttributes.Sealed;
 
-        var typedef = new TypeDefinition(nmsp, name, attributes, _coreLib["System.ValueType"].t.ToTypeDefOrRef());
-        typedef.ClassLayout = new ClassLayout((ushort)structobj.Alignment!.Value.Bytes, (uint)structobj.Length!.Value.Bytes);
-        _module.TopLevelTypes.Add(typedef);
+        var typedef = new TypeDefinition("", name, attributes, _coreLib["System.ValueType"].t.ToTypeDefOrRef());
+        typedef.ClassLayout = new ClassLayout((ushort)structObj.Alignment!.Value.Bytes, (uint)structObj.Length!.Value.Bytes);
+        
+        parent!.NestedTypes.Add(typedef);
         
         return new StructData(typedef);
     }
-    private EnumData DeclareTypedef(TypedefObject typedefobj)
+    private EnumData DeclareTypedef(TypeDefinition? parent, TypedefObject typedefObj)
     {
-        var ns = string.Join('.', typedefobj.Global[0..^1]);
-        var name = typedefobj.Name;
+        var ns = string.Join('.', typedefObj.Global[0..^1]);
+        var name = typedefObj.Name;
 
         var attributes = TypeAttributes.AnsiClass
                          | TypeAttributes.Sealed;
-
+        
+        if (typedefObj.Public) attributes |= parent == null ? TypeAttributes.Public : TypeAttributes.NestedPublic;
+        else if (parent != null) attributes |= TypeAttributes.NestedPrivate;
+        
         bool isPrimitiveType;
         TypeSignature valueType;
         
-        switch (typedefobj.BackType)
+        switch (typedefObj.BackType)
         {
             case null:
                 valueType = _corLibFactory.Int64;
@@ -333,7 +370,7 @@ public partial class Compiler
                     2 => s ? _corLibFactory.Int16 : _corLibFactory.UInt16,
                     4 => s ? _corLibFactory.Int32 : _corLibFactory.UInt32,
                     8 => s ? _corLibFactory.Int64 : _corLibFactory.UInt64,
-                    _ => throw new ArgumentOutOfRangeException(nameof(typedefobj.BackType), typedefobj.BackType, null)
+                    _ => throw new ArgumentOutOfRangeException(nameof(typedefObj.BackType), typedefObj.BackType, null)
                 };
                 break;
             }
@@ -343,14 +380,16 @@ public partial class Compiler
                 break;
             default:
                 isPrimitiveType = false;
-                valueType = TypeFromRef(typedefobj.BackType);
+                valueType = TypeFromRef(typedefObj.BackType);
                 break;
         }
 
+        TypeDefinition enumType;
+        EnumData enumData;
+        
         if (isPrimitiveType)
         {
-            var enumType = new TypeDefinition(ns, name, attributes, _coreLib["System.Enum"].t.ToTypeDefOrRef());
-            _module.TopLevelTypes.Add(enumType);
+            enumType = new TypeDefinition(ns, name, attributes, _coreLib["System.Enum"].t.ToTypeDefOrRef());
 
             var valueField = new FieldDefinition(
                 "value__",
@@ -359,12 +398,12 @@ public partial class Compiler
             );
             enumType.Fields.Add(valueField);
 
-            var enumData = new EnumData(enumType, valueField);
+            enumData = new EnumData(enumType, valueField);
 
             List<(FieldDefinition, TypedefNamedValue)> fieldsWithDefaultValue = [];
             List<FieldDefinition> fieldsWithoutDefaultValue = [];
             
-            foreach (var value in typedefobj.NamedValues)
+            foreach (var value in typedefObj.NamedValues)
             {
                 var itemField = new FieldDefinition(
                     value.Name,
@@ -460,13 +499,10 @@ public partial class Compiler
                 }
                 i.Constant = new Constant(valueType.ElementType, new DataBlobSignature(bytes.ToArray()));
             }
-        
-            return enumData;
         }
         else
         {
-            var enumType = new TypeDefinition(ns, name, attributes, _corLibFactory.Object.ToTypeDefOrRef());
-            _module.TopLevelTypes.Add(enumType);
+            enumType = new TypeDefinition(ns, name, attributes, _corLibFactory.Object.ToTypeDefOrRef());
 
             var valueField = new FieldDefinition(
                 "value__",
@@ -475,19 +511,19 @@ public partial class Compiler
             );
             enumType.Fields.Add(valueField);
             
-            MethodAttributes attributes2 = MethodAttributes.HideBySig
-                                          | MethodAttributes.SpecialName
-                                          | MethodAttributes.RuntimeSpecialName
-                                          | MethodAttributes.Static;
-            var sig = MethodSignature.CreateInstance(_corLibFactory.Void);
+            const MethodAttributes attributes2 = MethodAttributes.HideBySig
+                                                 | MethodAttributes.SpecialName
+                                                 | MethodAttributes.RuntimeSpecialName
+                                                 | MethodAttributes.Static;
+            var sig = MethodSignature.CreateStatic(_corLibFactory.Void);
             var staticCtor = new MethodDefinition(".cctor", attributes2, sig);
             enumType.Methods.Add(staticCtor);
-            
-            var enumData = new EnumData(enumType, valueField);
 
+            enumData = new EnumData(enumType, valueField);
+            
             Dictionary<TypedefNamedValue, FieldDefinition> namedValues = [];
             
-            foreach (var value in typedefobj.NamedValues)
+            foreach (var value in typedefObj.NamedValues)
             {
                 var itemField = new FieldDefinition(
                     value.Name,
@@ -505,12 +541,16 @@ public partial class Compiler
                 // TODO implement static constructor
                 throw new NotImplementedException();
             }
-        
-            return enumData;
+            
         }
+        
+        if (parent != null) parent.NestedTypes.Add(enumType);
+        else _module.TopLevelTypes.Add(enumType);
+        
+        return enumData;
     }
         
-    private FunctionData DeclareCtor(ConstructorObject ctorobj, ITypeDefOrRef parent)
+    private FunctionData DeclareCtor(ConstructorObject ctorObj, ITypeDefOrRef parent)
     {
         if (parent is not TypeDefinition @parentTypedef) throw new ArgumentNullException(nameof(parent));
         
@@ -520,8 +560,8 @@ public partial class Compiler
                          | MethodAttributes.SpecialName
                          | MethodAttributes.RuntimeSpecialName;
         
-        var argTypes = ctorobj.Parameters.Select(p => TypeFromRef(p.Type));
-        var argDefs = ctorobj.Parameters
+        var argTypes = ctorObj.Parameters.Select(p => TypeFromRef(p.Type));
+        var argDefs = ctorObj.Parameters
             .Select((p, i) => new ParameterDefinition((ushort)(i + 1), p.Name, 0));
 
         var sig = MethodSignature.CreateInstance(_corLibFactory.Void, argTypes);
@@ -577,19 +617,34 @@ public partial class Compiler
         if (funcObj.Name == "main") _module.ManagedEntryPointMethod = m;
         return new FunctionData(m);
     }
-    private FieldDefinition DeclareField(FieldObject fieldobj, ITypeDefOrRef parent)
+    private FieldDefinition DeclareField(FieldObject fieldObj, ITypeDefOrRef parent)
     {
         if (parent is not TypeDefinition @parentTypedef) throw new ArgumentNullException(nameof(parent));
         
         FieldAttributes attributes = 0;
         
-        if (fieldobj.Public) attributes |= FieldAttributes.Public;
-        if (fieldobj.Static) attributes |= FieldAttributes.Static;
+        if (fieldObj.Public) attributes |= FieldAttributes.Public;
+        if (fieldObj.Static) attributes |= FieldAttributes.Static;
         
-        var sig = new FieldSignature(CallingConventionAttributes.Default, TypeFromRef(fieldobj.Type));
-        var f = new FieldDefinition(fieldobj.Name, attributes, sig);
+        var sig = new FieldSignature(CallingConventionAttributes.Default, TypeFromRef(fieldObj.Type));
+        var f = new FieldDefinition(fieldObj.Name, attributes, sig);
         parentTypedef.Fields.Add(f);
         return f;
     }
     
+    
+    private TypeDefinition? ResolveParent(LangObject? obj)
+    {
+        if (obj == null) return null;
+        var parent = _parentMap[obj];
+
+        return parent switch
+        {
+            null => null,
+            TqModuleObject m => _namespacesMap[m],
+            TqNamespaceObject ns => _namespacesMap[ns],
+            StructObject st => _typesMap[st].Def,
+            _ => throw new NotImplementedException($"Unsupported darent {parent!.GetType()}")
+        };
+    }
 }

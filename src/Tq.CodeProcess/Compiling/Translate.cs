@@ -75,6 +75,16 @@ public partial class Compiler
                 var signed = ((RuntimeIntegerTypeReference)intlit.Type!).Signed;
                 switch (intlit.Size)
                 {
+                    // case <= 8:
+                    //     ctx.Gen.Add(CilOpCodes.Ldc_I4_S, (short)intlit.Value);
+                    //     ctx.Gen.Add(CilOpCodes.Conv_I1);
+                    //     ctx.StackPush(signed ? _corLibFactory.SByte : _corLibFactory.Byte);
+                    //     break;
+                    // case <= 16:
+                    //     ctx.Gen.Add(CilOpCodes.Ldc_I4_S, (short)intlit.Value);
+                    //     ctx.Gen.Add(CilOpCodes.Conv_I2);
+                    //     ctx.StackPush(signed ? _corLibFactory.Int16 : _corLibFactory.UInt16);
+                    //     break;
                     case <= 32:
                         ctx.Gen.Add(CilInstruction.CreateLdcI4((int)intlit.Value));
                         ctx.StackPush(signed ? _corLibFactory.Int32 : _corLibFactory.UInt32);
@@ -117,8 +127,7 @@ public partial class Compiler
                     } break;
                     default: throw new UnreachableException();
                 }
-                
-            } break;
+                } break;
             case IRBooleanLiteral @boollit:
                 if (ignoreValue) return;
                 ctx.Gen.Add(boollit.Value ? CilOpCodes.Ldc_I4_1 : CilOpCodes.Ldc_I4_0);
@@ -149,7 +158,24 @@ public partial class Compiler
                     ctx.Gen.Add(CilOpCodes.Dup);
                     ctx.Gen.Add(CilInstruction.CreateLdcI4(index++));
                     CompileIrNodeLoad(i, false, ctx);
-                    ctx.Gen.Add(CilOpCodes.Stelem, elmtype.ToTypeDefOrRef());
+                    switch (elmtype)
+                    {
+                        case CorLibTypeSignature @clt:
+                        {
+                            switch (clt.ElementType)
+                            {
+                                case ElementType.I or ElementType.U: ctx.Gen.Add(CilOpCodes.Stelem_I); break;
+                                case ElementType.I1 or ElementType.U1: ctx.Gen.Add(CilOpCodes.Stelem_I1); break;
+                                case ElementType.I2 or ElementType.U2: ctx.Gen.Add(CilOpCodes.Stelem_I2); break;
+                                case ElementType.I4 or ElementType.U4: ctx.Gen.Add(CilOpCodes.Stelem_I4); break;
+                                case ElementType.I8 or ElementType.U8: ctx.Gen.Add(CilOpCodes.Conv_I8); break;
+                                case ElementType.R4: ctx.Gen.Add(CilOpCodes.Stelem_R4); break;
+                                case ElementType.R8: ctx.Gen.Add(CilOpCodes.Stelem_R8); break;
+                                default: ctx.Gen.Add(CilOpCodes.Stelem, elmtype.ToTypeDefOrRef()); break;
+                            }
+                        } break;
+                        default: ctx.Gen.Add(CilOpCodes.Stelem, elmtype.ToTypeDefOrRef()); break;
+                    }
                     ctx.StackPop();
                 }
             } break;

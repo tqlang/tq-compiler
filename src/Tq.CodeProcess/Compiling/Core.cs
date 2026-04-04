@@ -186,6 +186,10 @@ public partial class Compiler
         TypeSignature Nil(TypeSignature element) => new GenericInstanceTypeSignature(
             nullable.sig.ToTypeDefOrRef(), true, element);
     }
+    private void LoadRuntimeHelpers()
+    {
+        
+    }
     
     private (ITypeDefOrRef type, TypeSignature sig, Dictionary<string, IMethodDescriptor> methods) ImportType(string ns, string name)
     {
