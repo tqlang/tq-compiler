@@ -14,6 +14,9 @@ func write(i128 value) void {
 func write(u128 value) void {
     Console.Write(value as string)
 }
+func write([]anytype value) void {
+    Console.Write(value as string)
+}
 func write(string value) void {
     Console.Write(value)
 }
@@ -28,6 +31,9 @@ func writeln(i128 value) void {
     Console.WriteLine(value as string)
 }
 func writeln(u128 value) void {
+    Console.WriteLine(value as string)
+}
+func writeln([]anytype value) void {
     Console.WriteLine(value as string)
 }
 func writeln(string value) void {

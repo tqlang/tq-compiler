@@ -266,88 +266,14 @@ public partial class Compiler
                         {
                             case SliceTypeReference @slice:
                             {
-                                var stringBuilder = _coreLib["System.Text.StringBuilder"];
                                 var elmType = TypeFromRef(slice.ElementType);
-                                
-                                var tmpSb = ctx.AllocTmp(stringBuilder.t);
-                                var tmpI = ctx.AllocTmp(_corLibFactory.Int32);
-                                var tmpLen = ctx.AllocTmp(_corLibFactory.Int32);
-                                
-                                var sb_new = stringBuilder.m["new"];
-                                var sb_append_c = stringBuilder.m["Append_char"];
-                                var sb_append_s = stringBuilder.m["Append_str"];
-                                var sb_tostr = stringBuilder.m["ToString"];
-                                
-                                var loopLbl = new CilInstructionLabel();
-                                var checkLbl = new CilInstructionLabel();
-                                var skipLbl = new CilInstructionLabel();
-                                
-                                ctx.Gen.Add(CilOpCodes.Newobj, sb_new);
-                                ctx.Gen.Add(CilOpCodes.Dup);
-                                ctx.Gen.Add(CilOpCodes.Stloc, tmpSb);
-                                
-                                ctx.Gen.Add(CilOpCodes.Ldc_I4_S, (byte)'[');
-                                ctx.Gen.Add(CilOpCodes.Call, sb_append_c);
-                                ctx.Gen.Add(CilOpCodes.Pop);
-                                
-                                ctx.Gen.Add(CilOpCodes.Ldc_I4_0);
-                                ctx.Gen.Add(CilOpCodes.Stloc, tmpI);
+                                var methodSpec = ctx.Importer.ImportMethod(
+                                    new MethodSpecification(_runtimeHelpers["Array_AsString"],
+                                    new GenericInstanceMethodSignature(elmType)));
                                 
                                 CompileIrNodeLoad(c.Expression, false, ctx);
                                 ctx.StackPop();
-                                ctx.Gen.Add(CilOpCodes.Ldlen);
-                                ctx.Gen.Add(CilOpCodes.Dup);
-                                ctx.Gen.Add(CilOpCodes.Stloc, tmpLen);
-                                ctx.Gen.Add(CilOpCodes.Brfalse, skipLbl);
-                                
-                                ctx.Gen.Add(CilOpCodes.Br, checkLbl);
-                                // loop body
-                                {
-                                    loopLbl.Instruction = ctx.Gen.Add(CilOpCodes.Ldloc, tmpSb);
-                                    CompileIrNodeLoad(c.Expression, false, ctx);
-                                    ctx.StackPop();
-                                    ctx.Gen.Add(CilOpCodes.Ldloc, tmpI);
-                                    ctx.Gen.Add(CilOpCodes.Ldelem, elmType.ToTypeDefOrRef());
-                                    ctx.Gen.Add(CilOpCodes.Box, elmType.ToTypeDefOrRef());
-                                    ctx.Gen.Add(CilOpCodes.Callvirt, _coreLib["System.Object"].m["ToString"]);
-                                    ctx.Gen.Add(CilOpCodes.Call, sb_append_s);
-                                    
-                                    ctx.Gen.Add(CilOpCodes.Ldstr, ", ");
-                                    ctx.Gen.Add(CilOpCodes.Call, sb_append_s);
-                                    ctx.Gen.Add(CilOpCodes.Pop);
-                                    
-                                    ctx.Gen.Add(CilOpCodes.Ldloc, tmpI);
-                                    ctx.Gen.Add(CilOpCodes.Ldc_I4_1);
-                                    ctx.Gen.Add(CilOpCodes.Add);
-                                    ctx.Gen.Add(CilOpCodes.Stloc, tmpI);
-                                }
-                                
-                                // loop check
-                                {
-                                    checkLbl.Instruction = ctx.Gen.Add(CilOpCodes.Ldloc, tmpI);
-                                    ctx.Gen.Add(CilOpCodes.Ldloc, tmpLen);
-                                    ctx.Gen.Add(CilOpCodes.Blt, loopLbl);
-                                }
-                                
-                                ctx.Gen.Add(CilOpCodes.Ldloc, tmpSb);
-                                //ctx.Gen.Add(CilOpCodes.Dup);
-                                ctx.Gen.Add(CilOpCodes.Dup);
-                                ctx.Gen.Add(CilOpCodes.Call, stringBuilder.m["get_Len"]);
-                                ctx.Gen.Add(CilOpCodes.Ldc_I4_2);
-                                ctx.Gen.Add(CilOpCodes.Sub);
-                                ctx.Gen.Add(CilOpCodes.Call, stringBuilder.m["set_Len"]);
-                                
-                                skipLbl.Instruction = ctx.Gen.Add(CilOpCodes.Ldloc, tmpSb);
-                                ctx.Gen.Add(CilOpCodes.Ldc_I4_S, (byte)']');
-                                ctx.Gen.Add(CilOpCodes.Call, sb_append_c);
-                                
-                                ctx.Gen.Add(CilOpCodes.Call, sb_tostr);
-                                ctx.StackPush(_corLibFactory.String);
-
-                                ctx.FreeTmp(stringBuilder.t, tmpSb);
-                                ctx.FreeTmp(_corLibFactory.Int32, tmpI);
-                                ctx.FreeTmp(_corLibFactory.Int32, tmpLen);
-                                
+                                ctx.Gen.Add(CilOpCodes.Call, methodSpec);
                             } break;
                             default:
                             {
@@ -356,9 +282,9 @@ public partial class Compiler
                                 ctx.StackPop();
                                 ctx.Gen.Add(CilOpCodes.Box, baseTypeRef.ToTypeDefOrRef());
                                 ctx.Gen.Add(CilOpCodes.Callvirt, _coreLib["System.Object"].m["ToString"]);
-                                ctx.StackPush(_corLibFactory.String);
                             } break;
                         }
+                        ctx.StackPush(_corLibFactory.String);
                     } break;
 
                     case RuntimeIntegerTypeReference @targt:

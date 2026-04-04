@@ -37,7 +37,8 @@ public partial class Compiler
     
     private CorLibTypeFactory _corLibFactory;
     private Dictionary<string, (TypeSignature t, Dictionary<string, IMethodDescriptor> m)> _coreLib = [];
-
+    private Dictionary<string, IMethodDefOrRef> _runtimeHelpers = [];
+    
     private string launchConfig = 
         """
         {
@@ -64,16 +65,17 @@ public partial class Compiler
         _module = new ModuleDefinition(programName, program.AssemblyResolver.CorLibReference)
         { MetadataResolver = new DefaultMetadataResolver(program.AssemblyResolver) };
         _assembly.Modules.Add(_module);
+        _module.TopLevelTypes.Clear();
         
         LoadCoreLibResources();
         LoadRuntimeHelpers();
         
-        foreach (var m in program.Modules) SearchRecursive(null, m);
+         foreach (var m in program.Modules) SearchRecursive(null, m);
         
-        DeclareTypes();
-        ResolveContent();
-        ImplementFieldInitializers();
-        ImplementMethods();
+         DeclareTypes();
+         ResolveContent();
+         ImplementFieldInitializers();
+         ImplementMethods();
         
         DumpModule();
         _module.Write($".abs-out/{programName}.dll");
@@ -608,7 +610,7 @@ public partial class Compiler
         sig.GenericParameterCount = generics.Count;
         sig.IsGeneric = generics.Count > 0;
         
-        var m = new MethodDefinition(name, attributes, sig) { IsStatic = funcObj.Static};
+        var m = new MethodDefinition(name, attributes, sig) { IsStatic = funcObj.Static };
         foreach (var i in generics) m.GenericParameters.Add(i);
         
         foreach (var i in parameterDefinitions) m.ParameterDefinitions.Add(i);

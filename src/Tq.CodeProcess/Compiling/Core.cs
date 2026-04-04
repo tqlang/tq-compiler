@@ -1,7 +1,11 @@
+using System.Runtime.CompilerServices;
 using System.Text;
 using AsmResolver.DotNet;
+using AsmResolver.DotNet.Code.Cil;
 using AsmResolver.DotNet.Signatures;
 using AsmResolver.DotNet.Signatures.Types;
+using AsmResolver.PE.DotNet.Cil;
+using AsmResolver.PE.DotNet.Metadata.Tables.Rows;
 
 namespace Abstract.CodeProcess;
 
@@ -27,6 +31,9 @@ public partial class Compiler
         var stringBuilder = ImportType(typeof(StringBuilder));
         var iEnumerator = ImportType(typeof(IEnumerator<>));
         var iEnumerable = ImportType(typeof(IEnumerable<>));
+        
+        // Attributes
+        var extensionAttribute = ImportType(typeof(ExtensionAttribute));
         
         var memExtensions = ImportType(typeof(MemoryExtensions));
         
@@ -170,6 +177,15 @@ public partial class Compiler
             methods.TrimExcess();
         }
         
+        // --- ExtensionAttribute ---
+        {
+            var (t, attrib, methods) = extensionAttribute;
+            
+            methods["new"] = Inst(t, ".ctor", cl.Void);
+
+            methods.TrimExcess();
+        }
+        
         return;
         IMethodDescriptor Inst(ITypeDefOrRef type, string name, TypeSignature ret, params TypeSignature[] args)
             => CreateMethodRef(type, name, MethodSignature.CreateInstance(ret, args));
@@ -188,7 +204,119 @@ public partial class Compiler
     }
     private void LoadRuntimeHelpers()
     {
+        const TypeAttributes attributes = TypeAttributes.AnsiClass
+                                          | TypeAttributes.Class
+                                          | TypeAttributes.Sealed
+                                          | TypeAttributes.Abstract
+                                          | TypeAttributes.Public;
         
+        var runtimeHelpers = new TypeDefinition(
+            "<Module>", "RuntimeHelpers",
+            attributes, _coreLib["System.Object"].t.ToTypeDefOrRef());
+        _module.TopLevelTypes.Add(runtimeHelpers);
+
+        {
+            var m = new MethodDefinition(
+                "AsString",
+                MethodAttributes.Assembly | MethodAttributes.Static,
+                MethodSignature.CreateStatic(
+                    _corLibFactory.String, 1,
+                    new SzArrayTypeSignature(new GenericParameterSignature(GenericParameterType.Method, 0)))
+            );
+            
+            m.GenericParameters.Add(new GenericParameter("T"));
+            m.ParameterDefinitions.Add(new ParameterDefinition("value"));
+            
+            m.CustomAttributes.Add(new CustomAttribute((MemberReference)_coreLib["System.Runtime.CompilerServices.ExtensionAttribute"].m["new"]));
+            
+            runtimeHelpers.Methods.Add(m);
+            
+            var body = new CilMethodBody(m);
+            m.CilMethodBody = body;
+            var gen = body.Instructions;
+            
+            var stringBuilder = _coreLib["System.Text.StringBuilder"];
+            
+            var elmTypeSpec = new TypeSpecification(new GenericParameterSignature(GenericParameterType.Method, 0));
+            var elmType = _module.DefaultImporter.ImportType(elmTypeSpec);
+            
+            var sbNew = stringBuilder.m["new"];
+            var sbAppendC = stringBuilder.m["Append_char"];
+            var sbAppendS = stringBuilder.m["Append_str"];
+            var sbToStr = stringBuilder.m["ToString"];
+            
+            var tmpSb = new CilLocalVariable(stringBuilder.t);
+            var tmpI = new CilLocalVariable(_corLibFactory.Int32);
+            var tmpLen = new CilLocalVariable(_corLibFactory.Int32);
+            body.LocalVariables.Add(tmpSb);
+            body.LocalVariables.Add(tmpI);
+            body.LocalVariables.Add(tmpLen);
+            
+            var loopLbl = new CilInstructionLabel();
+            var checkLbl = new CilInstructionLabel();
+            var skipLbl = new CilInstructionLabel();
+            
+            gen.Add(CilOpCodes.Newobj, sbNew);
+            gen.Add(CilOpCodes.Stloc, tmpSb);
+
+            gen.Add(CilOpCodes.Ldloc, tmpSb);
+            gen.Add(CilOpCodes.Ldc_I4_S, (byte)'[');
+            gen.Add(CilOpCodes.Call, sbAppendC);
+            gen.Add(CilOpCodes.Pop);
+            
+            gen.Add(CilOpCodes.Ldc_I4_0);
+            gen.Add(CilOpCodes.Stloc, tmpI);
+            
+            gen.Add(CilOpCodes.Ldarg_0);
+            gen.Add(CilOpCodes.Ldlen);
+            gen.Add(CilOpCodes.Dup);
+            gen.Add(CilOpCodes.Stloc, tmpLen);
+            gen.Add(CilOpCodes.Brfalse, skipLbl);
+            
+            gen.Add(CilOpCodes.Br, checkLbl);
+            // loop body
+            {
+                loopLbl.Instruction = gen.Add(CilOpCodes.Ldloc, tmpSb);
+                gen.Add(CilOpCodes.Ldarg_0);
+                gen.Add(CilOpCodes.Ldloc, tmpI);
+                gen.Add(CilOpCodes.Ldelem, elmType);
+                gen.Add(CilOpCodes.Box, elmType);
+                gen.Add(CilOpCodes.Callvirt, _coreLib["System.Object"].m["ToString"]);
+                gen.Add(CilOpCodes.Call, sbAppendS);
+                
+                gen.Add(CilOpCodes.Ldstr, ", ");
+                gen.Add(CilOpCodes.Call, sbAppendS);
+                gen.Add(CilOpCodes.Pop);
+                
+                gen.Add(CilOpCodes.Ldloc, tmpI);
+                gen.Add(CilOpCodes.Ldc_I4_1);
+                gen.Add(CilOpCodes.Add);
+                gen.Add(CilOpCodes.Stloc, tmpI);
+            }
+            
+            // loop check
+            {
+                checkLbl.Instruction = gen.Add(CilOpCodes.Ldloc, tmpI);
+                gen.Add(CilOpCodes.Ldloc, tmpLen);
+                gen.Add(CilOpCodes.Blt, loopLbl);
+            }
+            
+            gen.Add(CilOpCodes.Ldloc, tmpSb);
+            gen.Add(CilOpCodes.Dup);
+            gen.Add(CilOpCodes.Call, stringBuilder.m["get_Len"]);
+            gen.Add(CilOpCodes.Ldc_I4_2);
+            gen.Add(CilOpCodes.Sub);
+            gen.Add(CilOpCodes.Call, stringBuilder.m["set_Len"]);
+            
+            skipLbl.Instruction = gen.Add(CilOpCodes.Ldloc, tmpSb);
+            gen.Add(CilOpCodes.Ldc_I4_S, (byte)']');
+            gen.Add(CilOpCodes.Call, sbAppendC);
+            
+            gen.Add(CilOpCodes.Call, sbToStr);
+            gen.Add(CilOpCodes.Ret);
+            
+            _runtimeHelpers["Array_AsString"] = m;
+        }
     }
     
     private (ITypeDefOrRef type, TypeSignature sig, Dictionary<string, IMethodDescriptor> methods) ImportType(string ns, string name)
