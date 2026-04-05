@@ -16,7 +16,7 @@ public class IrCompareExp(
     public IrExpression Left { get; set; } = left;
     public IrExpression Right { get; set; } = right;
 
-    public override string ToString() => $"cmp {Operator} {Left} {Right}";
+    public override string ToString() => $"cmp_{Operator}({Left}, {Right})";
     
     public enum Operators
     {

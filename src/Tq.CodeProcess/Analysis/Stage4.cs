@@ -201,7 +201,7 @@ public partial class Analyser
         // {
             return node switch
             {
-                IrInvoke @iv => NodeSemaAnal_Invoke(iv, ctx),
+                IrCall @iv => NodeSemaAnal_Invoke(iv, ctx),
                 IrAssign @ass => NodeSemaAnal_Assign(ass, ctx),
                 IRUnaryExp @ue => NodeSemaAnal_UnExp(ue, ctx),
                 IrBinaryExp @be => NodeSemaAnal_BinExp(be, ctx),
@@ -247,7 +247,7 @@ public partial class Analyser
             default: return re;       
         }
     }
-    private IrNode NodeSemaAnal_Invoke(IrInvoke node, IrBlockExecutionContextData ctx)
+    private IrNode NodeSemaAnal_Invoke(IrCall node, IrBlockExecutionContextData ctx)
     {
         node.Target = (IrExpression)NodeSemaAnal(node.Target, ctx);
         var targetRef = (ReferenceOf(node.Target));
@@ -265,7 +265,7 @@ public partial class Analyser
         // extreme exceptions, mainly intrinsic shit
         switch (targetRef)
         {
-            case SliceCallReference: return new IrInvoke(node.Origin, node.Target, [instance!, ..node.Arguments]);
+            case SliceCallReference: return new IrCall(node.Origin, node.Target, [instance!, ..node.Arguments]);
         }
         
         var res = targetRef switch
@@ -704,9 +704,10 @@ public partial class Analyser
                         suitability[i] = (int)Suitability.NeedsSoftCast;
                     } break;
                     
-                    case GenericTypeReference @gen:
+                    case { IsGeneric: true } @t:
                     {
-                        var s = (int)CalculateTypeSuitability(generics[gen.Parameter]!, argt, true);
+                        var concreteType = ConcretizeGeneric(t, generics);
+                        var s = (int)CalculateTypeSuitability(concreteType, argt, true);
                         if (s == 0) goto NoSuitability;
                         suitability[i] = s;
                     } break;
@@ -879,7 +880,7 @@ public partial class Analyser
         {
             IRAccess @acc => ReferenceOf(acc.B),
             IrSolvedReference @sr => sr.Reference,
-            IrInvoke @iv => iv.Type!,
+            IrCall @iv => iv.Type!,
             IrConv @cv => cv.Type!,
             _ => throw new UnreachableException(),
         };

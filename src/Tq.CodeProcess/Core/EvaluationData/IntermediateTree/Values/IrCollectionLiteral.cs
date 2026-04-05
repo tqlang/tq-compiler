@@ -12,5 +12,5 @@ public class IrCollectionLiteral(SyntaxNode origin, TypeReference elementType, I
     public readonly IrExpression[] Items = items;
     public int Length => items.Length;
     
-    public override string ToString() => $"{Type}[{string.Join(", ", Items)}]";
+    public override string ToString() => $"{Type} [{string.Join(", ", Items)}]";
 }

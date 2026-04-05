@@ -302,7 +302,8 @@ public partial class Compiler
             ITypeDefOrRef? selfType = mDef.Signature!.HasThis ? mDef.DeclaringType : null;
             
             var ctx = new Context(selfType, body, _module.DefaultImporter, args, locals);
-            
+
+            var a = k;
             CompileIr(k.Body!, ctx);
             if (body.Instructions.Count == 0 || body.Instructions[^1].OpCode != CilOpCodes.Ret)
             {

@@ -14,7 +14,7 @@ public class IRIf(SyntaxNode origin, IrExpression exp, IrBlock then) : IRStateme
         var sb = new StringBuilder();
 
         sb.AppendLine($"if ({Condition}) {{");
-        sb.Append(Then.ToString().TabAll());
+        sb.AppendLine(Then.ToString().TabAll());
         sb.Append('}');
 
         if (Else is IRIf @irif)
@@ -25,7 +25,7 @@ public class IRIf(SyntaxNode origin, IrExpression exp, IrBlock then) : IRStateme
         else if (Else is IRElse)
         {
             sb.AppendLine(" else {");
-            sb.Append(Else.ToString().TabAll());
+            sb.AppendLine(Else.ToString().TabAll());
             sb.Append('}');
         }
 

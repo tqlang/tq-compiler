@@ -250,7 +250,7 @@ public partial class Compiler
                 ctx.StackPush(t);
             } break;
     
-            case IrInvoke @iv: CompileIrNodeCall(iv.Target, iv.Arguments, ignoreValue, ctx); break;
+            case IrCall @iv: CompileIrNodeCall(iv.Target, iv.Arguments, ignoreValue, ctx); break;
             
             case IrConv @c:
             {
@@ -817,14 +817,60 @@ public partial class Compiler
                     case AnytypeTypeReference @anytype:
                     {
                         CompileIrNodeLoad(cmp.Left, false, ctx);
+                        ctx.Gen.Add(CilOpCodes.Box, TypeFromRef(anytype).ToTypeDefOrRef());
                         CompileIrNodeLoad(cmp.Right, false, ctx);
                         ctx.Gen.Add(CilOpCodes.Box, TypeFromRef(anytype).ToTypeDefOrRef());
 
                         var equals = _coreLib["System.Object"].m["Equals"];
-                        ctx.Gen.Add(CilOpCodes.Callvirt, equals);
+                        
+                        switch (cmp.Operator)
+                        {
+                            case IrCompareExp.Operators.Equality:
+                                ctx.Gen.Add(CilOpCodes.Callvirt, equals);
+                                break;
+                            
+                            case IrCompareExp.Operators.Inequality:
+                                ctx.Gen.Add(CilOpCodes.Callvirt, equals);
+                                ctx.Gen.Add(CilOpCodes.Ldc_I4_0);
+                                ctx.Gen.Add(CilOpCodes.Ceq);
+                                break;
+                            
+                            default:
+                                throw new UnreachableException();
+                        }
                         
                         ctx.StackPop(2);
                     } break;
+
+                    case GenericTypeReference @generic:
+                    {
+                        CompileIrNodeLoad(cmp.Left, false, ctx);
+                        ctx.Gen.Add(CilOpCodes.Box, TypeFromRef(generic).ToTypeDefOrRef());
+                        CompileIrNodeLoad(cmp.Right, false, ctx);
+                        ctx.Gen.Add(CilOpCodes.Box, TypeFromRef(generic).ToTypeDefOrRef());
+
+                        var equals = _coreLib["System.Object"].m["Equals"];
+                        
+                        switch (cmp.Operator)
+                        {
+                            case IrCompareExp.Operators.Equality:
+                                ctx.Gen.Add(CilOpCodes.Callvirt, equals);
+                                break;
+                            
+                            case IrCompareExp.Operators.Inequality:
+                                ctx.Gen.Add(CilOpCodes.Callvirt, equals);
+                                ctx.Gen.Add(CilOpCodes.Ldc_I4_0);
+                                ctx.Gen.Add(CilOpCodes.Ceq);
+                                break;
+                            
+                            default:
+                                throw new UnreachableException();
+                        }
+                        
+                        ctx.StackPop(2);
+                    } break;
+                    
+                    default: throw new UnreachableException();
                 }
                 ctx.StackPush(_corLibFactory.Boolean);
             } break;
@@ -969,11 +1015,10 @@ public partial class Compiler
                 
                 ctx.FramePush(new ConditionalExpressionFrame(thisConditionLabel, nextConditionLabel));
                 CompileIrNodeLoad(@if.Condition, false, ctx);
-                if (@if.Condition is not IrLogicalExp)
-                {
-                    ctx.Gen.Add(CilOpCodes.Brfalse, nextConditionLabel);
-                    ctx.StackPop();
-                }
+                
+                ctx.Gen.Add(CilOpCodes.Brfalse, nextConditionLabel);
+                ctx.StackPop();
+                
                 ctx.FramePop();
 
                 ctx.MarkLabel(thisConditionLabel);
@@ -1046,17 +1091,12 @@ public partial class Compiler
                 
                 // Check
                 ctx.FramePush(new LoopCheckFrame(bodyLabel, breakLabel));
-                var stackBefore = ctx.Stack.Count;
                 lastIdx = ctx.Gen.Count;
                 CompileIrNodeLoad(@while.Condition, false, ctx);
                 ctx.FramePop();
-
-                if (stackBefore != ctx.Stack.Count)
-                {
-                    ctx.Gen.Add(CilOpCodes.Brtrue, bodyLabel);
-                    ctx.StackPop();
-                }
-                else ctx.Gen.Add(CilOpCodes.Br, bodyLabel);
+                
+                ctx.Gen.Add(CilOpCodes.Brtrue, bodyLabel);
+                ctx.StackPop();
                 
                 checkLabel.Instruction = ctx.Gen[lastIdx];
                 breakLabel.Instruction = ctx.Gen.Add(CilOpCodes.Nop);

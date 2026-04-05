@@ -338,7 +338,8 @@ public class Parser(ErrorHandler errHandler)
                 break;
         }
 
-        if (endLine) EndLine();
+        if (!endLine) return node;
+        if (!Taste(TokenType.RightBracketChar)) EndLine();
         return node;
     }
 

@@ -442,7 +442,7 @@ public partial class Analyser
 
             case FunctionCallExpressionNode @funccal:
             {
-                return new IrInvoke(funccal,
+                return new IrCall(funccal,
                     UnwrapExecutionContext_Expression(funccal.FunctionReference, ctx),
                     funccal.Arguments.Select(i
                         => UnwrapExecutionContext_Expression(i, ctx)).ToArray());

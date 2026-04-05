@@ -41,7 +41,7 @@ public partial class Compiler
         {
             var (t, obj, methods) = objectType;
 
-            methods["Equals"] = Inst(t, "Equals", cl.Boolean, cl.String);
+            methods["Equals"] = Inst(t, "Equals", cl.Boolean, cl.Object);
             methods["ToString"] = Inst(t, "ToString", cl.String);
             methods["MemberwiseClone"] = Inst(t, "MemberwiseClone", cl.Object);
             

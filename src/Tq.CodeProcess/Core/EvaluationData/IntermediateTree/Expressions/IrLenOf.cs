@@ -9,5 +9,5 @@ public class IrLenOf(SyntaxNode origin, IrExpression ofvalue) : IrExpression(ori
     public override TypeReference Type => new RuntimeIntegerTypeReference(false);
     public readonly IrExpression OfValue = ofvalue;
 
-    public override string ToString() => $"lenof {OfValue}";
+    public override string ToString() => $"lenof({OfValue})";
 }

@@ -3,6 +3,7 @@ using Abstract.CodeProcess.Core.EvaluationData.IntermediateTree;
 using Abstract.CodeProcess.Core.EvaluationData.IntermediateTree.Expressions;
 using Abstract.CodeProcess.Core.EvaluationData.IntermediateTree.Values;
 using Abstract.CodeProcess.Core.EvaluationData.LanguageObjects;
+using Abstract.CodeProcess.Core.EvaluationData.LanguageObjects.CodeObjects;
 using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.CodeReferences;
 using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.Dotnet;
 using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.FieldReferences;
@@ -63,15 +64,15 @@ public partial class Analyser
 
                     case ParameterReference param:
                     {
-                        if (parent is ICallable { IsGeneric: true } @callable)
-                        {
-                            var pidx = param.Parameter.Index;
-                            if (callable.Parameters[pidx].Type is TypeTypeReference)
-                            {
-                                result = new GenericTypeReference(callable.Parameters[pidx]);
-                                break;
-                            }
-                        }
+                        // if (parent is ICallable { IsGeneric: true } @callable)
+                        // {
+                        //     var pidx = param.Parameter.Index;
+                        //     if (callable.Parameters[pidx].Type is TypeTypeReference)
+                        //     {
+                        //         result = new GenericTypeReference(callable.Parameters[pidx]);
+                        //         break;
+                        //     }
+                        // }
                         result = param.Parameter.Type;
                     } break;
 
@@ -237,7 +238,7 @@ public partial class Analyser
             case IrReference:
             case IrConv:
             case IrIndex:
-            case IrInvoke:
+            case IrCall:
             case IrLenOf:
             case IrCompareExp:
             case IRUnaryExp:
@@ -245,6 +246,21 @@ public partial class Analyser
             case IrNewObject:
                 return origin ?? value;
             
+            default: throw new UnreachableException();
+        }
+    }
+
+    private static TypeReference ConcretizeGeneric(TypeReference generic,
+        Dictionary<ParameterObject, TypeReference?> genericTable)
+    {
+        switch (generic)
+        {
+            case SliceTypeReference slice:
+                return new SliceTypeReference(ConcretizeGeneric(slice.ElementType, genericTable));
+            case ReferenceTypeReference reference:
+                return new ReferenceTypeReference(ConcretizeGeneric(reference.Type, genericTable));
+            
+            case GenericTypeReference type: return genericTable[type.Parameter] ?? throw new NullReferenceException();
             default: throw new UnreachableException();
         }
     }
@@ -370,7 +386,7 @@ public partial class Analyser
     }
 
     // FIXME polymorphism
-    private bool IsAssignableTo(TypeReference typeFrom, TypeReference typeTo)
+    private static bool IsAssignableTo(TypeReference typeFrom, TypeReference typeTo)
     {
         switch (typeTo)
         {
@@ -392,11 +408,13 @@ public partial class Analyser
                 if (toRuntime.Signed != fromRuntime.Signed) return false;
                 return toRuntime.Length >= fromRuntime.Length;
             }
+            
+            case BooleanTypeReference when typeFrom is BooleanTypeReference: return true;
         }
         
         return false;
     }
-    private bool IsAssignableTo(TypeSignature typeFrom, TypeSignature typeTo)
+    private static bool IsAssignableTo(TypeSignature typeFrom, TypeSignature typeTo)
     {
         if (typeTo.FullName == "System.Object") return true;
         return typeFrom == typeTo;

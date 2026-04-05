@@ -9,28 +9,11 @@
 
   <ItemGroup>
     <None Update="Lib\**\*"><CopyToOutputDirectory>Always</CopyToOutputDirectory></None>
-    <None Update="Bootstrap\**\*"><CopyToOutputDirectory>Always</CopyToOutputDirectory></None>
   </ItemGroup>
-
+  
   <ItemGroup>
-    <Folder Include="Bootstrap\.abs-cache\debug\realizer\" />
-    <Folder Include="Bootstrap\.abs-cache\modules\" />
-    <Folder Include="Bootstrap\.abs-cache\temp\" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <Content Include="Bootstrap\.abs-cache\debug\Bootstrap.generated.a" />
-    <Content Include="Bootstrap\.abs-cache\debug\dlldump.il" />
-    <Content Include="Bootstrap\.abs-cache\debug\eval.txt" />
-    <Content Include="Bootstrap\.abs-cache\debug\reftable.txt" />
-    <Content Include="Bootstrap\.abs-cache\debug\Std.Console.generated.a" />
-    <Content Include="Bootstrap\.abs-cache\debug\Std.Fs.generated.a" />
-    <Content Include="Bootstrap\.abs-cache\debug\Std.generated.a" />
-    <Content Include="Bootstrap\.abs-cache\debug\Std.Io.generated.a" />
-    <Content Include="Bootstrap\.abs-cache\debug\Std.Mem.generated.a" />
-    <Content Include="Bootstrap\.abs-cache\debug\Std.Process.generated.a" />
-    <Content Include="Bootstrap\.abs-cache\debug\Std.Test.generated.a" />
-    <Content Include="Bootstrap\.abs-out\Bootstrap.dll" />
+    <Content Include="**\.abs-cache\**\*" />
+    <Content Include="**\.abs-out\**\*" />
   </ItemGroup>
 
 </Project>
