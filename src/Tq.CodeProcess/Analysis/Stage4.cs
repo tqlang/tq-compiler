@@ -207,6 +207,7 @@ public partial class Analyser
                 IrBinaryExp @be => NodeSemaAnal_BinExp(be, ctx),
                 IrCompareExp @ce => NodeSemaAnal_CmpExp(ce, ctx),
                 IrLogicalExp @ce => NodeSemaAnal_LogicalExp(ce, ctx),
+                IrTernary @te => NodeSemaAnal_TernaryExp(te, ctx),
                 IrIndex @ix => NodeSemaAnal_Index(ix, ctx),
                 IrConv @tc =>NodeSemaAnal_Conv(tc, ctx),
                 IrNewObject @no => NodeSemaAnal_NewObj(no, ctx),
@@ -449,7 +450,6 @@ public partial class Analyser
         var ltype = ftype = GetEffectiveTypeReference(node.Left);
         var rtype = GetEffectiveTypeReference(node.Right);
         
-        
         switch (ltype)
         {
             case RuntimeIntegerTypeReference @left when
@@ -466,6 +466,19 @@ public partial class Analyser
                 node.Right = new IrIntegerLiteral(node.Right.Origin, ((IrIntegerLiteral)node.Right).Value, left2);
             } break;
             
+            case RuntimeIntegerTypeReference left when
+                rtype is SolvedTypedefTypeReference { Typedef.BackType: RuntimeIntegerTypeReference right }:
+            {
+                if (left.BitSize >= right.BitSize) ftype = left;
+                else if (left.BitSize < right.BitSize) ftype = right;
+            } break;
+
+            case RuntimeIntegerTypeReference left when
+                rtype is CharTypeReference:
+            {
+                ftype = rtype;
+            } break;
+            
             case ComptimeIntegerTypeReference @left3 when
                 rtype is RuntimeIntegerTypeReference @right3:
             {
@@ -478,7 +491,13 @@ public partial class Analyser
             {
                 ftype = new ComptimeIntegerTypeReference();
             } break;
-
+            
+            case ComptimeIntegerTypeReference when
+                rtype is SolvedTypedefTypeReference { Typedef.BackType: RuntimeIntegerTypeReference right }:
+            {
+                ftype = right.Type;
+            } break;
+            
             case StringTypeReference @sl when
                 rtype is StringTypeReference @sr:
             {
@@ -486,6 +505,12 @@ public partial class Analyser
                 else throw new Exception("Cannot automatically concatenate strings with different encoding");
             } break;
 
+            case CharTypeReference when
+                rtype is CharTypeReference:
+            {
+                ftype = new CharTypeReference();
+            } break;
+            
             default: throw new NotImplementedException();
         }
 
@@ -500,6 +525,9 @@ public partial class Analyser
                 _ => new IrIntegerLiteral(node.Origin, node.Operator switch
                     {
                         IrBinaryExp.Operators.Add => leftInt.Value + rightInt.Value,
+                        IrBinaryExp.Operators.AddWrapAround => AddWithOverflow(leftInt.Value, rightInt.Value, (IntegerTypeReference)ftype),
+                        IrBinaryExp.Operators.AddOnBounds => AddOnBounds(leftInt.Value, rightInt.Value, (IntegerTypeReference)ftype),
+                    
                         IrBinaryExp.Operators.Subtract => leftInt.Value - rightInt.Value,
                         IrBinaryExp.Operators.Multiply => leftInt.Value * rightInt.Value,
                         IrBinaryExp.Operators.Divide => leftInt.Value / rightInt.Value,
@@ -523,6 +551,53 @@ public partial class Analyser
                 }),
             _ => node
         };
+        
+        BigInteger AddOnBounds(BigInteger left, BigInteger right, IntegerTypeReference type)
+        {
+            var result = left + right;
+            if (type is RuntimeIntegerTypeReference @runtimeInt)
+            {
+                BigInteger min;
+                BigInteger max;
+                
+                if (runtimeInt.Signed)
+                {
+                    var limit = BigInteger.One << (runtimeInt.BitSize.Bits - 1);
+                    min = -limit;
+                    max = limit - 1;
+                }
+                else
+                {
+                    min = BigInteger.Zero;
+                    max = (BigInteger.One << runtimeInt.BitSize.Bits) - 1;
+                }
+
+                if (result > max) return max;
+                if (result < min) return min;
+            }
+            return result;
+        }
+        BigInteger AddWithOverflow(BigInteger left, BigInteger right, IntegerTypeReference type)
+        {
+            var result = left + right;
+            if (type is RuntimeIntegerTypeReference @runtimeInt)
+            {
+                BigInteger max;
+                
+                if (runtimeInt.Signed)
+                {
+                    var limit = BigInteger.One << (runtimeInt.BitSize.Bits - 1);
+                    max = limit - 1;
+                }
+                else
+                {
+                    max = (BigInteger.One << runtimeInt.BitSize.Bits) - 1;
+                }
+
+                return result % max;
+            }
+            return result;
+        }
     }
     private IrNode NodeSemaAnal_CmpExp(IrCompareExp node, IrBlockExecutionContextData ctx)
     {
@@ -563,6 +638,14 @@ public partial class Analyser
         }
 
         return node;
+    }
+    private IrNode NodeSemaAnal_TernaryExp(IrTernary node, IrBlockExecutionContextData ctx)
+    {
+        node.Condition = (IrExpression)NodeSemaAnal(node.Condition, ctx);
+        node.TrueExpression = (IrExpression)NodeSemaAnal(node.TrueExpression, ctx);
+        node.FalseExpression = (IrExpression)NodeSemaAnal(node.FalseExpression, ctx);
+
+        throw new NotImplementedException();
     }
     
     private IrNode NodeSemaAnal_Index(IrIndex node, IrBlockExecutionContextData ctx)

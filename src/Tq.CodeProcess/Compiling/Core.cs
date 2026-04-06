@@ -32,6 +32,8 @@ public partial class Compiler
         var iEnumerator = ImportType(typeof(IEnumerator<>));
         var iEnumerable = ImportType(typeof(IEnumerable<>));
         
+        var overflowException = ImportType(typeof(OverflowException));
+        
         // Attributes
         var extensionAttribute = ImportType(typeof(ExtensionAttribute));
         
@@ -215,6 +217,7 @@ public partial class Compiler
             attributes, _coreLib["System.Object"].t.ToTypeDefOrRef());
         _module.TopLevelTypes.Add(runtimeHelpers);
 
+        #region SliceAsString
         {
             var m = new MethodDefinition(
                 "AsString",
@@ -317,6 +320,103 @@ public partial class Compiler
             
             _runtimeHelpers["Array_AsString"] = m;
         }
+        #endregion
+
+        #region add_i8_Saturated
+        {
+            var t = _corLibFactory.SByte;
+            var m = new MethodDefinition(
+                "AddSaturatedI8",
+                MethodAttributes.Assembly | MethodAttributes.Static,
+                MethodSignature.CreateStatic(t, 0, t, t)
+            );
+            m.ParameterDefinitions.Add(new ParameterDefinition("left"));
+            m.ParameterDefinitions.Add(new ParameterDefinition("right"));
+            runtimeHelpers.Methods.Add(m);
+            
+            var body = new CilMethodBody(m);
+            m.CilMethodBody = body;
+            var il = body.Instructions;
+            
+            var ifOverflow = new CilInstructionLabel();
+            var ifUnderflow = new CilInstructionLabel();
+            
+            // operation
+            il.Add(CilOpCodes.Ldarg_0);
+            il.Add(CilOpCodes.Ldarg_1);
+            il.Add(CilOpCodes.Add);
+            
+            // check overflow
+            il.Add(CilOpCodes.Dup);
+            il.Add(CilOpCodes.Ldc_I4_S, sbyte.MaxValue);
+            il.Add(CilOpCodes.Bgt, ifOverflow);
+            
+            // check underflow
+            il.Add(CilOpCodes.Dup);
+            il.Add(CilOpCodes.Ldc_I4_S, sbyte.MinValue);
+            il.Add(CilOpCodes.Blt, ifUnderflow);
+            
+            // return result
+            il.Add(CilOpCodes.Conv_I1);
+            il.Add(CilOpCodes.Ret);
+            
+            // return if overflow
+            ifOverflow.Instruction = il.Add(CilOpCodes.Pop);
+            il.Add(CilOpCodes.Ldc_I4_S, sbyte.MaxValue);
+            il.Add(CilOpCodes.Conv_I1);
+            il.Add(CilOpCodes.Ret);
+            
+            // return if underflow
+            ifUnderflow.Instruction = il.Add(CilOpCodes.Pop);
+            il.Add(CilOpCodes.Ldc_I4_S, sbyte.MinValue);
+            il.Add(CilOpCodes.Conv_I1);
+            il.Add(CilOpCodes.Ret);
+            
+            _runtimeHelpers["add_checked"] = m;
+        }
+        #endregion
+        #region add_u8_Saturated
+        {
+            var t = _corLibFactory.Byte;
+            var m = new MethodDefinition(
+                "AddSaturatedU8",
+                MethodAttributes.Assembly | MethodAttributes.Static,
+                MethodSignature.CreateStatic(t, 0, t, t)
+            );
+            m.ParameterDefinitions.Add(new ParameterDefinition("left"));
+            m.ParameterDefinitions.Add(new ParameterDefinition("right"));
+            runtimeHelpers.Methods.Add(m);
+            
+            var body = new CilMethodBody(m);
+            m.CilMethodBody = body;
+            var il = body.Instructions;
+            
+            var ifOverflow = new CilInstructionLabel();
+            
+            // operation
+            il.Add(CilOpCodes.Ldarg_0);
+            il.Add(CilOpCodes.Ldarg_1);
+            il.Add(CilOpCodes.Add);
+            
+            // check overflow
+            il.Add(CilOpCodes.Dup);
+            il.Add(CilOpCodes.Ldc_I4_S, sbyte.MaxValue);
+            il.Add(CilOpCodes.Bgt, ifOverflow);
+            
+            // return result
+            il.Add(CilOpCodes.Conv_I1);
+            il.Add(CilOpCodes.Ret);
+            
+            // return if overflow
+            ifOverflow.Instruction = il.Add(CilOpCodes.Pop);
+            il.Add(CilOpCodes.Ldc_I4_S, sbyte.MaxValue);
+            il.Add(CilOpCodes.Conv_I1);
+            il.Add(CilOpCodes.Ret);
+            
+            _runtimeHelpers["add_u8_saturated"] = m;
+        }
+        #endregion
+
     }
     
     private (ITypeDefOrRef type, TypeSignature sig, Dictionary<string, IMethodDescriptor> methods) ImportType(string ns, string name)

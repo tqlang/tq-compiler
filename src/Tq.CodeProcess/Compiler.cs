@@ -109,6 +109,7 @@ public partial class Compiler
             {
                 if (a.Name == "")
                 {
+                    _namespacesMap.Add(a, _namespacesMap[parent]);
                     foreach (var i in a.Fields) SearchRecursive(parent, i);
                     foreach (var i in a.Structs) SearchRecursive(parent, i);
                     foreach (var i in a.Typedefs) SearchRecursive(parent, i);

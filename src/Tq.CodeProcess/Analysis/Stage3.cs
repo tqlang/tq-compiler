@@ -468,7 +468,7 @@ public partial class Analyser
                 return bexp.Operator switch
                     {
                         "+" => new IrBinaryExp(bexp, IrBinaryExp.Operators.Add, l, r),
-                        "+%" => new IrBinaryExp(bexp, IrBinaryExp.Operators.AddWarpAround, l, r),
+                        "+%" => new IrBinaryExp(bexp, IrBinaryExp.Operators.AddWrapAround, l, r),
                         "+|" => new IrBinaryExp(bexp, IrBinaryExp.Operators.AddOnBounds, l, r),
                         
                         "-" => new IrBinaryExp(bexp, IrBinaryExp.Operators.Subtract, l, r),
@@ -483,9 +483,9 @@ public partial class Analyser
                         
                         "%" => new IrBinaryExp(bexp, IrBinaryExp.Operators.Reminder, l, r),
 
-                        "AND" => new IrBinaryExp(bexp, IrBinaryExp.Operators.BitwiseAnd, l, r),
-                        "OR" => new IrBinaryExp(bexp, IrBinaryExp.Operators.BitwiseOr, l, r),
-                        "XOR" => new IrBinaryExp(bexp, IrBinaryExp.Operators.BitwiseXor, l, r),
+                        "&" => new IrBinaryExp(bexp, IrBinaryExp.Operators.BitwiseAnd, l, r),
+                        "|" => new IrBinaryExp(bexp, IrBinaryExp.Operators.BitwiseOr, l, r),
+                        "^" => new IrBinaryExp(bexp, IrBinaryExp.Operators.BitwiseXor, l, r),
 
                         "<<" => new IrBinaryExp(bexp, IrBinaryExp.Operators.LeftShift, l, r),
                         ">>" => new IrBinaryExp(bexp, IrBinaryExp.Operators.RightShift, l, r),
@@ -541,6 +541,14 @@ public partial class Analyser
                     UnwrapExecutionContext_Expression(iexp.Target, ctx),
                     iexp.Indexer.Expressions
                         .Select(e => UnwrapExecutionContext_Expression(e, ctx)).ToArray());
+            }
+            case TernaryExpressionNode @texp:
+            {
+                return new IrTernary(
+                    texp,
+                    UnwrapExecutionContext_Expression(texp.Condition, ctx),
+                    UnwrapExecutionContext_Expression(texp.IfTrue, ctx),
+                    UnwrapExecutionContext_Expression(texp.IfFalse, ctx));
             }
             
             case TypeCastNode @tcast:

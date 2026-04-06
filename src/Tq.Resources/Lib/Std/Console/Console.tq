@@ -1,6 +1,9 @@
 ###    TQ STANDARD LIBRARY SCRIPT    ###
-
 from Dotnet.System import { Console }
+
+@public let string style_reset = "\x1b[0m"
+@public let string color_red = "\x1b[31m"
+@public let string color_green = "\x1b[32m"
 
 func write(i64 value) void {
     Console.Write(value as string)

@@ -22,7 +22,7 @@ public class IrBinaryExp(
     public enum Operators
     {
         Add,
-        AddWarpAround,
+        AddWrapAround,
         AddOnBounds,
         Subtract,
         SubtractWarpAround,

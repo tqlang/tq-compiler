@@ -6,10 +6,9 @@ namespace Abstract.CodeProcess.Core.EvaluationData.IntermediateTree.Values;
 
 public class IrCharLiteral(SyntaxNode origin, char data) : IrExpression(origin)
 {
-    private TypeReference _type;
     public readonly char Data = data;
     
-    public override TypeReference Type => _type;
+    public override TypeReference Type => new CharTypeReference();
     public StringEncoding Encoding => ((StringTypeReference)Type!).Encoding;
     
     public override string ToString() => $"(char) '{Data}'";

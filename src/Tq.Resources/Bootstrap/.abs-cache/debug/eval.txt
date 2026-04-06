@@ -4,18 +4,20 @@ module Bootstrap {
 		public static concrete func main() void {
 			$(00) Local 'arr0': []u8
 			$(01) Local 'arr1': []u8
-			local.00 = []u8[(u8)10, (u8)20, (u8)30, (u8)40, (u8)50]
-			local.01 = []u8[(u8)0, (u8)0, (u8)0, (u8)0, (u8)0]
-			call Callable<Std.Console.writeln> ((Undefined) "Before:")
-			call Callable<Std.Console.writeln> (Add (Undefined) "arr0 ", Add local.00 as string, Add (Undefined) " (len ", Add lenof local.00 as string, (Undefined) ")")
-			call Callable<Std.Console.writeln> (Add (Undefined) "arr1 ", Add local.01 as string, Add (Undefined) " (len ", Add lenof local.01 as string, (Undefined) ")")
-			call Callable<Std.Mem.copy> (local.00, local.01)
-			call Callable<Std.Console.writeln> ((Undefined) "After:")
-			call Callable<Std.Console.writeln> (Add (Undefined) "arr0 ", Add local.00 as string, Add (Undefined) " (len ", Add lenof local.00 as string, (Undefined) ")")
-			call Callable<Std.Console.writeln> (Add (Undefined) "arr1 ", Add local.01 as string, Add (Undefined) " (len ", Add lenof local.01 as string, (Undefined) ")")
-			if (call Callable<Std.Mem.compare> (local.00, local.01)) {
-				call Callable<Std.Console.writeln> ((Undefined) "Arrays are equal!")} else {
-				call Callable<Std.Console.writeln> ((Undefined) "Error! arrays are not equal!")}
+			local.00 = []u8 [(u8)10, (u8)20, (u8)30, (u8)40, (u8)50]
+			local.01 = []u8 [(u8)0, (u8)0, (u8)0, (u8)0, (u8)0]
+			call Std.Console.writeln ((Undefined) "Before:")
+			call Std.Console.writeln (Add((Undefined) "arr0 ", Add(local.00 as string, Add((Undefined) " (len ", Add(lenof(local.00) as string, (Undefined) ")")))))
+			call Std.Console.writeln (Add((Undefined) "arr1 ", Add(local.01 as string, Add((Undefined) " (len ", Add(lenof(local.01) as string, (Undefined) ")")))))
+			call Std.Mem.copy (local.00, local.01)
+			call Std.Console.writeln ((Undefined) "After:")
+			call Std.Console.writeln (Add((Undefined) "arr0 ", Add(local.00 as string, Add((Undefined) " (len ", Add(lenof(local.00) as string, (Undefined) ")")))))
+			call Std.Console.writeln (Add((Undefined) "arr1 ", Add(local.01 as string, Add((Undefined) " (len ", Add(lenof(local.01) as string, (Undefined) ")")))))
+			if (call Std.Mem.compare (local.00, local.01)) {
+				call Std.Console.writeln ((Undefined) "Arrays are equal!")
+			} else {
+				call Std.Console.writeln ((Undefined) "Error! arrays are not equal!")
+			}
 		}
 
 
@@ -45,13 +47,13 @@ module Std {
 		Namespace 'Process' ('Std.Process') {
 			; funcgroup getProgramArguments
 			public static concrete func getProgramArguments() []string {
-				ret call Callable<GetCommandLineArgs> ()
+				ret call GetCommandLineArgs ()
 			}
 
 
 			; funcgroup exit
 			public static concrete func exit(u64) noreturn {
-				call Callable<Exit> (arg.00 as i32)
+				call Exit (arg.00 as i32)
 			}
 
 
@@ -68,102 +70,203 @@ module Std {
 			}
 
 			; funcgroup copy
-			public static concrete func copy([]u8, []u8) void {
-				$(00) Local 'i': i64
-				while (cmp LessThan local.00 lenof arg.00) {
-					def { local.00 = (i64)0 }	step { local.00++ }	arg.01[local.00] = arg.00[local.00]}
-			}
-
 			public static concrete func copy([]i8, []i8) void {
-				$(00) Local 'i': i64
-				while (cmp LessThan local.00 lenof arg.00) {
-					def { local.00 = (i64)0 }	step { local.00++ }	arg.01[local.00] = arg.00[local.00]}
+				call Std.Mem.__copy_impl__ (i8, arg.00, arg.01)
 			}
 
-			public static concrete func copy([]u16, []u16) void {
-				$(00) Local 'i': i64
-				while (cmp LessThan local.00 lenof arg.00) {
-					def { local.00 = (i64)0 }	step { local.00++ }	arg.01[local.00] = arg.00[local.00]}
+			public static concrete func copy([]u8, []u8) void {
+				call Std.Mem.__copy_impl__ (u8, arg.00, arg.01)
 			}
 
 			public static concrete func copy([]i16, []i16) void {
-				$(00) Local 'i': i64
-				while (cmp LessThan local.00 lenof arg.00) {
-					def { local.00 = (i64)0 }	step { local.00++ }	arg.01[local.00] = arg.00[local.00]}
+				call Std.Mem.__copy_impl__ (i16, arg.00, arg.01)
 			}
 
-			public static concrete func copy([]u32, []u32) void {
-				$(00) Local 'i': i64
-				while (cmp LessThan local.00 lenof arg.00) {
-					def { local.00 = (i64)0 }	step { local.00++ }	arg.01[local.00] = arg.00[local.00]}
+			public static concrete func copy([]u16, []u16) void {
+				call Std.Mem.__copy_impl__ (u16, arg.00, arg.01)
 			}
 
 			public static concrete func copy([]i32, []i32) void {
-				$(00) Local 'i': i64
-				while (cmp LessThan local.00 lenof arg.00) {
-					def { local.00 = (i64)0 }	step { local.00++ }	arg.01[local.00] = arg.00[local.00]}
+				call Std.Mem.__copy_impl__ (i32, arg.00, arg.01)
 			}
 
-			public static concrete func copy([]u64, []u64) void {
-				$(00) Local 'i': i64
-				while (cmp LessThan local.00 lenof arg.00) {
-					def { local.00 = (i64)0 }	step { local.00++ }	arg.01[local.00] = arg.00[local.00]}
+			public static concrete func copy([]u32, []u32) void {
+				call Std.Mem.__copy_impl__ (u32, arg.00, arg.01)
 			}
 
 			public static concrete func copy([]i64, []i64) void {
-				$(00) Local 'i': i64
-				while (cmp LessThan local.00 lenof arg.00) {
-					def { local.00 = (i64)0 }	step { local.00++ }	arg.01[local.00] = arg.00[local.00]}
+				call Std.Mem.__copy_impl__ (i64, arg.00, arg.01)
+			}
+
+			public static concrete func copy([]u64, []u64) void {
+				call Std.Mem.__copy_impl__ (u64, arg.00, arg.01)
+			}
+
+			public static concrete func copy([]i128, []i128) void {
+				call Std.Mem.__copy_impl__ (i128, arg.00, arg.01)
 			}
 
 			public static concrete func copy([]u128, []u128) void {
-				$(00) Local 'i': i64
-				while (cmp LessThan local.00 lenof arg.00) {
-					def { local.00 = (i64)0 }	step { local.00++ }	arg.01[local.00] = arg.00[local.00]}
+				call Std.Mem.__copy_impl__ (u128, arg.00, arg.01)
 			}
 
 			public static concrete func copy([]bool, []bool) void {
-				$(00) Local 'i': i64
-				while (cmp LessThan local.00 lenof arg.00) {
-					def { local.00 = (i64)0 }	step { local.00++ }	arg.01[local.00] = arg.00[local.00]}
+				call Std.Mem.__copy_impl__ (bool, arg.00, arg.01)
 			}
 
 			public static concrete func copy([]anytype, []anytype) void {
+				call Std.Mem.__copy_impl__ (anytype, arg.00, arg.01)
+			}
+
+
+			; funcgroup __copy_impl__
+			private static concrete generic func __copy_impl__(type, []T, []T) void {
 				$(00) Local 'i': i64
-				while (cmp LessThan local.00 lenof arg.00) {
-					def { local.00 = (i64)0 }	step { local.00++ }	arg.01[local.00] = arg.00[local.00]}
+				if (cmp_Inequality(lenof(arg.01), lenof(arg.02))) {
+					(ret)
+				}
+
+				{ local.00 = (i64)0 }
+				while (cmp_LessThan(local.00, lenof(arg.01))) {
+					arg.02[local.00] = arg.01[local.00]
+					{ local.00++ }
+				}
 			}
 
 
 			; funcgroup compare
-			public static concrete func compare([]u8, []u8) bool {
-				$(00) Local 'i': i64
-				if (cmp Inequality lenof arg.00 lenof arg.01) {
-					ret false}
+			public static concrete func compare([]i8, []i8) bool {
+				ret call Std.Mem.__compare_impl__ (i8, arg.00, arg.01)
+			}
 
-				while (cmp LessThan local.00 lenof arg.00) {
-					def { local.00 = (i64)0 }	step { local.00++ }	if (cmp Inequality arg.00[local.00] arg.01[local.00]) {
-						ret false}}
+			public static concrete func compare([]u8, []u8) bool {
+				ret call Std.Mem.__compare_impl__ (u8, arg.00, arg.01)
+			}
+
+			public static concrete func compare([]i16, []i16) bool {
+				ret call Std.Mem.__compare_impl__ (i16, arg.00, arg.01)
+			}
+
+			public static concrete func compare([]u16, []u16) bool {
+				ret call Std.Mem.__compare_impl__ (u16, arg.00, arg.01)
+			}
+
+			public static concrete func compare([]i32, []i32) bool {
+				ret call Std.Mem.__compare_impl__ (i32, arg.00, arg.01)
+			}
+
+			public static concrete func compare([]u32, []u32) bool {
+				ret call Std.Mem.__compare_impl__ (u32, arg.00, arg.01)
+			}
+
+			public static concrete func compare([]i64, []i64) bool {
+				ret call Std.Mem.__compare_impl__ (i64, arg.00, arg.01)
+			}
+
+			public static concrete func compare([]u64, []u64) bool {
+				ret call Std.Mem.__compare_impl__ (u64, arg.00, arg.01)
+			}
+
+			public static concrete func compare([]i128, []i128) bool {
+				ret call Std.Mem.__compare_impl__ (i128, arg.00, arg.01)
+			}
+
+			public static concrete func compare([]u128, []u128) bool {
+				ret call Std.Mem.__compare_impl__ (u128, arg.00, arg.01)
+			}
+
+			public static concrete func compare([]bool, []bool) bool {
+				ret call Std.Mem.__compare_impl__ (bool, arg.00, arg.01)
+			}
+
+			public static concrete func compare([]anytype, []anytype) bool {
+				ret call Std.Mem.__compare_impl__ (anytype, arg.00, arg.01)
+			}
+
+
+			; funcgroup __compare_impl__
+			private static concrete generic func __compare_impl__(type, []T, []T) bool {
+				$(00) Local 'i': i64
+				if (cmp_Inequality(lenof(arg.01), lenof(arg.02))) {
+					ret false
+				}
+
+				{ local.00 = (i64)0 }
+				while (cmp_LessThan(local.00, lenof(arg.01))) {
+					if (cmp_Inequality(arg.01[local.00], arg.02[local.00])) {
+						ret false
+					}
+					{ local.00++ }
+				}
 
 				ret true
 			}
 
-			public static concrete func compare([]anytype, []anytype) bool {
+
+			; funcgroup fill
+			public static concrete func fill([]i8, i8) void {
+				call Std.Mem.__fill_impl__ (i8, arg.00, arg.01)
+			}
+
+			public static concrete func fill([]u8, u8) void {
+				call Std.Mem.__fill_impl__ (u8, arg.00, arg.01)
+			}
+
+			public static concrete func fill([]i16, i16) void {
+				call Std.Mem.__fill_impl__ (i16, arg.00, arg.01)
+			}
+
+			public static concrete func fill([]u16, u16) void {
+				call Std.Mem.__fill_impl__ (u16, arg.00, arg.01)
+			}
+
+			public static concrete func fill([]i32, i32) void {
+				call Std.Mem.__fill_impl__ (i32, arg.00, arg.01)
+			}
+
+			public static concrete func fill([]u32, u32) void {
+				call Std.Mem.__fill_impl__ (u32, arg.00, arg.01)
+			}
+
+			public static concrete func fill([]i64, i64) void {
+				call Std.Mem.__fill_impl__ (i64, arg.00, arg.01)
+			}
+
+			public static concrete func fill([]u64, u64) void {
+				call Std.Mem.__fill_impl__ (u64, arg.00, arg.01)
+			}
+
+			public static concrete func fill([]i128, i128) void {
+				call Std.Mem.__fill_impl__ (i128, arg.00, arg.01)
+			}
+
+			public static concrete func fill([]u128, u128) void {
+				call Std.Mem.__fill_impl__ (u128, arg.00, arg.01)
+			}
+
+			public static concrete func fill([]bool, bool) void {
+				call Std.Mem.__fill_impl__ (bool, arg.00, arg.01)
+			}
+
+			public static concrete generic func fill([]anytype, anytype) void {
+				call Std.Mem.__fill_impl__ (anytype, arg.00, arg.01)
+			}
+
+
+			; funcgroup __fill_impl__
+			private static concrete generic func __fill_impl__(type, []T, T) void {
 				$(00) Local 'i': i64
-				if (cmp Inequality lenof arg.00 lenof arg.01) {
-					ret false}
-
-				while (cmp LessThan local.00 lenof arg.00) {
-					def { local.00 = (i64)0 }	step { local.00++ }	if (cmp Inequality arg.00[local.00] arg.01[local.00]) {
-						ret false}}
-
-				ret true
+				{ local.00 = (i64)0 }
+				while (cmp_LessThan(local.00, lenof(arg.01))) {
+					arg.01[local.00] = arg.02
+					{ local.00++ }
+				}
 			}
 
 
 			; funcgroup alloc
 			public static concrete generic func alloc(type, u64, Typedef<Std.Mem.Alignment>) []T {
-				ret call Callable<AllocateArray> (arg.00, arg.01 as i32, false)
+				ret call AllocateArray (arg.00, arg.01 as i32, false)
 			}
 
 
@@ -172,15 +275,17 @@ module Std {
 		Namespace 'Test' ('Std.Test') {
 			; funcgroup testValue
 			public static concrete func testValue(u8, u8) void {
-				call Callable<Std.Test.printStatusMessage> (cmp Equality arg.00 arg.01)
+				call Std.Test.printStatusMessage (cmp_Equality(arg.00, arg.01))
 			}
 
 
 			; funcgroup printStatusMessage
 			private static concrete func printStatusMessage(bool) void {
 				if (arg.00) {
-					call Callable<Std.Console.writeln> ((Undefined) "TEST PASSED")} else {
-					call Callable<Std.Console.write> ((Undefined) "TEST FAILED")}
+					call Std.Console.writeln ((Undefined) "TEST PASSED")
+				} else {
+					call Std.Console.write ((Undefined) "TEST FAILED")
+				}
 			}
 
 
@@ -189,45 +294,53 @@ module Std {
 		Namespace 'Console' ('Std.Console') {
 			; funcgroup write
 			private static concrete func write(i64) void {
-				call Callable<Write> (arg.00 as string)
+				call Write (arg.00 as string)
 			}
 
 			private static concrete func write(u64) void {
-				call Callable<Write> (arg.00 as string)
+				call Write (arg.00 as string)
 			}
 
 			private static concrete func write(i128) void {
-				call Callable<Write> (arg.00 as string)
+				call Write (arg.00 as string)
 			}
 
 			private static concrete func write(u128) void {
-				call Callable<Write> (arg.00 as string)
+				call Write (arg.00 as string)
+			}
+
+			private static concrete func write([]anytype) void {
+				call Write (arg.00 as string)
 			}
 
 			private static concrete func write(string) void {
-				call Callable<Write> (arg.00)
+				call Write (arg.00)
 			}
 
 
 			; funcgroup writeln
 			private static concrete func writeln(i64) void {
-				call Callable<WriteLine> (arg.00 as string)
+				call WriteLine (arg.00 as string)
 			}
 
 			private static concrete func writeln(u64) void {
-				call Callable<WriteLine> (arg.00 as string)
+				call WriteLine (arg.00 as string)
 			}
 
 			private static concrete func writeln(i128) void {
-				call Callable<WriteLine> (arg.00 as string)
+				call WriteLine (arg.00 as string)
 			}
 
 			private static concrete func writeln(u128) void {
-				call Callable<WriteLine> (arg.00 as string)
+				call WriteLine (arg.00 as string)
+			}
+
+			private static concrete func writeln([]anytype) void {
+				call WriteLine (arg.00 as string)
 			}
 
 			private static concrete func writeln(string) void {
-				call Callable<WriteLine> (arg.00)
+				call WriteLine (arg.00)
 			}
 
 
@@ -239,7 +352,7 @@ module Std {
 
 				; funcgroup close
 				private instance concrete func close() void {
-					call Callable<Close> (self->Field<Std.Fs.File._filestream>)
+					call Close (self->Field<Std.Fs.File._filestream>)
 				}
 
 
@@ -274,9 +387,9 @@ module Std {
 
 				ctor(*System.IO.FileInfo) {
 					self->Field<Std.Fs.FileInfo._fileInfo> = arg.00
-					self->Field<Std.Fs.FileInfo.name> = call Callable<get_Name> (arg.00)
-					self->Field<Std.Fs.FileInfo.directory> = call Callable<get_DirectoryName> (arg.00)
-					self->Field<Std.Fs.FileInfo.length> = call Callable<get_Length> (arg.00)
+					self->Field<Std.Fs.FileInfo.name> = call get_Name (arg.00)
+					self->Field<Std.Fs.FileInfo.directory> = call get_DirectoryName (arg.00)
+					self->Field<Std.Fs.FileInfo.length> = call get_Length (arg.00)
 				}
 
 			}
@@ -312,19 +425,19 @@ module Std {
 
 			; funcgroup fileExists
 			public static concrete func fileExists(string) bool {
-				ret call Callable<Exists> (arg.00)
+				ret call Exists (arg.00)
 			}
 
 
 			; funcgroup readAllText
 			public static concrete func readAllText(string) string {
-				ret call Callable<ReadAllText> (arg.00)
+				ret call ReadAllText (arg.00)
 			}
 
 
 			; funcgroup writeAllText
 			public static concrete func writeAllText(string, string) void {
-				call Callable<WriteAllText> (arg.00, arg.01)
+				call WriteAllText (arg.00, arg.01)
 			}
 
 

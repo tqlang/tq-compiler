@@ -1,4 +1,6 @@
-﻿namespace Abstract.CodeProcess.Core.Language.SyntaxNodes.Value;
+﻿using System.Globalization;
+
+namespace Abstract.CodeProcess.Core.Language.SyntaxNodes.Value;
 
 public class CharacterLiteralNode(Token token, bool insideString = false) : ValueNode(token)
 {
@@ -9,6 +11,8 @@ public class CharacterLiteralNode(Token token, bool insideString = false) : Valu
 
     public string BuildCharacter()
     {
+        if (Value.StartsWith("\\x")) return "" + (char)byte.Parse(Value[2..], NumberStyles.HexNumber);
+        
         return Value switch
         {
             // Control

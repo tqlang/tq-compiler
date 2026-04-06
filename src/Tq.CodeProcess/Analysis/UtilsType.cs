@@ -123,6 +123,7 @@ public partial class Analyser
                         
                         case "bool": return new BooleanTypeReference();
                         case "void": return new VoidTypeReference();
+                        case "char": return new CharTypeReference();
                         case "type": return new TypeTypeReference(null!);
                         case "string": return new StringTypeReference(StringEncoding.Undefined);
                         case "anytype": return new AnytypeTypeReference();

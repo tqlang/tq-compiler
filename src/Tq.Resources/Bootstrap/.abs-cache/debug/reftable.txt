@@ -10,7 +10,11 @@ FnGp	Std.Process.exit
 Nmsp	Std.Mem
 TDef	Std.Mem.Alignment
 FnGp	Std.Mem.copy
+FnGp	Std.Mem.__copy_impl__
 FnGp	Std.Mem.compare
+FnGp	Std.Mem.__compare_impl__
+FnGp	Std.Mem.fill
+FnGp	Std.Mem.__fill_impl__
 FnGp	Std.Mem.alloc
 Nmsp	Std.Test
 FnGp	Std.Test.testValue

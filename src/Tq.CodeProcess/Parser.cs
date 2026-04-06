@@ -469,8 +469,8 @@ public class Parser(ErrorHandler errHandler)
         var node = ParseCastingExpression(recursive);
 
         if (!Taste(
-                TokenType.BitwiseOrKeyword, // OR
-                TokenType.BitwiseAndKeyword, // AND
+                TokenType.PipeChar, // |
+                TokenType.AmpersandChar, // &
                 TokenType.BitwiseXorKeyword, // XOR
             
                 TokenType.BitShiftLeftOperator, // <<
@@ -550,7 +550,7 @@ public class Parser(ErrorHandler errHandler)
             node.AppendChild(n);
             node.AppendChild(ParseValue(recursive));
         }
-        else node = ParseValue(recursive);
+        else node = ParseTernaryExpression(recursive);
         
         if (TryEatAsNode(TokenType.DotDotOperator, out var n2))
         {
@@ -569,6 +569,22 @@ public class Parser(ErrorHandler errHandler)
         // TODO step
         
         return node;
+    }
+
+    private ExpressionNode ParseTernaryExpression(bool recursive)
+    {
+        var node = ParseValue(recursive);
+        if (!TryEatAsNode(TokenType.QuestionChar, out var n2)) return node;
+        
+        var n = new TernaryExpressionNode();
+        n.AppendChild(node);
+        n.AppendChild(n2);
+        n.AppendChild(ParseExpression(recursive));
+        n.AppendChild(DietAsNode(TokenType.ColonChar,
+            token => throw new Exception($"Unexpected token {token}; expected ':")));
+        n.AppendChild(ParseExpression(recursive));
+
+        return n;
     }
     
     #endregion
@@ -680,9 +696,9 @@ public class Parser(ErrorHandler errHandler)
             case TokenType.LeftParenthesisChar:
             try {
                 node = new ParenthesisExpressionNode();
-                node.AppendChild(DietAsNode(TokenType.LeftParenthesisChar, (t) => throw new Exception($"Unexpected token '{Bite()}'")));
+                node.AppendChild(DietAsNode(TokenType.LeftParenthesisChar, (t) => throw new Exception($"Unexpected token {Bite()}")));
                 node.AppendChild(ParseExpression());
-                node.AppendChild(DietAsNode(TokenType.RightParenthesisChar, (t) => throw new Exception($"Unexpected token '{Bite()}'")));
+                node.AppendChild(DietAsNode(TokenType.RightParenthesisChar, (t) => throw new Exception($"Unexpected token {Bite()}")));
 
             } catch { DiscardUntil(TokenType.RightParenthesisChar); throw; }
             break;
