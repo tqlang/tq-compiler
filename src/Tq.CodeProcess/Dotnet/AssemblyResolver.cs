@@ -9,17 +9,26 @@ public class AssemblyResolver : DotNetCoreAssemblyResolver
     private static readonly Version NullVersion = new();
     private readonly List<string> _resolvingDirectories = [];
 
-    public readonly AssemblyReference CorLibReference;
-    
+    public readonly Dictionary<string, AssemblyReference> Assemblies = [];
+
     public AssemblyResolver(Version runtimeVersion)
         : base(UncachedFileService.Instance, runtimeVersion)
     {
         var paths = new DotNetCorePathProvider().GetRuntimePathCandidates(runtimeVersion);
         _resolvingDirectories.AddRange(paths);
 
-        CorLibReference = new AssemblyReference("System.Runtime", runtimeVersion)
+        Assemblies["System.Runtime"] = new AssemblyReference("System.Runtime", runtimeVersion)
             { PublicKeyOrToken = [0xb0, 0x3f, 0x5f, 0x7f, 0x11, 0xd5, 0x0a, 0x3a] };
-        Resolve(CorLibReference);
+        
+        Assemblies["System.Console"] = new AssemblyReference("System.Console", runtimeVersion)
+            { PublicKeyOrToken = [0xb0, 0x3f, 0x5f, 0x7f, 0x11, 0xd5, 0x0a, 0x3a] };
+        
+        Assemblies["System.Collections.Generic"] = new AssemblyReference("System.Collections.Generic", runtimeVersion)
+            { PublicKeyOrToken = [0xb0, 0x3f, 0x5f, 0x7f, 0x11, 0xd5, 0x0a, 0x3a] };
+        
+        Resolve(Assemblies["System.Runtime"]);
+        Resolve(Assemblies["System.Console"]);
+        Resolve(Assemblies["System.Collections.Generic"]);
     }
     
     protected override string? ProbeRuntimeDirectories(AssemblyDescriptor assembly)

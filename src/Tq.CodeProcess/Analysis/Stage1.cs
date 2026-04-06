@@ -62,6 +62,11 @@ public partial class Analyser
         
         // Search dotnet included references
         var dotnetModule = new DotnetModuleObject("Dotnet");
+        foreach (var (_, i) in _assemblyResolver.Assemblies)
+        {
+            var res = _assemblyResolver.Resolve(i);
+            if (res?.ManifestModule != null) dotnetModule.AddModule(res.ManifestModule);
+        }
         foreach (var i in includes)
         {
             var asmRef = new AssemblyReference(i, new Version());

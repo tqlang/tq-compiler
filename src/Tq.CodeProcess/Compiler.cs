@@ -59,10 +59,10 @@ public partial class Compiler
     {
         var programName = program.Modules[0].Name;
         
-        _assembly = new AssemblyDefinition(programName + ".dll",
+        _assembly = new AssemblyDefinition(programName + ".dll", 
             new Version(1, 0, 0, 0));
         
-        _module = new ModuleDefinition(programName, program.AssemblyResolver.CorLibReference)
+        _module = new ModuleDefinition(programName, program.AssemblyResolver.Assemblies["System.Runtime"])
         { MetadataResolver = new DefaultMetadataResolver(program.AssemblyResolver) };
         _assembly.Modules.Add(_module);
         _module.TopLevelTypes.Clear();
