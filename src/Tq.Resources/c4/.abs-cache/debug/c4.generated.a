@@ -1,0 +1,120 @@
+from Std import { Console , Process , Mem , Fs }
+let int src = 0
+let int debug = 0
+let []uint sym
+let []byte le
+let []byte data
+let []byte sp
+let uint lePtr = 0
+let uint id_ptr = 0
+let uint sym_top = 0
+let uint ival = 0
+let uint e = 0
+let uint p = 0
+let uint lp = 0
+let uint tk = 0
+let []string id
+let uint line = 0
+let string pval
+func main () void { let argv = Process.getProgramArguments() let argc = argv.len as int let i = 1 if ((argc - i) > 0 and argv[i][0] == '-' and argv[i] == "-s") src = i++ if ((argc - i) > 0 and argv[i][0] == '-' and argv[i] == "-d") debug = i++ if ((argc - i) < 1) { Console.writeln("usage: c4 [-s] [-d] file ...") Process.exit(1) } let file = Fs.open(argv[i]) const uint poolsz = 256 * 1024 sym = Mem.alloc(uint, poolsz, Mem.Alignment._1) le = Mem.alloc(byte, poolsz, Mem.Alignment._1) data = Mem.alloc(byte, poolsz, Mem.Alignment._1) sp = Mem.alloc(byte, poolsz, Mem.Alignment._1) pval = "char else enum if int return sizeof while " + "open read close printf malloc free memset memcmp exit void main" let idx1 = Tokens._char as uint while idx1 <= Tokens._while as uint : idx1++ do { next() sym[id_ptr + IdentifierOffsets.tk as uint] = idx1 } let idx2 = OpCodes.open as uint while idx2 <= OpCodes.exit as uint : idx2++ do { next() id[IdentifierOffsets.class as uint] = idx2 } }
+func next () { let uint pp = 0 tk = p while p < pval.len do { ++p if (pval[tk] == '\n') { if (src != 0) { Console.writeln((line as string) + ": " + pval.slice(lp, p)) lp = p while (lePtr < e) do { let []string values = [ "LEA", "IMM", "JMP", "JSR", "BZ", "BNZ", "ENT", "ADJ", "LEV", "LI", "LC", "SI", "SC", "PSH", "OR", "XOR", "AND", "EQ", "NE", "LT", "GT", "LE", "GE", "SHL", "SHR", "ADD", "SUB", "MUL", "DIV", "MOD", "OPEN", "READ", "CLOS", "PRTF", "MALC", "FREE", "MSET", "MCMP", "EXIT" ] Console.write(values[++lePtr]) if (lePtr < OpCodes.adj as uint) Console.writeln(++lePtr) else Console.writeln("") } } ++line } elif (tk == '#') while (p < pval.len and pval[p] != '\n') do ++p elif ((pval[p] >= 'a' and pval[p] <= 'z') or (pval[p] >= 'A' and pval[p] <= 'Z') or pval[p] == '_') { pp = p - 1 while ((pval[p] >= 'a' and pval[p] <= 'z') or (pval[p] >= 'A' and pval[p] <= 'Z') or (pval[p] >= '0' and pval[p] <= '9') or pval[p] == '_') do tk = tk * 147 + (pval[p++] as uint) tk = (tk << 6) + (p - pp) id = sym let i = 0 while (i < sym_top) do { if (tk == sym[i + IdentifierOffsets.hash]) { id_ptr = i tk = id[IdentifierOffsets.tk] return } i += IdentifierOffsets.idsz } id_ptr = sym_top sym_top += IdentifierOffsets.idsz sym[id_ptr + IdentifierOffsets.hash] = tk sym[id_ptr + IdentifierOffsets.name] = pp sym[id_ptr + IdentifierOffsets.tk] = Tokens.id tk = sym[id_ptr + IdentifierOffsets.tk] return } elif (tk > '0' and tk < '9') { ival = tk - '0' if (ival != 0) while (pval[p] >= '0' and pval[p] <= '9') do { ival = ival * 10 + pval[p++] - '0' } elif (pval[p] == 'x' or pval[p] == 'X') { tk = pval[++p] while (tk != 0 and ((tk >= '0' and tk <= 9) or (tk >= 'a' and tk <= 'f') or (tk >= 'A' and tk <= 'F'))) do ival = ival * 16 + (tk & 5) + (tk > 'A'
+	? 9
+	: 0) } } tk = p } }
+typedef Tokens {
+	num,
+	fun,
+	sys,
+	glo,
+	loc,
+	id,
+	_char,
+	_else,
+	enum,
+	_if,
+	_int,
+	ret,
+	sizeof,
+	_while,
+	assign,
+	cond,
+	opLor,
+	opLan,
+	opOr,
+	opXor,
+	opAnd,
+	opEq,
+	opNe,
+	poLt,
+	opGt,
+	opLe,
+	opGe,
+	opShl,
+	opShr,
+	opAdd,
+	opSub,
+	opMul,
+	opDiv,
+	opMod,
+	opInc,
+	opDec,
+	_break
+}
+typedef OpCodes {
+	lea,
+	imm,
+	jmp,
+	jsr,
+	bz,
+	bnz,
+	ent,
+	adj,
+	lev,
+	li,
+	lc,
+	si,
+	sc,
+	psh,
+	_or,
+	xor,
+	_and,
+	eq,
+	ne,
+	lt,
+	gt,
+	le,
+	ge,
+	shl,
+	shr,
+	add,
+	sub,
+	mul,
+	div,
+	mod,
+	open,
+	read,
+	close,
+	printf,
+	malloc,
+	free,
+	memset,
+	memcmp,
+	exit
+}
+typedef CTypes {
+	_char,
+	_int,
+	ptr
+}
+typedef( uint ) IdentifierOffsets {
+	tk = 0,
+	hash = 1,
+	name = 2,
+	class = 3,
+	_type = 4,
+	val = 5,
+	hClass = 6,
+	hType = 7,
+	hVal = 8,
+	idsz = 9
+}
+

@@ -1,0 +1,699 @@
+module c4 {
+	Namespace '' ('c4') {
+		private static concrete var 'src' i64
+		 = (comptime_int)0
+		private static concrete var 'debug' i64
+		 = (comptime_int)0
+		private static concrete var 'sym' []u64
+
+		private static concrete var 'le' []u8
+
+		private static concrete var 'data' []u8
+
+		private static concrete var 'sp' []u8
+
+		private static concrete var 'lePtr' u64
+		 = (comptime_int)0
+		private static concrete var 'id_ptr' u64
+		 = (comptime_int)0
+		private static concrete var 'sym_top' u64
+		 = (comptime_int)0
+		private static concrete var 'ival' u64
+		 = (comptime_int)0
+		private static concrete var 'e' u64
+		 = (comptime_int)0
+		private static concrete var 'p' u64
+		 = (comptime_int)0
+		private static concrete var 'lp' u64
+		 = (comptime_int)0
+		private static concrete var 'tk' u64
+		 = (comptime_int)0
+		private static concrete var 'id' []string
+
+		private static concrete var 'line' u64
+		 = (comptime_int)0
+		private static concrete var 'pval' string
+
+		typedef 'Tokens' {
+			case num,
+			case fun,
+			case sys,
+			case glo,
+			case loc,
+			case id,
+			case _char,
+			case _else,
+			case enum,
+			case _if,
+			case _int,
+			case ret,
+			case sizeof,
+			case _while,
+			case assign,
+			case cond,
+			case opLor,
+			case opLan,
+			case opOr,
+			case opXor,
+			case opAnd,
+			case opEq,
+			case opNe,
+			case poLt,
+			case opGt,
+			case opLe,
+			case opGe,
+			case opShl,
+			case opShr,
+			case opAdd,
+			case opSub,
+			case opMul,
+			case opDiv,
+			case opMod,
+			case opInc,
+			case opDec,
+			case _break,
+		}
+
+		typedef 'OpCodes' {
+			case lea,
+			case imm,
+			case jmp,
+			case jsr,
+			case bz,
+			case bnz,
+			case ent,
+			case adj,
+			case lev,
+			case li,
+			case lc,
+			case si,
+			case sc,
+			case psh,
+			case _or,
+			case xor,
+			case _and,
+			case eq,
+			case ne,
+			case lt,
+			case gt,
+			case le,
+			case ge,
+			case shl,
+			case shr,
+			case add,
+			case sub,
+			case mul,
+			case div,
+			case mod,
+			case open,
+			case read,
+			case close,
+			case printf,
+			case malloc,
+			case free,
+			case memset,
+			case memcmp,
+			case exit,
+		}
+
+		typedef 'CTypes' {
+			case _char,
+			case _int,
+			case ptr,
+		}
+
+		typedef(u64) 'IdentifierOffsets' {
+			case tk = (comptime_int)0,
+			case hash = (comptime_int)1,
+			case name = (comptime_int)2,
+			case class = (comptime_int)3,
+			case _type = (comptime_int)4,
+			case val = (comptime_int)5,
+			case hClass = (comptime_int)6,
+			case hType = (comptime_int)7,
+			case hVal = (comptime_int)8,
+			case idsz = (comptime_int)9,
+		}
+
+		; funcgroup main
+		private static concrete func main() void {
+			$(00) Local 'argv': <!nil>
+			$(01) Local 'argc': <!nil>
+			$(02) Local 'i': <!nil>
+			$(03) Local 'file': <!nil>
+			$(04) Local 'poolsz': u64
+			$(05) Local 'idx1': <!nil>
+			$(06) Local 'idx2': <!nil>
+			local.00 = call Unknown(Process)->Unknown(getProgramArguments) ()
+			local.01 = Unknown(argv)->Unknown(len) as i64
+			local.02 = (comptime_int)1
+			if (cmp_GreaterThan(Subtract(Unknown(argc), Unknown(i)), (comptime_int)0)
+				and cmp_Equality(Unknown(argv)[Unknown(i)][(comptime_int)0], (char) '-')
+				and cmp_Equality(Unknown(argv)[Unknown(i)], (Undefined) "-s")) {
+				Unknown(src) = Unknown(i)++
+			}
+
+			if (cmp_GreaterThan(Subtract(Unknown(argc), Unknown(i)), (comptime_int)0)
+				and cmp_Equality(Unknown(argv)[Unknown(i)][(comptime_int)0], (char) '-')
+				and cmp_Equality(Unknown(argv)[Unknown(i)], (Undefined) "-d")) {
+				Unknown(debug) = Unknown(i)++
+			}
+
+			if (cmp_LessThan(Subtract(Unknown(argc), Unknown(i)), (comptime_int)1)) {
+				call Unknown(Console)->Unknown(writeln) ((Undefined) "usage: c4 [-s] [-d] file ...")
+				call Unknown(Process)->Unknown(exit) ((comptime_int)1)
+			}
+
+			local.03 = call Unknown(Fs)->Unknown(open) (Unknown(argv)[Unknown(i)])
+			local.04 = Multiply((comptime_int)256, (comptime_int)1024)
+			Unknown(sym) = call Unknown(Mem)->Unknown(alloc) (u64, Unknown(poolsz), Unknown(Mem)->Unknown(Alignment)->Unknown(_1))
+			Unknown(le) = call Unknown(Mem)->Unknown(alloc) (u8, Unknown(poolsz), Unknown(Mem)->Unknown(Alignment)->Unknown(_1))
+			Unknown(data) = call Unknown(Mem)->Unknown(alloc) (u8, Unknown(poolsz), Unknown(Mem)->Unknown(Alignment)->Unknown(_1))
+			Unknown(sp) = call Unknown(Mem)->Unknown(alloc) (u8, Unknown(poolsz), Unknown(Mem)->Unknown(Alignment)->Unknown(_1))
+			Unknown(pval) = Add((Undefined) "char else enum if int return sizeof while ", (Undefined) "open read close printf malloc free memset memcmp exit void main")
+			local.05 = Unknown(Tokens)->Unknown(_char) as u64
+			while (cmp_LessThanOrEqual(Unknown(idx1), Unknown(Tokens)->Unknown(_while) as u64)) {
+				call Unknown(next) ()
+				Unknown(sym)[Add(Unknown(id_ptr), Unknown(IdentifierOffsets)->Unknown(tk) as u64)] = Unknown(idx1)
+				{ Unknown(idx1)++ }
+			}
+
+			local.06 = Unknown(OpCodes)->Unknown(open) as u64
+			while (cmp_LessThanOrEqual(Unknown(idx2), Unknown(OpCodes)->Unknown(exit) as u64)) {
+				call Unknown(next) ()
+				Unknown(id)[Unknown(IdentifierOffsets)->Unknown(class) as u64] = Unknown(idx2)
+				{ Unknown(idx2)++ }
+			}
+		}
+
+
+		; funcgroup next
+		private static concrete func next() void {
+			$(00) Local 'pp': u64
+			$(01) Local 'values': []string
+			$(02) Local 'i': <!nil>
+			local.00 = (comptime_int)0
+			Unknown(tk) = Unknown(p)
+			while (cmp_LessThan(Unknown(p), Unknown(pval)->Unknown(len))) {
+				++Unknown(p)
+				if (cmp_Equality(Unknown(pval)[Unknown(tk)], (char) '\')) {
+					if (cmp_Inequality(Unknown(src), (comptime_int)0)) {
+						call Unknown(Console)->Unknown(writeln) (Add(Unknown(line) as string, Add((Undefined) ": ", call Unknown(pval)->Unknown(slice) (Unknown(lp), Unknown(p)))))
+						Unknown(lp) = Unknown(p)
+						while (cmp_LessThan(Unknown(lePtr), Unknown(e))) {
+							local.01 = []UType<> [(Undefined) "LEA", (Undefined) "IMM", (Undefined) "JMP", (Undefined) "JSR", (Undefined) "BZ", (Undefined) "BNZ", (Undefined) "ENT", (Undefined) "ADJ", (Undefined) "LEV", (Undefined) "LI", (Undefined) "LC", (Undefined) "SI", (Undefined) "SC", (Undefined) "PSH", (Undefined) "OR", (Undefined) "XOR", (Undefined) "AND", (Undefined) "EQ", (Undefined) "NE", (Undefined) "LT", (Undefined) "GT", (Undefined) "LE", (Undefined) "GE", (Undefined) "SHL", (Undefined) "SHR", (Undefined) "ADD", (Undefined) "SUB", (Undefined) "MUL", (Undefined) "DIV", (Undefined) "MOD", (Undefined) "OPEN", (Undefined) "READ", (Undefined) "CLOS", (Undefined) "PRTF", (Undefined) "MALC", (Undefined) "FREE", (Undefined) "MSET", (Undefined) "MCMP", (Undefined) "EXIT"]
+							call Unknown(Console)->Unknown(write) (Unknown(values)[++Unknown(lePtr)])
+							if (cmp_LessThan(Unknown(lePtr), Unknown(OpCodes)->Unknown(adj) as u64)) {
+								call Unknown(Console)->Unknown(writeln) (++Unknown(lePtr))
+							} else {
+								call Unknown(Console)->Unknown(writeln) ((Undefined) "")
+							}
+						}
+					}
+
+					++Unknown(line)
+				} else if (cmp_Equality(Unknown(tk), (char) '#')) {
+					while (cmp_LessThan(Unknown(p), Unknown(pval)->Unknown(len))
+							and cmp_Inequality(Unknown(pval)[Unknown(p)], (char) '\')) {
+						++Unknown(p)
+					}
+				} else if (cmp_GreaterThanOrEqual(Unknown(pval)[Unknown(p)], (char) 'a')
+					and cmp_LessThanOrEqual(Unknown(pval)[Unknown(p)], (char) 'z')
+					or cmp_GreaterThanOrEqual(Unknown(pval)[Unknown(p)], (char) 'A')
+					and cmp_LessThanOrEqual(Unknown(pval)[Unknown(p)], (char) 'Z')
+					or cmp_Equality(Unknown(pval)[Unknown(p)], (char) '_')) {
+					Unknown(pp) = Subtract(Unknown(p), (comptime_int)1)
+					while (cmp_GreaterThanOrEqual(Unknown(pval)[Unknown(p)], (char) 'a')
+							and cmp_LessThanOrEqual(Unknown(pval)[Unknown(p)], (char) 'z')
+							or cmp_GreaterThanOrEqual(Unknown(pval)[Unknown(p)], (char) 'A')
+							and cmp_LessThanOrEqual(Unknown(pval)[Unknown(p)], (char) 'Z')
+							or cmp_GreaterThanOrEqual(Unknown(pval)[Unknown(p)], (char) '0')
+							and cmp_LessThanOrEqual(Unknown(pval)[Unknown(p)], (char) '9')
+							or cmp_Equality(Unknown(pval)[Unknown(p)], (char) '_')) {
+						Unknown(tk) = Add(Multiply(Unknown(tk), (comptime_int)147), Unknown(pval)[Unknown(p)++] as u64)
+					}
+
+					Unknown(tk) = Add(LeftShift(Unknown(tk), (comptime_int)6), Subtract(Unknown(p), Unknown(pp)))
+					Unknown(id) = Unknown(sym)
+					local.02 = (comptime_int)0
+					while (cmp_LessThan(Unknown(i), Unknown(sym_top))) {
+						if (cmp_Equality(Unknown(tk), Unknown(sym)[Add(Unknown(i), Unknown(IdentifierOffsets)->Unknown(hash))])) {
+							Unknown(id_ptr) = Unknown(i)
+							Unknown(tk) = Unknown(id)[Unknown(IdentifierOffsets)->Unknown(tk)]
+							(ret)
+						}
+
+						Unknown(i) = Add(Unknown(i), Unknown(IdentifierOffsets)->Unknown(idsz))
+					}
+
+					Unknown(id_ptr) = Unknown(sym_top)
+					Unknown(sym_top) = Add(Unknown(sym_top), Unknown(IdentifierOffsets)->Unknown(idsz))
+					Unknown(sym)[Add(Unknown(id_ptr), Unknown(IdentifierOffsets)->Unknown(hash))] = Unknown(tk)
+					Unknown(sym)[Add(Unknown(id_ptr), Unknown(IdentifierOffsets)->Unknown(name))] = Unknown(pp)
+					Unknown(sym)[Add(Unknown(id_ptr), Unknown(IdentifierOffsets)->Unknown(tk))] = Unknown(Tokens)->Unknown(id)
+					Unknown(tk) = Unknown(sym)[Add(Unknown(id_ptr), Unknown(IdentifierOffsets)->Unknown(tk))]
+					(ret)
+				} else if (cmp_GreaterThan(Unknown(tk), (char) '0')
+					and cmp_LessThan(Unknown(tk), (char) '9')) {
+					Unknown(ival) = Subtract(Unknown(tk), (char) '0')
+					if (cmp_Inequality(Unknown(ival), (comptime_int)0)) {
+						while (cmp_GreaterThanOrEqual(Unknown(pval)[Unknown(p)], (char) '0')
+								and cmp_LessThanOrEqual(Unknown(pval)[Unknown(p)], (char) '9')) {
+							Unknown(ival) = Add(Multiply(Unknown(ival), (comptime_int)10), Subtract(Unknown(pval)[Unknown(p)++], (char) '0'))
+						}
+					} else if (cmp_Equality(Unknown(pval)[Unknown(p)], (char) 'x')
+						or cmp_Equality(Unknown(pval)[Unknown(p)], (char) 'X')) {
+						Unknown(tk) = Unknown(pval)[++Unknown(p)]
+						while (cmp_Inequality(Unknown(tk), (comptime_int)0)
+								and cmp_GreaterThanOrEqual(Unknown(tk), (char) '0')
+								and cmp_LessThanOrEqual(Unknown(tk), (comptime_int)9)
+								or cmp_GreaterThanOrEqual(Unknown(tk), (char) 'a')
+								and cmp_LessThanOrEqual(Unknown(tk), (char) 'f')
+								or cmp_GreaterThanOrEqual(Unknown(tk), (char) 'A')
+								and cmp_LessThanOrEqual(Unknown(tk), (char) 'F')) {
+							Unknown(ival) = Add(Multiply(Unknown(ival), (comptime_int)16), Add(BitwiseAnd(Unknown(tk), (comptime_int)5), cmp_GreaterThan(Unknown(tk), (char) 'A' ? (comptime_int)0 : (comptime_int)0)))
+						}
+					}
+				}
+
+
+
+
+				Unknown(tk) = Unknown(p)
+			}
+		}
+
+
+	}
+
+}
+
+module Std {
+	Namespace '' ('Std') {
+		Namespace 'Io' ('Std.Io') {
+			public instance concrete struct 'Reader' {
+			}
+
+			public instance concrete struct 'Writer' {
+			}
+
+		}
+
+		Namespace 'Process' ('Std.Process') {
+			; funcgroup getProgramArguments
+			public static concrete func getProgramArguments() []string {
+				ret call Unknown(CsGetArgs) ()
+			}
+
+
+			; funcgroup exit
+			public static concrete func exit(u64) noreturn {
+				call Unknown(CsExit) (Unknown(status) as i32)
+			}
+
+
+		}
+
+		Namespace 'Mem' ('Std.Mem') {
+			typedef 'Alignment' {
+				case _1,
+				case _2,
+				case _4,
+				case _8,
+				case _16,
+				case _32,
+			}
+
+			; funcgroup copy
+			public static concrete func copy([]i8, []i8) void {
+				call Unknown(__copy_impl__) (i8, Unknown(source), Unknown(target))
+			}
+
+			public static concrete func copy([]u8, []u8) void {
+				call Unknown(__copy_impl__) (u8, Unknown(source), Unknown(target))
+			}
+
+			public static concrete func copy([]i16, []i16) void {
+				call Unknown(__copy_impl__) (i16, Unknown(source), Unknown(target))
+			}
+
+			public static concrete func copy([]u16, []u16) void {
+				call Unknown(__copy_impl__) (u16, Unknown(source), Unknown(target))
+			}
+
+			public static concrete func copy([]i32, []i32) void {
+				call Unknown(__copy_impl__) (i32, Unknown(source), Unknown(target))
+			}
+
+			public static concrete func copy([]u32, []u32) void {
+				call Unknown(__copy_impl__) (u32, Unknown(source), Unknown(target))
+			}
+
+			public static concrete func copy([]i64, []i64) void {
+				call Unknown(__copy_impl__) (i64, Unknown(source), Unknown(target))
+			}
+
+			public static concrete func copy([]u64, []u64) void {
+				call Unknown(__copy_impl__) (u64, Unknown(source), Unknown(target))
+			}
+
+			public static concrete func copy([]i128, []i128) void {
+				call Unknown(__copy_impl__) (i128, Unknown(source), Unknown(target))
+			}
+
+			public static concrete func copy([]u128, []u128) void {
+				call Unknown(__copy_impl__) (u128, Unknown(source), Unknown(target))
+			}
+
+			public static concrete func copy([]bool, []bool) void {
+				call Unknown(__copy_impl__) (bool, Unknown(source), Unknown(target))
+			}
+
+			public static concrete func copy([]anytype, []anytype) void {
+				call Unknown(__copy_impl__) (anytype, Unknown(source), Unknown(target))
+			}
+
+
+			; funcgroup __copy_impl__
+			private static concrete generic func __copy_impl__(type, []T, []T) void {
+				$(00) Local 'i': <!nil>
+				if (cmp_Inequality(Unknown(source)->Unknown(len), Unknown(target)->Unknown(len))) {
+					(ret)
+				}
+
+				{ local.00 = (comptime_int)0 }
+				while (cmp_LessThan(Unknown(i), Unknown(source)->Unknown(len))) {
+					Unknown(target)[Unknown(i)] = Unknown(source)[Unknown(i)]
+					{ Unknown(i)++ }
+				}
+			}
+
+
+			; funcgroup compare
+			public static concrete func compare([]i8, []i8) bool {
+				ret call Unknown(__compare_impl__) (i8, Unknown(a), Unknown(b))
+			}
+
+			public static concrete func compare([]u8, []u8) bool {
+				ret call Unknown(__compare_impl__) (u8, Unknown(a), Unknown(b))
+			}
+
+			public static concrete func compare([]i16, []i16) bool {
+				ret call Unknown(__compare_impl__) (i16, Unknown(a), Unknown(b))
+			}
+
+			public static concrete func compare([]u16, []u16) bool {
+				ret call Unknown(__compare_impl__) (u16, Unknown(a), Unknown(b))
+			}
+
+			public static concrete func compare([]i32, []i32) bool {
+				ret call Unknown(__compare_impl__) (i32, Unknown(a), Unknown(b))
+			}
+
+			public static concrete func compare([]u32, []u32) bool {
+				ret call Unknown(__compare_impl__) (u32, Unknown(a), Unknown(b))
+			}
+
+			public static concrete func compare([]i64, []i64) bool {
+				ret call Unknown(__compare_impl__) (i64, Unknown(a), Unknown(b))
+			}
+
+			public static concrete func compare([]u64, []u64) bool {
+				ret call Unknown(__compare_impl__) (u64, Unknown(a), Unknown(b))
+			}
+
+			public static concrete func compare([]i128, []i128) bool {
+				ret call Unknown(__compare_impl__) (i128, Unknown(a), Unknown(b))
+			}
+
+			public static concrete func compare([]u128, []u128) bool {
+				ret call Unknown(__compare_impl__) (u128, Unknown(a), Unknown(b))
+			}
+
+			public static concrete func compare([]bool, []bool) bool {
+				ret call Unknown(__compare_impl__) (bool, Unknown(a), Unknown(b))
+			}
+
+			public static concrete func compare([]anytype, []anytype) bool {
+				ret call Unknown(__compare_impl__) (anytype, Unknown(a), Unknown(b))
+			}
+
+
+			; funcgroup __compare_impl__
+			private static concrete generic func __compare_impl__(type, []T, []T) bool {
+				$(00) Local 'i': <!nil>
+				if (cmp_Inequality(Unknown(a)->Unknown(len), Unknown(b)->Unknown(len))) {
+					ret false
+				}
+
+				{ local.00 = (comptime_int)0 }
+				while (cmp_LessThan(Unknown(i), Unknown(a)->Unknown(len))) {
+					if (cmp_Inequality(Unknown(a)[Unknown(i)], Unknown(b)[Unknown(i)])) {
+						ret false
+					}
+					{ Unknown(i)++ }
+				}
+
+				ret true
+			}
+
+
+			; funcgroup fill
+			public static concrete func fill([]i8, i8) void {
+				call Unknown(__fill_impl__) (i8, Unknown(slice), Unknown(value))
+			}
+
+			public static concrete func fill([]u8, u8) void {
+				call Unknown(__fill_impl__) (u8, Unknown(slice), Unknown(value))
+			}
+
+			public static concrete func fill([]i16, i16) void {
+				call Unknown(__fill_impl__) (i16, Unknown(slice), Unknown(value))
+			}
+
+			public static concrete func fill([]u16, u16) void {
+				call Unknown(__fill_impl__) (u16, Unknown(slice), Unknown(value))
+			}
+
+			public static concrete func fill([]i32, i32) void {
+				call Unknown(__fill_impl__) (i32, Unknown(slice), Unknown(value))
+			}
+
+			public static concrete func fill([]u32, u32) void {
+				call Unknown(__fill_impl__) (u32, Unknown(slice), Unknown(value))
+			}
+
+			public static concrete func fill([]i64, i64) void {
+				call Unknown(__fill_impl__) (i64, Unknown(slice), Unknown(value))
+			}
+
+			public static concrete func fill([]u64, u64) void {
+				call Unknown(__fill_impl__) (u64, Unknown(slice), Unknown(value))
+			}
+
+			public static concrete func fill([]i128, i128) void {
+				call Unknown(__fill_impl__) (i128, Unknown(slice), Unknown(value))
+			}
+
+			public static concrete func fill([]u128, u128) void {
+				call Unknown(__fill_impl__) (u128, Unknown(slice), Unknown(value))
+			}
+
+			public static concrete func fill([]bool, bool) void {
+				call Unknown(__fill_impl__) (bool, Unknown(slice), Unknown(value))
+			}
+
+			public static concrete generic func fill([]anytype, anytype) void {
+				call Unknown(__fill_impl__) (anytype, Unknown(slice), Unknown(value))
+			}
+
+
+			; funcgroup __fill_impl__
+			private static concrete generic func __fill_impl__(type, []T, T) void {
+				$(00) Local 'i': <!nil>
+				{ local.00 = (comptime_int)0 }
+				while (cmp_LessThan(Unknown(i), Unknown(slice)->Unknown(len))) {
+					Unknown(slice)[Unknown(i)] = Unknown(value)
+					{ Unknown(i)++ }
+				}
+			}
+
+
+			; funcgroup alloc
+			public static concrete generic func alloc(type, u64, Typedef<Std.Mem.Alignment>) []T {
+				ret call Unknown(GC)->Unknown(AllocateArray) (Unknown(T), Unknown(length) as i32, false)
+			}
+
+
+		}
+
+		Namespace 'Test' ('Std.Test') {
+			; funcgroup testValue
+			public static concrete func testValue(u8, u8) void {
+				call Unknown(printStatusMessage) (cmp_Equality(Unknown(value), Unknown(reference)))
+			}
+
+
+			; funcgroup printStatusMessage
+			private static concrete func printStatusMessage(bool) void {
+				if (Unknown(status)) {
+					call Unknown(writeln) ((Undefined) "TEST PASSED")
+				} else {
+					call Unknown(write) ((Undefined) "TEST FAILED")
+				}
+			}
+
+
+		}
+
+		Namespace 'Console' ('Std.Console') {
+			; funcgroup write
+			private static concrete func write(i64) void {
+				call Unknown(Console)->Unknown(Write) (Unknown(value) as string)
+			}
+
+			private static concrete func write(u64) void {
+				call Unknown(Console)->Unknown(Write) (Unknown(value) as string)
+			}
+
+			private static concrete func write(i128) void {
+				call Unknown(Console)->Unknown(Write) (Unknown(value) as string)
+			}
+
+			private static concrete func write(u128) void {
+				call Unknown(Console)->Unknown(Write) (Unknown(value) as string)
+			}
+
+			private static concrete func write([]anytype) void {
+				call Unknown(Console)->Unknown(Write) (Unknown(value) as string)
+			}
+
+			private static concrete func write(string) void {
+				call Unknown(Console)->Unknown(Write) (Unknown(value))
+			}
+
+
+			; funcgroup writeln
+			private static concrete func writeln(i64) void {
+				call Unknown(Console)->Unknown(WriteLine) (Unknown(value) as string)
+			}
+
+			private static concrete func writeln(u64) void {
+				call Unknown(Console)->Unknown(WriteLine) (Unknown(value) as string)
+			}
+
+			private static concrete func writeln(i128) void {
+				call Unknown(Console)->Unknown(WriteLine) (Unknown(value) as string)
+			}
+
+			private static concrete func writeln(u128) void {
+				call Unknown(Console)->Unknown(WriteLine) (Unknown(value) as string)
+			}
+
+			private static concrete func writeln([]anytype) void {
+				call Unknown(Console)->Unknown(WriteLine) (Unknown(value) as string)
+			}
+
+			private static concrete func writeln(string) void {
+				call Unknown(Console)->Unknown(WriteLine) (Unknown(value))
+			}
+
+
+		}
+
+		Namespace 'Fs' ('Std.Fs') {
+			public instance concrete struct 'File' {
+				private instance concrete var '_filestream' *System.IO.FileStream
+
+				; funcgroup close
+				private instance concrete func close() void {
+					call Unknown(_filestream)->Unknown(Close) ()
+				}
+
+
+				ctor(*UType<CsFStream>) {
+					Unknown(_filestream) = Unknown(stream)
+				}
+
+			}
+
+			public instance concrete struct 'FileReader' extends Struct<Std.Io.Reader> {
+			}
+
+			public instance concrete struct 'FileWriter' extends Struct<Std.Io.Writer> {
+			}
+
+			public instance concrete struct 'FileInfo' {
+				private instance concrete var '_fileInfo' *System.IO.FileInfo
+
+				public instance concrete var 'name' string
+
+				public instance concrete var 'directory' string
+
+				public instance concrete var 'length' u64
+
+				ctor(*UType<CsFileInfo>) {
+					Unknown(_fileInfo) = Unknown(fInfo)
+					Unknown(name) = call Unknown(fInfo)->Unknown(get_Name) ()
+					Unknown(directory) = call Unknown(fInfo)->Unknown(get_DirectoryName) ()
+					Unknown(length) = call Unknown(fInfo)->Unknown(get_Length) ()
+				}
+
+			}
+
+			typedef(System.IO.SeekOrigin) 'SeekOrigin' {
+				case begin = Unknown(CsSeekOrigin)->Unknown(Begin),
+				case current = Unknown(CsSeekOrigin)->Unknown(Current),
+				case end = Unknown(CsSeekOrigin)->Unknown(End),
+			}
+
+			typedef(System.IO.FileMode) 'FileMode' {
+				case createNew = Unknown(CsFileMode)->Unknown(CreateNew),
+				case create = Unknown(CsFileMode)->Unknown(Create),
+				case open = Unknown(CsFileMode)->Unknown(Open),
+				case openOrCreate = Unknown(CsFileMode)->Unknown(OpenOrCreate),
+				case truncate = Unknown(CsFileMode)->Unknown(Truncate),
+				case append = Unknown(CsFileMode)->Unknown(Append),
+			}
+
+			typedef(System.IO.FileAccess) 'FileAccess' {
+				case RO = Unknown(CsFileAccess)->Unknown(Read),
+				case WO = Unknown(CsFileAccess)->Unknown(Write),
+				case RW = Unknown(CsFileAccess)->Unknown(ReadWrite),
+			}
+
+			; funcgroup open
+			public static concrete func open(string) Struct<Std.Fs.File> {
+				$(00) Local 'filestream': <!nil>
+				local.00 = new Unknown(CsFStream)(Unknown(path), Unknown(FileMode)->Unknown(openOrCreate), Unknown(FileAccess)->Unknown(RO))
+				ret new Unknown(File)(Unknown(filestream))
+			}
+
+
+			; funcgroup fileExists
+			public static concrete func fileExists(string) bool {
+				ret call Unknown(CsFile)->Unknown(Exists) (Unknown(path))
+			}
+
+
+			; funcgroup readAllText
+			public static concrete func readAllText(string) string {
+				ret call Unknown(CsFile)->Unknown(ReadAllText) (Unknown(path))
+			}
+
+
+			; funcgroup writeAllText
+			public static concrete func writeAllText(string, string) void {
+				call Unknown(CsFile)->Unknown(WriteAllText) (Unknown(path), Unknown(content))
+			}
+
+
+		}
+
+	}
+
+}
+
+module Dotnet refonly {
+}
+

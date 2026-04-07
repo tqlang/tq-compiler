@@ -1,0 +1,92 @@
+from Dotnet.System import { Span }
+@public()
+func copy ([]i8 source, []i8 target) { __copy_impl__(i8, source, target) }
+@public()
+func copy ([]u8 source, []u8 target) { __copy_impl__(u8, source, target) }
+@public()
+func copy ([]i16 source, []i16 target) { __copy_impl__(i16, source, target) }
+@public()
+func copy ([]u16 source, []u16 target) { __copy_impl__(u16, source, target) }
+@public()
+func copy ([]i32 source, []i32 target) { __copy_impl__(i32, source, target) }
+@public()
+func copy ([]u32 source, []u32 target) { __copy_impl__(u32, source, target) }
+@public()
+func copy ([]i64 source, []i64 target) { __copy_impl__(i64, source, target) }
+@public()
+func copy ([]u64 source, []u64 target) { __copy_impl__(u64, source, target) }
+@public()
+func copy ([]i128 source, []i128 target) { __copy_impl__(i128, source, target) }
+@public()
+func copy ([]u128 source, []u128 target) { __copy_impl__(u128, source, target) }
+@public()
+func copy ([]bool source, []bool target) { __copy_impl__(bool, source, target) }
+@public()
+func copy ([]anytype source, []anytype target) { __copy_impl__(anytype, source, target) }
+func __copy_impl__ (type T, []T source, []T target) { if (source.len != target.len) return while let i = 0 : i < source.len : i++ do target[i] = source[i] }
+@public()
+func compare ([]i8 a, []i8 b) bool { return __compare_impl__(i8, a, b) }
+@public()
+func compare ([]u8 a, []u8 b) bool { return __compare_impl__(u8, a, b) }
+@public()
+func compare ([]i16 a, []i16 b) bool { return __compare_impl__(i16, a, b) }
+@public()
+func compare ([]u16 a, []u16 b) bool { return __compare_impl__(u16, a, b) }
+@public()
+func compare ([]i32 a, []i32 b) bool { return __compare_impl__(i32, a, b) }
+@public()
+func compare ([]u32 a, []u32 b) bool { return __compare_impl__(u32, a, b) }
+@public()
+func compare ([]i64 a, []i64 b) bool { return __compare_impl__(i64, a, b) }
+@public()
+func compare ([]u64 a, []u64 b) bool { return __compare_impl__(u64, a, b) }
+@public()
+func compare ([]i128 a, []i128 b) bool { return __compare_impl__(i128, a, b) }
+@public()
+func compare ([]u128 a, []u128 b) bool { return __compare_impl__(u128, a, b) }
+@public()
+func compare ([]bool a, []bool b) bool { return __compare_impl__(bool, a, b) }
+@public()
+func compare ([]anytype a, []anytype b) bool { return __compare_impl__(anytype, a, b) }
+func __compare_impl__ (type T, []T a, []T b) bool { if (a.len != b.len) return False while let i = 0 : i < a.len : i++ do if (a[i] != b[i]) return False return True }
+@public()
+func fill ([]i8 slice, i8 value) { __fill_impl__(i8, slice, value) }
+@public()
+func fill ([]u8 slice, u8 value) { __fill_impl__(u8, slice, value) }
+@public()
+func fill ([]i16 slice, i16 value) { __fill_impl__(i16, slice, value) }
+@public()
+func fill ([]u16 slice, u16 value) { __fill_impl__(u16, slice, value) }
+@public()
+func fill ([]i32 slice, i32 value) { __fill_impl__(i32, slice, value) }
+@public()
+func fill ([]u32 slice, u32 value) { __fill_impl__(u32, slice, value) }
+@public()
+func fill ([]i64 slice, i64 value) { __fill_impl__(i64, slice, value) }
+@public()
+func fill ([]u64 slice, u64 value) { __fill_impl__(u64, slice, value) }
+@public()
+func fill ([]i128 slice, i128 value) { __fill_impl__(i128, slice, value) }
+@public()
+func fill ([]u128 slice, u128 value) { __fill_impl__(u128, slice, value) }
+@public()
+func fill ([]bool slice, bool value) { __fill_impl__(bool, slice, value) }
+@public()
+func fill ([]anytype slice, anytype value) { __fill_impl__(anytype, slice, value) }
+func __fill_impl__ (type T, []T slice, T value) { while let i = 0 : i < slice.len : i++ do slice[i] = value }
+
+@public()
+typedef Alignment {
+	_1,
+	_2,
+	_4,
+	_8,
+	_16,
+	_32
+}
+
+from Dotnet.System import { GC }
+from Dotnet.System.Runtime.CompilerServices import { RuntimeHelpers }
+@public()
+func alloc (type T, uint length, Alignment alignment) []T { return GC.AllocateArray(T, length as i32, False) }
+

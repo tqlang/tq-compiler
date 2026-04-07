@@ -1,0 +1,78 @@
+from Std import { Fs, Mem, Console, Test }
+
+@public func main() {
+    testArithmetic()
+    testSlices()
+}
+
+func testArithmetic() {
+    Console.writeln("Testing aritmetic...")
+
+    let u8 u8_0 = 1
+    let u8 u8_1 = 1
+    let u8 u8_2 = 2
+    let u8 u8_100 = 100
+    let u8 u8_min = 0x00
+    let u8 u8_max = 0xFF
+
+    # checked add
+    Test.assert(u8_1 + u8_1, 2)
+    Test.assert(u8_2 + u8_2, 4)
+    Test.assert(u8_max + 0, u8_max)
+    #Test.assert(u8_max + 1, u8_min) #!! FATAL ERROR !!
+    #Test.assert(u8_max + 100, u8_min) #!! FATAL ERROR !!
+
+    # add with overflow
+    Test.assert(u8_1 +% u8_1, 2)
+    Test.assert(u8_2 +% u8_2, 4)
+    Test.assert(u8_max +% u8_0, u8_max)
+    Test.assert(u8_max +% u8_1, u8_min)
+    Test.assert(u8_max +% u8_100, 100)
+
+    # add on bounds
+    Test.assert(u8_1 +| u8_1, 2)
+    Test.assert(u8_2 +| u8_2, 4)
+    Test.assert(u8_max +| u8_0, u8_max)
+    Test.assert(u8_max +| u8_1, u8_max)
+    Test.assert(u8_max +| u8_100, u8_max)
+
+}
+
+func testSlices() {
+    Console.writeln("Testing slices...")
+
+    let []u8 arr0 = [ 10, 20, 30, 40, 50 ]
+    let []u8 arr1 = [ 0, 0, 0, 0, 0 ]
+
+    let []u8 ref1 = [ 10, 20, 30, 40, 50 ]
+    let []u8 ref2 = [ 0, 0, 0, 0, 0 ]
+    let []u8 ref3 = [ 5, 5, 5, 5, 5 ]
+    let []u8 ref4 = [ 10, 10, 10, 10, 10 ]
+    let []u8 ref5 = [ 15, 15, 15, 15, 15 ]
+
+    Test.assert(u8, arr0, ref1)
+    Test.assert(arr0 as string, "[10, 20, 30, 40, 50]")
+
+    Test.assert(u8, arr1, ref2)
+    Test.assert(arr1 as string, "[0, 0, 0, 0, 0]")
+
+    Test.assert(Mem.compare(arr0, arr1), false)
+    
+    Mem.copy(arr0, arr1)
+    
+    Test.assert(u8, arr0, ref1)
+    Test.assert(arr0 as string, "[10, 20, 30, 40, 50]")
+
+    Test.assert(u8, arr1, ref1)
+    Test.assert(arr1 as string, "[10, 20, 30, 40, 50]")
+
+    Test.assert(Mem.compare(arr0, arr1), true)
+
+    
+    Mem.fill(arr0, 5)
+    Test.assert(u8, arr1, ref3)
+    Mem.fill(arr0, 10)
+    Test.assert(u8, arr1, ref4)
+    Mem.fill(arr0, 15)
+    Test.assert(u8, arr1, ref5)
+}

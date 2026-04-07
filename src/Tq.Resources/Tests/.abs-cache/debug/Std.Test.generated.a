@@ -1,0 +1,34 @@
+from Std import { Mem , Console }
+let uint testCount = 0
+@public()
+func assert (type T, T value, T reference) { __assert__impl__(value == reference, value as string) }
+@public()
+func assert (u8 value, u8 reference) { __assert__impl__(value == reference, value as string) }
+@public()
+func assert (i8 value, i8 reference) { __assert__impl__(value == reference, value as string) }
+@public()
+func assert (u16 value, u16 reference) { __assert__impl__(value == reference, value as string) }
+@public()
+func assert (i16 value, i16 reference) { __assert__impl__(value == reference, value as string) }
+@public()
+func assert (u32 value, u32 reference) { __assert__impl__(value == reference, value as string) }
+@public()
+func assert (i32 value, i32 reference) { __assert__impl__(value == reference, value as string) }
+@public()
+func assert (u64 value, u64 reference) { __assert__impl__(value == reference, value as string) }
+@public()
+func assert (i64 value, i64 reference) { __assert__impl__(value == reference, value as string) }
+@public()
+func assert (u128 value, u128 reference) { __assert__impl__(value == reference, value as string) }
+@public()
+func assert (i128 value, i128 reference) { __assert__impl__(value == reference, value as string) }
+@public()
+func assert (bool value, bool reference) { __assert__impl__(value == reference, value as string) }
+@public()
+func assert (char value, char reference) { __assert__impl__(value == reference, value as string) }
+@public()
+func assert (string value, string reference) { __assert__impl__(value == reference, value as string) }
+@public()
+func assert (type T, []T value, []T reference) { __assert__impl__(Mem.compare(value, reference), value as string) }
+func __assert__impl__ (bool status, string value) { testCount++ if (status) Console.writeln("	- TEST " + (testCount as string) + " " + Console.color_green + "[PASSED]" + Console.style_reset) else Console.writeln("	- TEST " + (testCount as string) + " " + Console.color_red + "[FAILED] (" + value + ")" + Console.style_reset) }
+
