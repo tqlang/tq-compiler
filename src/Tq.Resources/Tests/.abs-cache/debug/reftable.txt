@@ -1,6 +1,6 @@
 Nmsp	Program
 FnGp	Program.main
-FnGp	Program.testArithmetic
+FnGp	Program.testArithmeticU8
 FnGp	Program.testSlices
 Nmsp	Std
 Nmsp	Std.Io

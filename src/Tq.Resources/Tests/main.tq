@@ -1,35 +1,35 @@
 from Std import { Fs, Mem, Console, Test }
 
 @public func main() {
-    testArithmetic()
+    testArithmeticU8()
     testSlices()
 }
 
-func testArithmetic() {
-    Console.writeln("Testing aritmetic...")
+func testArithmeticU8() {
+    Console.writeln("Testing u8 aritmetic...")
 
-    let u8 u8_0 = 1
+    let u8 u8_0 = 0
     let u8 u8_1 = 1
     let u8 u8_2 = 2
     let u8 u8_100 = 100
     let u8 u8_min = 0x00
     let u8 u8_max = 0xFF
-
-    # checked add
+    
+    Console.writeln("u8 arithmetic - checked add")
     Test.assert(u8_1 + u8_1, 2)
     Test.assert(u8_2 + u8_2, 4)
     Test.assert(u8_max + 0, u8_max)
     #Test.assert(u8_max + 1, u8_min) #!! FATAL ERROR !!
     #Test.assert(u8_max + 100, u8_min) #!! FATAL ERROR !!
 
-    # add with overflow
+    Console.writeln("u8 arithmetic - add with overflow")
     Test.assert(u8_1 +% u8_1, 2)
     Test.assert(u8_2 +% u8_2, 4)
     Test.assert(u8_max +% u8_0, u8_max)
     Test.assert(u8_max +% u8_1, u8_min)
-    Test.assert(u8_max +% u8_100, 100)
+    Test.assert(u8_max +% u8_100, 99)
 
-    # add on bounds
+    Console.writeln("u8 arithmetic - add on bounds")
     Test.assert(u8_1 +| u8_1, 2)
     Test.assert(u8_2 +| u8_2, 4)
     Test.assert(u8_max +| u8_0, u8_max)

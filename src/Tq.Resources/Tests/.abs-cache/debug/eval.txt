@@ -2,34 +2,37 @@ module Program {
 	Namespace '' ('Program') {
 		; funcgroup main
 		public static concrete func main() void {
-			call Program.testArithmetic ()
+			call Program.testArithmeticU8 ()
 			call Program.testSlices ()
 		}
 
 
-		; funcgroup testArithmetic
-		private static concrete func testArithmetic() void {
+		; funcgroup testArithmeticU8
+		private static concrete func testArithmeticU8() void {
 			$(00) Local 'u8_0': u8
 			$(01) Local 'u8_1': u8
 			$(02) Local 'u8_2': u8
 			$(03) Local 'u8_100': u8
 			$(04) Local 'u8_min': u8
 			$(05) Local 'u8_max': u8
-			call Std.Console.writeln ((Undefined) "Testing aritmetic...")
-			local.00 = (u8)1
+			call Std.Console.writeln ((Undefined) "Testing u8 aritmetic...")
+			local.00 = (u8)0
 			local.01 = (u8)1
 			local.02 = (u8)2
 			local.03 = (u8)100
 			local.04 = (u8)0
 			local.05 = (u8)255
+			call Std.Console.writeln ((Undefined) "u8 arithmetic - checked add")
 			call Std.Test.assert (Add(local.01, local.01), (u8)2)
 			call Std.Test.assert (Add(local.02, local.02), (u8)4)
 			call Std.Test.assert (Add(local.05, (u8)0), local.05)
+			call Std.Console.writeln ((Undefined) "u8 arithmetic - add with overflow")
 			call Std.Test.assert (AddWrapAround(local.01, local.01), (u8)2)
 			call Std.Test.assert (AddWrapAround(local.02, local.02), (u8)4)
 			call Std.Test.assert (AddWrapAround(local.05, local.00), local.05)
 			call Std.Test.assert (AddWrapAround(local.05, local.01), local.04)
-			call Std.Test.assert (AddWrapAround(local.05, local.03), (u8)100)
+			call Std.Test.assert (AddWrapAround(local.05, local.03), (u8)99)
+			call Std.Console.writeln ((Undefined) "u8 arithmetic - add on bounds")
 			call Std.Test.assert (AddOnBounds(local.01, local.01), (u8)2)
 			call Std.Test.assert (AddOnBounds(local.02, local.02), (u8)4)
 			call Std.Test.assert (AddOnBounds(local.05, local.00), local.05)

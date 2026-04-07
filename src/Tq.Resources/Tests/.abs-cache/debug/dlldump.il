@@ -54,7 +54,7 @@ class <Module>.RuntimeHelpers extends System.Object {
 		IL_0000: ldarg.1
 		IL_0000: add
 		IL_0000: dup
-		IL_0000: ldc.i4.s 127
+		IL_0000: ldc.i4 127
 		IL_0000: bgt IL_0000
 		IL_0000: dup
 		IL_0000: ldc.i4.s -128
@@ -67,7 +67,6 @@ class <Module>.RuntimeHelpers extends System.Object {
 		IL_0000: ret
 		IL_0000: pop
 		IL_0000: ldc.i4.s -128
-		IL_0000: conv.i1
 		IL_0000: ret
 	}
 
@@ -76,13 +75,47 @@ class <Module>.RuntimeHelpers extends System.Object {
 		IL_0000: ldarg.1
 		IL_0000: add
 		IL_0000: dup
-		IL_0000: ldc.i4.s 127
-		IL_0000: bgt IL_0000
-		IL_0000: conv.i1
+		IL_0000: ldc.i4 255
+		IL_0000: bgt.un IL_0000
+		IL_0000: conv.u1
 		IL_0000: ret
 		IL_0000: pop
-		IL_0000: ldc.i4.s 127
-		IL_0000: conv.i1
+		IL_0000: ldc.i4.s -1
+		IL_0000: ret
+	}
+
+	method private static AddSaturatedI16 (System.Int16 A_0, System.Int16 A_1) System.Int16 {
+		IL_0000: ldarg.0
+		IL_0000: ldarg.1
+		IL_0000: add
+		IL_0000: dup
+		IL_0000: ldc.i4 32767
+		IL_0000: bgt IL_0000
+		IL_0000: dup
+		IL_0000: ldc.i4 -32768
+		IL_0000: blt IL_0000
+		IL_0000: conv.i2
+		IL_0000: ret
+		IL_0000: pop
+		IL_0000: ldc.i4 32767
+		IL_0000: conv.i2
+		IL_0000: ret
+		IL_0000: pop
+		IL_0000: ldc.i4 -32768
+		IL_0000: ret
+	}
+
+	method private static AddSaturatedU16 (System.UInt16 A_0, System.UInt16 A_1) System.UInt16 {
+		IL_0000: ldarg.0
+		IL_0000: ldarg.1
+		IL_0000: add
+		IL_0000: dup
+		IL_0000: ldc.i4 65535
+		IL_0000: bgt.un IL_0000
+		IL_0000: conv.u2
+		IL_0000: ret
+		IL_0000: pop
+		IL_0000: ldc.i4 65535
 		IL_0000: ret
 	}
 }
@@ -90,21 +123,21 @@ class <Module>.RuntimeHelpers extends System.Object {
 class Program.Program extends System.Object {
 
 	method public static main () System.Void {
-		IL_0000: call System.Void Program.Program::testArithmetic()
+		IL_0000: call System.Void Program.Program::testArithmeticU8()
 		IL_0005: call System.Void Program.Program::testSlices()
 		IL_000A: ret
 	}
 
-	method private static testArithmetic () System.Void {
+	method private static testArithmeticU8 () System.Void {
 		.locals init (System.Byte V_0)
 		.locals init (System.Byte V_1)
 		.locals init (System.Byte V_2)
 		.locals init (System.Byte V_3)
 		.locals init (System.Byte V_4)
 		.locals init (System.Byte V_5)
-		IL_0000: ldstr "Testing aritmetic..."
+		IL_0000: ldstr "Testing u8 aritmetic..."
 		IL_0005: call System.Void Std.Std+Console::writeln(System.String)
-		IL_000A: ldc.i4.1
+		IL_000A: ldc.i4.0
 		IL_000B: stloc V_0
 		IL_000F: ldc.i4.1
 		IL_0010: stloc V_1
@@ -116,106 +149,93 @@ class Program.Program extends System.Object {
 		IL_0020: stloc V_4
 		IL_0024: ldc.i4 255
 		IL_0029: stloc V_5
-		IL_002D: ldloc V_1
-		IL_0031: ldloc V_1
-		IL_0035: add
-		IL_0036: conv.ovf.u1
-		IL_0037: conv.ovf.u1.un
-		IL_0038: ldc.i4.2
-		IL_0039: conv.ovf.u1.un
-		IL_003A: call System.Void Std.Std+Test::assert(System.Byte, System.Byte)
-		IL_003F: ldloc V_2
-		IL_0043: ldloc V_2
-		IL_0047: add
-		IL_0048: conv.ovf.u1
-		IL_0049: conv.ovf.u1.un
-		IL_004A: ldc.i4.4
-		IL_004B: conv.ovf.u1.un
-		IL_004C: call System.Void Std.Std+Test::assert(System.Byte, System.Byte)
-		IL_0051: ldloc V_5
-		IL_0055: ldc.i4.0
-		IL_0056: add
-		IL_0057: conv.ovf.u1
-		IL_0058: conv.ovf.u1.un
+		IL_002D: ldstr "u8 arithmetic - checked add"
+		IL_0032: call System.Void Std.Std+Console::writeln(System.String)
+		IL_0037: ldloc V_1
+		IL_003B: ldloc V_1
+		IL_003F: add
+		IL_0040: conv.ovf.u1
+		IL_0041: ldc.i4.2
+		IL_0042: conv.ovf.u1.un
+		IL_0043: call System.Void Std.Std+Test::assert(System.Byte, System.Byte)
+		IL_0048: ldloc V_2
+		IL_004C: ldloc V_2
+		IL_0050: add
+		IL_0051: conv.ovf.u1
+		IL_0052: ldc.i4.4
+		IL_0053: conv.ovf.u1.un
+		IL_0054: call System.Void Std.Std+Test::assert(System.Byte, System.Byte)
 		IL_0059: ldloc V_5
-		IL_005D: conv.ovf.u1.un
-		IL_005E: call System.Void Std.Std+Test::assert(System.Byte, System.Byte)
-		IL_0063: ldloc V_1
-		IL_0067: ldloc V_1
-		IL_006B: add
-		IL_006C: conv.u1
-		IL_006D: conv.ovf.u1.un
-		IL_006E: ldc.i4.2
-		IL_006F: conv.ovf.u1.un
-		IL_0070: call System.Void Std.Std+Test::assert(System.Byte, System.Byte)
-		IL_0075: ldloc V_2
-		IL_0079: ldloc V_2
-		IL_007D: add
-		IL_007E: conv.u1
-		IL_007F: conv.ovf.u1.un
-		IL_0080: ldc.i4.4
-		IL_0081: conv.ovf.u1.un
-		IL_0082: call System.Void Std.Std+Test::assert(System.Byte, System.Byte)
-		IL_0087: ldloc V_5
-		IL_008B: ldloc V_0
-		IL_008F: add
-		IL_0090: conv.u1
-		IL_0091: conv.ovf.u1.un
-		IL_0092: ldloc V_5
-		IL_0096: conv.ovf.u1.un
-		IL_0097: call System.Void Std.Std+Test::assert(System.Byte, System.Byte)
-		IL_009C: ldloc V_5
-		IL_00A0: ldloc V_1
-		IL_00A4: add
-		IL_00A5: conv.u1
-		IL_00A6: conv.ovf.u1.un
-		IL_00A7: ldloc V_4
-		IL_00AB: conv.ovf.u1.un
-		IL_00AC: call System.Void Std.Std+Test::assert(System.Byte, System.Byte)
-		IL_00B1: ldloc V_5
-		IL_00B5: ldloc V_3
-		IL_00B9: add
-		IL_00BA: conv.u1
-		IL_00BB: conv.ovf.u1.un
-		IL_00BC: ldc.i4.s 100
-		IL_00BE: conv.ovf.u1.un
-		IL_00BF: call System.Void Std.Std+Test::assert(System.Byte, System.Byte)
-		IL_00C4: ldloc V_1
-		IL_00C8: ldloc V_1
-		IL_00CC: call System.Byte <Module>.RuntimeHelpers::AddSaturatedU8(System.Byte, System.Byte)
-		IL_00D1: conv.ovf.u1.un
-		IL_00D2: ldc.i4.2
-		IL_00D3: conv.ovf.u1.un
-		IL_00D4: call System.Void Std.Std+Test::assert(System.Byte, System.Byte)
-		IL_00D9: ldloc V_2
-		IL_00DD: ldloc V_2
-		IL_00E1: call System.Byte <Module>.RuntimeHelpers::AddSaturatedU8(System.Byte, System.Byte)
-		IL_00E6: conv.ovf.u1.un
-		IL_00E7: ldc.i4.4
-		IL_00E8: conv.ovf.u1.un
-		IL_00E9: call System.Void Std.Std+Test::assert(System.Byte, System.Byte)
-		IL_00EE: ldloc V_5
-		IL_00F2: ldloc V_0
-		IL_00F6: call System.Byte <Module>.RuntimeHelpers::AddSaturatedU8(System.Byte, System.Byte)
-		IL_00FB: conv.ovf.u1.un
-		IL_00FC: ldloc V_5
-		IL_0100: conv.ovf.u1.un
-		IL_0101: call System.Void Std.Std+Test::assert(System.Byte, System.Byte)
-		IL_0106: ldloc V_5
-		IL_010A: ldloc V_1
-		IL_010E: call System.Byte <Module>.RuntimeHelpers::AddSaturatedU8(System.Byte, System.Byte)
-		IL_0113: conv.ovf.u1.un
-		IL_0114: ldloc V_5
-		IL_0118: conv.ovf.u1.un
-		IL_0119: call System.Void Std.Std+Test::assert(System.Byte, System.Byte)
-		IL_011E: ldloc V_5
-		IL_0122: ldloc V_3
-		IL_0126: call System.Byte <Module>.RuntimeHelpers::AddSaturatedU8(System.Byte, System.Byte)
-		IL_012B: conv.ovf.u1.un
-		IL_012C: ldloc V_5
-		IL_0130: conv.ovf.u1.un
-		IL_0131: call System.Void Std.Std+Test::assert(System.Byte, System.Byte)
-		IL_0136: ret
+		IL_005D: ldc.i4.0
+		IL_005E: add
+		IL_005F: conv.ovf.u1
+		IL_0060: ldloc V_5
+		IL_0064: call System.Void Std.Std+Test::assert(System.Byte, System.Byte)
+		IL_0069: ldstr "u8 arithmetic - add with overflow"
+		IL_006E: call System.Void Std.Std+Console::writeln(System.String)
+		IL_0073: ldloc V_1
+		IL_0077: ldloc V_1
+		IL_007B: add
+		IL_007C: conv.u1
+		IL_007D: ldc.i4.2
+		IL_007E: conv.ovf.u1.un
+		IL_007F: call System.Void Std.Std+Test::assert(System.Byte, System.Byte)
+		IL_0084: ldloc V_2
+		IL_0088: ldloc V_2
+		IL_008C: add
+		IL_008D: conv.u1
+		IL_008E: ldc.i4.4
+		IL_008F: conv.ovf.u1.un
+		IL_0090: call System.Void Std.Std+Test::assert(System.Byte, System.Byte)
+		IL_0095: ldloc V_5
+		IL_0099: ldloc V_0
+		IL_009D: add
+		IL_009E: conv.u1
+		IL_009F: ldloc V_5
+		IL_00A3: call System.Void Std.Std+Test::assert(System.Byte, System.Byte)
+		IL_00A8: ldloc V_5
+		IL_00AC: ldloc V_1
+		IL_00B0: add
+		IL_00B1: conv.u1
+		IL_00B2: ldloc V_4
+		IL_00B6: call System.Void Std.Std+Test::assert(System.Byte, System.Byte)
+		IL_00BB: ldloc V_5
+		IL_00BF: ldloc V_3
+		IL_00C3: add
+		IL_00C4: conv.u1
+		IL_00C5: ldc.i4.s 99
+		IL_00C7: conv.ovf.u1.un
+		IL_00C8: call System.Void Std.Std+Test::assert(System.Byte, System.Byte)
+		IL_00CD: ldstr "u8 arithmetic - add on bounds"
+		IL_00D2: call System.Void Std.Std+Console::writeln(System.String)
+		IL_00D7: ldloc V_1
+		IL_00DB: ldloc V_1
+		IL_00DF: call System.Byte <Module>.RuntimeHelpers::AddSaturatedU8(System.Byte, System.Byte)
+		IL_00E4: ldc.i4.2
+		IL_00E5: conv.ovf.u1.un
+		IL_00E6: call System.Void Std.Std+Test::assert(System.Byte, System.Byte)
+		IL_00EB: ldloc V_2
+		IL_00EF: ldloc V_2
+		IL_00F3: call System.Byte <Module>.RuntimeHelpers::AddSaturatedU8(System.Byte, System.Byte)
+		IL_00F8: ldc.i4.4
+		IL_00F9: conv.ovf.u1.un
+		IL_00FA: call System.Void Std.Std+Test::assert(System.Byte, System.Byte)
+		IL_00FF: ldloc V_5
+		IL_0103: ldloc V_0
+		IL_0107: call System.Byte <Module>.RuntimeHelpers::AddSaturatedU8(System.Byte, System.Byte)
+		IL_010C: ldloc V_5
+		IL_0110: call System.Void Std.Std+Test::assert(System.Byte, System.Byte)
+		IL_0115: ldloc V_5
+		IL_0119: ldloc V_1
+		IL_011D: call System.Byte <Module>.RuntimeHelpers::AddSaturatedU8(System.Byte, System.Byte)
+		IL_0122: ldloc V_5
+		IL_0126: call System.Void Std.Std+Test::assert(System.Byte, System.Byte)
+		IL_012B: ldloc V_5
+		IL_012F: ldloc V_3
+		IL_0133: call System.Byte <Module>.RuntimeHelpers::AddSaturatedU8(System.Byte, System.Byte)
+		IL_0138: ldloc V_5
+		IL_013C: call System.Void Std.Std+Test::assert(System.Byte, System.Byte)
+		IL_0141: ret
 	}
 
 	method private static testSlices () System.Void {
@@ -471,9 +491,8 @@ class Std.Std+Process extends System.Object {
 	method public static exit (System.UInt64 status) System.Void {
 		IL_0000: ldarg System.UInt64 status
 		IL_0004: conv.i4
-		IL_0005: conv.ovf.i4
-		IL_0006: call System.Void System.Environment::Exit(System.Int32)
-		IL_000B: ret
+		IL_0005: call System.Void System.Environment::Exit(System.Int32)
+		IL_000A: ret
 	}
 }
 
@@ -745,65 +764,57 @@ class Std.Std+Mem extends System.Object {
 	method public static fill (System.SByte[] slice, System.SByte value) System.Void {
 		IL_0000: ldarg System.SByte[] slice
 		IL_0004: ldarg System.SByte value
-		IL_0008: conv.ovf.i1
-		IL_0009: call System.Void Std.Std+Mem::__fill_impl__<System.SByte>(!!0[], !!0)
-		IL_000E: ret
+		IL_0008: call System.Void Std.Std+Mem::__fill_impl__<System.SByte>(!!0[], !!0)
+		IL_000D: ret
 	}
 
 	method public static fill (System.Byte[] slice, System.Byte value) System.Void {
 		IL_0000: ldarg System.Byte[] slice
 		IL_0004: ldarg System.Byte value
-		IL_0008: conv.ovf.u1.un
-		IL_0009: call System.Void Std.Std+Mem::__fill_impl__<System.Byte>(!!0[], !!0)
-		IL_000E: ret
+		IL_0008: call System.Void Std.Std+Mem::__fill_impl__<System.Byte>(!!0[], !!0)
+		IL_000D: ret
 	}
 
 	method public static fill (System.Int16[] slice, System.Int16 value) System.Void {
 		IL_0000: ldarg System.Int16[] slice
 		IL_0004: ldarg System.Int16 value
-		IL_0008: conv.ovf.i2
-		IL_0009: call System.Void Std.Std+Mem::__fill_impl__<System.Int16>(!!0[], !!0)
-		IL_000E: ret
+		IL_0008: call System.Void Std.Std+Mem::__fill_impl__<System.Int16>(!!0[], !!0)
+		IL_000D: ret
 	}
 
 	method public static fill (System.UInt16[] slice, System.UInt16 value) System.Void {
 		IL_0000: ldarg System.UInt16[] slice
 		IL_0004: ldarg System.UInt16 value
-		IL_0008: conv.ovf.u2.un
-		IL_0009: call System.Void Std.Std+Mem::__fill_impl__<System.UInt16>(!!0[], !!0)
-		IL_000E: ret
+		IL_0008: call System.Void Std.Std+Mem::__fill_impl__<System.UInt16>(!!0[], !!0)
+		IL_000D: ret
 	}
 
 	method public static fill (System.Int32[] slice, System.Int32 value) System.Void {
 		IL_0000: ldarg System.Int32[] slice
 		IL_0004: ldarg System.Int32 value
-		IL_0008: conv.ovf.i4
-		IL_0009: call System.Void Std.Std+Mem::__fill_impl__<System.Int32>(!!0[], !!0)
-		IL_000E: ret
+		IL_0008: call System.Void Std.Std+Mem::__fill_impl__<System.Int32>(!!0[], !!0)
+		IL_000D: ret
 	}
 
 	method public static fill (System.UInt32[] slice, System.UInt32 value) System.Void {
 		IL_0000: ldarg System.UInt32[] slice
 		IL_0004: ldarg System.UInt32 value
-		IL_0008: conv.ovf.u4.un
-		IL_0009: call System.Void Std.Std+Mem::__fill_impl__<System.UInt32>(!!0[], !!0)
-		IL_000E: ret
+		IL_0008: call System.Void Std.Std+Mem::__fill_impl__<System.UInt32>(!!0[], !!0)
+		IL_000D: ret
 	}
 
 	method public static fill (System.Int64[] slice, System.Int64 value) System.Void {
 		IL_0000: ldarg System.Int64[] slice
 		IL_0004: ldarg System.Int64 value
-		IL_0008: conv.ovf.i8
-		IL_0009: call System.Void Std.Std+Mem::__fill_impl__<System.Int64>(!!0[], !!0)
-		IL_000E: ret
+		IL_0008: call System.Void Std.Std+Mem::__fill_impl__<System.Int64>(!!0[], !!0)
+		IL_000D: ret
 	}
 
 	method public static fill (System.UInt64[] slice, System.UInt64 value) System.Void {
 		IL_0000: ldarg System.UInt64[] slice
 		IL_0004: ldarg System.UInt64 value
-		IL_0008: conv.ovf.u8.un
-		IL_0009: call System.Void Std.Std+Mem::__fill_impl__<System.UInt64>(!!0[], !!0)
-		IL_000E: ret
+		IL_0008: call System.Void Std.Std+Mem::__fill_impl__<System.UInt64>(!!0[], !!0)
+		IL_000D: ret
 	}
 
 	method public static fill (System.Int128[] slice, System.Int128 value) System.Void {
@@ -861,10 +872,9 @@ class Std.Std+Mem extends System.Object {
 	method public static alloc <T> (System.UInt64 length, Std.Std+Mem+Alignment alignment) !!0[] {
 		IL_0000: ldarg System.UInt64 length
 		IL_0004: conv.i4
-		IL_0005: conv.ovf.i4
-		IL_0006: ldc.i4.0
-		IL_0007: call !!0[] System.GC::AllocateArray<!!0>(System.Int32, System.Boolean)
-		IL_000C: ret
+		IL_0005: ldc.i4.0
+		IL_0006: call !!0[] System.GC::AllocateArray<!!0>(System.Int32, System.Boolean)
+		IL_000B: ret
 	}
 }
 

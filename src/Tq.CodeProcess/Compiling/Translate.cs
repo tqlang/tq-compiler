@@ -308,19 +308,19 @@ public partial class Compiler
                                     switch (bitsize)
                                     {
                                         case <= 8:
-                                            ctx.Gen.Add(CilOpCodes.Call, (IMethodDescriptor)baset.m[s ? "Conv_to_i8" : "Conv_to_u8"]);
+                                            ctx.Gen.Add(CilOpCodes.Call, baset.m[s ? "Conv_to_i8" : "Conv_to_u8"]);
                                             ctx.StackPush(s ? _corLibFactory.SByte :  _corLibFactory.Byte);
                                             break;
                                         case <= 16:
-                                            ctx.Gen.Add(CilOpCodes.Call, (IMethodDescriptor)baset.m[s ? "Conv_to_i16" : "Conv_to_u16"]);
+                                            ctx.Gen.Add(CilOpCodes.Call, baset.m[s ? "Conv_to_i16" : "Conv_to_u16"]);
                                             ctx.StackPush(s ? _corLibFactory.Int16 : _corLibFactory.UInt16);
                                             break;
                                         case <= 32:
-                                            ctx.Gen.Add(CilOpCodes.Call, (IMethodDescriptor)baset.m[s ? "Conv_to_i32" : "Conv_to_u32"]);
+                                            ctx.Gen.Add(CilOpCodes.Call, baset.m[s ? "Conv_to_i32" : "Conv_to_u32"]);
                                             ctx.StackPush(s ? _corLibFactory.Int32 : _corLibFactory.UInt32);
                                             break;
                                         case <= 64:
-                                            ctx.Gen.Add(CilOpCodes.Call, (IMethodDescriptor)baset.m[s ? "Conv_to_i64" : "Conv_to_u64"]);
+                                            ctx.Gen.Add(CilOpCodes.Call, baset.m[s ? "Conv_to_i64" : "Conv_to_u64"]);
                                             ctx.StackPush(s ? _corLibFactory.Int64 : _corLibFactory.UInt64);
                                             break;
                                         default: throw new UnreachableException();
@@ -1456,6 +1456,8 @@ public partial class Compiler
     private void SolveLastSoftCast(TypeSignature toType, Context ctx)
     {
         var fromType = ctx.PeekStack();
+        if (fromType == toType) return;
+        
         switch (toType)
         {
             case CorLibTypeSignature @to when fromType is CorLibTypeSignature @from:
