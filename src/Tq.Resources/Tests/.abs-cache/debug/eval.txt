@@ -2,8 +2,9 @@ module Program {
 	Namespace '' ('Program') {
 		; funcgroup main
 		public static concrete func main() void {
+			call Program.testBuiltins ()
 			call Program.testArithmeticU8 ()
-			call Program.testSlices ()
+			call Program.testArithmeticI8 ()
 		}
 
 
@@ -12,69 +13,161 @@ module Program {
 			$(00) Local 'u8_0': u8
 			$(01) Local 'u8_1': u8
 			$(02) Local 'u8_2': u8
-			$(03) Local 'u8_100': u8
-			$(04) Local 'u8_min': u8
-			$(05) Local 'u8_max': u8
-			call Std.Console.writeln ((Undefined) "Testing u8 aritmetic...")
+			$(03) Local 'u8_3': u8
+			$(04) Local 'u8_100': u8
+			$(05) Local 'u8_101': u8
+			$(06) Local 'u8_255': u8
+			$(07) Local 'u8_min': u8
+			$(08) Local 'u8_max': u8
 			local.00 = (u8)0
 			local.01 = (u8)1
 			local.02 = (u8)2
-			local.03 = (u8)100
-			local.04 = (u8)0
-			local.05 = (u8)255
-			call Std.Console.writeln ((Undefined) "u8 arithmetic - checked add")
+			local.03 = (u8)3
+			local.04 = (u8)100
+			local.05 = (u8)101
+			local.06 = (u8)255
+			local.07 = (u8)0
+			local.08 = (u8)255
+			call Std.Test.newTestUnit ((Undefined) "u8 arithmetic - checked add")
 			call Std.Test.assert (Add(local.01, local.01), (u8)2)
 			call Std.Test.assert (Add(local.02, local.02), (u8)4)
-			call Std.Test.assert (Add(local.05, (u8)0), local.05)
-			call Std.Console.writeln ((Undefined) "u8 arithmetic - add with overflow")
+			call Std.Test.assert (Add(local.08, (u8)0), local.08)
+			call Std.Test.newTestUnit ((Undefined) "u8 arithmetic - add with overflow")
 			call Std.Test.assert (AddWrapAround(local.01, local.01), (u8)2)
 			call Std.Test.assert (AddWrapAround(local.02, local.02), (u8)4)
-			call Std.Test.assert (AddWrapAround(local.05, local.00), local.05)
-			call Std.Test.assert (AddWrapAround(local.05, local.01), local.04)
-			call Std.Test.assert (AddWrapAround(local.05, local.03), (u8)99)
-			call Std.Console.writeln ((Undefined) "u8 arithmetic - add on bounds")
+			call Std.Test.assert (AddWrapAround(local.08, local.00), local.08)
+			call Std.Test.assert (AddWrapAround(local.08, local.01), local.07)
+			call Std.Test.assert (AddWrapAround(local.08, local.04), (u8)99)
+			call Std.Test.newTestUnit ((Undefined) "u8 arithmetic - add saturated")
 			call Std.Test.assert (AddOnBounds(local.01, local.01), (u8)2)
 			call Std.Test.assert (AddOnBounds(local.02, local.02), (u8)4)
-			call Std.Test.assert (AddOnBounds(local.05, local.00), local.05)
-			call Std.Test.assert (AddOnBounds(local.05, local.01), local.05)
-			call Std.Test.assert (AddOnBounds(local.05, local.03), local.05)
+			call Std.Test.assert (AddOnBounds(local.08, local.00), local.08)
+			call Std.Test.assert (AddOnBounds(local.08, local.01), local.08)
+			call Std.Test.assert (AddOnBounds(local.08, local.04), local.08)
+			call Std.Test.newTestUnit ((Undefined) "u8 arithmetic - checked sub")
+			call Std.Test.assert (Subtract(local.01, local.01), (u8)0)
+			call Std.Test.assert (Subtract(local.02, local.01), (u8)1)
+			call Std.Test.assert ((u8)0, (u8)0)
+			call Std.Test.newTestUnit ((Undefined) "u8 arithmetic - sub with overflow")
+			call Std.Test.assert (SubtractWrapAround(local.01, local.01), (u8)0)
+			call Std.Test.assert (SubtractWrapAround(local.02, local.01), (u8)1)
+			call Std.Test.assert ((u8)0, (u8)0)
+			call Std.Test.assert (SubtractWrapAround(local.01, local.02), (u8)255)
+			call Std.Test.assert (SubtractWrapAround(local.00, (u8)100), (u8)156)
+			call Std.Test.newTestUnit ((Undefined) "u8 arithmetic - sub saturated")
+			call Std.Test.assert (SubtractOnBounds(local.01, local.01), (u8)0)
+			call Std.Test.assert (SubtractOnBounds(local.02, local.01), (u8)1)
+			call Std.Test.assert ((u8)0, (u8)0)
+			call Std.Test.assert (SubtractOnBounds(local.01, local.02), (u8)0)
+			call Std.Test.assert (SubtractOnBounds(local.00, (u8)100), (u8)0)
+			call Std.Test.newTestUnit ((Undefined) "u8 arithmetic - mul checked")
+			call Std.Test.assert (Multiply(local.01, local.01), (u8)1)
+			call Std.Test.assert (Multiply(local.02, local.02), (u8)4)
+			call Std.Test.assert (Multiply(local.02, local.04), (u8)200)
+			call Std.Test.assert (Multiply(local.00, local.04), (u8)0)
+			call Std.Test.newTestUnit ((Undefined) "u8 arithmetic - mul with overflow - SKIPPED")
+			call Std.Test.newTestUnit ((Undefined) "u8 arithmetic - mul saturated - SKIPPED")
+			call Std.Test.newTestUnit ((Undefined) "u8 arithmetic - div checked")
+			call Std.Test.assert (Divide(local.02, local.01), (u8)2)
+			call Std.Test.assert (Divide(local.04, local.02), (u8)50)
+			call Std.Test.assert (Divide(local.00, local.04), (u8)0)
+			call Std.Test.newTestUnit ((Undefined) "u8 arithmetic - div floor - SKIPPED")
+			call Std.Test.newTestUnit ((Undefined) "u8 arithmetic - div ceil - SKIPPED")
+			call Std.Test.newTestUnit ((Undefined) "u8 arithmetic - reminder")
+			call Std.Test.assert (Reminder(local.02, local.01), (u8)0)
+			call Std.Test.assert (Reminder(local.04, local.02), (u8)0)
+			call Std.Test.assert (Reminder(local.05, local.02), (u8)1)
+			call Std.Test.assert (Reminder(local.06, local.02), (u8)1)
+			call Std.Test.assert (Reminder(local.00, local.04), (u8)0)
+			call Std.Test.newTestUnit ((Undefined) "u8 arithmetic - pow checked - SKIPPED")
+			call Std.Test.newTestUnit ((Undefined) "u8 arithmetic - pow with overflow - SKIPPED")
+			call Std.Test.newTestUnit ((Undefined) "u8 arithmetic - pow saturated - SKIPPED")
 		}
 
 
-		; funcgroup testSlices
-		private static concrete func testSlices() void {
-			$(00) Local 'arr0': []u8
-			$(01) Local 'arr1': []u8
-			$(02) Local 'ref1': []u8
-			$(03) Local 'ref2': []u8
-			$(04) Local 'ref3': []u8
-			$(05) Local 'ref4': []u8
-			$(06) Local 'ref5': []u8
-			call Std.Console.writeln ((Undefined) "Testing slices...")
-			local.00 = []u8 [(u8)10, (u8)20, (u8)30, (u8)40, (u8)50]
-			local.01 = []u8 [(u8)0, (u8)0, (u8)0, (u8)0, (u8)0]
-			local.02 = []u8 [(u8)10, (u8)20, (u8)30, (u8)40, (u8)50]
-			local.03 = []u8 [(u8)0, (u8)0, (u8)0, (u8)0, (u8)0]
-			local.04 = []u8 [(u8)5, (u8)5, (u8)5, (u8)5, (u8)5]
-			local.05 = []u8 [(u8)10, (u8)10, (u8)10, (u8)10, (u8)10]
-			local.06 = []u8 [(u8)15, (u8)15, (u8)15, (u8)15, (u8)15]
-			call Std.Test.assert (u8, local.00, local.02)
-			call Std.Test.assert (local.00 as string, (Undefined) "[10, 20, 30, 40, 50]")
-			call Std.Test.assert (u8, local.01, local.03)
-			call Std.Test.assert (local.01 as string, (Undefined) "[0, 0, 0, 0, 0]")
-			call Std.Test.assert (call Std.Mem.compare (local.00, local.01), false)
-			call Std.Mem.copy (local.00, local.01)
-			call Std.Test.assert (u8, local.00, local.02)
-			call Std.Test.assert (local.00 as string, (Undefined) "[10, 20, 30, 40, 50]")
-			call Std.Test.assert (u8, local.01, local.02)
-			call Std.Test.assert (local.01 as string, (Undefined) "[10, 20, 30, 40, 50]")
-			call Std.Test.assert (call Std.Mem.compare (local.00, local.01), true)
-			call Std.Mem.fill (local.00, (u8)5)
-			call Std.Test.assert (u8, local.01, local.04)
-			call Std.Mem.fill (local.00, (u8)10)
-			call Std.Test.assert (u8, local.01, local.05)
-			call Std.Mem.fill (local.00, (u8)15)
-			call Std.Test.assert (u8, local.01, local.06)
+		; funcgroup testArithmeticI8
+		private static concrete func testArithmeticI8() void {
+			$(00) Local 'i8_0': i8
+			$(01) Local 'i8_1': i8
+			$(02) Local 'i8_2': i8
+			$(03) Local 'i8_3': i8
+			$(04) Local 'i8_100': i8
+			$(05) Local 'i8_101': i8
+			$(06) Local 'i8_127': i8
+			$(07) Local 'i8_min': i8
+			$(08) Local 'i8_max': i8
+			local.00 = (i8)0
+			local.01 = (i8)1
+			local.02 = (i8)2
+			local.03 = (i8)3
+			local.04 = (i8)100
+			local.05 = (i8)101
+			local.06 = (i8)127
+			local.07 = (i8)-128
+			local.08 = (i8)127
+			call Std.Test.newTestUnit ((Undefined) "i8 arithmetic - checked add")
+			call Std.Test.assert (Add(local.01, local.01), (i8)2)
+			call Std.Test.assert (Add(local.02, local.02), (i8)4)
+			call Std.Test.assert (Add(local.08, (i8)0), local.08)
+			call Std.Test.newTestUnit ((Undefined) "i8 arithmetic - add with overflow")
+			call Std.Test.assert (AddWrapAround(local.01, local.01), (i8)2)
+			call Std.Test.assert (AddWrapAround(local.02, local.02), (i8)4)
+			call Std.Test.assert (AddWrapAround(local.08, local.00), local.08)
+			call Std.Test.assert (AddWrapAround(local.08, local.01), local.07)
+			call Std.Test.assert (AddWrapAround(local.08, local.04), (i8)-29)
+			call Std.Test.newTestUnit ((Undefined) "i8 arithmetic - add saturated")
+			call Std.Test.assert (AddOnBounds(local.01, local.01), (i8)2)
+			call Std.Test.assert (AddOnBounds(local.02, local.02), (i8)4)
+			call Std.Test.assert (AddOnBounds(local.08, local.00), local.08)
+			call Std.Test.assert (AddOnBounds(local.08, local.01), local.08)
+			call Std.Test.assert (AddOnBounds(local.08, local.04), local.08)
+			call Std.Test.newTestUnit ((Undefined) "i8 arithmetic - checked sub")
+			call Std.Test.assert (Subtract(local.01, local.01), (i8)0)
+			call Std.Test.assert (Subtract(local.02, local.01), (i8)1)
+			call Std.Test.assert ((u8)0, (u8)0)
+			call Std.Test.newTestUnit ((Undefined) "i8 arithmetic - sub with overflow")
+			call Std.Test.assert (SubtractWrapAround(local.01, local.01), (i8)0)
+			call Std.Test.assert (SubtractWrapAround(local.02, local.01), (i8)1)
+			call Std.Test.assert ((u8)0, (u8)0)
+			call Std.Test.assert (SubtractWrapAround(local.01, local.02), (i8)-1)
+			call Std.Test.assert (SubtractWrapAround(local.00, (i8)100), (i8)-100)
+			call Std.Test.newTestUnit ((Undefined) "i8 arithmetic - sub saturated")
+			call Std.Test.assert (SubtractOnBounds(local.01, local.01), (i8)0)
+			call Std.Test.assert (SubtractOnBounds(local.02, local.01), (i8)1)
+			call Std.Test.assert ((u8)0, (u8)0)
+			call Std.Test.assert (SubtractOnBounds(local.01, local.02), (i8)-1)
+			call Std.Test.assert (SubtractOnBounds(local.00, (i8)100), (i8)-100)
+			call Std.Test.newTestUnit ((Undefined) "i8 arithmetic - mul checked")
+			call Std.Test.assert (Multiply(local.01, local.01), (i8)1)
+			call Std.Test.assert (Multiply(local.02, local.02), (i8)4)
+			call Std.Test.assert (Multiply(local.00, local.04), (i8)0)
+			call Std.Test.newTestUnit ((Undefined) "i8 arithmetic - mul with overflow - SKIPPED")
+			call Std.Test.newTestUnit ((Undefined) "i8 arithmetic - mul saturated - SKIPPED")
+			call Std.Test.newTestUnit ((Undefined) "i8 arithmetic - div checked")
+			call Std.Test.assert (Divide(local.02, local.01), (i8)2)
+			call Std.Test.assert (Divide(local.04, local.02), (i8)50)
+			call Std.Test.assert (Divide(local.00, local.04), (i8)0)
+			call Std.Test.newTestUnit ((Undefined) "i8 arithmetic - div floor - SKIPPED")
+			call Std.Test.newTestUnit ((Undefined) "i8 arithmetic - div ceil - SKIPPED")
+			call Std.Test.newTestUnit ((Undefined) "i8 arithmetic - reminder")
+			call Std.Test.assert (Reminder(local.02, local.01), (i8)0)
+			call Std.Test.assert (Reminder(local.04, local.02), (i8)0)
+			call Std.Test.assert (Reminder(local.05, local.02), (i8)1)
+			call Std.Test.assert (Reminder(local.06, local.02), (i8)1)
+			call Std.Test.assert (Reminder(local.00, local.04), (i8)0)
+			call Std.Test.newTestUnit ((Undefined) "i8 arithmetic - pow checked - SKIPPED")
+			call Std.Test.newTestUnit ((Undefined) "i8 arithmetic - pow with overflow - SKIPPED")
+			call Std.Test.newTestUnit ((Undefined) "i8 arithmetic - pow saturated - SKIPPED")
+		}
+
+
+		; funcgroup testBuiltins
+		private static concrete func testBuiltins() void {
+			call Std.Test.newTestUnit ((Undefined) "builtins")
+			call Std.Test.assert ((u8)0, (u8)0)
+			call Std.Test.assert ((u8)255, (u8)255)
+			call Std.Test.assert ((i8)-128, (i8)-128)
+			call Std.Test.assert ((i8)127, (i8)127)
 		}
 
 
@@ -394,12 +487,17 @@ module Std {
 			}
 
 
+			; funcgroup newTestUnit
+			public static concrete func newTestUnit(string) void {
+				Field<Std.Test.testCount> = (u64)0
+				call Std.Console.writeln (arg.00)
+			}
+
+
 			; funcgroup __assert__impl__
 			private static concrete func __assert__impl__(bool, string) void {
 				Field<Std.Test.testCount>++
-				if (arg.00) {
-					call Std.Console.writeln (Add((Undefined) "	- TEST ", Add(Field<Std.Test.testCount> as string, Add((Undefined) " ", Add(Field<Std.Console.color_green>, Add((Undefined) "[PASSED]", Field<Std.Console.style_reset>))))))
-				} else {
+				if (!arg.00) {
 					call Std.Console.writeln (Add((Undefined) "	- TEST ", Add(Field<Std.Test.testCount> as string, Add((Undefined) " ", Add(Field<Std.Console.color_red>, Add((Undefined) "[FAILED] (", Add(arg.01, Add((Undefined) ")", Field<Std.Console.style_reset>))))))))
 				}
 			}

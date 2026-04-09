@@ -21,17 +21,12 @@ public class IrBinaryExp(
     
     public enum Operators
     {
-        Add,
-        AddWrapAround,
-        AddOnBounds,
-        Subtract,
-        SubtractWarpAround,
-        SubtractOnBounds,
-        Multiply,
-        Divide,
-        DivideFloor,
-        DivideCeil,
+        Add, AddWrapAround, AddOnBounds,
+        Subtract, SubtractWrapAround, SubtractOnBounds,
+        Multiply, MultiplyWrapAround, MultiplyOnBounds,
+        Divide, DivideFloor, DivideCeil,
         Reminder,
+        Pow, PowWrapAround,  PowOnBounds,
         
         BitwiseAnd,
         BitwiseOr,

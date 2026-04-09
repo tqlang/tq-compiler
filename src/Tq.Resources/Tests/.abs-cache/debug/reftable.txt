@@ -1,7 +1,8 @@
 Nmsp	Program
 FnGp	Program.main
 FnGp	Program.testArithmeticU8
-FnGp	Program.testSlices
+FnGp	Program.testArithmeticI8
+FnGp	Program.testBuiltins
 Nmsp	Std
 Nmsp	Std.Io
 Type	Std.Io.Reader
@@ -21,6 +22,7 @@ FnGp	Std.Mem.alloc
 Nmsp	Std.Test
 SFld	Std.Test.testCount
 FnGp	Std.Test.assert
+FnGp	Std.Test.newTestUnit
 FnGp	Std.Test.__assert__impl__
 Nmsp	Std.Console
 SFld	Std.Console.style_reset

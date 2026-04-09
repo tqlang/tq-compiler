@@ -30,5 +30,7 @@ func assert (char value, char reference) { __assert__impl__(value == reference, 
 func assert (string value, string reference) { __assert__impl__(value == reference, value as string) }
 @public()
 func assert (type T, []T value, []T reference) { __assert__impl__(Mem.compare(value, reference), value as string) }
-func __assert__impl__ (bool status, string value) { testCount++ if (status) Console.writeln("	- TEST " + (testCount as string) + " " + Console.color_green + "[PASSED]" + Console.style_reset) else Console.writeln("	- TEST " + (testCount as string) + " " + Console.color_red + "[FAILED] (" + value + ")" + Console.style_reset) }
+@public()
+func newTestUnit (string title) { testCount = 0 Console.writeln(title) }
+func __assert__impl__ (bool status, string value) { testCount++ if (!status) Console.writeln("	- TEST " + (testCount as string) + " " + Console.color_red + "[FAILED] (" + value + ")" + Console.style_reset) }
 

@@ -472,7 +472,7 @@ public partial class Analyser
                         "+|" => new IrBinaryExp(bexp, IrBinaryExp.Operators.AddOnBounds, l, r),
                         
                         "-" => new IrBinaryExp(bexp, IrBinaryExp.Operators.Subtract, l, r),
-                        "-%" =>  new IrBinaryExp(bexp, IrBinaryExp.Operators.SubtractWarpAround, l, r),
+                        "-%" =>  new IrBinaryExp(bexp, IrBinaryExp.Operators.SubtractWrapAround, l, r),
                         "-|" => new IrBinaryExp(bexp, IrBinaryExp.Operators.SubtractOnBounds, l, r),
                         
                         "*" => new IrBinaryExp(bexp, IrBinaryExp.Operators.Multiply, l, r),

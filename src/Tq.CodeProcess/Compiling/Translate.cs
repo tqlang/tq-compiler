@@ -268,7 +268,7 @@ public partial class Compiler
                             {
                                 var elmType = TypeFromRef(slice.ElementType);
                                 var methodSpec = ctx.Importer.ImportMethod(
-                                    new MethodSpecification(_runtimeHelpers["Array_AsString"],
+                                    new MethodSpecification(_runtimeHelpers[""].m["Array_AsString"],
                                     new GenericInstanceMethodSignature(elmType)));
                                 
                                 CompileIrNodeLoad(c.Expression, false, ctx);
@@ -610,7 +610,6 @@ public partial class Compiler
                                         break;
                                 }
                                 break;
-
                             case IrBinaryExp.Operators.AddWrapAround:
                                 switch (originType.BitSize.Bits)
                                 {
@@ -630,39 +629,67 @@ public partial class Compiler
                                         break;
                                 }
                                 break;
-
                             case IrBinaryExp.Operators.AddOnBounds:
                             {
-                                ctx.Gen.Add(CilOpCodes.Call, _runtimeHelpers[originType.BitSize.Bits switch
+                                if (is128) ctx.Gen.Add(CilOpCodes.Call, _coreLib[isSigned ? "Int128" : "UInt128"].m["Add"]);
+                                else ctx.Gen.Add(CilOpCodes.Call, _runtimeHelpers[""].m[originType.BitSize.Bits switch
                                 {
-                                    <= 8 => isSigned ? "add_i8_saturated" : "add_u8_saturated",
-                                    <= 16 => isSigned ? "add_i16_saturated" : "add_u16_saturated",
-                                    <= 32 => isSigned ? "add_i32_saturated" : "add_u32_saturated",
-                                    <= 64 => isSigned ? "add_i64_saturated" : "add_u64_saturated",
-                                    <= 128 => isSigned ? "add_i128_saturated" : "add_u128_saturated",
+                                    <= 8 => isSigned ? "AddSaturatedI8" : "AddSaturatedU8",
+                                    <= 16 => isSigned ? "AddSaturatedI16" : "AddSaturatedU16",
+                                    <= 32 => isSigned ? "AddSaturatedI32" : "AddSaturatedU32",
+                                    <= 64 => isSigned ? "AddSaturatedI64" : "AddSaturatedU64",
+                                    <= 128 => isSigned ? "AddSaturatedI128" : "AddSaturatedU128",
                                     _ => throw new NotImplementedException()
                                 }]); 
                             } break;
                             
                             case IrBinaryExp.Operators.Subtract:
-                                if (is128) ctx.Gen.Add(CilOpCodes.Call, (IMethodDescriptor)_coreLib[isSigned ? "Int128" : "UInt128"].m["SubOvf"]);
-                                else ctx.Gen.Add(isSigned ? CilOpCodes.Sub_Ovf : CilOpCodes.Sub_Ovf_Un);
+                                switch (originType.BitSize.Bits)
+                                {
+                                    case <= 8:
+                                        ctx.Gen.Add(CilOpCodes.Sub);
+                                        ctx.Gen.Add(isSigned ? CilOpCodes.Conv_Ovf_I1 : CilOpCodes.Conv_Ovf_U1);
+                                        break;
+                                    case <= 16:
+                                        ctx.Gen.Add(CilOpCodes.Sub);
+                                        ctx.Gen.Add(isSigned ? CilOpCodes.Conv_Ovf_I2 : CilOpCodes.Conv_Ovf_U2);
+                                        break;
+                                    case <= 64:
+                                        ctx.Gen.Add(isSigned ? CilOpCodes.Sub_Ovf : CilOpCodes.Sub_Ovf_Un);
+                                        break;
+                                    case <= 128:
+                                        ctx.Gen.Add(CilOpCodes.Call, _coreLib[isSigned ? "Int128" : "UInt128"].m["SubOvf"]);
+                                        break;
+                                }
                                 break;
-
-                            case IrBinaryExp.Operators.SubtractWarpAround:
-                                if (is128) ctx.Gen.Add(CilOpCodes.Call, (IMethodDescriptor)_coreLib[isSigned ? "Int128" : "UInt128"].m["Sub"]);
-                                else ctx.Gen.Add(CilOpCodes.Sub);
+                            case IrBinaryExp.Operators.SubtractWrapAround:
+                                switch (originType.BitSize.Bits)
+                                {
+                                    case <= 8:
+                                        ctx.Gen.Add(CilOpCodes.Sub);
+                                        ctx.Gen.Add(isSigned ? CilOpCodes.Conv_I1 : CilOpCodes.Conv_U1);
+                                        break;
+                                    case <= 16:
+                                        ctx.Gen.Add(CilOpCodes.Sub);
+                                        ctx.Gen.Add(isSigned ? CilOpCodes.Conv_I2 : CilOpCodes.Conv_U2);
+                                        break;
+                                    case <= 64:
+                                        ctx.Gen.Add(CilOpCodes.Sub);
+                                        break;
+                                    case <= 128:
+                                        ctx.Gen.Add(CilOpCodes.Call, _coreLib[isSigned ? "Int128" : "UInt128"].m["Sub"]);
+                                        break;
+                                }
                                 break;
-
                             case IrBinaryExp.Operators.SubtractOnBounds:
                             {
-                                ctx.Gen.Add(CilOpCodes.Call, _runtimeHelpers[originType.BitSize.Bits switch
+                                ctx.Gen.Add(CilOpCodes.Call, _runtimeHelpers[""].m[originType.BitSize.Bits switch
                                 {
-                                    <= 8 => isSigned ? "subSaturatedI8" : "subSaturatedU8",
-                                    <= 16 => isSigned ? "subSaturatedI16" : "subSaturatedU16",
-                                    <= 32 => isSigned ? "subSaturatedI32" : "subSaturatedU32",
-                                    <= 64 => isSigned ? "subSaturatedI64" : "subSaturatedU64",
-                                    <= 128 => isSigned ? "subSaturatedI128" : "subSaturatedU128",
+                                    <= 8 => isSigned ? "SubSaturatedI8" : "SubSaturatedU8",
+                                    <= 16 => isSigned ? "SubSaturatedI16" : "SubSaturatedU16",
+                                    <= 32 => isSigned ? "SubSaturatedI32" : "SubSaturatedU32",
+                                    <= 64 => isSigned ? "SubSaturatedI64" : "SubSaturatedU64",
+                                    <= 128 => isSigned ? "SubSaturatedI128" : "SubSaturatedU128",
                                     _ => throw new NotImplementedException()
                                 }]); 
                             } break;
@@ -725,7 +752,7 @@ public partial class Compiler
                             case IrBinaryExp.Operators.Add: ctx.Gen.Add(CilOpCodes.Add); break;
                             case IrBinaryExp.Operators.AddWrapAround: ctx.Gen.Add(CilOpCodes.Add_Ovf_Un); break;
                             case IrBinaryExp.Operators.Subtract: ctx.Gen.Add(CilOpCodes.Sub); break;
-                            case IrBinaryExp.Operators.SubtractWarpAround: ctx.Gen.Add(CilOpCodes.Sub_Ovf_Un); break;
+                            case IrBinaryExp.Operators.SubtractWrapAround: ctx.Gen.Add(CilOpCodes.Sub_Ovf_Un); break;
                             case IrBinaryExp.Operators.Multiply: ctx.Gen.Add(CilOpCodes.Mul_Ovf_Un); break;
                             case IrBinaryExp.Operators.Divide: ctx.Gen.Add(CilOpCodes.Div_Un); break;
                             case IrBinaryExp.Operators.Reminder: ctx.Gen.Add(CilOpCodes.Rem_Un); break;

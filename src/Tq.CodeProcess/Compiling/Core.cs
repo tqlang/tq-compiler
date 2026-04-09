@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
 using System.Text;
 using AsmResolver.DotNet;
@@ -32,11 +33,15 @@ public partial class Compiler
         var iEnumerator = ImportType(typeof(IEnumerator<>));
         var iEnumerable = ImportType(typeof(IEnumerable<>));
         
-        var overflowException = ImportType(typeof(OverflowException));
+        // Exceptions
+        var exception = ImportType(typeof(Exception));
         
         // Attributes
         var extensionAttribute = ImportType(typeof(ExtensionAttribute));
+        var doesNotReturnAttribute = ImportType(typeof(DoesNotReturnAttribute));
         
+        var console = ImportType(typeof(Console));
+        var environment = ImportType(typeof(Environment));
         var memExtensions = ImportType(typeof(MemoryExtensions));
         
         // --- Object ---
@@ -147,15 +152,6 @@ public partial class Compiler
             methods.TrimExcess();
         }
         
-        // --- Mem Extensions ---
-        {
-            var (t, _, methods) = memExtensions;
-            
-            methods["AsSpan_i32"] = Static(t, "AsSpan", Gen(spanType.sig, Gm(0)), Arr(Gm(0)));
-
-            methods.TrimExcess();
-        }
-        
         // --- StringBuilder ---
         {
             var (t, sb, methods) = stringBuilder;
@@ -182,8 +178,38 @@ public partial class Compiler
         // --- ExtensionAttribute ---
         {
             var (t, attrib, methods) = extensionAttribute;
-            
             methods["new"] = Inst(t, ".ctor", cl.Void);
+            methods.TrimExcess();
+        }
+        // --- DoesNotReturnAttribute ---
+        {
+            var (t, attrib, methods) = doesNotReturnAttribute;
+            methods["new"] = Inst(t, ".ctor", cl.Void);
+            methods.TrimExcess();
+        }
+        
+        // --- Console ---
+        {
+            var (t, _, methods) = console;
+            
+            methods["Write_str"] = Static(t, "Write", cl.Void, cl.String);
+            methods["WriteLine_str"] = Static(t, "WriteLine", cl.Void, cl.String);
+
+            methods.TrimExcess();
+        }
+        // --- Environment ---
+        {
+            var (t, _, methods) = environment;
+            
+            methods["Exit"] = Static(t, "Exit", cl.Void, cl.Int32);
+
+            methods.TrimExcess();
+        }
+        // --- Mem Extensions ---
+        {
+            var (t, _, methods) = memExtensions;
+            
+            methods["AsSpan_i32"] = Static(t, "AsSpan", Gen(spanType.sig, Gm(0)), Arr(Gm(0)));
 
             methods.TrimExcess();
         }
@@ -206,17 +232,37 @@ public partial class Compiler
     }
     private void LoadRuntimeHelpers()
     {
-        const TypeAttributes attributes = TypeAttributes.AnsiClass
+        const TypeAttributes attributes1 = TypeAttributes.AnsiClass
                                           | TypeAttributes.Class
                                           | TypeAttributes.Sealed
                                           | TypeAttributes.Abstract
                                           | TypeAttributes.Public;
         
         var runtimeHelpers = new TypeDefinition(
-            "<Module>", "RuntimeHelpers",
-            attributes, _coreLib["System.Object"].t.ToTypeDefOrRef());
+            "<module>", "RuntimeHelpers",
+            attributes1, _coreLib["System.Object"].t.ToTypeDefOrRef());
         _module.TopLevelTypes.Add(runtimeHelpers);
-
+        _runtimeHelpers[""] = (runtimeHelpers, []);
+        
+        #region Error
+        // var errorInterface = new TypeDefinition(
+        //     null, "__I",
+        //     TypeAttributes.Interface
+        //     | TypeAttributes.Abstract
+        //     | TypeAttributes.NestedPublic);
+        //
+        var error = new TypeDefinition(
+            null, "Error",
+            TypeAttributes.AnsiClass
+            | TypeAttributes.Class
+            | TypeAttributes.NestedPublic,
+            _coreLib["System.ValueType"].t.ToTypeDefOrRef());
+        
+        runtimeHelpers.NestedTypes.Add(error);
+        // error.NestedTypes.Add(errorInterface);
+        // error.Interfaces.Add(new InterfaceImplementation(errorInterface));
+            
+        #endregion
         #region SliceAsString
         {
             var m = new MethodDefinition(
@@ -318,7 +364,7 @@ public partial class Compiler
             gen.Add(CilOpCodes.Call, sbToStr);
             gen.Add(CilOpCodes.Ret);
             
-            _runtimeHelpers["Array_AsString"] = m;
+            _runtimeHelpers[""].m["Array_AsString"] = m;
         }
         #endregion
 
@@ -334,7 +380,13 @@ public partial class Compiler
         return (type, sig, met);
     }
     private (ITypeDefOrRef type, TypeSignature sig, Dictionary<string, IMethodDescriptor> methods) ImportType(Type type)
-        => ImportType(type.Namespace!, type.Name);
+    {
+        var t = _module.DefaultImporter.ImportType(type);
+        var sig = _module.DefaultImporter.ImportTypeSignature(t.ToTypeSignature());
+        var met = new Dictionary<string, IMethodDescriptor>();
+        _coreLib.Add(t.FullName, (sig, met));
+        return (t, sig, met);
+    }
     private (ITypeDefOrRef type, TypeSignature sig, Dictionary<string, IMethodDescriptor> methods) ImportType(CorLibTypeSignature type)
     {
         var met = new Dictionary<string, IMethodDescriptor>();
@@ -345,4 +397,5 @@ public partial class Compiler
     GenericParameterSignature Gt(int i) => new (GenericParameterType.Type, i);
     GenericParameterSignature Gm(int i) => new (GenericParameterType.Method, i);
     GenericInstanceTypeSignature Gen(TypeSignature t, TypeSignature e) => new GenericInstanceTypeSignature(t.ToTypeDefOrRef(), t.IsValueType, e);
+    
 }

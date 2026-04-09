@@ -518,6 +518,7 @@ public partial class Analyser
         
         skipTypeCheck:
         // Operate literals at comptime
+        // FIXME it surely would be better if in a stage 5 or something
         return node switch
         {
             { Left: IrIntegerLiteral @leftInt, Right: IrIntegerLiteral @rightInt } => node.Operator switch
@@ -525,10 +526,13 @@ public partial class Analyser
                 _ => new IrIntegerLiteral(node.Origin, node.Operator switch
                     {
                         IrBinaryExp.Operators.Add => leftInt.Value + rightInt.Value,
-                        IrBinaryExp.Operators.AddWrapAround => AddWithOverflow(leftInt.Value, rightInt.Value, (IntegerTypeReference)ftype),
                         IrBinaryExp.Operators.AddOnBounds => AddOnBounds(leftInt.Value, rightInt.Value, (IntegerTypeReference)ftype),
+                        IrBinaryExp.Operators.AddWrapAround => AddWithOverflow(leftInt.Value, rightInt.Value, (IntegerTypeReference)ftype),
                     
                         IrBinaryExp.Operators.Subtract => leftInt.Value - rightInt.Value,
+                        IrBinaryExp.Operators.SubtractOnBounds => SubOnBounds(leftInt.Value, rightInt.Value, (IntegerTypeReference)ftype),
+                        IrBinaryExp.Operators.SubtractWrapAround => SubWithOverflow(leftInt.Value, rightInt.Value, (IntegerTypeReference)ftype),
+                        
                         IrBinaryExp.Operators.Multiply => leftInt.Value * rightInt.Value,
                         IrBinaryExp.Operators.Divide => leftInt.Value / rightInt.Value,
                         IrBinaryExp.Operators.Reminder => leftInt.Value % rightInt.Value,
@@ -596,6 +600,52 @@ public partial class Analyser
 
                 return result % max;
             }
+            return result;
+        }
+        BigInteger SubOnBounds(BigInteger left, BigInteger right, IntegerTypeReference type)
+        {
+            var result = left - right;
+            if (type is RuntimeIntegerTypeReference @runtimeInt)
+            {
+                BigInteger min;
+                BigInteger max;
+                
+                if (runtimeInt.Signed)
+                {
+                    var limit = BigInteger.One << (runtimeInt.BitSize.Bits - 1);
+                    min = -limit;
+                    max = limit - 1;
+                }
+                else
+                {
+                    min = BigInteger.Zero;
+                    max = (BigInteger.One << runtimeInt.BitSize.Bits) - 1;
+                }
+
+                if (result > max) return max;
+                if (result < min) return min;
+            }
+            return result;
+        }
+        BigInteger SubWithOverflow(BigInteger left, BigInteger right, IntegerTypeReference type)
+        {
+            var result = left - right;
+
+            if (type is RuntimeIntegerTypeReference runtimeInt)
+            {
+                var bits = runtimeInt.BitSize.Bits;
+                var mod = BigInteger.One << bits;
+
+                result %= mod;
+                if (result < 0) result += mod;
+
+                if (runtimeInt.Signed)
+                {
+                    var half = BigInteger.One << (bits - 1);
+                    if (result >= half) result -= mod;
+                }
+            }
+
             return result;
         }
     }
@@ -840,6 +890,20 @@ public partial class Analyser
             {
                 "len" => new IrLenOf(origin, accessBase),
                 "slice" => new IRAccess(origin, accessBase, new IrSolvedReference(origin, new SliceCallReference(stringBuiltin.Encoding))),
+                _ =>  throw new NotImplementedException(),
+            },
+            
+            TypeTypeReference { ReferencedType: RuntimeIntegerTypeReference @ri } => accessName switch
+            {
+                "min" => new IrIntegerLiteral(origin, ty: ri,
+                    val: ri.Signed
+                        ? -(BigInteger.One << (ri.BitSize.Bits - 1))
+                        : BigInteger.Zero),
+                "max" => new IrIntegerLiteral(origin, ty: ri,
+                    val: ri.Signed
+                        ? (BigInteger.One << (ri.BitSize.Bits - 1)) - 1
+                        : (BigInteger.One << ri.BitSize.Bits) - 1),
+                
                 _ =>  throw new NotImplementedException(),
             },
             

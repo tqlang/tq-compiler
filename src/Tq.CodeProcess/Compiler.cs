@@ -37,7 +37,10 @@ public partial class Compiler
     
     private CorLibTypeFactory _corLibFactory;
     private Dictionary<string, (TypeSignature t, Dictionary<string, IMethodDescriptor> m)> _coreLib = [];
-    private Dictionary<string, IMethodDefOrRef> _runtimeHelpers = [];
+    private Dictionary<string, (TypeDefinition t, Dictionary<string, IMethodDefOrRef> m)> _runtimeHelpers = [];
+
+    private IMethodDefOrRef? _mainFunc = null!;
+    private IMethodDefOrRef? _panicFunc = null!;
     
     private string launchConfig = 
         """
@@ -58,25 +61,26 @@ public partial class Compiler
     public void Compile(ProgramObject program)
     {
         var programName = program.Modules[0].Name;
-        
+
         _assembly = new AssemblyDefinition(programName + ".dll", 
-            new Version(1, 0, 0, 0));
-        
+        new Version(1, 0, 0, 0));
+
         _module = new ModuleDefinition(programName, program.AssemblyResolver.Assemblies["System.Runtime"])
         { MetadataResolver = new DefaultMetadataResolver(program.AssemblyResolver) };
         _assembly.Modules.Add(_module);
         _module.TopLevelTypes.Clear();
-        
+
         LoadCoreLibResources();
         LoadRuntimeHelpers();
-        
-         foreach (var m in program.Modules) SearchRecursive(null, m);
-        
-         DeclareTypes();
-         ResolveContent();
-         ImplementFieldInitializers();
-         ImplementMethods();
-        
+
+        foreach (var m in program.Modules) SearchRecursive(null, m);
+
+        DeclareTypes();
+        ResolveContent();
+        ImplementFieldInitializers();
+        ImplementMethods();
+        ImplementBinStart();
+
         DumpModule();
         _module.Write($".abs-out/{programName}.dll");
         File.WriteAllText($".abs-out/{programName}.runtimeconfig.json", launchConfig);
@@ -318,6 +322,63 @@ public partial class Compiler
         }
     }
 
+    private void ImplementBinStart()
+    {
+        if (_mainFunc == null) return;
+        
+        var m = new MethodDefinition(
+            "_start",
+            MethodAttributes.Assembly | MethodAttributes.Static,
+            MethodSignature.CreateStatic(_corLibFactory.Void, 0)
+        );
+        
+        var body = new CilMethodBody(m);
+        m.CilMethodBody = body;
+        var gen = body.Instructions;
+
+        var tryBegin = new CilInstructionLabel();
+        var catchBegin = new CilInstructionLabel();
+        var catchEnd = new CilInstructionLabel();
+
+        var write = _coreLib["System.Console"].m["Write_str"];
+        var exit = _coreLib["System.Environment"].m["Exit"];
+        
+        tryBegin.Instruction = gen.Add(CilOpCodes.Call, _mainFunc);
+        gen.Add(CilOpCodes.Leave, catchEnd);
+        catchBegin.Instruction = gen.Add(CilOpCodes.Pop);
+        
+        if (_panicFunc != null)
+        {
+            gen.Add(CilOpCodes.Call, _panicFunc);
+        }
+        else
+        {
+            gen.Add(CilOpCodes.Ldstr, "!!! Panic !!!\n");
+            gen.Add(CilOpCodes.Call, write);
+            
+            gen.Add(CilOpCodes.Ldstr, "Error: FIXME\n");
+            gen.Add(CilOpCodes.Call, write);
+            
+            gen.Add(CilOpCodes.Ldc_I4_1);
+            gen.Add(CilOpCodes.Call, exit);
+        }
+
+        gen.Add(CilOpCodes.Leave, catchEnd);
+        catchEnd.Instruction = gen.Add(CilOpCodes.Ret);
+            
+        body.ExceptionHandlers.Add(new CilExceptionHandler
+        {
+            HandlerType = CilExceptionHandlerType.Exception,
+            ExceptionType = _coreLib["System.Exception"].t.ToTypeDefOrRef(),
+            TryStart = tryBegin,
+            TryEnd = catchBegin,
+            HandlerStart = catchBegin,
+            HandlerEnd = catchEnd
+        });
+        
+        _runtimeHelpers[""].t.Methods.Add(m);
+        _module.ManagedEntryPointMethod = m;
+    }
 
     private StructData DeclareType(TypeDefinition? parent, StructObject structObj)
     {
@@ -618,7 +679,11 @@ public partial class Compiler
         foreach (var i in parameterDefinitions) m.ParameterDefinitions.Add(i);
         parentTypedef.Methods.Add(m);
 
-        if (funcObj.Name == "main") _module.ManagedEntryPointMethod = m;
+        switch (funcObj.Global)
+        {
+            case [_, "main"]: _mainFunc = m; break;
+            case [_, "panic"]: _panicFunc = m; break;
+        }
         return new FunctionData(m);
     }
     private FieldDefinition DeclareField(FieldObject fieldObj, ITypeDefOrRef parent)
