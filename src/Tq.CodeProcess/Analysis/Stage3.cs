@@ -476,6 +476,8 @@ public partial class Analyser
                         "-|" => new IrBinaryExp(bexp, IrBinaryExp.Operators.SubtractOnBounds, l, r),
                         
                         "*" => new IrBinaryExp(bexp, IrBinaryExp.Operators.Multiply, l, r),
+                        "*%" => new IrBinaryExp(bexp, IrBinaryExp.Operators.MultiplyWrapAround, l, r),
+                        "*|" => new IrBinaryExp(bexp, IrBinaryExp.Operators.MultiplyOnBounds, l, r),
                         
                         "/" => new IrBinaryExp(bexp, IrBinaryExp.Operators.Divide, l, r),
                         "/_" => new IrBinaryExp(bexp, IrBinaryExp.Operators.DivideFloor, l, r),
@@ -483,6 +485,10 @@ public partial class Analyser
                         
                         "%" => new IrBinaryExp(bexp, IrBinaryExp.Operators.Reminder, l, r),
 
+                        "**" => new IrBinaryExp(bexp, IrBinaryExp.Operators.Pow, l, r),
+                        "**%" => new IrBinaryExp(bexp, IrBinaryExp.Operators.PowWrapAround, l, r),
+                        "**|" => new IrBinaryExp(bexp, IrBinaryExp.Operators.PowOnBounds, l, r),
+                        
                         "&" => new IrBinaryExp(bexp, IrBinaryExp.Operators.BitwiseAnd, l, r),
                         "|" => new IrBinaryExp(bexp, IrBinaryExp.Operators.BitwiseOr, l, r),
                         "^" => new IrBinaryExp(bexp, IrBinaryExp.Operators.BitwiseXor, l, r),

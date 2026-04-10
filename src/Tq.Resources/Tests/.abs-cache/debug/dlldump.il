@@ -157,10 +157,12 @@ class <module>.RuntimeHelpers extends System.Object {
 	method private static _start () System.Void {
 		IL_0000: call System.Void Program.Program::main()
 		IL_0000: leave IL_0000
-		IL_0000: pop
+		IL_0000: nop
 		IL_0000: ldstr "!!! Panic !!!\n"
 		IL_0000: call System.Void System.Console::Write(System.String)
-		IL_0000: ldstr "Error: FIXME\n"
+		IL_0000: ldstr "Error:\n"
+		IL_0000: call System.Void System.Console::Write(System.String)
+		IL_0000: callvirt System.String System.Object::ToString()
 		IL_0000: call System.Void System.Console::Write(System.String)
 		IL_0000: ldc.i4.1
 		IL_0000: call System.Void System.Environment::Exit(System.Int32)
@@ -765,6 +767,14 @@ class Program.Program extends System.Object {
 	}
 
 	method private static testBuiltins () System.Void {
+		.locals init (System.UInt128 V_0)
+		.locals init (System.UInt128 V_1)
+		.locals init (System.UInt128 V_2)
+		.locals init (System.UInt128 V_3)
+		.locals init (System.Int128 V_4)
+		.locals init (System.Int128 V_5)
+		.locals init (System.Int128 V_6)
+		.locals init (System.Int128 V_7)
 		IL_0000: ldstr "builtins"
 		IL_0005: call System.Void Std.Std+Test::newTestUnit(System.String)
 		IL_000A: ldc.i4.0
@@ -787,7 +797,91 @@ class Program.Program extends System.Object {
 		IL_0032: ldc.i4.s 127
 		IL_0034: conv.ovf.i1
 		IL_0035: call System.Void Std.Std+Test::assert(System.SByte, System.SByte)
-		IL_003A: ret
+		IL_003A: ldc.i4.0
+		IL_003B: conv.ovf.u2.un
+		IL_003C: ldc.i4.0
+		IL_003D: conv.ovf.u2.un
+		IL_003E: call System.Void Std.Std+Test::assert(System.UInt16, System.UInt16)
+		IL_0043: ldc.i4 65535
+		IL_0048: conv.ovf.u2.un
+		IL_0049: ldc.i4 65535
+		IL_004E: conv.ovf.u2.un
+		IL_004F: call System.Void Std.Std+Test::assert(System.UInt16, System.UInt16)
+		IL_0054: ldc.i4 -32768
+		IL_0059: conv.ovf.i2
+		IL_005A: ldc.i4 -32768
+		IL_005F: conv.ovf.i2
+		IL_0060: call System.Void Std.Std+Test::assert(System.Int16, System.Int16)
+		IL_0065: ldc.i4 32767
+		IL_006A: conv.ovf.i2
+		IL_006B: ldc.i4 32767
+		IL_0070: conv.ovf.i2
+		IL_0071: call System.Void Std.Std+Test::assert(System.Int16, System.Int16)
+		IL_0076: ldc.i4.0
+		IL_0077: ldc.i4.0
+		IL_0078: call System.Void Std.Std+Test::assert(System.UInt32, System.UInt32)
+		IL_007D: ldc.i4.m1
+		IL_007E: ldc.i4.m1
+		IL_007F: call System.Void Std.Std+Test::assert(System.UInt32, System.UInt32)
+		IL_0084: ldc.i4 -2147483648
+		IL_0089: ldc.i4 -2147483648
+		IL_008E: call System.Void Std.Std+Test::assert(System.Int32, System.Int32)
+		IL_0093: ldc.i4 2147483647
+		IL_0098: ldc.i4 2147483647
+		IL_009D: call System.Void Std.Std+Test::assert(System.Int32, System.Int32)
+		IL_00A2: ldc.i8 0
+		IL_00AB: ldc.i8 0
+		IL_00B4: call System.Void Std.Std+Test::assert(System.UInt64, System.UInt64)
+		IL_00B9: ldc.i8 -1
+		IL_00C2: ldc.i8 -1
+		IL_00CB: call System.Void Std.Std+Test::assert(System.UInt64, System.UInt64)
+		IL_00D0: ldc.i8 -9223372036854775808
+		IL_00D9: ldc.i8 -9223372036854775808
+		IL_00E2: call System.Void Std.Std+Test::assert(System.Int64, System.Int64)
+		IL_00E7: ldc.i8 9223372036854775807
+		IL_00F0: ldc.i8 9223372036854775807
+		IL_00F9: call System.Void Std.Std+Test::assert(System.Int64, System.Int64)
+		IL_00FE: ldloca V_0
+		IL_0102: initobj System.UInt128
+		IL_0108: ldloc V_0
+		IL_010C: ldloca V_1
+		IL_0110: initobj System.UInt128
+		IL_0116: ldloc V_1
+		IL_011A: call System.Void Std.Std+Test::assert(System.UInt128, System.UInt128)
+		IL_011F: ldloca V_2
+		IL_0123: ldc.i8 -1
+		IL_012C: ldc.i8 -1
+		IL_0135: call System.Void System.UInt128::.ctor(System.UInt64, System.UInt64)
+		IL_013A: ldloc V_2
+		IL_013E: ldloca V_3
+		IL_0142: ldc.i8 -1
+		IL_014B: ldc.i8 -1
+		IL_0154: call System.Void System.UInt128::.ctor(System.UInt64, System.UInt64)
+		IL_0159: ldloc V_3
+		IL_015D: call System.Void Std.Std+Test::assert(System.UInt128, System.UInt128)
+		IL_0162: ldloca V_4
+		IL_0166: ldc.i8 -9223372036854775808
+		IL_016F: ldc.i8 0
+		IL_0178: call System.Void System.Int128::.ctor(System.UInt64, System.UInt64)
+		IL_017D: ldloc V_4
+		IL_0181: ldloca V_5
+		IL_0185: ldc.i8 -9223372036854775808
+		IL_018E: ldc.i8 0
+		IL_0197: call System.Void System.Int128::.ctor(System.UInt64, System.UInt64)
+		IL_019C: ldloc V_5
+		IL_01A0: call System.Void Std.Std+Test::assert(System.Int128, System.Int128)
+		IL_01A5: ldloca V_6
+		IL_01A9: ldc.i8 9223372036854775807
+		IL_01B2: ldc.i8 -1
+		IL_01BB: call System.Void System.Int128::.ctor(System.UInt64, System.UInt64)
+		IL_01C0: ldloc V_6
+		IL_01C4: ldloca V_7
+		IL_01C8: ldc.i8 9223372036854775807
+		IL_01D1: ldc.i8 -1
+		IL_01DA: call System.Void System.Int128::.ctor(System.UInt64, System.UInt64)
+		IL_01DF: ldloc V_7
+		IL_01E3: call System.Void Std.Std+Test::assert(System.Int128, System.Int128)
+		IL_01E8: ret
 	}
 }
 

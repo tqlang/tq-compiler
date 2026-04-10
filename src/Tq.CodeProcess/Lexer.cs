@@ -13,7 +13,7 @@ public class Lexer
         ] },
         { "justRight", [
             TokenType.LeftParenthesisChar,
-            TokenType.AtSiginChar,
+            TokenType.AtSignChar,
         ] },
         { "bothSides", [
             TokenType.DotChar,
@@ -129,7 +129,7 @@ public class Lexer
                 case '[': tokens.Add(Tokenize(TokenType.LeftSquareBracketChar, src.GetSlice())); break;
                 case ']': tokens.Add(Tokenize(TokenType.RightSquareBracketChar, src.GetSlice())); break;
                 case '?': tokens.Add(Tokenize(TokenType.QuestionChar, src.GetSlice())); break;
-                case '@': tokens.Add(Tokenize(TokenType.AtSiginChar, src.GetSlice())); break;
+                case '@': tokens.Add(Tokenize(TokenType.AtSignChar, src.GetSlice())); break;
                 case ',': tokens.Add(Tokenize(TokenType.CommaChar, src.GetSlice())); break;
                 case '.': tokens.Add(Tokenize(TokenType.DotChar, src.GetSlice())); break;
                 case ':': tokens.Add(Tokenize(TokenType.ColonChar, src.GetSlice())); break;
@@ -158,7 +158,7 @@ public class Lexer
                 case '+': tokens.Add(Tokenize(
                           src.NextIs('=') ? TokenType.AddAssign
                         : src.NextIs('+') ? TokenType.IncrementOperator
-                        : src.NextIs('%') ? TokenType.AddWarpOperator
+                        : src.NextIs('%') ? TokenType.AddWrapOperator
                         : src.NextIs('|') ? TokenType.SubOnBoundsOperator
                         : TokenType.CrossChar
                     , src.GetSlice())); break;
@@ -166,14 +166,18 @@ public class Lexer
                 case '-': tokens.Add(Tokenize(
                           src.NextIs('=') ? TokenType.SubAssign
                         : src.NextIs('-') ? TokenType.DecrementOperator
-                        : src.NextIs('%') ? TokenType.SubWarpOperator
+                        : src.NextIs('%') ? TokenType.SubWrapOperator
                         : src.NextIs('|') ? TokenType.SubOnBoundsOperator
                         : TokenType.MinusChar
                     , src.GetSlice())); break;
                 
-                case '*': tokens.Add(src.NextIs('=')
-                    ? Tokenize(TokenType.MulAssign, src.GetSlice())
-                    : Tokenize(TokenType.StarChar, src.GetSlice())); break;
+                case '*': tokens.Add(Tokenize(
+                          src.NextIs('=') ? TokenType.MulAssign
+                        : src.NextIs('*') ? TokenType.PowerOperator
+                        : src.NextIs('%') ? TokenType.MulWrapOperator
+                        : src.NextIs('|') ? TokenType.MulOnBoundsOperator
+                        : TokenType.StarChar
+                    , src.GetSlice())); break;
                 
                 case '/': tokens.Add(Tokenize(
                           src.NextIs('=') ? TokenType.DivAssign
@@ -187,7 +191,9 @@ public class Lexer
                     : Tokenize(TokenType.PercentChar, src.GetSlice())); break;
                 
                 case '=': tokens.Add(src.NextIs('=')
-                    ? Tokenize(TokenType.EqualOperator, src.GetSlice())
+                    ? Tokenize(src.NextIs('=') 
+                        ? TokenType.ExactEqualOperator
+                        : TokenType.EqualOperator, src.GetSlice())
                     : src.NextIs('>') 
                         ? Tokenize(TokenType.RightArrowOperator, src.GetSlice())
                         : Tokenize(TokenType.EqualsChar, src.GetSlice())); break;
@@ -197,7 +203,9 @@ public class Lexer
                     : Tokenize(TokenType.CircumflexChar, src.GetSlice())); break;
                 
                 case '!': tokens.Add(src.NextIs('=')
-                    ? Tokenize(TokenType.UnequalOperator, src.GetSlice())
+                    ? Tokenize(src.NextIs('=')
+                        ? TokenType.ExactUnequalOperator
+                        : TokenType.UnequalOperator, src.GetSlice())
                     : Tokenize(TokenType.BangChar, src.GetSlice())); break;
                 
                 // ignore comments
@@ -241,7 +249,7 @@ public class Lexer
 
                         while (!src.IsEof())
                         {
-                            char cc = src.Peek();
+                            var cc = src.Peek();
                             if (cc == '.')
                             {
                                 if (numBase != 10 || isFloating) break;

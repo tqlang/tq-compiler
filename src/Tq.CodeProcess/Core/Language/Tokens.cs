@@ -98,15 +98,17 @@ public enum TokenType : byte
     PipeChar,               // |
     ColonChar,              // :
     
-    AddWarpOperator,        // +%
+    AddWrapOperator,        // +%
     AddOnBoundsOperator,    // +|
-    SubWarpOperator,        // -%
+    SubWrapOperator,        // -%
     SubOnBoundsOperator,    // -|
+    MulWrapOperator,        // *%
+    MulOnBoundsOperator,    // *|
     
     DivideFloorOperator,    // /_
     DivideCeilOperator,     // /^
 
-    AtSiginChar,            // @
+    AtSignChar,            // @
 
     RightArrowOperator,     // =>
 

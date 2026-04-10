@@ -86,7 +86,7 @@ public partial class Compiler
                     //     ctx.StackPush(signed ? _corLibFactory.Int16 : _corLibFactory.UInt16);
                     //     break;
                     case <= 32:
-                        ctx.Gen.Add(CilInstruction.CreateLdcI4((int)intlit.Value));
+                        ctx.Gen.Add(CilInstruction.CreateLdcI4(unchecked((int)(Int128)intlit.Value)));
                         ctx.StackPush(signed ? _corLibFactory.Int32 : _corLibFactory.UInt32);
                         break;
                     case <= 64:
@@ -95,17 +95,17 @@ public partial class Compiler
                         break;
                     case <= 128:
                     {
-                        var largeType = signed ? _coreLib["Int128"] : _coreLib["UInt128"];
+                        var largeType = _coreLib[signed ? "System.Int128" : "System.UInt128"];
                         
                         if (intlit.Value == 0)
                         {
                             var tmp = new CilLocalVariable(largeType.t);
                             ctx.Gen.Owner.LocalVariables.Add(tmp);
                             ctx.Gen.Add(CilOpCodes.Ldloca, tmp);
-                            ctx.Gen.Add(CilOpCodes.Initobj, (ITypeDefOrRef)largeType.t.ToTypeDefOrRef());
+                            ctx.Gen.Add(CilOpCodes.Initobj, largeType.t.ToTypeDefOrRef());
                             ctx.Gen.Add(CilOpCodes.Ldloc, tmp);
                         }
-                        else if (intlit.Value <= ulong.MaxValue)
+                        else if (intlit.Value > 0 && intlit.Value <= ulong.MaxValue)
                         {
                             ctx.Gen.Add(CilOpCodes.Ldc_I8, (long)intlit.Value);
                             ctx.Gen.Add(CilOpCodes.Call, (IMethodDescriptor)largeType.m[intlit.Value.Sign < 0 ? "Conv_from_i64" : "Conv_from_u64"]);
@@ -120,7 +120,7 @@ public partial class Compiler
                             var lo = (ulong)(intlit.Value & mask);
                             ctx.Gen.Add(CilOpCodes.Ldc_I8, unchecked((long)hi));
                             ctx.Gen.Add(CilOpCodes.Ldc_I8, unchecked((long)lo));
-                            ctx.Gen.Add(CilOpCodes.Call, (IMethodDescriptor)largeType.m["new"]);
+                            ctx.Gen.Add(CilOpCodes.Call, largeType.m["new"]);
                             ctx.Gen.Add(CilOpCodes.Ldloc, tmp);
                         }
                         ctx.StackPush(largeType.t);

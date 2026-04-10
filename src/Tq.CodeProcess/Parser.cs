@@ -180,7 +180,7 @@ public class Parser(ErrorHandler errHandler)
                 node = ParseImport();
                 break;
 
-            case TokenType.AtSiginChar:
+            case TokenType.AtSignChar:
             try{
 
                 node = new AttributeNode();
@@ -400,10 +400,10 @@ public class Parser(ErrorHandler errHandler)
         if (!Taste(
                 TokenType.CrossChar, // +
                 TokenType.AddOnBoundsOperator, // +|
-                TokenType.AddWarpOperator, // +%
+                TokenType.AddWrapOperator, // +%
                 TokenType.MinusChar, // -
                 TokenType.SubOnBoundsOperator, // -|
-                TokenType.SubWarpOperator // -%
+                TokenType.SubWrapOperator // -%
             )) return node;
         
         var n = new BinaryExpressionNode();

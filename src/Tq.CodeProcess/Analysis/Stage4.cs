@@ -537,6 +537,8 @@ public partial class Analyser
                         IrBinaryExp.Operators.Divide => leftInt.Value / rightInt.Value,
                         IrBinaryExp.Operators.Reminder => leftInt.Value % rightInt.Value,
 
+                        IrBinaryExp.Operators.Pow => BigInteger.Pow(leftInt.Value, (int)rightInt.Value),
+                        
                         IrBinaryExp.Operators.BitwiseAnd => leftInt.Value & rightInt.Value,
                         IrBinaryExp.Operators.BitwiseOr => leftInt.Value | rightInt.Value,
                         IrBinaryExp.Operators.BitwiseXor => leftInt.Value ^ rightInt.Value,

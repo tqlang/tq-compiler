@@ -345,7 +345,7 @@ public partial class Compiler
         
         tryBegin.Instruction = gen.Add(CilOpCodes.Call, _mainFunc);
         gen.Add(CilOpCodes.Leave, catchEnd);
-        catchBegin.Instruction = gen.Add(CilOpCodes.Pop);
+        catchBegin.Instruction = gen.Add(CilOpCodes.Nop);
         
         if (_panicFunc != null)
         {
@@ -356,7 +356,10 @@ public partial class Compiler
             gen.Add(CilOpCodes.Ldstr, "!!! Panic !!!\n");
             gen.Add(CilOpCodes.Call, write);
             
-            gen.Add(CilOpCodes.Ldstr, "Error: FIXME\n");
+            gen.Add(CilOpCodes.Ldstr, "Error:\n");
+            gen.Add(CilOpCodes.Call, write);
+
+            gen.Add(CilOpCodes.Callvirt, _coreLib["System.Object"].m["ToString"]);
             gen.Add(CilOpCodes.Call, write);
             
             gen.Add(CilOpCodes.Ldc_I4_1);
