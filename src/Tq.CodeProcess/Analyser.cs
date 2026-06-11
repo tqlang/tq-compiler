@@ -92,7 +92,7 @@ public partial class Analyser(ErrorHandler handler)
             sb.AppendLine($"{kind}\t{string.Join('.', i.Key)}");
         }
         
-        File.WriteAllText(".abs-cache/debug/reftable.txt", sb.ToString());
+        File.WriteAllText(".tq-cache/debug/reftable.txt", sb.ToString());
     }
 
     private void DumpEvaluatedData()
