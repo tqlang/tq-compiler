@@ -62,7 +62,7 @@ public partial class Compiler
             sb.AppendLine("}");
         }
             
-        File.WriteAllText(".abs-cache/debug/dlldump.il", sb.ToString());
+        File.WriteAllText(".tq-cache/debug/dlldump.il", sb.ToString());
     }
 
     private TypeSignature TypeFromRef(TypeReference? typeRef)

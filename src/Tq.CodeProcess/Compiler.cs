@@ -82,8 +82,8 @@ public partial class Compiler
         ImplementBinStart();
 
         DumpModule();
-        _module.Write($".abs-out/{programName}.dll");
-        File.WriteAllText($".abs-out/{programName}.runtimeconfig.json", launchConfig);
+        _module.Write($".tq-out/{programName}.dll");
+        File.WriteAllText($".tq-out/{programName}.runtimeconfig.json", launchConfig);
     }
     
     private void SearchRecursive(LangObject? parent, LangObject obj)

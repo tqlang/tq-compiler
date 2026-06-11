@@ -77,7 +77,7 @@ public static class Builder
                     if (!string.IsNullOrEmpty(namespaceName)) nmsp.AddRange(namespaceName.Split('.'));
                         
                     File.WriteAllText(
-                        $"./.abs-cache/debug/{string.Join('.', nmsp)}.generated.a",
+                        $"./.tq-cache/debug/{string.Join('.', nmsp)}.generated.a",
                         namespaceNode.ContentToString());
                 }
 
@@ -126,17 +126,17 @@ public static class Builder
     private static void SetupBuildCache()
     {
         string[] directories = [
-            ".abs-out",
+            ".tq-out",
             
-            ".abs-cache",
-            ".abs-cache/debug",
-            ".abs-cache/debug/realizer",
-            ".abs-cache/temp",
-            ".abs-cache/modules",
+            ".tq-cache",
+            ".tq-cache/debug",
+            ".tq-cache/debug/realizer",
+            ".tq-cache/temp",
+            ".tq-cache/modules",
         ];
         string[] reset = [
-            ".abs-cache/debug",
-            ".abs-cache/temp",
+            ".tq-cache/debug",
+            ".tq-cache/temp",
         ];
 
         foreach (var i in reset)
