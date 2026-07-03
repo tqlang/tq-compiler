@@ -60,12 +60,10 @@ public partial class Compiler
     
     public void Compile(ProgramObject program)
     {
-        var programName = program.Modules[0].Name;
-
-        _assembly = new AssemblyDefinition(programName + ".dll", 
+        _assembly = new AssemblyDefinition(program.Name + ".dll", 
         new Version(1, 0, 0, 0));
 
-        _module = new ModuleDefinition(programName, program.AssemblyResolver.Assemblies["System.Runtime"])
+        _module = new ModuleDefinition(program.Name, program.AssemblyResolver.Assemblies["System.Runtime"])
         { MetadataResolver = new DefaultMetadataResolver(program.AssemblyResolver) };
         _assembly.Modules.Add(_module);
         _module.TopLevelTypes.Clear();
@@ -82,8 +80,8 @@ public partial class Compiler
         ImplementBinStart();
 
         DumpModule();
-        _module.Write($".tq-out/{programName}.dll");
-        File.WriteAllText($".tq-out/{programName}.runtimeconfig.json", launchConfig);
+        _module.Write($".tq-out/{program.Name}.dll");
+        File.WriteAllText($".tq-out/{program.Name}.runtimeconfig.json", launchConfig);
     }
     
     private void SearchRecursive(LangObject? parent, LangObject obj)

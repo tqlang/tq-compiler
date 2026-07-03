@@ -22,6 +22,7 @@ public partial class Analyser(ErrorHandler handler)
     private readonly List<AssemblyDefinition> _assemblies = [];
     
     public ProgramObject? Analyze(
+        string programName,
         Module[] modules,
         string[] includes,
         bool dumpGlobalTable = false,
@@ -62,7 +63,12 @@ public partial class Analyser(ErrorHandler handler)
         if (dumpGlobalTable) DumpGlobalTable();
 
         if (_errorHandler.ErrorCount > 0) return null!;
-        return new ProgramObject(_assemblyResolver, [.. _modules], [.. _namespaces]);
+        return new ProgramObject(
+            programName,
+            _assemblyResolver,
+            [.. _modules],
+            [.. _namespaces]
+        );
     }
     
     
