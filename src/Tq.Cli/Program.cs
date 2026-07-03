@@ -19,15 +19,16 @@ public class Program
 
         switch (args[0])
         {
-            case "build" or "b":
-                DigestBuildArgs(args[1..]);
-                break;
+            case "build" or "b": DigestBuildArgs(false, args[1..]); break;
+            case "run" or "r": DigestBuildArgs(true, args[1..]); break;
                 
             case "help" or "h" or "-help" or "--help" or "-h":
                 Help();
                 return 0;
             
             default:
+                Console.WriteLine("No argument provided.");
+                Console.WriteLine();
                 Help();
                 break;
         }
@@ -35,11 +36,11 @@ public class Program
         return 1;
     }
 
-    private static int DigestBuildArgs(string[] args)
+    private static int DigestBuildArgs(bool run, string[] args)
     {
         if (args.Length < 1) throw new Exception("Expected program name");
-        var buildOps = new BuildOptions(args[0]);
-
+        var buildOps = new BuildOptions(args[0]) { Run = run };
+        
         var i = 1;
         while(i < args.Length)
         {
@@ -83,8 +84,12 @@ public class Program
                             case "compressedModules": buildOps.DebugDumpCompressedModules = true; break;
                         }
                     }
-                        
-                    break;
+                break;
+
+                case "--":
+                    buildOps.Args = args[i ..];
+                    i             = args.Length;
+                break;
                 
                 default:
                     Console.WriteLine($"Unknown argument '{args[--i]}'");
@@ -101,11 +106,13 @@ public class Program
     
     private static void Help()
     {
-        Console.WriteLine("No argument provided.");
-        Console.WriteLine("Try 'help' to more details.\n");
-
         Console.WriteLine("Compiler options:");
-        Console.WriteLine("\t- build           Builds the project (bruh)");
+        Console.WriteLine("\t- build <program_name>                          Builds a project");
+        Console.WriteLine("\t- run <program_name>                            Builds a project and runs the generated binary");
+        Console.WriteLine();
+        Console.WriteLine("Build & run options:");
+        Console.WriteLine("\t- --module (-m) <module_name> <module_path>      Adds a module to the build");
+        Console.WriteLine("\t- --include (-i) <assembly_name>                 Includes a dotnet assembly");
     }
 }
 

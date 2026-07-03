@@ -1,8 +1,9 @@
 using System.Diagnostics;
+using System.Reflection;
 using System.Text.RegularExpressions;
 using Abstract.CodeProcess;
 using Abstract.CodeProcess.Core;
-using Abstract.CodeProcess.Core.Language.Module;
+using Module = Abstract.CodeProcess.Core.Language.Module.Module;
 
 namespace Abstract.Cli.Build;
 
@@ -98,6 +99,7 @@ public static class Builder
         
         var analysis = Stopwatch.StartNew();
         var progObj = analyzer.Analyze(
+            options.ProjectName,
             [.. modules],
             [.. options.Includes],
             dumpGlobalTable: options.DebugDumpAnalyzerIr,
@@ -121,8 +123,33 @@ public static class Builder
         completeBuild.Stop();
         if (verbose) Console.WriteLine($"Build Finished ({completeBuild.Elapsed})");
 
+        if (!options.Run) return;
+
+        string binaryPath = $"./.tq-out/{options.ProjectName}.dll";
+        Console.WriteLine($"Executing '{binaryPath}'...\n");
+        ExecuteProgram(binaryPath, options.Args ?? []);
     }
 
+    private static void ExecuteProgram(string binaryPath, string[] args)
+    {
+        var psi = new ProcessStartInfo
+        {
+            FileName        = "dotnet",
+            UseShellExecute = false,
+        };
+
+        psi.ArgumentList.Add(binaryPath);
+        foreach (var arg in args) psi.ArgumentList.Add(arg);
+
+        Console.Clear();
+        using var process = Process.Start(psi)!;
+        process.WaitForExit();
+
+        Console.ForegroundColor = process.ExitCode == 0 ? ConsoleColor.Green : ConsoleColor.Red;
+        Console.WriteLine($"\nProgram exited with code {process.ExitCode}.");
+        Console.ResetColor();
+    }
+    
     private static void SetupBuildCache()
     {
         string[] directories = [

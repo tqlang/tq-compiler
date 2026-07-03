@@ -10,6 +10,10 @@ public class BuildOptions(string projectName)
     public string DirectoryQueryRegex = "^[A-Za-z][A-Za-z0-9_]*$";
     public string ScriptQueryRegex = "^[A-Za-z][A-Za-z0-9_]*\\.tq$";
     
+    // Run options
+    public bool Run = false;
+    public string[]? Args = null;
+    
     // Debug options
     public bool Verbose = false;
     public bool DebugDumpParsedTrees = false;
