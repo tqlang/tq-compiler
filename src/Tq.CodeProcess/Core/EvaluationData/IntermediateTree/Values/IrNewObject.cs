@@ -10,11 +10,11 @@ public class IrNewObject(SyntaxNode origin, IrReference type, IrExpression[] arg
     public IrExpression[] Arguments = args;
     public IrAssign[] InlineAssignments = inlineAssigns;
 
-    public TypeReference InstanceType = null!;
-    public TypeReference? OverrideReturnType = null;
+    public ITypeReference InstanceType = null!;
+    public ITypeReference? OverrideReturnType = null;
     public IrReference Target = type;
     
-    public override TypeReference Type => OverrideReturnType ?? InstanceType;
+    public override ITypeReference Type => OverrideReturnType ?? InstanceType;
     public override string ToString()
     {
         var sb = new StringBuilder();

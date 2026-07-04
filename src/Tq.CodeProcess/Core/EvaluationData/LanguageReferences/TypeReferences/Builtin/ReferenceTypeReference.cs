@@ -1,13 +1,12 @@
 namespace Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.TypeReferences.Builtin;
 
-public class ReferenceTypeReference(TypeReference internaltype) : TypeReference
+public class ReferenceTypeReference(Reference internalType) : BuiltInTypeReference
 {
-    public TypeReference InternalType { get; set; } = internaltype;
+    public Reference InternalType { get; set; } = internalType;
     
-    public override Alignment Length => new (0, 1);
-    public override Alignment Alignment => new (0, 1);
-
-    public override bool IsGeneric => InternalType.IsGeneric;
+    public override bool IsGeneric => InternalType is ITypeReference { IsGeneric: true };
+    public override bool IsSolved => InternalType.IsSolved;
+    public override ITypeReference Type => new TypeTypeReference(this);
 
     public override string ToString() => $"*{InternalType}";
 }

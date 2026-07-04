@@ -5,7 +5,7 @@ namespace Abstract.CodeProcess.Core.EvaluationData.IntermediateTree.Expressions;
 
 public class IRUnaryExp(SyntaxNode origin, IRUnaryExp.UnaryOperation op, IrExpression value) : IrExpression(origin)
 {
-    public override TypeReference Type => Value.Type;
+    public override ITypeReference Type => Value.Type;
 
     public UnaryOperation Operation = op;
     public IrExpression Value = value;

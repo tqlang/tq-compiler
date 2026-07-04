@@ -1,13 +1,12 @@
 namespace Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.TypeReferences.Builtin;
 
-public class SliceTypeReference(TypeReference elementType) : TypeReference
+public class SliceTypeReference(Reference elementType) : BuiltInTypeReference
 {
-    public TypeReference ElementType { get; set; } = elementType;
+    public Reference ElementType { get; set; } = elementType;
     
-    public override Alignment Length => new (0, 2);
-    public override Alignment Alignment => new (0, 1);
-
-    public override bool IsGeneric => ElementType.IsGeneric;
+    public override bool IsGeneric => ElementType is ITypeReference { IsGeneric: true };
+    public override bool IsSolved => ElementType.IsSolved;
+    public override ITypeReference Type => new TypeTypeReference(this);
 
     public override string ToString() => $"[]{ElementType}";
 }

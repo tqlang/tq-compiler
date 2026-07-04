@@ -1,13 +1,14 @@
 using System.Text;
+using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences;
+using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.TypeReferences;
 using AsmResolver.DotNet;
-using TypeReference = Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.TypeReferences.TypeReference;
 
 namespace Abstract.CodeProcess.Core.EvaluationData.LanguageObjects;
 
-public class DotnetFieldObject(FieldDefinition field, TypeReference t) : LangObject(null!, field.Name!)
+public class DotnetFieldObject(FieldDefinition field, Reference t) : LangObject(null!, field.Name!)
 {
     public readonly FieldDefinition Reference = field;
-    public readonly TypeReference FieldType = t;
+    public readonly Reference FieldType = t;
     
     public bool IsConstant => Reference.Constant != null;
     public bool IsStatic => Reference.Constant is null;

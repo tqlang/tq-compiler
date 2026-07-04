@@ -4,10 +4,10 @@ using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.TypeReferences
 
 namespace Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.FunctionReferences;
 
-public class SolvedCallableReference(ICallable callable) : FunctionReference
+public class CallableReference(ICallable callable) : FunctionReference
 {
     public readonly ICallable Callable = callable;
-    public override TypeReference Type => new FunctionTypeReference(
+    public override ITypeReference Type => new FunctionTypeReference(
         Callable.ReturnType!,
         Callable.Parameters.Select(e => e.Type).ToArray());
 

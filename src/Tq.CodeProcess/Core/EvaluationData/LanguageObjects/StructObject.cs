@@ -1,6 +1,8 @@
 using System.Text;
 using Abstract.CodeProcess.Core.EvaluationData.LanguageObjects.Attributes;
+using Abstract.CodeProcess.Core.EvaluationData.LanguageObjects.CodeObjects;
 using Abstract.CodeProcess.Core.EvaluationData.LanguageObjects.Containers;
+using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences;
 using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.TypeReferences;
 using Abstract.CodeProcess.Core.Language.SyntaxNodes.Control;
 
@@ -22,12 +24,12 @@ public class StructObject(SourceScript sourceScript, string n, StructureDeclarat
     public bool Abstract { get; set; } = false;
     public bool Interface { get; set; } =  false;
     public bool Final { get; set; } =  false;
+    public bool Generic => Parameters.Count == 0;
     
-    public TypeReference? Extends { get; set; }
+    
+    public Reference? Extends { get; set; }
     public (FunctionObject parent, FunctionObject? overrided, bool isSealed)[]? VirtualTable { get; set; }
-    
-    public Alignment? Length { get; set; }
-    public Alignment? Alignment { get; set; }
+    public List<ParameterObject> Parameters { get; } = [];
 
     public List<FieldObject> Fields { get; } = [];
     public List<ConstructorObject> Constructors { get; } = [];
@@ -61,6 +63,7 @@ public class StructObject(SourceScript sourceScript, string n, StructureDeclarat
         sb.Append(Abstract ? "abstract " : "concrete ");
 
         sb.Append($"struct '{Name}'");
+        if (Parameters.Count > 0) sb.Append($"({string.Join(", ", Parameters.Select(e => e.Name))})");
         if (Extends != null) sb.Append($" extends {Extends:sig}");
         sb.AppendLine(" {");
         

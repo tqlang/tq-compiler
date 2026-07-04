@@ -2,7 +2,8 @@ namespace Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.TypeRefere
 
 public class CharTypeReference(): BuiltInTypeReference
 {
-    public override Alignment Length => new (32, 0);
-    public override Alignment Alignment => new (0, 1);
+    public bool IsGeneric => false;
+    public override ITypeReference Type => new TypeTypeReference(this);
+    
     public override string ToString() => "char";
 }

@@ -6,7 +6,7 @@ namespace Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.FunctionRe
 
 public class SliceCallReference(StringEncoding encoding): FunctionReference
 {
-    public override TypeReference Type => new FunctionTypeReference(
+    public override ITypeReference Type => new FunctionTypeReference(
         new StringTypeReference(encoding),
         [
             new StringTypeReference(encoding),

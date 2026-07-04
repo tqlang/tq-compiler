@@ -2,16 +2,17 @@ using System.Text;
 using Abstract.CodeProcess.Core.EvaluationData.IntermediateTree;
 using Abstract.CodeProcess.Core.EvaluationData.LanguageObjects.CodeObjects;
 using Abstract.CodeProcess.Core.EvaluationData.LanguageObjects.Containers;
+using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences;
+using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.TypeReferences;
 using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.TypeReferences.Builtin;
 using AsmResolver.DotNet;
-using TypeReference = Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.TypeReferences.TypeReference;
 
 namespace Abstract.CodeProcess.Core.EvaluationData.LanguageObjects;
 
 public class DotnetMethodObject(
     string name,
     IMethodDescriptor descriptor, MethodDefinition definition,
-    TypeReference? returnType,
+    Reference? returnType,
     ParameterObject[] parameters)
     : DotnetMemberObject(null!, name),
     ICallable
@@ -26,7 +27,7 @@ public class DotnetMethodObject(
     public SourceScript Script => throw new NotImplementedException();
     public List<ParameterObject> Parameters { get; } = parameters.ToList();
     public List<LocalVariableObject> Locals { get; } = [];
-    public TypeReference ReturnType { get; } = returnType ?? new VoidTypeReference();
+    public Reference ReturnType { get; } = returnType ?? new VoidTypeReference();
     
     public bool IsStatic => MethodDefinition.IsStatic;
     public bool IsGeneric => MethodDefinition.GenericParameters.Count > 0;

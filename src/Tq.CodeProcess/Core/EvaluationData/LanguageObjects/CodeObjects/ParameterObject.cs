@@ -1,13 +1,13 @@
 using System.Text;
-using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.TypeReferences;
+using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences;
 using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.TypeReferences.Builtin;
 
 namespace Abstract.CodeProcess.Core.EvaluationData.LanguageObjects.CodeObjects;
 
-public class ParameterObject(TypeReference type, string name)
+public class ParameterObject(Reference type, string name)
 {
     public readonly string Name = name;
-    public TypeReference Type { get; set; } = type;
+    public Reference Type { get; set; } = type;
     public int Index = 0;
 
     public bool IsGeneric => Type is TypeTypeReference;

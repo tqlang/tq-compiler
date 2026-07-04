@@ -1,19 +1,20 @@
 using System.Diagnostics;
 using Abstract.CodeProcess.Core.EvaluationData.LanguageObjects;
 using Abstract.CodeProcess.Core.EvaluationData.LanguageObjects.CodeObjects;
+using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences;
 using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.Dotnet;
+using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.TypeReferences;
 using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.TypeReferences.Builtin;
 using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.TypeReferences.Builtin.Integer;
 using AsmResolver.DotNet;
 using AsmResolver.DotNet.Signatures.Types;
 using AsmResolver.PE.DotNet.Metadata.Tables.Rows;
-using TypeReference = Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.TypeReferences.TypeReference;
 
 namespace Abstract.CodeProcess.Core.EvaluationData;
 
 public static class DotnetMembers
 {
-    public static TypeReference DotnetTypeToRef(TypeSignature t, DotnetModuleObject module)
+    public static Reference DotnetTypeToRef(TypeSignature t, DotnetModuleObject module)
     {
         switch (t)
         {
@@ -36,9 +37,9 @@ public static class DotnetMembers
             
             case GenericInstanceTypeSignature g:
             {
-                var args = new TypeReference[g.TypeArguments.Count];
-                for (var i = 0; i < g.TypeArguments.Count; i++) args[i] = DotnetTypeToRef(g.TypeArguments[i], module);
-                return new DotnetGenericTypeReference((DotnetTypeObject)GetOrCreateTypeObject(g, module), g, args);
+                var args = new ITypeReference[g.TypeArguments.Count];
+                for (var i = 0; i < g.TypeArguments.Count; i++) args[i] = (ITypeReference)DotnetTypeToRef(g.TypeArguments[i], module);
+                return new DotnetGenericImplReference((DotnetTypeObject)GetOrCreateTypeObject(g, module), g, args);
             }
 
             case GenericParameterSignature g:
@@ -113,13 +114,48 @@ public static class DotnetMembers
             
     }
 
-    public static DotnetNamespaceObject GetOrCreateNamespaceObject(string n, DotnetModuleObject module)
+    public static BaseNamespaceObject GetOrCreateNamespaceObject(string fullName, DotnetModuleObject module)
     {
-        if (module.Namespaces.TryGetValue(n, out var value)) return (DotnetNamespaceObject)value;
+        if (module.Namespaces.TryGetValue(fullName, out var existing)) return (DotnetNamespaceObject)existing;
+
+        var lastDot = fullName.LastIndexOf('.');
+        var leafName = lastDot == -1 ? fullName : fullName[(lastDot + 1)..];
         
-        var namespaceObject = new DotnetNamespaceObject(n);
-        module.Namespaces.Add(n, namespaceObject);
-        return namespaceObject;
+        List<ITypeDefOrRef> foundTypes = [];
+        ITypeDefOrRef? foundType = null;
+
+        foreach (var m in module.ManifestModules)
+        {
+            foreach (var exported in m.ExportedTypes)
+            {
+                if (exported.Namespace == fullName) foundTypes.Add(exported.Resolve()!);
+                else if (exported.Namespace + '.' + exported.Name == fullName) foundType = exported.Resolve();
+            }
+
+            foreach (var type in m.TopLevelTypes)
+            {
+                if (type.Namespace == fullName) foundTypes.Add(type);
+                else if (type.Namespace + '.' + type.Name == fullName) foundType = type;
+            }
+        }
+
+        ContainerObject parent = lastDot == -1
+            ? module
+            : GetOrCreateNamespaceObject(fullName[..lastDot], module);
+        
+        BaseNamespaceObject result;
+        if (foundType != null)
+            result = new DotnetStaticClassObject(leafName, foundType.Resolve()!) { Parent = parent };
+        
+        else
+        {
+            var namespaceObject = new DotnetNamespaceObject(leafName) { Parent = parent };
+            namespaceObject.DotnetTypes!.AddRange(foundTypes);
+            result = namespaceObject;
+        }
+
+        module.Namespaces.Add(fullName, result);
+        return result;
     }
     public static ContainerObject GetOrCreateParentObject(TypeDefinition n, DotnetModuleObject module)
     {

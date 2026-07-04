@@ -6,10 +6,10 @@ namespace Abstract.CodeProcess.Core.EvaluationData.IntermediateTree.Values;
 
 public class IrStringLiteral : IrExpression
 {
-    private TypeReference _type;
+    private ITypeReference _type;
     public readonly string Data;
     
-    public override TypeReference Type => _type;
+    public override ITypeReference Type => _type;
     public StringEncoding Encoding => ((StringTypeReference)Type!).Encoding;
 
     public IrStringLiteral(SyntaxNode origin, StringEncoding encoding, string data) : base(origin)

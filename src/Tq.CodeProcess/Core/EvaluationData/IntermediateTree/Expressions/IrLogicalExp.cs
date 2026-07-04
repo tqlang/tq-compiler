@@ -10,7 +10,7 @@ public class IrLogicalExp(
     IrExpression left,
     IrExpression right) : IrExpression(origin)
 {
-    public override TypeReference Type => new BooleanTypeReference();
+    public override ITypeReference Type => new BooleanTypeReference();
 
     public Operators Operator { get; set; } = ope;
     public IrExpression Left { get; set; } = left;

@@ -3,8 +3,9 @@ using Abstract.CodeProcess.Core.EvaluationData.IntermediateTree;
 using Abstract.CodeProcess.Core.EvaluationData.LanguageObjects.Attributes;
 using Abstract.CodeProcess.Core.EvaluationData.LanguageObjects.CodeObjects;
 using Abstract.CodeProcess.Core.EvaluationData.LanguageObjects.Containers;
+using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences;
+using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.TypeReferences;
 using Abstract.CodeProcess.Core.Language.SyntaxNodes.Control;
-using TypeReference = Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.TypeReferences.TypeReference;
 
 namespace Abstract.CodeProcess.Core.EvaluationData.LanguageObjects;
 
@@ -36,7 +37,7 @@ public class FunctionObject(SourceScript sourceScript, string n, FunctionDeclara
     public FunctionGroupObject ParentGroup { get; internal set; } = null!;
     public List<ParameterObject> Parameters { get; } = [];
     public List<LocalVariableObject> Locals { get; } = [];
-    public TypeReference ReturnType { get; set; } = null!;
+    public Reference ReturnType { get; set; } = null!;
     public IrBlock? Body { get; set; }
     
     bool ICallable.IsStatic => Static;

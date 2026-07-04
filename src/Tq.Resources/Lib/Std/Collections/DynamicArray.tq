@@ -2,6 +2,7 @@
 
 # @public struct DynamicArray(type T) {
 
-#     let *List(T) _list = new List(T)()
+# 	let *List(T) _list = new List(T)()
 
 # }
+	

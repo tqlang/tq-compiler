@@ -1,11 +1,11 @@
 namespace Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.TypeReferences.Builtin;
 
-public class TypeTypeReference(TypeReference? referenced) : TypeReference
+public class TypeTypeReference(ITypeReference? referenced) : BuiltInTypeReference
 {
-    public readonly TypeReference? ReferencedType = referenced;
+    public readonly ITypeReference? ReferencedType = referenced;
     
-    public override Alignment Length => 0;
-    public override Alignment Alignment => 0;
+    public override bool IsGeneric => false;
+    public override ITypeReference Type => new TypeTypeReference(this);
     
     public override string ToString() => ReferencedType != null ? $"type({ReferencedType})" : $"type";
 }

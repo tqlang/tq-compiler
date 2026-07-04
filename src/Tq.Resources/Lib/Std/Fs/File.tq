@@ -9,11 +9,11 @@ from Dotnet.System.IO import {
 
 @public struct File {
 
-    let *CsFStream _filestream
-    
-    constructor(*CsFStream stream) {
-        _filestream = stream
-    }
+	let *CsFStream _filestream
+	
+	constructor(*CsFStream stream) {
+		_filestream = stream
+	}
 
 	func close() void {
 		_filestream.Close()

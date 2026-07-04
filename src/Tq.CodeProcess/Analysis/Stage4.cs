@@ -83,7 +83,7 @@ public partial class Analyser
         {
             if (fld.Value == null) continue;
             var ctx = new IrBlockExecutionContextData(fld);
-            fld.Value = SolveTypeCast(fld.Type, (IrExpression)NodeSemaAnal(fld.Value, ctx), true);
+            fld.Value = SolveTypeCast((ITypeReference)fld.Type, (IrExpression)NodeSemaAnal(fld.Value, ctx), true);
         }
         
         foreach (var tdef in typedeflist)
@@ -122,48 +122,45 @@ public partial class Analyser
     {
         foreach (var i in function.Parameters)
         {
-            if (IsSolved(i.Type)) continue;
-            i.Type = SolveTypeLazy2(i.Type, null, function);
+            if (!i.Type.IsSolved) i.Type = (Reference)SolveTypeLazy2(i.Type, null, function);
         }
 
         foreach (var i in function.Locals)
         {
-            if (i.Type == null || IsSolved(i.Type)) continue;
-            i.Type = SolveTypeLazy2(i.Type, null, function);
+            if (i.Type == null || i.Type.IsSolved) continue;
+            i.Type = (Reference)SolveTypeLazy2(i.Type, null, function);
         }
         
-        if (!IsSolved(function.ReturnType))
-            function.ReturnType = SolveTypeLazy2(function.ReturnType, null, function.Container);
+        if (!function.ReturnType.IsSolved)
+            function.ReturnType = (Reference)SolveTypeLazy2(function.ReturnType, null, function.Container);
     }
     private void CtorSemaAnal(ConstructorObject ctor)
     {
         foreach (var i in ctor.Parameters)
         {
-            if (IsSolved(i.Type)) continue;
-            i.Type = SolveTypeLazy2(i.Type, null, ctor.Container);
+            if (i.Type.IsSolved) i.Type = (Reference)SolveTypeLazy2(i.Type, null, ctor.Container);
         }
 
         foreach (var i in ctor.Locals)
         {
-            if (i.Type == null || IsSolved(i.Type)) continue;
-            i.Type = SolveTypeLazy2(i.Type, null, ctor.Container);
+            if (i.Type == null || i.Type.IsSolved) i.Type = (Reference)SolveTypeLazy2(i.Type!, null, ctor.Container);
         }
-        
-        if (!IsSolved(ctor.ReturnTypeOverride))
-            ctor.ReturnTypeOverride = SolveTypeLazy2(ctor.ReturnTypeOverride, null, ctor.Container);
+
+        if (ctor.ReturnTypeOverride is { IsSolved: false })
+            ctor.ReturnTypeOverride = (Reference)SolveTypeLazy2(ctor.ReturnTypeOverride, null, ctor.Container);
     }
     private void DtorSemaAnal(DestructorObject dtor)
     {
         foreach (var i in dtor.Parameters)
         {
-            if (IsSolved(i.Type)) continue;
-            i.Type = SolveTypeLazy2(i.Type, null, dtor.Container);
+            if (i.Type.IsSolved) continue;
+            i.Type = (Reference)SolveTypeLazy2(i.Type, null, dtor.Container);
         }
 
         foreach (var i in dtor.Locals)
         {
-            if (i.Type == null || IsSolved(i.Type)) continue;
-            i.Type = SolveTypeLazy2(i.Type, null, dtor.Container);
+            if (i.Type == null || i.Type.IsSolved) continue;
+            i.Type = (Reference)SolveTypeLazy2(i.Type, null, dtor.Container);
         }
     }
     
@@ -184,9 +181,8 @@ public partial class Analyser
     }
     private void FieldSemaAnal(FieldObject field)
     {
-        if (!IsSolved(field.Type)) field.Type = SolveTypeLazy2(field.Type, null, field);
+        if (!field.Type.IsSolved) field.Type = (Reference)SolveTypeLazy2(field.Type, null, field);
     }
-
     
     private void BlockSemaAnal(IrBlock block, IrBlockExecutionContextData ctx, bool newFrame = true)
     {
@@ -214,7 +210,7 @@ public partial class Analyser
                 IrReturn @re => NodeSemaAnal_Return(re, ctx),
                 IRIf @iff => NodeSemaAnal_If(iff, ctx),
                 IRWhile @iwhile => NodeSemaAnal_While(iwhile, ctx),
-                IrSolvedReference @re => NodeSemaAnal_SolvedRef(re, ctx),
+                IrReference { IsSolved: true } @re => NodeSemaAnal_Reference(re, ctx),
                 
                 IrCharLiteral
                 or IrStringLiteral
@@ -222,9 +218,9 @@ public partial class Analyser
                 or IRBooleanLiteral
                 or IRNullLiteral => node,
                 
-                IRAccess @s => NodeSemaAnal_Access(s, ctx),
+                IrAccess @s => NodeSemaAnal_Access(s, ctx),
                 IrCollectionLiteral @c => NodeSemaAnal_Collection(c, ctx),
-                IRUnknownReference @u => SolveReferenceLazy(u, ctx, null),
+                IrReference { IsSolved: false } @u => SolveReference(u, ctx, null),
                 
                 _ => throw new NotImplementedException(),
             };
@@ -237,7 +233,7 @@ public partial class Analyser
         // }
     }
 
-    private IrNode NodeSemaAnal_SolvedRef(IrSolvedReference re, IrBlockExecutionContextData ctx)
+    private IrNode NodeSemaAnal_Reference(IrReference re, IrBlockExecutionContextData ctx)
     {
         switch (re.Reference)
         {
@@ -254,7 +250,7 @@ public partial class Analyser
         var targetRef = (ReferenceOf(node.Target));
 
         IrExpression? instance = null;
-        if (node.Target is IRAccess @irAccess)
+        if (node.Target is IrAccess @irAccess)
         {
             instance = irAccess.A;
             node.Target = irAccess.B;
@@ -271,7 +267,7 @@ public partial class Analyser
         
         var res = targetRef switch
         {
-            SolvedFunctionGroupReference @r => SolveFunctionOverload(
+            FunctionGroupReference @r => SolveFunctionOverload(
                 r.FunctionGroup.Overloads.ToArray<ICallable>(), node.Arguments, node.Origin),
             
             DotnetMethodGroupReference @r => SolveFunctionOverload(
@@ -288,10 +284,10 @@ public partial class Analyser
             {
                 var newArgs =  new IrExpression[s.Callable.Parameters.Count];
                 for (var i = 0; i < newArgs.Length; i++)
-                    newArgs[i] = SolveTypeCast(s.Callable.Parameters[i].Type, node.Arguments[i]);
+                    newArgs[i] = SolveTypeCast((ITypeReference)s.Callable.Parameters[i].Type, node.Arguments[i]);
                 
                 node.Arguments = newArgs;
-                node.Target = new IrSolvedReference(node.Target.Origin, new SolvedCallableReference(s.Callable));
+                node.Target = new IrReference(node.Target.Origin, new CallableReference(s.Callable));
                 if (instance != null)
                 {
                     node.Arguments = instance.Type is not ReferenceTypeReference
@@ -308,20 +304,21 @@ public partial class Analyser
     {
         node.Target = (IrReference)NodeSemaAnal(node.Target, ctx);
         var instanceTypeRef = GetEffectiveTypeReference(node.Target);
-        if (instanceTypeRef is UnsolvedTypeReference) throw new Exception($"Not able to resolve reference to '{node.Origin}'");
-        if (instanceTypeRef is not SolvedStructTypeReference and not DotnetTypeReference)
+        
+        if (instanceTypeRef is IrReference { IsSolved: false }) throw new Exception($"Not able to resolve reference to '{node.Origin}'");
+        if (instanceTypeRef is not StructReference and not DotnetTypeReference)
             throw new Exception($"Cannot instantiate type {node.Origin} as an object");
         
         node.InstanceType = instanceTypeRef;
         if (instanceTypeRef is DotnetTypeReference { Reference.IsValueType: false }) 
-            node.OverrideReturnType = new ReferenceTypeReference(instanceTypeRef);
+            node.OverrideReturnType = new ReferenceTypeReference((Reference)instanceTypeRef);
         
         for (var i = 0; i < node.Arguments.Length; i++)
             node.Arguments[i] = (IrExpression)NodeSemaAnal(node.Arguments[i], ctx);
 
         ISolvedOverloadResult res = instanceTypeRef switch
         {
-            SolvedStructTypeReference structRef => SolveFunctionOverload(
+            StructReference structRef => SolveFunctionOverload(
                 structRef.Struct.Constructors.ToArray<ICallable>(), node.Arguments, node.Origin),
             
             DotnetTypeReference dotnetRef => SolveFunctionOverload(
@@ -338,10 +335,10 @@ public partial class Analyser
             {
                 var newArgs =  new IrExpression[s.Callable.Parameters.Count];
                 for (var i = 0; i < newArgs.Length; i++)
-                    newArgs[i] = SolveTypeCast(s.Callable.Parameters[i].Type, node.Arguments[i]);
+                    newArgs[i] = SolveTypeCast((ITypeReference)s.Callable.Parameters[i].Type, node.Arguments[i]);
                 
                 node.Arguments = newArgs;
-                node.Target = new IrSolvedReference(node.Target.Origin, new SolvedCallableReference(s.Callable));
+                node.Target = new IrReference(node.Target.Origin, new CallableReference(s.Callable));
             } break;
 
             // case GenericOverloadResult @g:
@@ -380,12 +377,12 @@ public partial class Analyser
         node.Target = (IrExpression)NodeSemaAnal(node.Target, ctx);
         node.Value = (IrExpression)NodeSemaAnal(node.Value, ctx);
 
-        if (node.Target is IrSolvedReference { Reference: LocalReference { Type: null } @l })
+        if (node.Target is IrReference { IsSolved: true, Reference: LocalReference { Type: null } @l })
         {
             var typefrom = GetEffectiveTypeReference(node.Value);
             if (typefrom is ComptimeIntegerTypeReference) typefrom = new RuntimeIntegerTypeReference(true);
             
-            l.Local.Type = typefrom;
+            l.Local.Type = (Reference)typefrom;
         }
 
         var typeto = GetEffectiveTypeReference(node.Target);
@@ -423,7 +420,7 @@ public partial class Analyser
         node.Left = (IrExpression)NodeSemaAnal(node.Left, ctx);
         node.Right = (IrExpression)NodeSemaAnal(node.Right, ctx);
         var leftTypeRef = GetEffectiveTypeReference(node.Left);
-        TypeReference ftype = new VoidTypeReference();
+        ITypeReference ftype = new VoidTypeReference();
 
         if (leftTypeRef is ComptimeIntegerTypeReference
             && GetEffectiveTypeReference(node.Right) is ComptimeIntegerTypeReference)
@@ -467,7 +464,7 @@ public partial class Analyser
             } break;
             
             case RuntimeIntegerTypeReference left when
-                rtype is SolvedTypedefTypeReference { Typedef.BackType: RuntimeIntegerTypeReference right }:
+                rtype is TypedefReference { Typedef.BackType: RuntimeIntegerTypeReference right }:
             {
                 if (left.BitSize >= right.BitSize) ftype = left;
                 else if (left.BitSize < right.BitSize) ftype = right;
@@ -493,7 +490,7 @@ public partial class Analyser
             } break;
             
             case ComptimeIntegerTypeReference when
-                rtype is SolvedTypedefTypeReference { Typedef.BackType: RuntimeIntegerTypeReference right }:
+                rtype is TypedefReference { Typedef.BackType: RuntimeIntegerTypeReference right }:
             {
                 ftype = right.Type;
             } break;
@@ -718,7 +715,7 @@ public partial class Analyser
                 // FIXME put message here
                 if (node.Indices.Length != 1) throw new Exception("too much indices for this op");
                 node.Indices[0] = SolveTypeCast(new RuntimeIntegerTypeReference(false), node.Indices[0]);
-                node.ResultType = s.ElementType;
+                node.ResultType = (ITypeReference)s.ElementType;
             } break;
             
             case StringTypeReference:
@@ -742,7 +739,7 @@ public partial class Analyser
         if (ctx.Parent is not FunctionObject function) throw new InvalidCastException();
         
         node.Value = (IrExpression)NodeSemaAnal(node.Value, ctx);
-        node.Value = SolveTypeCast(function.ReturnType!, node.Value, false);
+        node.Value = SolveTypeCast((ITypeReference)function.ReturnType!, node.Value, false);
         return node;
     }
     private IrNode NodeSemaAnal_If(IRIf node, IrBlockExecutionContextData ctx)
@@ -772,9 +769,9 @@ public partial class Analyser
         return node;
     }
 
-    private IrNode NodeSemaAnal_Access(IRAccess node, IrBlockExecutionContextData ctx)
+    private IrNode NodeSemaAnal_Access(IrAccess node, IrBlockExecutionContextData ctx)
     {
-        if (node.B is not IRUnknownReference b) return node;
+        if (node.B is not IrReference { IsSolved: false } b) return node;
         return SolveAccessInExpression(node.Origin, (IrExpression)NodeSemaAnal(node.A, ctx), b);
     }
     private IrNode NodeSemaAnal_Collection(IrCollectionLiteral node, IrBlockExecutionContextData ctx)
@@ -802,8 +799,8 @@ public partial class Analyser
     {
         ICallable? betterFound = null;
         var betterFoundSum = 0;
-        Dictionary<ParameterObject, TypeReference>? betterFoundGenerics = null;
-        TypeReference[]? betterFoundArgTypes = null;
+        Dictionary<ParameterObject, ITypeReference>? betterFoundGenerics = null;
+        ITypeReference[]? betterFoundArgTypes = null;
         
         foreach (var ov in options)
         {
@@ -817,8 +814,8 @@ public partial class Analyser
             }
             
             var parameters = ov.Parameters;
-            var argTypes = new TypeReference[parameters.Count];
-            var generics = new Dictionary<ParameterObject, TypeReference?>();
+            var argTypes = new ITypeReference[parameters.Count];
+            var generics = new Dictionary<ParameterObject, ITypeReference?>();
             var suitability = new int[parameters.Count];
 
             for (var i = 0; i < parameters.Count; i++)
@@ -839,7 +836,7 @@ public partial class Analyser
                         suitability[i] = (int)Suitability.NeedsSoftCast;
                     } break;
                     
-                    case { IsGeneric: true } @t:
+                    case ITypeReference { IsGeneric: true } @t:
                     {
                         var concreteType = ConcretizeGeneric(t, generics);
                         var s = (int)CalculateTypeSuitability(concreteType, argt, true);
@@ -849,7 +846,7 @@ public partial class Analyser
 
                     default:
                     {
-                        var s = (int)CalculateTypeSuitability(parameters[i].Type, argt, true);
+                        var s = (int)CalculateTypeSuitability((ITypeReference)parameters[i].Type, argt, true);
                         if (s == 0) goto NoSuitability;
                         suitability[i] = s;
                     } break;
@@ -868,15 +865,17 @@ public partial class Analyser
         if (betterFound == null || betterFoundArgTypes == null) return new NoOverloadResult();
         return new SimpleOverloadResult(betterFound);
     }
-    private IrExpression SolveAccessInExpression(SyntaxNode origin, IrExpression accessBase, IRUnknownReference accessMember)
+    private IrExpression SolveAccessInExpression(SyntaxNode origin, IrExpression accessBase, IrReference accessMember)
     {
+        if (accessMember.IsSolved) return new IrAccess(origin, accessBase, accessMember);
+        
         var baseRef = ReferenceOf(accessBase);
         var accessName = ((IdentifierNode)accessMember.Origin).Value;
         var typeref = baseRef.Type;
 
         while (true)
         {
-            if (typeref is ReferenceTypeReference @r) typeref = r.InternalType;
+            if (typeref is ReferenceTypeReference @r) typeref = (ITypeReference)r.InternalType;
             else break;
         }
         
@@ -891,7 +890,7 @@ public partial class Analyser
             StringTypeReference @stringBuiltin => accessName switch
             {
                 "len" => new IrLenOf(origin, accessBase),
-                "slice" => new IRAccess(origin, accessBase, new IrSolvedReference(origin, new SliceCallReference(stringBuiltin.Encoding))),
+                "slice" => new IrAccess(origin, accessBase, new IrReference(origin, new SliceCallReference(stringBuiltin.Encoding))),
                 _ =>  throw new NotImplementedException(),
             },
             
@@ -910,49 +909,49 @@ public partial class Analyser
             },
             
             TypeTypeReference staticRef => staticRef.ReferencedType switch {
-                SolvedTypedefTypeReference @solvedType
+                TypedefReference @solvedType
                     => solvedType.Typedef.SearchChild(accessName, SearchChildMode.OnlyStatic) is {} @refe
-                        ? new IrSolvedReference(origin, GetObjectReference(refe))
-                        : new IRUnknownReference(origin),
+                        ? new IrReference(origin, GetObjectReference(refe))
+                        : new IrReference(origin),
                 
                 DotnetTypeReference @dotnetType
                     => @dotnetType.Reference.SearchChild(accessName, SearchChildMode.OnlyStatic) is {} @refe
-                        ? new IrSolvedReference(origin, GetObjectReference(refe))
-                        : new IRUnknownReference(origin),
+                        ? new IrReference(origin, GetObjectReference(refe))
+                        : new IrReference(origin),
                 
-                DotnetGenericTypeReference @dotnetGenericType
+                DotnetGenericImplReference @dotnetGenericType
                     => dotnetGenericType.Reference.SearchChild(accessName, SearchChildMode.OnlyStatic) is {} @refe
-                        ? new IrSolvedReference(origin, GetObjectReference(refe))
-                        : new IRUnknownReference(origin),
+                        ? new IrReference(origin, GetObjectReference(refe))
+                        : new IrReference(origin),
                 
-                SolvedNamespaceTypeReference @staticTypedef
+                SolvedNamespaceReference @staticTypedef
                     => staticTypedef.Namespace.SearchChild(accessName, SearchChildMode.OnlyStatic) is {} @refe
-                        ? new IrSolvedReference(origin, GetObjectReference(refe))
-                        : new IRUnknownReference(origin),
+                        ? new IrReference(origin, GetObjectReference(refe))
+                        : new IrReference(origin),
                 
                 _ => throw new NotImplementedException(),
             },
             
             DotnetTypeReference @instanceRef
                 => instanceRef.Reference.SearchChild(accessName, SearchChildMode.OnlyInstance) is {} @refe
-                    ? new IRAccess(origin, accessBase, new IrSolvedReference(origin, GetObjectReference(refe)))
-                    : new IRUnknownReference(origin),
+                    ? new IrAccess(origin, accessBase, new IrReference(origin, GetObjectReference(refe)))
+                    : new IrReference(origin),
             
-            SolvedStructTypeReference instanceRef
+            StructReference instanceRef
                 => instanceRef.Struct.SearchChild(accessName, SearchChildMode.OnlyInstance) is {} @refe
-                    ? new IRAccess(origin, accessBase, new IrSolvedReference(origin, GetObjectReference(refe)))
-                    : new IRUnknownReference(origin),
+                    ? new IrAccess(origin, accessBase, new IrReference(origin, GetObjectReference(refe)))
+                    : new IrReference(origin),
             
-            SolvedNamespaceTypeReference @staticTypedef
+            SolvedNamespaceReference @staticTypedef
                 => staticTypedef.Namespace.SearchChild(accessName, SearchChildMode.OnlyStatic) is {} @refe
-                    ? new IrSolvedReference(origin, GetObjectReference(refe))
-                    : new IRUnknownReference(origin),
+                    ? new IrReference(origin, GetObjectReference(refe))
+                    : new IrReference(origin),
             
             
             _ => throw new NotImplementedException(),
         };
     }
-    private IrNode SolveReferenceLazy(IRUnknownReference node, IrBlockExecutionContextData? ctx, LangObject? reference)
+    private IrNode SolveReference(IrReference node, IrBlockExecutionContextData? ctx, LangObject? reference)
     {
       
         var syntaxNode = node.Origin;
@@ -968,10 +967,10 @@ public partial class Analyser
                 if (ctx != null)
                 {
                     var r = ctx.LocalVariables.FirstOrDefault(e => e.Name == idnode.Value);
-                    if (r != null) return new IrSolvedReference(syntaxNode, new LocalReference(r));
+                    if (r != null) return new IrReference(syntaxNode, new LocalReference(r));
 
                     var r2 = (ctx.Parent as ICallable)?.Parameters.FirstOrDefault(e => e.Name == idnode.Value);
-                    if (r2 != null) return new IrSolvedReference(syntaxNode, new ParameterReference(r2));
+                    if (r2 != null) return new IrReference(syntaxNode, new ParameterReference(r2));
                 }
 
                 // Search in inherited
@@ -983,19 +982,19 @@ public partial class Analyser
                         var r3 = curr2.SearchChild(idnode.Value, SearchChildMode.All);
                         if (r3 != null)
                         {
-                            var refeNode = new IrSolvedReference(syntaxNode, GetObjectReference(r3));
+                            var refeNode = new IrReference(syntaxNode, GetObjectReference(r3));
                             return r3 is IStaticModifier { Static: false }
-                                ? new IRAccess(syntaxNode, new IrSolvedReference(syntaxNode, new SelfReference()), refeNode)
+                                ? new IrAccess(syntaxNode, new IrReference(syntaxNode, new SelfReference()), refeNode)
                                 : refeNode;
                         }
 
-                        curr2 = ((curr2 as StructObject)?.Extends as SolvedStructTypeReference)?.Struct;
+                        curr2 = ((curr2 as StructObject)?.Extends as StructReference)?.Struct;
                     } while (curr2 != null && curr2 is not TqNamespaceObject);
                 }
 
                 // Search inside namespace
                 var r4 = parent?.Namespace?.SearchChild(idnode.Value, SearchChildMode.OnlyStatic);
-                if (r4 != null) return new IrSolvedReference(syntaxNode, GetObjectReference(r4));
+                if (r4 != null) return new IrReference(syntaxNode, GetObjectReference(r4));
 
                 // Search inside imports
                 if (parent?.SourceScript != null)
@@ -1003,19 +1002,19 @@ public partial class Analyser
                     foreach (var i in parent.SourceScript.Imports)
                     {
                         var r5 = i.SearchReference(idnode.Value);
-                        if (r5 != null) return new IrSolvedReference(syntaxNode, GetObjectReference(r5));
+                        if (r5 != null) return new IrReference(syntaxNode, GetObjectReference(r5));
                     }
                 }
 
                 // Search global references
                 var r6 = _globalReferenceTable.FirstOrDefault(e => e.Key.Length == 1 && e.Key[0] == idnode.Value);
-                if (r6.Key != null) return new IrSolvedReference(syntaxNode, GetObjectReference(r6.Value));
+                if (r6.Key != null) return new IrReference(syntaxNode, GetObjectReference(r6.Value));
 
                 if (parent is TqNamespaceObject @nmsp)
                 {
                     string[] name = [.. nmsp.Global, idnode.Value];
-                    var r7 = _globalReferenceTable.FirstOrDefault<KeyValuePair<string[], LangObject>>(e => IdentifierComparer.IsEquals(e.Key, name));
-                    if (r7.Key != null) return new IrSolvedReference(syntaxNode, GetObjectReference(r7.Value));
+                    var r7 = _globalReferenceTable.FirstOrDefault(e => IdentifierComparer.IsEquals(e.Key, name));
+                    if (r7.Key != null) return new IrReference(syntaxNode, GetObjectReference(r7.Value));
                 }
                 
                 throw new Exception($"Cannot find reference to {idnode:pos}");
@@ -1025,24 +1024,26 @@ public partial class Analyser
         }
     }
     
-    private LanguageReference ReferenceOf(IrNode node) => node switch
+    private Reference ReferenceOf(IrNode node) => node switch
         {
-            IRAccess @acc => ReferenceOf(acc.B),
-            IrSolvedReference @sr => sr.Reference,
-            IrCall @iv => iv.Type!,
-            IrConv @cv => cv.Type!,
-            _ => throw new UnreachableException(),
+            IrReference { IsSolved: true } @sr => sr.Reference,
+            IrAccess @acc                      => ReferenceOf(acc.B),
+            IrCall @iv                         => (Reference)iv.Type!,
+            IrConv @cv                         => (Reference)cv.Type!,
+            _                                  => throw new UnreachableException(),
         };
-    private TypeReference SolveTypeLazy2(TypeReference typeref, IrBlockExecutionContextData? ctx, LangObject? obj)
+    private ITypeReference SolveTypeLazy2(Reference typeRef, IrBlockExecutionContextData? ctx, LangObject? obj)
     {
-        switch (typeref)
+        switch (typeRef)
         {
-            case UnsolvedTypeReference @unsolved: typeref = SolveTypeLazy(new UnsolvedTypeReference(unsolved.SyntaxNode), null, obj); break;
-            case SliceTypeReference @slice: slice.ElementType = SolveTypeLazy2(@slice.ElementType, ctx, obj); break;
-            case ReferenceTypeReference @refer: refer.InternalType = SolveTypeLazy2(@refer.InternalType, ctx, obj); break;
-            case NullableTypeReference @nullable: nullable.InternalType = SolveTypeLazy2(@nullable.InternalType, ctx, obj); break;
+            case UnknownReference @unsolved: return SolveTypeReference(new UnknownReference(unsolved.SyntaxNode), null, obj); break;
+            
+            case SliceTypeReference @slice: slice.ElementType           = (Reference)SolveTypeLazy2(@slice.ElementType, ctx, obj); break;
+            case ReferenceTypeReference @refer: refer.InternalType      = (Reference)SolveTypeLazy2(@refer.InternalType, ctx, obj); break;
+            case NullableTypeReference @nullable: nullable.InternalType = (Reference)SolveTypeLazy2(@nullable.InternalType, ctx, obj); break;
         }
-        return typeref;
+        
+        return (ITypeReference)typeRef;
     }
     
 }

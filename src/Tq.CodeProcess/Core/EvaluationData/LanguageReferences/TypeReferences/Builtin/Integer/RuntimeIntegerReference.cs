@@ -4,9 +4,9 @@ public class RuntimeIntegerTypeReference : IntegerTypeReference
 {
     public readonly bool Signed;
     public readonly Alignment BitSize;
-
-    public override Alignment Length => BitSize;
-    public override Alignment Alignment => BitSize;
+    
+    public override bool IsGeneric => false;
+    public override ITypeReference Type => new TypeTypeReference(this);
     
     public RuntimeIntegerTypeReference(bool signed, byte size)
     {
@@ -18,7 +18,6 @@ public class RuntimeIntegerTypeReference : IntegerTypeReference
         Signed = signed;
         BitSize = new Alignment(0, 1);
     }
-
     
     public override string ToString() => (Signed ? 'i' : 'u') + $"{BitSize.Bits}";
 }

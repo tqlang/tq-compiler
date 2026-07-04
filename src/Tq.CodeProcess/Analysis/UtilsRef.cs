@@ -14,15 +14,15 @@ namespace Abstract.CodeProcess;
 public partial class Analyser
 {
     
-    private static LanguageReference GetObjectReference(LangObject obj)
+    private static Reference GetObjectReference(LangObject obj)
     {
         return obj switch
         {
-            FunctionObject @f => new SolvedCallableReference(f),
-            FunctionGroupObject @fg => new SolvedFunctionGroupReference(fg),
+            FunctionObject @f => new CallableReference(f),
+            FunctionGroupObject @fg => new FunctionGroupReference(fg),
 
-            StructObject @s => new SolvedStructTypeReference(s),
-            TypedefObject @t => new SolvedTypedefTypeReference(t),
+            StructObject @s => new StructReference(s),
+            TypedefObject @t => new TypedefReference(t),
             
             FieldObject @v => new SolvedFieldReference(v),
             TypedefNamedValue @i => new SolvedTypedefNamedValueReference(i),
@@ -31,34 +31,11 @@ public partial class Analyser
             
             DotnetTypeObject @t => new DotnetTypeReference(t),
             DotnetFieldObject @f => new DotnetFieldReference(f),
-            DotnetNamespaceObject @n => new SolvedNamespaceTypeReference(n),
+            DotnetNamespaceObject @n => new SolvedNamespaceReference(n),
             DotnetMethodGroupObject @mg => new DotnetMethodGroupReference(mg),
-            DotnetStaticClassObject @sc => new SolvedNamespaceTypeReference(sc),
+            DotnetStaticClassObject @sc => new SolvedNamespaceReference(sc),
             
             _ => throw new NotImplementedException(),
         };
     }
-    
-    private static bool IsSolved([NotNullWhen(false)] TypeReference? typeRef) => IsSolved(typeRef, out _);
-    private static bool IsSolved(TypeReference? typeRef, out UnsolvedTypeReference unsolved)
-    {
-        if (typeRef == null)
-        {
-            unsolved = null!;
-            return true;
-        }
-        while (true)
-        {
-            switch (typeRef)
-            {
-                case UnsolvedTypeReference @unsolv: unsolved = unsolv; return false;
-                case SliceTypeReference @slice: typeRef = slice.ElementType; continue;
-                case ReferenceTypeReference @refe: typeRef = refe.InternalType; continue;
-                case NullableTypeReference @nullable: typeRef = nullable.InternalType; continue;
-                
-                default: unsolved = null!; return true;
-            }
-        }
-    }
-    
 }

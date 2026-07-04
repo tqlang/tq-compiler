@@ -12,7 +12,7 @@ public class IrCall(
     IrExpression target,
     IrExpression[] args) : IrExpression(origin)
 {
-    public override TypeReference Type => ((FunctionTypeReference?)Target.Type)?.Returns ?? null!;
+    public override ITypeReference Type => ((FunctionTypeReference?)Target.Type)?.Returns as ITypeReference ?? null!; 
 
     public IrExpression Target { get; set; } = target;
     public IrExpression[] Arguments { get; set; } = args;
@@ -21,7 +21,7 @@ public class IrCall(
         => $"call " +
            Target switch
            {
-               IrSolvedReference { Reference: SolvedCallableReference @fb } => string.Join('.', ((LangObject)fb.Callable).Global),
+               IrReference { IsSolved: true, Reference: CallableReference @fb } => string.Join('.', ((LangObject)fb.Callable).Global),
                _ => Target.ToString()
            } +
         $" ({string.Join(", ", Arguments.Select(e => e?.ToString() ?? "<nil>"))})";

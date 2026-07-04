@@ -2,6 +2,7 @@ using System.Text;
 using Abstract.CodeProcess.Core.EvaluationData.IntermediateTree;
 using Abstract.CodeProcess.Core.EvaluationData.LanguageObjects.CodeObjects;
 using Abstract.CodeProcess.Core.EvaluationData.LanguageObjects.Containers;
+using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences;
 using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.TypeReferences;
 using Abstract.CodeProcess.Core.Language.SyntaxNodes.Control;
 
@@ -12,12 +13,12 @@ public class ConstructorObject(SourceScript sourceScript, ConstructorDeclaration
 {
     public readonly ConstructorDeclarationNode SyntaxNode = synNode;
     
-    public TypeReference? ReturnTypeOverride = null;
+    public Reference? ReturnTypeOverride = null;
 
     SourceScript ICallable.Script => SourceScript;
     public List<ParameterObject> Parameters { get; } = [];
     public List<LocalVariableObject> Locals { get; } = [];
-    public TypeReference ReturnType => ReturnTypeOverride ?? new SolvedStructTypeReference((StructObject)Parent);
+    public Reference ReturnType => ReturnTypeOverride ?? new StructReference((StructObject)Parent);
     public IrBlock? Body { get; set; }
     
     bool ICallable.IsStatic => false;
@@ -46,7 +47,7 @@ public class ConstructorObject(SourceScript sourceScript, ConstructorDeclaration
     {
         var sb = new StringBuilder();
         sb.Append($"ctor({string.Join(", ", Parameters.Select(e => e.Type))})");
-        if (ReturnType is not SolvedStructTypeReference) sb.AppendLine($" {ReturnType}");
+        if (ReturnType is not StructReference) sb.AppendLine($" {ReturnType}");
         
         if (Body != null)
         {

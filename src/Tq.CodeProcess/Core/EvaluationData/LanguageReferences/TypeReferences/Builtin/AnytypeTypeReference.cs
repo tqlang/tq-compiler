@@ -1,11 +1,9 @@
 namespace Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.TypeReferences.Builtin;
 
-public class AnytypeTypeReference : TypeReference
+public class AnytypeTypeReference : BuiltInTypeReference
 {
-    public override Alignment Length => 0;
-    public override Alignment Alignment => 0;
-
-    public override bool IsGeneric => false;
-
+    public bool IsGeneric => false;
+    public override ITypeReference Type => new TypeTypeReference(this);
+    
     public override string ToString() => "anytype";
 }

@@ -9,13 +9,13 @@ public class IrBinaryExp(
     IrExpression left,
     IrExpression right) : IrExpression(origin)
 {
-    public TypeReference ResultType = null!;
+    public ITypeReference ResultType = null!;
 
     public Operators Operator { get; set; } = ope;
     public IrExpression Left { get; set; } = left;
     public IrExpression Right { get; set; } = right;
 
-    public override TypeReference Type => ResultType;
+    public override ITypeReference Type => ResultType;
 
     public override string ToString() => $"{Operator}({Left}, {Right})";
     

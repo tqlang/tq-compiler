@@ -1,8 +1,9 @@
 namespace Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.TypeReferences.Builtin;
 
-public class BooleanTypeReference: TypeReference
+public class BooleanTypeReference : BuiltInTypeReference
 {
-    public override Alignment Length => new (1, 0);
-    public override Alignment Alignment => new (1, 0);
+    public override bool IsGeneric => false;
+    public override ITypeReference Type => new TypeTypeReference(this);
+
     public override string ToString() => "bool";
 }

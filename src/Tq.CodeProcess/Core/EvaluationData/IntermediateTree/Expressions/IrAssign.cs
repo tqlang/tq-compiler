@@ -11,7 +11,7 @@ public class IrAssign(
 {
     public IrExpression Target { get; set; } = targ;
     public IrExpression Value { get; set; } = val;
-    public override TypeReference Type => Target.Type;
+    public override ITypeReference Type => Target.Type;
 
     public override string ToString() => $"{Target} = {Value}";
 }

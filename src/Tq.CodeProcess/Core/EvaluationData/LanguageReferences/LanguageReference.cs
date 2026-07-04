@@ -2,7 +2,9 @@ using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.TypeReferences
 
 namespace Abstract.CodeProcess.Core.EvaluationData.LanguageReferences;
 
-public abstract class LanguageReference
+public abstract class Reference
 {
-    public abstract TypeReference Type { get; }
+    public abstract ITypeReference Type { get; }
+    public virtual bool IsSolved => true;
+    
 }

@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Text;
 using Abstract.CodeProcess.Core.EvaluationData.LanguageObjects;
+using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences;
 using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.Dotnet;
 using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.NamespaceReferences;
 using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.TypeReferences;
@@ -16,7 +17,6 @@ using Parameter = AsmResolver.DotNet.Collections.Parameter;
 using FieldDefinition = AsmResolver.DotNet.FieldDefinition;
 using MethodDefinition = AsmResolver.DotNet.MethodDefinition;
 using TypeDefinition = AsmResolver.DotNet.TypeDefinition;
-using TypeReference = Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.TypeReferences.TypeReference;
 
 namespace Abstract.CodeProcess;
 
@@ -65,20 +65,20 @@ public partial class Compiler
         File.WriteAllText(".tq-cache/debug/dlldump.il", sb.ToString());
     }
 
-    private TypeSignature TypeFromRef(TypeReference? typeRef)
+    private TypeSignature TypeFromRef(ITypeReference? typeRef)
     {
         if (typeRef == null) return _corLibFactory.Void;
         switch (typeRef)
         {
-            case UnsolvedTypeReference: throw new Exception("Type reference is unsolved!");
+            case UnknownReference: throw new Exception("Type reference is unsolved!");
             
             case ReferenceTypeReference @r:
             {
-                var b = TypeFromRef(r.InternalType);
+                var b = TypeFromRef((ITypeReference)r.InternalType);
                 return b.IsValueType ? b.MakeByReferenceType() : b;
             }
             case SliceTypeReference @s:
-                return new SzArrayTypeSignature(TypeFromRef(s.ElementType));
+                return new SzArrayTypeSignature(TypeFromRef((ITypeReference)s.ElementType));
             case GenericTypeReference @g:
                 return new GenericParameterSignature(_module, GenericParameterType.Method, g.Parameter.Index);
             
@@ -106,21 +106,21 @@ public partial class Compiler
             case AnytypeTypeReference: return _corLibFactory.Object;
             case TypeTypeReference: return _coreLib["Type"].t;
             
-            case SolvedStructTypeReference @i: return _typesMap[i.Struct].ToTypeSignature();
-            case SolvedTypedefTypeReference @t: return _enumsMap[t.Typedef].ToTypeSignature();
+            case StructReference @i: return _typesMap[i.Struct].ToTypeSignature();
+            case TypedefReference @t: return _enumsMap[t.Typedef].ToTypeSignature();
 
             case DotnetTypeReference @d:
             {
                 var imported = _module.DefaultImporter.ImportType(d.Reference.Reference);
                 return imported.ToTypeSignature();
             }
-            case DotnetGenericTypeReference @dg:
+            case DotnetGenericImplReference @dg:
             {
                 var genericSignature = new GenericInstanceTypeSignature(
                     dg.Reference.Reference, dg.Reference.IsValueType, dg.GenericArguments.Select(TypeFromRef).ToArray());
                 return _module.DefaultImporter.ImportTypeSignature(genericSignature);;
             }
-            case SolvedNamespaceTypeReference { Namespace: DotnetStaticClassObject @staticClassObject }:
+            case SolvedNamespaceReference { Namespace: DotnetStaticClassObject @staticClassObject }:
             {
                 var imported = _module.DefaultImporter.ImportType(staticClassObject.Type);
                 return imported.ToTypeSignature();

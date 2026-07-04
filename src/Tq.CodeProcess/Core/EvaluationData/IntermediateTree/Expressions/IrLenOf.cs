@@ -6,7 +6,7 @@ namespace Abstract.CodeProcess.Core.EvaluationData.IntermediateTree.Expressions;
 
 public class IrLenOf(SyntaxNode origin, IrExpression ofvalue) : IrExpression(origin)
 {
-    public override TypeReference Type => new RuntimeIntegerTypeReference(false);
+    public override ITypeReference Type => new RuntimeIntegerTypeReference(false);
     public readonly IrExpression OfValue = ofvalue;
 
     public override string ToString() => $"lenof({OfValue})";

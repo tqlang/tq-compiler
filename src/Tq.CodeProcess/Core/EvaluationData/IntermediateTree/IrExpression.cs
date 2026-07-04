@@ -5,5 +5,5 @@ namespace Abstract.CodeProcess.Core.EvaluationData.IntermediateTree;
 
 public abstract class IrExpression(SyntaxNode origin) : IrNode(origin)
 {
-    public abstract TypeReference Type { get; }
+    public abstract ITypeReference Type { get; }
 }

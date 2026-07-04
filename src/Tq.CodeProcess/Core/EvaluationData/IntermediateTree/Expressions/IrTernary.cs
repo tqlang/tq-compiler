@@ -8,8 +8,8 @@ public class IrTernary(SyntaxNode origin, IrExpression condition, IrExpression i
     public IrExpression Condition = condition;
     public IrExpression TrueExpression = ifFalse;
     public IrExpression FalseExpression = ifFalse;
-    public TypeReference ExpressionType = null!;
+    public ITypeReference ExpressionType = null!;
 
     public override string ToString() => $"{condition} ? {TrueExpression} : {FalseExpression}";
-    public override TypeReference Type => ExpressionType;
+    public override ITypeReference Type => ExpressionType;
 }

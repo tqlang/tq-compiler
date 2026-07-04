@@ -5,6 +5,6 @@ namespace Abstract.CodeProcess.Core.EvaluationData.IntermediateTree.Values;
 
 public class IRNullLiteral(SyntaxNode origin): IrExpression(origin)
 {
-    public override TypeReference Type => null!;
+    public override ITypeReference Type => null!;
     public override string ToString() => "null";
 }

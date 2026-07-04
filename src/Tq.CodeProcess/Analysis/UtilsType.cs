@@ -4,6 +4,7 @@ using Abstract.CodeProcess.Core.EvaluationData.IntermediateTree.Expressions;
 using Abstract.CodeProcess.Core.EvaluationData.IntermediateTree.Values;
 using Abstract.CodeProcess.Core.EvaluationData.LanguageObjects;
 using Abstract.CodeProcess.Core.EvaluationData.LanguageObjects.CodeObjects;
+using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences;
 using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.CodeReferences;
 using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.Dotnet;
 using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.FieldReferences;
@@ -23,19 +24,19 @@ namespace Abstract.CodeProcess;
 public partial class Analyser
 {
 
-    private static TypeReference GetEffectiveTypeReference(IrExpression expr, LangObject? parent = null)
+    private static ITypeReference GetEffectiveTypeReference(IrExpression expr, LangObject? parent = null)
     {
-        TypeReference? result;
+        ITypeReference? result;
         switch (expr)
         {
-            case IrSolvedReference solved:
+            case IrReference { IsSolved: true } solved:
                 switch (solved.Reference)
                 {
                     case TypeTypeReference ttr:
                         result = ttr.ReferencedType;
                         break;
 
-                    case SolvedStructTypeReference structt:
+                    case StructReference structt:
                         result = structt;
                         break;
                     
@@ -48,10 +49,10 @@ public partial class Analyser
                         break;
 
                     case SolvedFieldReference field:
-                        result = field.Field.Type;
+                        result = (ITypeReference)field.Field.Type;
                         break;
 
-                    case SolvedCallableReference func:
+                    case CallableReference func:
                         result = new FunctionTypeReference(
                             func.Callable.ReturnType,
                             func.Callable.Parameters.Select(e => e.Type).ToArray()
@@ -59,7 +60,7 @@ public partial class Analyser
                         break;
 
                     case LocalReference local:
-                        result = local.Local.Type;
+                        result = (ITypeReference)local.Local.Type!;
                         break;
 
                     case ParameterReference param:
@@ -73,7 +74,7 @@ public partial class Analyser
                         //         break;
                         //     }
                         // }
-                        result = param.Parameter.Type;
+                        result = (ITypeReference)param.Parameter.Type;
                     } break;
 
                     default:
@@ -82,7 +83,7 @@ public partial class Analyser
                 }
                 break;
 
-            case IRAccess access:
+            case IrAccess access:
                 result = GetEffectiveTypeReference(access.B);
                 break;
 
@@ -96,62 +97,7 @@ public partial class Analyser
         );
     }
     
-    /// <summary>
-    /// Try to solve constant type forms (arrays, pointers, builtin types, etc.)
-    /// and returns `UnsolvedTypeReference` if evaluation-dependent.
-    /// </summary>
-    /// <param name="node">The type representation</param>
-    /// <returns>The evaluation result</returns>
-    private static TypeReference SolveShallowType(SyntaxNode node)
-    {
-        while (true)
-        {
-            switch (node)
-            {
-                case AccessNode @idc:
-                    if (idc.Children.Length != 1) return new UnsolvedTypeReference(idc);
-                    node = idc.Children[0];
-                    continue;
-
-                case IdentifierNode @id:
-                    var value = id.Value;
-                    switch (value)
-                    {
-                        case "int": return new RuntimeIntegerTypeReference(true);
-                        case "uint": return new RuntimeIntegerTypeReference(false);
-                        case "byte": return new RuntimeIntegerTypeReference(false, 8);
-                        
-                        case "bool": return new BooleanTypeReference();
-                        case "void": return new VoidTypeReference();
-                        case "char": return new CharTypeReference();
-                        case "type": return new TypeTypeReference(null!);
-                        case "string": return new StringTypeReference(StringEncoding.Undefined);
-                        case "anytype": return new AnytypeTypeReference();
-                        case "noreturn": return new NoReturnTypeReference();
-                    }
-
-                    if (value.Length > 1 && value[0] is 'i' or 'u' && value[1..].All(char.IsNumber))
-                        return new RuntimeIntegerTypeReference(value[0] == 'i', byte.Parse(value[1..]));
-                    
-                    return new UnsolvedTypeReference(id);
-
-                case ArrayTypeModifierNode @ar:
-                    return new SliceTypeReference(SolveShallowType(ar.Type));
-
-                case ReferenceTypeModifierNode @rf:
-                    return new ReferenceTypeReference(SolveShallowType(rf.Type));
-
-                case NullableTypeModifierNode @nullable:
-                    return new NullableTypeReference(SolveShallowType(nullable.Type));
-                
-                case BinaryExpressionNode @b: return new UnsolvedTypeReference(b);
-
-                default: throw new NotImplementedException();
-            }
-        }
-    }
-
-
+    
     /// <summary>
     /// With a desired type and a value node,
     /// returns a node that explicitly solves
@@ -162,7 +108,7 @@ public partial class Analyser
     /// <param name="value"> Value to cast </param>
     /// <param name="explicit"> explicit flag </param>
     /// <returns></returns>
-    private IrExpression SolveTypeCast(TypeReference typeTo, IrExpression value, bool @explicit = false)
+    private IrExpression SolveTypeCast(ITypeReference typeTo, IrExpression value, bool @explicit = false)
         => SolveTypeCast(typeTo, value, null!, @explicit);
     
     /// <summary>
@@ -176,17 +122,20 @@ public partial class Analyser
     /// <param name="origin"> Original node </param>
     /// <param name="explicit"> explicit flag </param>
     /// <returns></returns>
-    private IrExpression SolveTypeCast(TypeReference typeTo, IrExpression value, IrExpression origin, bool @explicit = false)
+    private IrExpression SolveTypeCast(ITypeReference typeTo, IrExpression value, IrExpression origin, bool @explicit = false)
     {
         switch (typeTo)
         {
             case DotnetTypeReference { Reference.Reference.FullName: "System.Span`1" } @span when value.Type is SliceTypeReference slice:
             {
                 var elementType = slice.ElementType;
-                return new IrConv(origin.Origin, value, new DotnetGenericTypeReference(
-                    span.Reference,
-                    new GenericInstanceTypeSignature(span.Reference.Reference, true),
-                    [elementType]));
+                return new IrConv(
+                    origin.Origin, value,
+                    new DotnetGenericImplReference(
+                        span.Reference,
+                        new GenericInstanceTypeSignature(span.Reference.Reference, true),
+                        [(ITypeReference)elementType]
+                    ));
             }
         }
         
@@ -225,9 +174,9 @@ public partial class Analyser
             
             case IrCollectionLiteral clit when typeTo is SliceTypeReference @s:
             {
-                var elmtype = s.ElementType;
+                var elmtype = (ITypeReference)s.ElementType;
                 var items = clit.Items.Select(e => SolveTypeCast(elmtype, e)).ToArray();
-                return new IrCollectionLiteral(clit.Origin, elmtype, items);
+                return new IrCollectionLiteral(clit.Origin, (Reference)elmtype, items);
             }
             
             // FIXME ignored for now
@@ -235,7 +184,7 @@ public partial class Analyser
             case IrCharLiteral:
             case IRBooleanLiteral:
             case IrBinaryExp:
-            case IRAccess:
+            case IrAccess:
             case IrReference:
             case IrConv:
             case IrIndex:
@@ -251,22 +200,23 @@ public partial class Analyser
         }
     }
 
-    private static TypeReference ConcretizeGeneric(TypeReference generic,
-        Dictionary<ParameterObject, TypeReference?> genericTable)
+    private static ITypeReference ConcretizeGeneric(ITypeReference generic,
+        Dictionary<ParameterObject, ITypeReference?> genericTable)
     {
         switch (generic)
         {
             case SliceTypeReference slice:
-                return new SliceTypeReference(ConcretizeGeneric(slice.ElementType, genericTable));
+                return new SliceTypeReference((Reference)ConcretizeGeneric((ITypeReference)slice.ElementType, genericTable));
+                
             case ReferenceTypeReference reference:
-                return new ReferenceTypeReference(ConcretizeGeneric(reference.Type, genericTable));
+                return new ReferenceTypeReference((Reference)ConcretizeGeneric(reference.Type, genericTable));
             
             case GenericTypeReference type: return genericTable[type.Parameter] ?? throw new NullReferenceException();
             default: throw new UnreachableException();
         }
     }
     
-    private Suitability CalculateTypeSuitability(TypeReference typeTo, TypeReference typeFrom, bool allowImplicit)
+    private Suitability CalculateTypeSuitability(ITypeReference typeTo, ITypeReference typeFrom, bool allowImplicit)
     {
         switch (typeTo)
         {
@@ -321,27 +271,27 @@ public partial class Analyser
 
             case ReferenceTypeReference @refe:
                 return typeFrom is ReferenceTypeReference @refArg 
-                       && CalculateTypeSuitability(refe.InternalType, refArg.InternalType, false) == Suitability.Perfect
+                       && CalculateTypeSuitability((ITypeReference)refe.InternalType, (ITypeReference)refArg.InternalType, false) == Suitability.Perfect
                     ? Suitability.Perfect
                     : Suitability.None;
             
             case SliceTypeReference @refe:
-                return typeFrom is SliceTypeReference @sliceArg && IsAssignableTo(sliceArg.ElementType, refe.ElementType)
+                return typeFrom is SliceTypeReference @sliceArg && IsAssignableTo((ITypeReference)sliceArg.ElementType, (ITypeReference)refe.ElementType)
                     ? Suitability.Perfect
                     : Suitability.None;
 
             
-            case SolvedStructTypeReference @solvedstruct:
-                if (typeFrom is SolvedStructTypeReference @solvedstructarg)
+            case StructReference @solvedstruct:
+                if (typeFrom is StructReference @solvedstructarg)
                     return (Suitability)solvedstruct.CalculateSuitability(solvedstructarg);
                 return Suitability.None;
             
-            case SolvedTypedefTypeReference @solvedTypedef:
+            case TypedefReference @solvedTypedef:
                 // FIXME numbers are a little more complex inside typedefs
                 if (typeFrom is ComptimeIntegerTypeReference) return Suitability.Perfect;
                 if (typeFrom is RuntimeIntegerTypeReference) return Suitability.NeedsSoftCast;
                 
-                if (typeFrom is not SolvedTypedefTypeReference @solvedTypedefArg) return Suitability.None;
+                if (typeFrom is not TypedefReference @solvedTypedefArg) return Suitability.None;
                 
                 return solvedTypedef.Typedef == solvedTypedefArg.Typedef ? Suitability.Perfect : Suitability.None;
             
@@ -355,7 +305,7 @@ public partial class Analyser
                     case DotnetTypeReference dotnetType:
                         return d.Reference == dotnetType.Reference ? Suitability.Perfect : Suitability.None;
 
-                    case SolvedTypedefTypeReference typedef:
+                    case TypedefReference typedef:
                     {
                         if (typedef.Typedef.BackType is not DotnetTypeReference @dotnetType) return Suitability.None;
                         return d.Reference == dotnetType.Reference ?  Suitability.Perfect : Suitability.None;
@@ -365,11 +315,11 @@ public partial class Analyser
                 }
             }
 
-            case DotnetGenericTypeReference gd:
+            case DotnetGenericImplReference gd:
             {
                 switch (typeTo)
                 {
-                    case DotnetGenericTypeReference dotnetType:
+                    case DotnetGenericImplReference dotnetType:
                     {
                         if (gd.Signature.GenericType == dotnetType.Signature.GenericType
                             && IsAssignableTo(gd.Signature.TypeArguments[0], dotnetType.Signature.TypeArguments[0]))
@@ -387,15 +337,15 @@ public partial class Analyser
     }
 
     // FIXME polymorphism
-    private static bool IsAssignableTo(TypeReference typeFrom, TypeReference typeTo)
+    private static bool IsAssignableTo(ITypeReference typeFrom, ITypeReference typeTo)
     {
         switch (typeTo)
         {
             case AnytypeTypeReference: return true;
             
-            case SolvedStructTypeReference @toStruct:
+            case StructReference @toStruct:
             {
-                if (typeFrom is SolvedStructTypeReference @fromStruct && toStruct == fromStruct) return true;
+                if (typeFrom is StructReference @fromStruct && toStruct == fromStruct) return true;
             } break;
 
             case DotnetTypeReference @toDotnet:
@@ -407,7 +357,7 @@ public partial class Analyser
             case RuntimeIntegerTypeReference @toRuntime when typeFrom is RuntimeIntegerTypeReference @fromRuntime:
             {
                 if (toRuntime.Signed != fromRuntime.Signed) return false;
-                return toRuntime.Length >= fromRuntime.Length;
+                return toRuntime.BitSize >= fromRuntime.BitSize;
             }
             
             case BooleanTypeReference when typeFrom is BooleanTypeReference: return true;

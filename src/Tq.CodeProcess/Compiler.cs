@@ -4,6 +4,7 @@ using Abstract.CodeProcess.Core.EvaluationData;
 using Abstract.CodeProcess.Core.EvaluationData.IntermediateTree.Values;
 using Abstract.CodeProcess.Core.EvaluationData.LanguageObjects;
 using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.Dotnet;
+using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.TypeReferences;
 using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.TypeReferences.Builtin.Integer;
 using AsmResolver.DotNet;
 using AsmResolver.DotNet.Code.Cil;
@@ -214,7 +215,7 @@ public partial class Compiler
             if (v.Type is TypeDefinition typedef && k.Extends != null)
             {
                 FieldAttributes attributes = FieldAttributes.Public | FieldAttributes.SpecialName;
-                var sig = new FieldSignature(CallingConventionAttributes.Default, TypeFromRef(k.Extends));
+                var sig = new FieldSignature(CallingConventionAttributes.Default, TypeFromRef((ITypeReference)k.Extends));
                 var f = new FieldDefinition("base", attributes, sig) { FieldOffset = 0 };
                 typedef.Fields.Add(f);
             }
@@ -294,7 +295,7 @@ public partial class Compiler
             var locals = new CilLocalVariable[k.Locals.Count];
             foreach (var local in k.Locals)
             {
-                var l = new CilLocalVariable(TypeFromRef(local.Type));
+                var l = new CilLocalVariable(TypeFromRef((ITypeReference)local.Type!));
                 locals[local.index] = l;
                 body.LocalVariables.Add(l);
             }
@@ -393,7 +394,6 @@ public partial class Compiler
         if (structObj.Final) attributes |= TypeAttributes.Sealed;
 
         var typedef = new TypeDefinition("", name, attributes, _coreLib["System.ValueType"].t.ToTypeDefOrRef());
-        typedef.ClassLayout = new ClassLayout((ushort)structObj.Alignment!.Value.Bytes, (uint)structObj.Length!.Value.Bytes);
         
         parent!.NestedTypes.Add(typedef);
         
@@ -443,11 +443,11 @@ public partial class Compiler
             case DotnetTypeReference { Reference: { IsEnum: true } @e }:
                 isPrimitiveType = true;
                 valueType = e.Reference.Fields[0].Signature!.FieldType;
-                break;
+            break;
             default:
                 isPrimitiveType = false;
-                valueType = TypeFromRef(typedefObj.BackType);
-                break;
+                valueType = TypeFromRef((ITypeReference)typedefObj.BackType);
+            break;
         }
 
         TypeDefinition enumType;
@@ -521,7 +521,7 @@ public partial class Compiler
                 {
                     var constant = o.Value switch
                     {
-                        IrSolvedReference @r => r.Reference switch
+                        IrReference { IsSolved: true } @r => r.Reference switch
                         {
                             DotnetFieldReference @fr => fr.Reference.Reference.Constant!,
                             _ => throw new NotImplementedException(),
@@ -626,7 +626,7 @@ public partial class Compiler
                          | MethodAttributes.SpecialName
                          | MethodAttributes.RuntimeSpecialName;
         
-        var argTypes = ctorObj.Parameters.Select(p => TypeFromRef(p.Type));
+        var argTypes = ctorObj.Parameters.Select(p => TypeFromRef((ITypeReference)p.Type));
         var argDefs = ctorObj.Parameters
             .Select((p, i) => new ParameterDefinition((ushort)(i + 1), p.Name, 0));
 
@@ -661,10 +661,10 @@ public partial class Compiler
                 generics.Add(new GenericParameter(p.Name));
                 continue;
             }
-            parameterTypes.Add(TypeFromRef(p.Type));
+            parameterTypes.Add(TypeFromRef((ITypeReference)p.Type));
             parameterDefinitions.Add(new ParameterDefinition((ushort)(parameterTypes.Count), p.Name, 0));
         }
-        returnType = TypeFromRef(funcObj.ReturnType);
+        returnType = TypeFromRef((ITypeReference)funcObj.ReturnType);
         
         var sig = funcObj.Static switch
         {
@@ -696,7 +696,7 @@ public partial class Compiler
         if (fieldObj.Public) attributes |= FieldAttributes.Public;
         if (fieldObj.Static) attributes |= FieldAttributes.Static;
         
-        var sig = new FieldSignature(CallingConventionAttributes.Default, TypeFromRef(fieldObj.Type));
+        var sig = new FieldSignature(CallingConventionAttributes.Default, TypeFromRef((ITypeReference)fieldObj.Type));
         var f = new FieldDefinition(fieldObj.Name, attributes, sig);
         parentTypedef.Fields.Add(f);
         return f;

@@ -5,8 +5,8 @@ namespace Abstract.CodeProcess.Core.EvaluationData.IntermediateTree.Expressions;
 
 public class IrIndex(SyntaxNode origin, IrExpression value, IrExpression[] indices) : IrExpression(origin)
 {
-    public override TypeReference Type => ResultType;
-    public TypeReference ResultType = null!;
+    public override ITypeReference Type => ResultType;
+    public ITypeReference ResultType = null!;
     
     public IrExpression Value = value;
     public IrExpression[] Indices = indices;

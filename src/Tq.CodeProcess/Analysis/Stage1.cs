@@ -2,6 +2,7 @@ using System.Diagnostics;
 using Abstract.CodeProcess.Core.EvaluationData.LanguageObjects;
 using Abstract.CodeProcess.Core.EvaluationData.LanguageObjects.Containers;
 using Abstract.CodeProcess.Core.EvaluationData.LanguageObjects.Imports;
+using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences;
 using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.AttributeReferences;
 using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.TypeReferences;
 using Abstract.CodeProcess.Core.Language.Module;
@@ -282,7 +283,7 @@ public partial class Analyser
     }
     private FieldObject RegisterField(IFieldContainer parent, TopLevelVariableNode variable, SourceScript script)
     {
-        var fieldType = new UnsolvedTypeReference(variable.Type);
+        var fieldType = new UnknownReference(variable.Type);
         var field = new FieldObject(script, variable.Identifier.Value, variable, fieldType) { Constant = variable.IsConstant };
         parent.Fields.Add(field);
 

@@ -1,14 +1,11 @@
 namespace Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.TypeReferences.Builtin;
 
-public class FunctionTypeReference(TypeReference? returns, TypeReference[] parameters) : BuiltInTypeReference
+public class FunctionTypeReference(Reference? returns, Reference[] parameters) : BuiltInTypeReference
 {
-    public readonly TypeReference Returns = returns ?? new VoidTypeReference();
-    public readonly TypeReference[] Parameters = parameters;
+    public readonly Reference Returns = returns ?? new VoidTypeReference();
+    public readonly Reference[] Parameters = parameters;
     
-    public override Alignment Length => 0;
-    public override Alignment Alignment => 0;
-
-    public override bool IsGeneric => Returns.IsGeneric || Parameters.Any(e => e.IsGeneric);
-
+    public override ITypeReference Type => new TypeTypeReference(this);
+    
     public override string ToString() => $"fn({string.Join(", ", Parameters.Select(e => e.ToString()))}) {Returns}";
 }

@@ -7,7 +7,7 @@ namespace Abstract.CodeProcess.Core.EvaluationData.IntermediateTree.Values;
 
 public class IrIntegerLiteral(SyntaxNode origin, BigInteger val, IntegerTypeReference ty): IrExpression(origin)
 {
-    public override TypeReference Type => ty;
+    public override ITypeReference Type => ty;
     public ushort? Size => (ushort)(Type as RuntimeIntegerTypeReference)!.BitSize.Bits;
     public readonly BigInteger Value = val;
     

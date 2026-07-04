@@ -1,6 +1,7 @@
 using System.Text;
 using Abstract.CodeProcess.Core.EvaluationData.LanguageObjects.Attributes;
 using Abstract.CodeProcess.Core.EvaluationData.LanguageObjects.Containers;
+using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences;
 using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.TypeReferences;
 using Abstract.CodeProcess.Core.Language.SyntaxNodes.Control;
 
@@ -17,8 +18,9 @@ public class TypedefObject(SourceScript script, string n, TypeDefinitionNode syn
     public bool Static { get; set; } = false;
     public bool Internal { get; set; } = false;
     public bool Abstract { get; set; } = false;
+    public bool Generic => false;
 
-    public TypeReference? BackType = null;
+    public Reference? BackType = null;
     
     public readonly TypeDefinitionNode syntaxNode = synNode;
     public List<TypedefNamedValue> NamedValues = [];

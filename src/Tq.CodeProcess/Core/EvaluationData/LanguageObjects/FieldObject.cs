@@ -2,12 +2,13 @@ using System.Text;
 using Abstract.CodeProcess.Core.EvaluationData.IntermediateTree;
 using Abstract.CodeProcess.Core.EvaluationData.LanguageObjects.Attributes;
 using Abstract.CodeProcess.Core.EvaluationData.LanguageObjects.Containers;
+using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences;
 using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.TypeReferences;
 using Abstract.CodeProcess.Core.Language.SyntaxNodes.Control;
 
 namespace Abstract.CodeProcess.Core.EvaluationData.LanguageObjects;
 
-public class FieldObject(SourceScript sourceScript, string n, TopLevelVariableNode synNode, TypeReference t) : LangObject(sourceScript, n),
+public class FieldObject(SourceScript sourceScript, string n, TopLevelVariableNode synNode, Reference t) : LangObject(sourceScript, n),
         IPublicModifier,
         IStaticModifier,
         IInternalModifier,
@@ -19,14 +20,11 @@ public class FieldObject(SourceScript sourceScript, string n, TopLevelVariableNo
     public bool Internal { get; set; } = false;
     public bool Abstract { get; set; } = false;
     
-    public TypeReference Type { get; set; } = t;
+    public Reference Type { get; set; } = t;
     
     public readonly TopLevelVariableNode SyntaxNode = synNode;
 
     public Alignment? Offset { get; set; }
-    public Alignment Length => Type.Length;
-    public Alignment Alignment => Type.Alignment;
-
     public IrExpression? Value = null;
     
     public override string ToString()

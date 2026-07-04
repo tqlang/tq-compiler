@@ -3,10 +3,10 @@ using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.TypeReferences
 
 namespace Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.Dotnet;
 
-public class DotnetFieldReference(DotnetFieldObject reference) : LanguageReference
+public class DotnetFieldReference(DotnetFieldObject reference) : Reference
 {
     public readonly DotnetFieldObject Reference = reference;
-    public override TypeReference Type => Reference.FieldType;
+    public override ITypeReference Type => (Reference.FieldType as ITypeReference)!;
 
     public override string ToString() => $"Fld<{Reference.Name}>";
 }

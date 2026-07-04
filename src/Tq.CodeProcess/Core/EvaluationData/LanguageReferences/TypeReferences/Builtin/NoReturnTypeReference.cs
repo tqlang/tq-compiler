@@ -2,7 +2,8 @@ namespace Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.TypeRefere
 
 public class NoReturnTypeReference: BuiltInTypeReference
 {
-    public override Alignment Length => 0;
-    public override Alignment Alignment => 0;
+    public override bool IsGeneric => false;
+    public override ITypeReference Type => new TypeTypeReference(this);
+    
     public override string ToString() => "noreturn";
 }

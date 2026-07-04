@@ -1,9 +1,9 @@
 namespace Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.TypeReferences.Builtin;
 
-public class IgnoreTypeReference : TypeReference
+public class IgnoreTypeReference : BuiltInTypeReference
 {
-    public override Alignment Length => 0;
-    public override Alignment Alignment => 0;
+    public bool IsGeneric => false;
+    public override ITypeReference Type => new TypeTypeReference(this);
 
     public override string ToString() => "%ignored%";
 }

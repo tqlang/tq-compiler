@@ -2,6 +2,7 @@ using System.Diagnostics;
 using Abstract.CodeProcess.Core.EvaluationData.LanguageObjects;
 using Abstract.CodeProcess.Core.EvaluationData.LanguageObjects.Attributes;
 using Abstract.CodeProcess.Core.EvaluationData.LanguageObjects.CodeObjects;
+using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences;
 using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.AttributeReferences;
 using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.TypeReferences;
 using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.TypeReferences.Builtin;
@@ -164,25 +165,39 @@ public partial class Analyser
 
         foreach (var i in paramc.Items)
         {
-            var typeref = SolveShallowType(i.Type);
+            var typeref = new UnknownReference(i.Type);
             var name = i.Identifier.Value;
-
-            if (typeref is
-                TypeTypeReference or
-                AnytypeTypeReference) function.IsGeneric = true;
-            
             function.AddParameter(new ParameterObject(typeref, name));
         }
 
-        function.ReturnType = returnType == null ? new VoidTypeReference() : SolveShallowType(returnType);
+        function.ReturnType = returnType == null
+            ? new VoidTypeReference()
+            : new UnknownReference(returnType);
     }
     private void UnwrapStructureMeta(StructObject structure)
     {
         var node = structure.SyntaxNode;
 
-        if (node.Children.Length == 4)
+        int genericParametersIndex = -1;
+        int extendsImplementsIndex = -1;
+
+        foreach (var (i, c) in structure.SyntaxNode.Children.Index())
         {
-            var extendsImplements = new Queue<SyntaxNode>(((ExtendsImplementsNode)node.Children[2]).Children);
+            switch (c)
+            {
+                case ParameterCollectionNode: genericParametersIndex = i; break;
+                case ExtendsImplementsNode: extendsImplementsIndex = i; break;
+            }
+        }
+
+        if (genericParametersIndex != -1)
+        {
+            
+        }
+        
+        if (extendsImplementsIndex != -1)
+        {
+            var extendsImplements = new Queue<SyntaxNode>(((ExtendsImplementsNode)node.Children[extendsImplementsIndex]).Children);
 
             ExpressionNode? extendsVal = null;
             List<ExpressionNode> implementsVal = [];
@@ -198,7 +213,7 @@ public partial class Analyser
                 while (extendsImplements.Count > 0) throw new UnreachableException();
             }
 
-            structure.Extends = extendsVal == null ? null : new UnsolvedTypeReference(extendsVal);
+            structure.Extends = extendsVal == null ? null : new UnknownReference(extendsVal);
         }
         
     }
@@ -211,13 +226,13 @@ public partial class Analyser
             if (node.BackType.Arguments.Length != 1)
                 throw new Exception($"'{node}' backing type must be one argument");
             
-            typedef.BackType = SolveShallowType(node.BackType.Arguments[0]);
+            typedef.BackType = new UnknownReference(node.BackType.Arguments[0]);
         }
     }
     private void UnwrapFieldMeta(FieldObject field)
     {
         var node = field.SyntaxNode;
-        field.Type = SolveShallowType(node.Type);
+        field.Type = new UnknownReference(node.Type);
     }
     private void UnwrapCtorMeta(ConstructorObject ctor)
     {
@@ -226,12 +241,12 @@ public partial class Analyser
         
         foreach (var i in paramc.Items)
         {
-            var typeref = SolveShallowType(i.Type);
+            var typeref = new UnknownReference(i.Type);
             var name = i.Identifier.Value;
             ctor.AddParameter(new ParameterObject(typeref, name));
         }
         
-        if (node.Returns != null) ctor.ReturnTypeOverride = SolveShallowType(node.Returns);
+        if (node.Returns != null) ctor.ReturnTypeOverride = new UnknownReference(node.Returns);
     }
     private void UnwrapDtorMeta(DestructorObject dtor)
     {

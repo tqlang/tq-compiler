@@ -6,6 +6,7 @@ using Abstract.CodeProcess.Core.EvaluationData.IntermediateTree.Expressions;
 using Abstract.CodeProcess.Core.EvaluationData.IntermediateTree.Statements;
 using Abstract.CodeProcess.Core.EvaluationData.IntermediateTree.Values;
 using Abstract.CodeProcess.Core.EvaluationData.LanguageObjects;
+using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences;
 using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.CodeReferences;
 using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.Dotnet;
 using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.FieldReferences;
@@ -20,7 +21,6 @@ using AsmResolver.DotNet.Signatures;
 using AsmResolver.DotNet.Signatures.Types;
 using AsmResolver.PE.DotNet.Cil;
 using AsmResolver.PE.DotNet.Metadata.Tables.Rows;
-using TypeReference = Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.TypeReferences.TypeReference;
 
 namespace Abstract.CodeProcess;
 
@@ -46,7 +46,7 @@ public partial class Compiler
                 if (ignoreValue) return;
                 var type = nobj.InstanceType switch
                 {
-                    SolvedStructTypeReference structRef => _typesMap[structRef.Struct].Type,
+                    StructReference structRef => _typesMap[structRef.Struct].Type,
                     DotnetTypeReference dotnetRef => dotnetRef.Reference.Reference,
                     _ => throw new NotImplementedException()
                 };
@@ -146,7 +146,7 @@ public partial class Compiler
             case IrCollectionLiteral @collit:
             {
                 if (ignoreValue) return;
-                var elmtype = TypeFromRef(collit.ElementType);
+                var elmtype = TypeFromRef((ITypeReference)collit.ElementType);
                 
                 ctx.Gen.Add(CilInstruction.CreateLdcI4(collit.Length));
                 ctx.Gen.Add(CilOpCodes.Newarr, elmtype.ToTypeDefOrRef());
@@ -180,7 +180,7 @@ public partial class Compiler
                 }
             } break;
             
-            case IrSolvedReference @solv:
+            case IrReference { IsSolved: true } @solv:
             {
                 if (ignoreValue) return;
                 switch (solv.Reference)
@@ -239,7 +239,7 @@ public partial class Compiler
                 }
             } break;
     
-            case IRAccess @acc:
+            case IrAccess @acc:
             {
                 if (ignoreValue) return;
                 CompileIrNodeLoadAsRef(acc.A, ctx);
@@ -266,7 +266,7 @@ public partial class Compiler
                         {
                             case SliceTypeReference @slice:
                             {
-                                var elmType = TypeFromRef(slice.ElementType);
+                                var elmType = TypeFromRef((ITypeReference)slice.ElementType);
                                 var methodSpec = ctx.Importer.ImportMethod(
                                     new MethodSpecification(_runtimeHelpers[""].m["Array_AsString"],
                                     new GenericInstanceMethodSignature(elmType)));
@@ -413,7 +413,7 @@ public partial class Compiler
                                 }
                             } break;
                             
-                            case SolvedTypedefTypeReference:
+                            case TypedefReference:
                             {
                                 var fromTypeSig = ctx.Stack[^1];
                                 if (fromTypeSig is not CorLibTypeSignature @corlibsig
@@ -479,7 +479,7 @@ public partial class Compiler
                         
                     } break;
 
-                    case DotnetGenericTypeReference @dotnetGeneric:
+                    case DotnetGenericImplReference @dotnetGeneric:
                     {
                         switch (dotnetGeneric.Reference.Reference.FullName)
                         {
@@ -1224,7 +1224,7 @@ public partial class Compiler
     {
         switch (node)
         {
-            case IrSolvedReference @sr:
+            case IrReference { IsSolved: true } @sr:
             {
                 switch (sr.Reference)
                 {
@@ -1266,7 +1266,7 @@ public partial class Compiler
                 }
             } break;
             
-            case IRAccess @acc:
+            case IrAccess @acc:
             {
                 CompileIrNodeLoadAsRef(acc.A, ctx);
                 CompileIrNodeLoadAsRef(acc.B, ctx);
@@ -1280,7 +1280,7 @@ public partial class Compiler
     {
         switch (node)
         {
-            case IrSolvedReference @solv:
+            case IrReference { IsSolved: true } @solv:
             {
                 switch (solv.Reference)
                 {
@@ -1310,7 +1310,7 @@ public partial class Compiler
                 }
             } break;
     
-            case IRAccess @access:
+            case IrAccess @access:
             {
                 CompileIrNodeLoadAsRef(@access.A, ctx);
                 CompileIrNodeStore(access.B, value, ctx);
@@ -1335,24 +1335,24 @@ public partial class Compiler
     {
         switch (node)
         {
-            case IrSolvedReference solvedReference:
+            case IrReference { IsSolved: true } solvedReference:
             {
                 switch (solvedReference.Reference)
                 {
-                    case SolvedCallableReference sfr:
+                    case CallableReference sfr:
                     {
-                        List<TypeReference> generics = [];
+                        List<ITypeReference> generics = [];
                         var argsCount = 0;
                         
                         foreach (var i in allArgs)
                         {
                             switch (i)
                             {
-                                case IrSolvedReference { Type: TypeTypeReference, Reference: TypeReference @type } when sfr.Callable.IsGeneric:
+                                case IrReference { IsSolved: true, Type: TypeTypeReference, Reference: ITypeReference @type } when sfr.Callable.IsGeneric:
                                     generics.Add(type);
                                     break;
                                 
-                                case IrSolvedReference { Type: TypeTypeReference, Reference: ParameterReference @param } when sfr.Callable.IsGeneric:
+                                case IrReference { IsSolved: true, Type: TypeTypeReference, Reference: ParameterReference @param } when sfr.Callable.IsGeneric:
                                     generics.Add(new GenericTypeReference(param.Parameter));
                                     break;
                                 

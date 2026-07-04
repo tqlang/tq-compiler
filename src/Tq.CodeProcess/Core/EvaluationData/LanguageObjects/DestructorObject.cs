@@ -2,6 +2,7 @@ using System.Text;
 using Abstract.CodeProcess.Core.EvaluationData.IntermediateTree;
 using Abstract.CodeProcess.Core.EvaluationData.LanguageObjects.CodeObjects;
 using Abstract.CodeProcess.Core.EvaluationData.LanguageObjects.Containers;
+using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences;
 using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.TypeReferences;
 using Abstract.CodeProcess.Core.Language.SyntaxNodes.Control;
 
@@ -15,7 +16,7 @@ public class DestructorObject(SourceScript sourceScript, DestructorDeclarationNo
     SourceScript ICallable.Script => SourceScript;
     public List<ParameterObject> Parameters { get; } = [];
     public List<LocalVariableObject> Locals { get; } = [];
-    public TypeReference? ReturnType { get; set; } = null;
+    public Reference? ReturnType { get; set; } = null;
     public IrBlock? Body { get; set; }
     
     bool ICallable.IsStatic => false;

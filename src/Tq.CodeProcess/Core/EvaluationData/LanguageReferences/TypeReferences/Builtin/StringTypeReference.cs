@@ -3,8 +3,10 @@ namespace Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.TypeRefere
 public class StringTypeReference(StringEncoding encoding): BuiltInTypeReference
 {
     public readonly StringEncoding Encoding = encoding;
-    public override Alignment Length => new (0, 2);
-    public override Alignment Alignment => new (0, 1);
+    
+    public override bool IsGeneric => false;
+    public override ITypeReference Type => new TypeTypeReference(this);
+    
     public override string ToString() => Encoding is StringEncoding.Utf8 or StringEncoding.Undefined
         ? "string"
         : $"string({Encoding}";

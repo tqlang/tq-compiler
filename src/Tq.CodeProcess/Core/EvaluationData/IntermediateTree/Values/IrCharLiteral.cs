@@ -8,7 +8,7 @@ public class IrCharLiteral(SyntaxNode origin, char data) : IrExpression(origin)
 {
     public readonly char Data = data;
     
-    public override TypeReference Type => new CharTypeReference();
+    public override ITypeReference Type => new CharTypeReference();
     public StringEncoding Encoding => ((StringTypeReference)Type!).Encoding;
     
     public override string ToString() => $"(char) '{Data}'";
