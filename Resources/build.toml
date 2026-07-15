@@ -1,0 +1,28 @@
+outPath = ".tq-out"
+cachePath = ".tq-cache"
+verbose = true
+
+[run]
+    path = "src/main.exe"
+
+[[module]]
+    name = "Program"
+    path = "./Program"
+    
+    references = [
+        "module:Std"
+    ]
+
+[[module]]
+    name = "Std"
+    path = "./Std"
+
+[[module]]
+    type = "dotnet"
+    name = "Dotnet"
+    
+    references = [
+        "dotnet:System.Runtime:10.0.0",
+        "dotnet:System.Console:10.0.0",
+        "dotnet:System.Collections:10.0.0",
+    ]

@@ -1,0 +1,4 @@
+@public @interface
+struct DynamicArray(type T) {
+
+}

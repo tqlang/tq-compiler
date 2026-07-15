@@ -1,0 +1,5 @@
+###    TQ STANDARD LIBRARY SCRIPT    ###
+
+@public @interface func getProgramArguments() []string {}
+
+@public @interface func exit(uint status) noreturn {}

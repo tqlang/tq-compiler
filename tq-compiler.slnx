@@ -1,0 +1,14 @@
+<Solution>
+  <Folder Name="/Compiler/">
+    <Project Path="Compiler/Tq.Ast/Tq.Ast.csproj" />
+    <Project Path="Compiler/Tq.Cli/Tq.Cli.csproj" />
+    <Project Path="Compiler/Tq.Core/Tq.Core.csproj" />
+    <Project Path="Compiler/Tq.Diagnostics/Tq.Diagnostics.csproj" />
+  </Folder>
+  <Folder Name="/Compiler/Tq.CodeProcess/">
+    <Project Path="Compiler\Tq.CodeProcess\Tq.CodeProcess.Parser\Tq.CodeProcess.Parser.csproj" />
+  </Folder>
+  <Folder Name="/Plugins/">
+    <Project Path="Plugins/Tq.Plugin.Dotnet/Tq.Plugin.Dotnet.csproj" />
+  </Folder>
+</Solution>

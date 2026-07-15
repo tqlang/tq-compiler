@@ -1,0 +1,15 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <TargetFramework>net10.0</TargetFramework>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <Nullable>enable</Nullable>
+    </PropertyGroup>
+
+    <ItemGroup>
+      <ProjectReference Include="..\..\Tq.Ast\Tq.Ast.csproj" />
+      <ProjectReference Include="..\..\Tq.Core\Tq.Core.csproj" />
+      <ProjectReference Include="..\..\Tq.Diagnostics\Tq.Diagnostics.csproj" />
+    </ItemGroup>
+
+</Project>

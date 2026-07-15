@@ -1,0 +1,6 @@
+@public struct FileInfo {
+
+	@public let string name
+	@public let string directory
+	@public let uint length
+}

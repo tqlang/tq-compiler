@@ -1,0 +1,16 @@
+###    TQ STANDARD LIBRARY SCRIPT    ###
+
+@public @interface func write(i64 value) {}
+@public @interface func write(u64 value) {}
+@public @interface func write(i128 value) {}
+@public @interface func write(u128 value) {}
+@public @interface func write([]anytype value) {}
+@public @interface func write(string value) {}
+
+@public @interface func writeln(i64 value) {}
+@public @interface func writeln(u64 value) {}
+@public @interface func writeln(i128 value) {}
+@public @interface func writeln(u128 value) {}
+@public @interface func writeln([]anytype value) {}
+@public @interface func writeln(string value) {}
+

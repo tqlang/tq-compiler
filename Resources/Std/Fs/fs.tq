@@ -1,0 +1,24 @@
+
+@public @interface func open(string path) File {}
+
+@public @interface func fileExists(string path) bool {}
+@public @interface func directoryExists(string path) bool {}
+
+@public @interface func readAllText(string path) string {}
+
+@public @interface func writeAllText(string path, string content) {}
+
+
+@public @interface typedef FileMode {
+	case create
+	case open
+	case openOrCreate
+	case truncate
+	case append
+}
+
+@public @interface typedef FileAccess {
+	case ReadOnly
+	case WriteOnly
+	case ReadWrite
+}

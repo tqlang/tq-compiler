@@ -1,0 +1,29 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <OutputType>Exe</OutputType>
+        <TargetFramework>net10.0</TargetFramework>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <Nullable>enable</Nullable>
+    </PropertyGroup>
+
+    <ItemGroup>
+      <PackageReference Include="Tomlyn" Version="2.10.1" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="..\..\Plugins\Tq.Plugin.Dotnet\Tq.Plugin.Dotnet.csproj" ReferenceOutputAssembly="false" />
+    </ItemGroup>
+
+    <Target Name="CopyPluginAssemblies" AfterTargets="Build">
+        <ItemGroup>
+            <PluginProject Include="..\..\Plugins\Tq.Plugin.Dotnet\\bin\$(Configuration)\$(TargetFramework)\**\*" />
+        </ItemGroup>
+
+        <Copy
+                SourceFiles="@(PluginProject)"
+                DestinationFolder="$(OutDir)\plugins\%(RecursiveDir)"
+                SkipUnchangedFiles="true" />
+    </Target>
+
+</Project>

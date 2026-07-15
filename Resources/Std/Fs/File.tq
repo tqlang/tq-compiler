@@ -1,0 +1,13 @@
+@public @interface struct File {
+
+	@public @interface func close() void {}
+}
+
+
+@public @interface struct FileReader extends Reader {
+
+}
+
+@public @interface struct FileWriter extends Writer {
+
+}
