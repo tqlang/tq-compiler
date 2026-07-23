@@ -9,18 +9,14 @@ namespace Tq.CodeProcess.Parser;
 public partial class Parser 
 {
     [DoesNotReturn]
+    private static void ThrowUnexpectedTokenError(ErrorHandler errH, string source, string expected, Token token)
+        => ThrowUnexpectedTokenError(errH, source, [expected], token);
+    [DoesNotReturn]
     private static void ThrowUnexpectedTokenError(ErrorHandler errH, string source, string[] expected, Token token) => errH.Throw(
         new UnexpectedTokenError(
-            $"Expected {string.Join(", ", expected)}. Found '{token.ValueAsString()}'",
-            new SourceLocation(source, token.LineStart, token.ColStart, token.LineStart, token.ColStart + token.Length)
+            new SourceLocation(source, token.LineStart, token.ColStart),
+            $"Unexpected token found. Expected {string.Join(", ", expected)}, found {token.ValueAsString()}"
         )
     );
-
-    [DoesNotReturn]
-    private static void ThrowUnexpectedTokenError(ErrorHandler errH, string source, TokenType expected, Token token) => errH.Throw(
-        new UnexpectedTokenError(
-            $"Expected ({expected}). Found '{token.ValueAsString()}'",
-            new SourceLocation(source, token.LineStart, token.ColStart, token.LineStart, token.ColStart + token.Length)
-        )
-    );
+    
 }

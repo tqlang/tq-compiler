@@ -12,6 +12,7 @@
     </ItemGroup>
 
     <ItemGroup>
+        <ProjectReference Include="..\Tq.Core\Tq.Core.csproj" />
         <ProjectReference Include="..\..\Plugins\Tq.Plugin.Dotnet\Tq.Plugin.Dotnet.csproj" ReferenceOutputAssembly="false" />
     </ItemGroup>
 
@@ -20,10 +21,9 @@
             <PluginProject Include="..\..\Plugins\Tq.Plugin.Dotnet\\bin\$(Configuration)\$(TargetFramework)\**\*" />
         </ItemGroup>
 
-        <Copy
-                SourceFiles="@(PluginProject)"
-                DestinationFolder="$(OutDir)\plugins\%(RecursiveDir)"
-                SkipUnchangedFiles="true" />
+        <Copy SourceFiles="@(PluginProject)"
+              DestinationFolder="$(OutDir)\plugins\%(RecursiveDir)"
+              SkipUnchangedFiles="true" />
     </Target>
 
 </Project>

@@ -1,7 +1,8 @@
 using Tomlyn;
 using Tomlyn.Model;
+using Tq.Core.Misc;
 
-namespace Tq.Cli.Builder;
+namespace Tq.Cli.Build;
 
 public static class ConfigParser
 {
@@ -24,7 +25,7 @@ public static class ConfigParser
         {
             foreach (TomlTable modTable in modArray)
             {
-                var module = new ModuleConfig();
+                var module = new BuildModuleConfig();
 
                 foreach (var kvp in modTable)
                 {

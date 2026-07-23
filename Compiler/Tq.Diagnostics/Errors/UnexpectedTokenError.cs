@@ -3,8 +3,7 @@ using Tq.Core.Language;
 
 namespace Tq.Diagnostics;
 
-public class UnexpectedTokenError(SourceLocation location, TokenType found, TokenType expected) : CompilationError(location)
+public class UnexpectedTokenError(SourceLocation location, string message) : CompilationError(location)
 {
-    public readonly TokenType Found = found;
-    public readonly TokenType Expected = expected;
+    public readonly string Message = message;
 }

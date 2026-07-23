@@ -1,3 +1,5 @@
+using Tq.Ast;
+
 namespace Tq.CodeProcess.Parser;
 
 public partial class Parser
@@ -6,7 +8,7 @@ public partial class Parser
     {
         var leftBrace = _tokens.Eat();
         if (leftBrace.Type != TokenType.LeftCurlyBraceChar)
-            ThrowUnexpectedTokenError(errorHandler, _sourcePath, TokenType.LeftCurlyBraceChar, leftBrace.Token);
+            ThrowUnexpectedTokenError(errorHandler, _sourcePath, ["}"], leftBrace.Token);
 
         var content = new List<SyntaxNode>();
         while (!_tokens
@@ -18,7 +20,7 @@ public partial class Parser
 
         var rightBrace = _tokens.SkipTrivia(QueryUtils.TopLevelTrivia).Eat();
         if (rightBrace.Type != TokenType.RightCurlyBraceChar)
-            ThrowUnexpectedTokenError(errorHandler, _sourcePath, TokenType.RightCurlyBraceChar, leftBrace.Token);
+            ThrowUnexpectedTokenError(errorHandler, _sourcePath, ["}"], leftBrace.Token);
 
         return ExplicitBodyNode.Build(leftBrace, [.. content], rightBrace);
     }
@@ -68,7 +70,7 @@ public partial class Parser
             }
             case TokenType.ElifKeyword:
             case TokenType.ElseKeyword:
-                ThrowUnexpectedTokenError(errorHandler, _sourcePath, TokenType.IfKeyword, _tokens.Eat().Token);
+                ThrowUnexpectedTokenError(errorHandler, _sourcePath, ["if keyword"], _tokens.Eat().Token);
             break;
 
             case TokenType.WhileKeyword:
@@ -108,7 +110,7 @@ public partial class Parser
                 {
                     if (_tokens.NextIs(out rightParenthesis, TokenType.RightParenthesisChar))
                         _tokens.SkipTrivia(QueryUtils.ExpressionLevelTrivia);
-                    else ThrowUnexpectedTokenError(errorHandler, _sourcePath, TokenType.RightParenthesisChar, rightParenthesis.Token);
+                    else ThrowUnexpectedTokenError(errorHandler, _sourcePath, [")"], rightParenthesis!.Token);
                 }
                 
                 _tokens.SkipTrivia([..QueryUtils.StatementLevelTrivia, TokenType.LineFeedChar]);
@@ -147,7 +149,7 @@ public partial class Parser
                           .SkipTrivia(QueryUtils.ExpressionLevelTrivia)
                           .Check(TokenType.InKeyword, out var result)
                           .Eat();
-                if (!result) ThrowUnexpectedTokenError(errorHandler, _sourcePath, TokenType.InKeyword, inK.Token);
+                if (!result) ThrowUnexpectedTokenError(errorHandler, _sourcePath, ["'in' keyword"], inK.Token);
 
                 _tokens.SkipTrivia(QueryUtils.AllWhitespaces);
                 var expression = ParseExpression();

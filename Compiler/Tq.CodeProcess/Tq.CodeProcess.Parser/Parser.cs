@@ -2,6 +2,7 @@ using System.ComponentModel;
 using System.Diagnostics.CodeAnalysis;
 using Tq.Ast;
 using Tq.Core;
+using Tq.Diagnostics;
 
 namespace Tq.CodeProcess.Parser;
 
@@ -87,7 +88,7 @@ public partial class Parser(
                             }
 
                             var rightBrace = _tokens.SkipTrivia(QueryUtils.InterParametersTrivia).Check(TokenType.RightCurlyBraceChar, out var assertment).Eat();
-                            if (!assertment) ThrowUnexpectedTokenError(errorHandler, _sourcePath, TokenType.RightParenthesisChar, rightBrace.Token);
+                            if (!assertment) ThrowUnexpectedTokenError(errorHandler, _sourcePath, [")"], rightBrace.Token);
 
                             return ImportNode.BuildSpecific(from, fromNamespace, import, leftBrace, [..collection], rightBrace);
                         }
@@ -163,7 +164,7 @@ public partial class Parser(
                             _tokens.SkipTrivia(QueryUtils.TopLevelTrivia);
                         }
 
-                        BodyNode body = ParseStatementBody();
+                        var body = ParseStatementBody();
 
                         return FunctionDeclarationNode.Build(
                             attributes.Dump(),
@@ -402,14 +403,14 @@ public partial class Parser(
     {
         var leftBrace = _tokens.Eat();
         if (leftBrace.Type != TokenType.LeftCurlyBraceChar)
-            ThrowUnexpectedTokenError(errorHandler, _sourcePath, TokenType.LeftCurlyBraceChar, leftBrace.Token);
+            ThrowUnexpectedTokenError(errorHandler, _sourcePath, ["{ (left curly brace)"], leftBrace.Token);
 
         _tokens.SkipTrivia(QueryUtils.TopLevelTrivia);
         var content = ParseRootBody(ctx);
 
         var rightBrace = _tokens.SkipTrivia(QueryUtils.TopLevelTrivia).Eat();
         if (rightBrace.Type != TokenType.RightCurlyBraceChar)
-            ThrowUnexpectedTokenError(errorHandler, _sourcePath, TokenType.RightCurlyBraceChar, rightBrace.Token);
+            ThrowUnexpectedTokenError(errorHandler, _sourcePath, ["} (RightCurly brace)"], rightBrace.Token);
 
         return ExplicitBodyNode.Build(leftBrace, [.. content], rightBrace);
     }
@@ -417,7 +418,7 @@ public partial class Parser(
     private (TokenNode leftParenthesis, (TypedIdentifierNode, TokenNode?)[] parameters, TokenNode rightParenthesis) ParseParameterList()
     {
         var leftParenthesis = _tokens.Check(TokenType.LeftParenthesisChar, out var assertment).Eat();
-        if (!assertment) ThrowUnexpectedTokenError(errorHandler, _sourcePath, TokenType.LeftParenthesisChar, leftParenthesis.Token);
+        if (!assertment) ThrowUnexpectedTokenError(errorHandler, _sourcePath, ["( (left parenthesis)"], leftParenthesis.Token);
 
         var collection = new List<(TypedIdentifierNode, TokenNode?)>();
         while (!_tokens.IsEof() && !_tokens.SkipTrivia(QueryUtils.InterParametersTrivia).NextIs(TokenType.RightParenthesisChar))
@@ -439,7 +440,7 @@ public partial class Parser(
         }
 
         var rightParenthesis = _tokens.SkipTrivia(QueryUtils.InterParametersTrivia).Check(TokenType.RightParenthesisChar, out assertment).Eat();
-        if (!assertment) ThrowUnexpectedTokenError(errorHandler, _sourcePath, TokenType.RightParenthesisChar, rightParenthesis.Token);
+        if (!assertment) ThrowUnexpectedTokenError(errorHandler, _sourcePath, [") (Right parenthesis)"], rightParenthesis.Token);
 
         return (leftParenthesis, [..collection], rightParenthesis);
     }
@@ -447,7 +448,7 @@ public partial class Parser(
     private (TokenNode leftParenthesis, (ExpressionNode, TokenNode?)[] parameters, TokenNode rightParenthesis) ParseArgumentList()
     {
         var leftParenthesis = _tokens.SkipTrivia(QueryUtils.InterParametersTrivia).Check(TokenType.LeftParenthesisChar, out var assertment).Eat();
-        if (!assertment) ThrowUnexpectedTokenError(errorHandler, _sourcePath, TokenType.LeftParenthesisChar, leftParenthesis.Token);
+        if (!assertment) ThrowUnexpectedTokenError(errorHandler, _sourcePath, ["( (Left parenthesis)"], leftParenthesis.Token);
 
         var collection = new List<(ExpressionNode, TokenNode?)>();
         while (!_tokens.IsEof() && !_tokens.SkipTrivia(QueryUtils.InterParametersTrivia).NextIs(TokenType.RightParenthesisChar))
@@ -467,7 +468,7 @@ public partial class Parser(
         }
 
         var rightParenthesis = _tokens.SkipTrivia(QueryUtils.InterParametersTrivia).Check(TokenType.RightParenthesisChar, out assertment).Eat();
-        if (!assertment) ThrowUnexpectedTokenError(errorHandler, _sourcePath, TokenType.RightParenthesisChar, rightParenthesis.Token);
+        if (!assertment) ThrowUnexpectedTokenError(errorHandler, _sourcePath, ") (Right parenthesis)", rightParenthesis.Token);
 
         return (leftParenthesis, [..collection], rightParenthesis);
     }
@@ -475,7 +476,7 @@ public partial class Parser(
     private (TokenNode leftBracket, (ExpressionNode, TokenNode?)[] parameters, TokenNode rightBracket) ParseIndexList()
     {
         var leftBracket = _tokens.SkipTrivia(QueryUtils.InterParametersTrivia).Check(TokenType.LeftSquareBracketChar, out var assertment).Eat();
-        if (!assertment) ThrowUnexpectedTokenError(errorHandler, _sourcePath, TokenType.LeftSquareBracketChar, leftBracket.Token);
+        if (!assertment) ThrowUnexpectedTokenError(errorHandler, _sourcePath, "[ (left bracket)", leftBracket.Token);
 
         var collection = new List<(ExpressionNode, TokenNode?)>();
         while (!_tokens.IsEof() && !_tokens.SkipTrivia(QueryUtils.InterParametersTrivia).NextIs(TokenType.RightParenthesisChar))
@@ -495,7 +496,7 @@ public partial class Parser(
         }
 
         var rightBracket = _tokens.SkipTrivia(QueryUtils.InterParametersTrivia).Check(TokenType.RightSquareBracketChar, out assertment).Eat();
-        if (!assertment) ThrowUnexpectedTokenError(errorHandler, _sourcePath, TokenType.RightSquareBracketChar, rightBracket.Token);
+        if (!assertment) ThrowUnexpectedTokenError(errorHandler, _sourcePath, "[ (Right bracket)", rightBracket.Token);
 
         return (leftBracket, [..collection], rightBracket);
     }

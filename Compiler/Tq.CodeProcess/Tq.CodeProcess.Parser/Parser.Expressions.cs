@@ -1,5 +1,8 @@
 using System.Diagnostics;
-using StringContent = Tq.CodeProcess.Core.Language.AbstractSyntaxTree.StringContent;
+using Tq.Ast;
+using Tq.Core.Language;
+using Tq.Diagnostics;
+using StringContent = Tq.Ast.StringContent;
 
 namespace Tq.CodeProcess.Parser;
 
@@ -7,7 +10,7 @@ public partial class Parser
 {
     private ExpressionNode ParseExpression(bool allowAssignment = false)
     {
-        _tokens.SkipTrivia(Parser.QueryUtils.ExpressionLevelTrivia);
+        _tokens.SkipTrivia(QueryUtils.ExpressionLevelTrivia);
         if (allowAssignment) return ParseAssignmentExpression();
         return ParseBooleanOperationExpression();
     }
@@ -46,7 +49,7 @@ public partial class Parser
         var b = ParseExpression();
 
         if (!_tokens.NextIs(out var n2, TokenType.QuestionChar))
-            ThrowUnexpectedTokenError(errorHandler, _sourcePath, TokenType.ColonChar, n2.Token);
+            ThrowUnexpectedTokenError(errorHandler, _sourcePath, ["colon"], n2.Token);
 
         var c = ParseExpression();
 
@@ -286,7 +289,7 @@ public partial class Parser
                                      .SkipTrivia(Parser.QueryUtils.ExpressionLevelTrivia)
                                      .Check(TokenType.LeftCurlyBraceChar, out var result)
                                      .Eat();
-                if (!result) ThrowUnexpectedTokenError(errorHandler, _sourcePath, TokenType.LeftCurlyBraceChar, leftCurlyBrace.Token);
+                if (!result) ThrowUnexpectedTokenError(errorHandler, _sourcePath, ["{ (left curly braces)"], leftCurlyBrace.Token);
 
                 var cases = new List<MatchBaseCaseNode>();
 
@@ -317,7 +320,7 @@ public partial class Parser
                                              .SkipTrivia(Parser.QueryUtils.ExpressionLevelTrivia)
                                              .Check(TokenType.RightArrowOperator, out result)
                                              .Eat();
-                            if (!result) ThrowUnexpectedTokenError(errorHandler, _sourcePath, TokenType.RightArrowOperator, rightArrow.Token);
+                            if (!result) ThrowUnexpectedTokenError(errorHandler, _sourcePath, ["=> (right arrow operator)"], rightArrow.Token);
 
                             _tokens.SkipTrivia(Parser.QueryUtils.ExpressionLevelTrivia);
                             var statement = ParseStatement();
@@ -336,7 +339,7 @@ public partial class Parser
                                              .SkipTrivia(Parser.QueryUtils.ExpressionLevelTrivia)
                                              .Check(TokenType.RightArrowOperator, out result)
                                              .Eat();
-                            if (!result) ThrowUnexpectedTokenError(errorHandler, _sourcePath, TokenType.RightArrowOperator, rightArrow.Token);
+                            if (!result) ThrowUnexpectedTokenError(errorHandler, _sourcePath, ["->"], rightArrow.Token);
 
                             _tokens.SkipTrivia(Parser.QueryUtils.ExpressionLevelTrivia);
                             var statement = ParseStatement();
@@ -352,7 +355,7 @@ public partial class Parser
                                       .SkipTrivia(Parser.QueryUtils.ExpressionLevelTrivia)
                                       .Check(TokenType.RightCurlyBraceChar, out result)
                                       .Eat();
-                if (!result) ThrowUnexpectedTokenError(errorHandler, _sourcePath, TokenType.LeftCurlyBraceChar, leftCurlyBrace.Token);
+                if (!result) ThrowUnexpectedTokenError(errorHandler, _sourcePath, ["}"], leftCurlyBrace.Token);
 
                 node = MatchExpressionNode.Build(
                     matchK,
@@ -419,14 +422,14 @@ public partial class Parser
                     {
                         var expression = ParseExpression();
                         var equals = _tokens.Check(TokenType.EqualsChar, out var r1).Eat();
-                        if (!r1) ThrowUnexpectedTokenError(errorHandler, _sourcePath, TokenType.EqualsChar, equals.Token);
+                        if (!r1) ThrowUnexpectedTokenError(errorHandler, _sourcePath, ["="], equals.Token);
                         var value = ParseExpression();
 
                         content.Add(AssignmentExpressionNode.Build(expression, equals, value));
                     }
 
                     var rightBrace = _tokens.Check(TokenType.RightCurlyBraceChar, out var r2).Eat();
-                    if (!r2) ThrowUnexpectedTokenError(errorHandler, _sourcePath, TokenType.RightCurlyBraceChar, rightBrace.Token);
+                    if (!r2) ThrowUnexpectedTokenError(errorHandler, _sourcePath, ["}"], rightBrace.Token);
 
                     initializers = ExplicitBodyNode.Build(leftBrace, [..content], rightBrace);
                 }
@@ -446,7 +449,7 @@ public partial class Parser
                 _tokens.SkipTrivia(Parser.QueryUtils.ExpressionLevelTrivia);
                 var rightP = _tokens.Check(TokenType.RightParenthesisChar, out var r).Eat();
 
-                if (!r) ThrowUnexpectedTokenError(errorHandler, _sourcePath, TokenType.RightParenthesisChar, rightP.Token);
+                if (!r) ThrowUnexpectedTokenError(errorHandler, _sourcePath, [")"], rightP.Token);
 
                 node = ParenthesisExpressionNode.Build(leftP, expression, rightP);
             }
@@ -481,7 +484,7 @@ public partial class Parser
                         _tokens.SkipTrivia(Parser.QueryUtils.ExpressionLevelTrivia);
                         var end = _tokens.Check(TokenType.EscapedLeftBracket, out var result).Eat();
 
-                        if (!result) ThrowUnexpectedTokenError(errorHandler, _sourcePath, TokenType.RightCurlyBraceChar, end.Token);
+                        if (!result) ThrowUnexpectedTokenError(errorHandler, _sourcePath, ["}"], end.Token);
 
                         content.Add(StringLiteralNode.BuildInterpolationContent(start, exp, end));
                     }
@@ -507,7 +510,7 @@ public partial class Parser
                 var leftTick = _tokens.Eat();
                 var character = _tokens.Eat();
                 var rightTick = _tokens.Check(TokenType.SingleQuotes, out var expected).Eat();
-                if (!expected) ThrowUnexpectedTokenError(errorHandler, _sourcePath, TokenType.SingleQuotes, rightTick.Token);
+                if (!expected) ThrowUnexpectedTokenError(errorHandler, _sourcePath, ["'"], rightTick.Token);
 
                 node = CharacterLiteralNode.Build(leftTick, character, rightTick);
             }
@@ -539,7 +542,7 @@ public partial class Parser
             default:
             {
                 var t = _tokens.Eat().Token;
-                throw new UnexpectedTokenError($"Unexpected token {t}", new Location(_sourcePath, t.LineStart, t.ColStart));
+                throw new UnexpectedTokenError(new SourceLocation(_sourcePath, t.LineStart, t.ColStart), $"Unexpected token {t} while parsing script");
             }
         }
 
@@ -603,7 +606,7 @@ public partial class Parser
             }
 
         var rightSquareBracket = _tokens.Check(TokenType.RightCurlyBraceChar, out var result).Eat();
-        if (!result) ThrowUnexpectedTokenError(errorHandler, _sourcePath, TokenType.RightCurlyBraceChar, rightSquareBracket.Token);
+        if (!result) ThrowUnexpectedTokenError(errorHandler, _sourcePath, ["}"], rightSquareBracket.Token);
 
         return GenericCollectionNode.Build(leftCurlyBrace, [.. elements], rightSquareBracket);
     }
@@ -611,7 +614,7 @@ public partial class Parser
     public IdentifierNode ParseIdentifier()
     {
         var token = _tokens.Check(TokenType.Identifier, out var result).Eat();
-        if (!result) ThrowUnexpectedTokenError(errorHandler, _sourcePath, TokenType.Identifier, token.Token);
+        if (!result) ThrowUnexpectedTokenError(errorHandler, _sourcePath, ["Identifier"], token.Token);
         return IdentifierNode.Build(token);
     }
 }

@@ -1,5 +1,5 @@
-﻿using System.Diagnostics;
-using Tq.Cli.Builder;
+﻿using Tq.Cli.Build;
+using Tq.Core;
 
 namespace  Tq.Cli;
 
@@ -7,6 +7,8 @@ public static class Program
 {
     public static void Main(string[] args)
     {
+        PluginServer.Install();
+        
         if (args.Length == 0)
         {
             Console.WriteLine("Usage: tqc build <build.toml>");
@@ -39,9 +41,9 @@ public static class Program
             Console.WriteLine("File not found: " + filePath);
             Environment.Exit(1);
         }
-
-        var content = File.ReadAllText(filePath);
-        var buildConfig = ConfigParser.Parse(content);
+        
+        var buildConfig = ConfigParser.Parse(File.ReadAllText(filePath));
+        Builder.Build(buildConfig);
     }
 
     public static void PrintHelp()
