@@ -1,4 +1,4 @@
-namespace Abstract.CodeProcess.Core.EvaluationData.Exceptions;
+namespace Tq.CodeProcess.Core.EvaluationData.Exceptions;
 
 public class CompilationException: Exception
 {

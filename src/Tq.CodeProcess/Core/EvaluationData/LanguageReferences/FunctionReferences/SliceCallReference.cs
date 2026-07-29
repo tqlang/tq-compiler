@@ -1,8 +1,8 @@
-using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.TypeReferences;
-using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.TypeReferences.Builtin;
-using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.TypeReferences.Builtin.Integer;
+using Tq.CodeProcess.Core.EvaluationData.LanguageReferences.TypeReferences;
+using Tq.CodeProcess.Core.EvaluationData.LanguageReferences.TypeReferences.Builtin;
+using Tq.CodeProcess.Core.EvaluationData.LanguageReferences.TypeReferences.Builtin.Integer;
 
-namespace Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.FunctionReferences;
+namespace Tq.CodeProcess.Core.EvaluationData.LanguageReferences.FunctionReferences;
 
 public class SliceCallReference(StringEncoding encoding): FunctionReference
 {

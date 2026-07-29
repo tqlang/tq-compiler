@@ -1,21 +1,20 @@
 using System.Diagnostics;
-using Abstract.CodeProcess.Core.EvaluationData.LanguageObjects;
-using Abstract.CodeProcess.Core.EvaluationData.LanguageObjects.Attributes;
-using Abstract.CodeProcess.Core.EvaluationData.LanguageObjects.CodeObjects;
-using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences;
-using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.AttributeReferences;
-using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.TypeReferences;
-using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.TypeReferences.Builtin;
 using Abstract.CodeProcess.Core.Language.SyntaxNodes.Base;
 using Abstract.CodeProcess.Core.Language.SyntaxNodes.Expression;
 using Abstract.CodeProcess.Core.Language.SyntaxNodes.Misc;
 using Abstract.CodeProcess.Core.Language.SyntaxNodes.Value;
+using Tq.CodeProcess.Core.EvaluationData.LanguageObjects;
+using Tq.CodeProcess.Core.EvaluationData.LanguageObjects.Attributes;
+using Tq.CodeProcess.Core.EvaluationData.LanguageObjects.CodeObjects;
+using Tq.CodeProcess.Core.EvaluationData.LanguageReferences;
+using Tq.CodeProcess.Core.EvaluationData.LanguageReferences.AttributeReferences;
+using Tq.CodeProcess.Core.EvaluationData.LanguageReferences.TypeReferences.Builtin;
 
-namespace Abstract.CodeProcess;
+namespace Tq.CodeProcess;
 
 
 /*
- * Stage Two:
+ * Stage 2:
  *  Scans all the headers, unwraps the build-in
  *  attributes and evaluate header-level references.
  *  This step should be done early as it may dump
@@ -88,32 +87,6 @@ public partial class Analyser
                 case BuiltinAttributes.Override: if (reference is IOverrideAttribute @o) o.Override = true; break;
                 case BuiltinAttributes.ConstExp: if (reference is FunctionObject @c) c.ConstExp = true; break;
                 
-                case BuiltinAttributes.Extern:
-                {
-                    var node = builtInAttribute.syntaxNode;
-                    
-                    if (reference is not IExternModifier @externModifier)
-                        throw new Exception($"Attribute {attr} is not suitable to {reference.GetType().Name}");
-                    
-                    if (node.Children.Length != 3) throw new Exception("'Extern' expected arguments");
-                    var args = (node.Children[2] as ArgumentCollectionNode)!.Arguments;
-                    
-                    switch (args.Length)
-                    {
-                        case 2:
-                        {
-                            if (args[0] is not StringLiteralNode @strlit1)
-                                throw new Exception("'Extern' expected argument 0 as ComptimeString");
-                            if (args[1] is not StringLiteralNode @strlit2)
-                                throw new Exception("'Extern' expected argument 1 as ComptimeString");
-                            
-                            externModifier.Extern = (strlit1.RawContent, strlit2.RawContent);
-                            break;
-                        }
-                        default: throw new Exception($"'Extern' expected 2 arguments, found {args.Length}");
-                    }
-                } break;
-
                 case BuiltinAttributes.Export:
                 {
                     var node = builtInAttribute.syntaxNode;

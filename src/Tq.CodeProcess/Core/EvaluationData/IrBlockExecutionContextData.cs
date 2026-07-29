@@ -1,7 +1,7 @@
-using Abstract.CodeProcess.Core.EvaluationData.LanguageObjects;
-using Abstract.CodeProcess.Core.EvaluationData.LanguageObjects.CodeObjects;
+using Tq.CodeProcess.Core.EvaluationData.LanguageObjects;
+using Tq.CodeProcess.Core.EvaluationData.LanguageObjects.CodeObjects;
 
-namespace Abstract.CodeProcess.Core.EvaluationData;
+namespace Tq.CodeProcess.Core.EvaluationData;
 
 public class IrBlockExecutionContextData(LangObject obj)
 {

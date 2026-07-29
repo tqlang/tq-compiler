@@ -1,8 +1,8 @@
 using System.Text;
-using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences;
-using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.TypeReferences.Builtin;
+using Tq.CodeProcess.Core.EvaluationData.LanguageReferences;
+using Tq.CodeProcess.Core.EvaluationData.LanguageReferences.TypeReferences.Builtin;
 
-namespace Abstract.CodeProcess.Core.EvaluationData.LanguageObjects.CodeObjects;
+namespace Tq.CodeProcess.Core.EvaluationData.LanguageObjects.CodeObjects;
 
 public class ParameterObject(Reference type, string name)
 {

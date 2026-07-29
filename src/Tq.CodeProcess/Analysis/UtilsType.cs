@@ -1,25 +1,19 @@
 using System.Diagnostics;
-using Abstract.CodeProcess.Core.EvaluationData.IntermediateTree;
-using Abstract.CodeProcess.Core.EvaluationData.IntermediateTree.Expressions;
-using Abstract.CodeProcess.Core.EvaluationData.IntermediateTree.Values;
-using Abstract.CodeProcess.Core.EvaluationData.LanguageObjects;
-using Abstract.CodeProcess.Core.EvaluationData.LanguageObjects.CodeObjects;
-using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences;
-using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.CodeReferences;
-using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.Dotnet;
-using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.FieldReferences;
-using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.FunctionReferences;
-using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.TypedefReferences;
-using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.TypeReferences;
-using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.TypeReferences.Builtin;
-using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.TypeReferences.Builtin.Integer;
-using Abstract.CodeProcess.Core.Language.SyntaxNodes.Base;
-using Abstract.CodeProcess.Core.Language.SyntaxNodes.Expression;
-using Abstract.CodeProcess.Core.Language.SyntaxNodes.Expression.TypeModifiers;
-using Abstract.CodeProcess.Core.Language.SyntaxNodes.Value;
-using AsmResolver.DotNet.Signatures.Types;
+using Tq.CodeProcess.Core.EvaluationData.IntermediateTree;
+using Tq.CodeProcess.Core.EvaluationData.IntermediateTree.Expressions;
+using Tq.CodeProcess.Core.EvaluationData.IntermediateTree.Values;
+using Tq.CodeProcess.Core.EvaluationData.LanguageObjects;
+using Tq.CodeProcess.Core.EvaluationData.LanguageObjects.CodeObjects;
+using Tq.CodeProcess.Core.EvaluationData.LanguageReferences;
+using Tq.CodeProcess.Core.EvaluationData.LanguageReferences.CodeReferences;
+using Tq.CodeProcess.Core.EvaluationData.LanguageReferences.FieldReferences;
+using Tq.CodeProcess.Core.EvaluationData.LanguageReferences.FunctionReferences;
+using Tq.CodeProcess.Core.EvaluationData.LanguageReferences.TypedefReferences;
+using Tq.CodeProcess.Core.EvaluationData.LanguageReferences.TypeReferences;
+using Tq.CodeProcess.Core.EvaluationData.LanguageReferences.TypeReferences.Builtin;
+using Tq.CodeProcess.Core.EvaluationData.LanguageReferences.TypeReferences.Builtin.Integer;
 
-namespace Abstract.CodeProcess;
+namespace Tq.CodeProcess;
 
 public partial class Analyser
 {
@@ -40,10 +34,6 @@ public partial class Analyser
                         result = structt;
                         break;
                     
-                    case DotnetTypeReference dotnetType:
-                        result = dotnetType;
-                        break;
-
                     case SolvedTypedefNamedValueReference tdff:
                         result = tdff.Type;
                         break;
@@ -124,21 +114,6 @@ public partial class Analyser
     /// <returns></returns>
     private IrExpression SolveTypeCast(ITypeReference typeTo, IrExpression value, IrExpression origin, bool @explicit = false)
     {
-        switch (typeTo)
-        {
-            case DotnetTypeReference { Reference.Reference.FullName: "System.Span`1" } @span when value.Type is SliceTypeReference slice:
-            {
-                var elementType = slice.ElementType;
-                return new IrConv(
-                    origin.Origin, value,
-                    new DotnetGenericImplReference(
-                        span.Reference,
-                        new GenericInstanceTypeSignature(span.Reference.Reference, true),
-                        [(ITypeReference)elementType]
-                    ));
-            }
-        }
-        
         switch (value)
         {
             case IrIntegerLiteral @lit:
@@ -297,41 +272,7 @@ public partial class Analyser
             
             case TypeTypeReference:
                 return typeFrom is TypeTypeReference ? Suitability.Perfect : Suitability.None;
-
-            case DotnetTypeReference d:
-            {
-                switch (typeFrom)
-                {
-                    case DotnetTypeReference dotnetType:
-                        return d.Reference == dotnetType.Reference ? Suitability.Perfect : Suitability.None;
-
-                    case TypedefReference typedef:
-                    {
-                        if (typedef.Typedef.BackType is not DotnetTypeReference @dotnetType) return Suitability.None;
-                        return d.Reference == dotnetType.Reference ?  Suitability.Perfect : Suitability.None;
-                    }
-                    
-                    default: return Suitability.None;
-                }
-            }
-
-            case DotnetGenericImplReference gd:
-            {
-                switch (typeTo)
-                {
-                    case DotnetGenericImplReference dotnetType:
-                    {
-                        if (gd.Signature.GenericType == dotnetType.Signature.GenericType
-                            && IsAssignableTo(gd.Signature.TypeArguments[0], dotnetType.Signature.TypeArguments[0]))
-                            return Suitability.Perfect;
-                    } break;
-
-                    case SliceTypeReference when gd.Reference.Reference.FullName == "System.Span`1":
-                        return Suitability.NeedsSoftCast;
-                }
-                return Suitability.None;
-            }
-
+            
             default: throw new UnreachableException();
         }
     }
@@ -348,12 +289,7 @@ public partial class Analyser
                 if (typeFrom is StructReference @fromStruct && toStruct == fromStruct) return true;
             } break;
 
-            case DotnetTypeReference @toDotnet:
-            {
-                if (toDotnet.Reference.Reference.FullName == "System.Object") return true;
-                if (typeFrom is DotnetTypeReference @fromDotnet && fromDotnet.Reference == toDotnet.Reference) return true;
-            } break;
-
+            
             case RuntimeIntegerTypeReference @toRuntime when typeFrom is RuntimeIntegerTypeReference @fromRuntime:
             {
                 if (toRuntime.Signed != fromRuntime.Signed) return false;
@@ -365,12 +301,7 @@ public partial class Analyser
         
         return false;
     }
-    private static bool IsAssignableTo(TypeSignature typeFrom, TypeSignature typeTo)
-    {
-        if (typeTo.FullName == "System.Object") return true;
-        return typeFrom == typeTo;
-    }
-    
+
     private enum Suitability
     {
         None = 0,

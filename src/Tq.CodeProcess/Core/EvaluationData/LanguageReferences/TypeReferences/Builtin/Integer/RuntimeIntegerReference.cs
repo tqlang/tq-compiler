@@ -1,4 +1,6 @@
-namespace Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.TypeReferences.Builtin.Integer;
+using Abstract.CodeProcess.Core;
+
+namespace Tq.CodeProcess.Core.EvaluationData.LanguageReferences.TypeReferences.Builtin.Integer;
 
 public class RuntimeIntegerTypeReference : IntegerTypeReference
 {

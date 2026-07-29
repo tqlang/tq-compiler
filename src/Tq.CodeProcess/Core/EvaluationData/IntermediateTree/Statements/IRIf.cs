@@ -1,7 +1,8 @@
 using System.Text;
+using Abstract.CodeProcess.Core;
 using Abstract.CodeProcess.Core.Language.SyntaxNodes.Base;
 
-namespace Abstract.CodeProcess.Core.EvaluationData.IntermediateTree.Statements;
+namespace Tq.CodeProcess.Core.EvaluationData.IntermediateTree.Statements;
 
 public class IRIf(SyntaxNode origin, IrExpression exp, IrBlock then) : IRStatement(origin), IIfElse
 {

@@ -1,7 +1,7 @@
-using Abstract.CodeProcess.Core.EvaluationData.LanguageObjects;
-using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.TypeReferences;
+using Tq.CodeProcess.Core.EvaluationData.LanguageObjects;
+using Tq.CodeProcess.Core.EvaluationData.LanguageReferences.TypeReferences;
 
-namespace Abstract.CodeProcess.Core.EvaluationData.Misc;
+namespace Tq.CodeProcess.Core.EvaluationData.Misc;
 
 public struct GenericOverloadResult(ICallable c, ITypeReference[] generics) : ISolvedOverloadResult
 {

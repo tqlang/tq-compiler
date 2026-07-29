@@ -1,25 +1,18 @@
 using System.Text;
 using Abstract.CodeProcess.Core;
-using Abstract.CodeProcess.Core.EvaluationData;
-using Abstract.CodeProcess.Core.EvaluationData.LanguageObjects;
-using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.AttributeReferences;
 using Abstract.CodeProcess.Core.Language.Module;
-using Abstract.CodeProcess.Dotnet;
-using AsmResolver.DotNet;
+using Tq.CodeProcess.Core.EvaluationData;
+using Tq.CodeProcess.Core.EvaluationData.LanguageObjects;
+using Tq.CodeProcess.Core.EvaluationData.LanguageReferences.AttributeReferences;
 
-namespace Abstract.CodeProcess;
+namespace Tq.CodeProcess;
 
-public partial class Analyser(ErrorHandler handler)
+public partial class Analyser(ErrorHandler errorHandler)
 {
-    private readonly ErrorHandler _errorHandler = handler;
-    
     private readonly List<BaseModuleObject> _modules = [];
     private readonly List<TqNamespaceObject> _namespaces = [];
     private readonly Dictionary<string[], LangObject> _globalReferenceTable = new(new IdentifierComparer());
     private readonly Stack<List<AttributeReference>> _onHoldAttributes = [];
-    
-    private AssemblyResolver _assemblyResolver = null!;
-    private readonly List<AssemblyDefinition> _assemblies = [];
     
     public ProgramObject? Analyze(
         string programName,
@@ -28,16 +21,13 @@ public partial class Analyser(ErrorHandler handler)
         bool dumpGlobalTable = false,
         bool dumpEvaluatedData = false)
     {
-        // Setting up
-        _assemblyResolver = new AssemblyResolver(new Version(10, 0,0 ,0));
-        
         // Stage 1
         SearchReferences(modules, includes);
         
         if (dumpEvaluatedData) DumpEvaluatedData();
         if (dumpGlobalTable) DumpGlobalTable();
 
-        if (_errorHandler.ErrorCount > 0) return null!;
+        if (errorHandler.ErrorCount > 0) return null!;
         
         // Stage 2
         ScanHeadersMetadata();
@@ -45,7 +35,7 @@ public partial class Analyser(ErrorHandler handler)
         if (dumpEvaluatedData) DumpEvaluatedData();
         if (dumpGlobalTable) DumpGlobalTable();
         
-        if (_errorHandler.ErrorCount > 0) return null!;
+        if (errorHandler.ErrorCount > 0) return null!;
         
         // Stage 3
         ScanObjectHeaders();
@@ -54,7 +44,7 @@ public partial class Analyser(ErrorHandler handler)
         if (dumpEvaluatedData) DumpEvaluatedData();
         if (dumpGlobalTable) DumpGlobalTable();
         
-        if (_errorHandler.ErrorCount > 0) return null!;
+        if (errorHandler.ErrorCount > 0) return null!;
         
         // Stage 4
         DoSemanticAnalysis();
@@ -62,10 +52,9 @@ public partial class Analyser(ErrorHandler handler)
         if (dumpEvaluatedData) DumpEvaluatedData();
         if (dumpGlobalTable) DumpGlobalTable();
 
-        if (_errorHandler.ErrorCount > 0) return null!;
+        if (errorHandler.ErrorCount > 0) return null!;
         return new ProgramObject(
             programName,
-            _assemblyResolver,
             [.. _modules],
             [.. _namespaces]
         );
@@ -88,10 +77,6 @@ public partial class Analyser(ErrorHandler handler)
                 TypedefObject => "TDef",
                 TypedefNamedValue => "DefN",
                 FieldObject @fld => fld.Static ? "SFld" : "LFld",
-                DotnetNamespaceObject @dn => "DotNS",
-                DotnetTypeObject @dt => "DClas",
-                DotnetMethodGroupObject => "DMtGp",
-                DotnetMethodObject => "DMthd",
                 
                 _ => throw new NotImplementedException()
             };

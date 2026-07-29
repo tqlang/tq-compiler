@@ -1,13 +1,3 @@
-###    TQ STANDARD LIBRARY SCRIPT    ###
-from Dotnet.System.Environment import {
-    GetCommandLineArgs as CsGetArgs,
-    Exit as CsExit,
-}
+@public func getProgramArguments() []string {}
 
-@public func getProgramArguments() []string {
-    return CsGetArgs()
-}
-
-@public func exit(uint status) noreturn {
-    CsExit(status as i32)
-}
+@public func exit(uint status) noreturn {}

@@ -1,11 +1,11 @@
-using Abstract.CodeProcess.Core.EvaluationData.IntermediateTree.Values;
-using Abstract.CodeProcess.Core.EvaluationData.LanguageObjects;
-using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.FunctionReferences;
-using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.TypeReferences;
-using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.TypeReferences.Builtin;
 using Abstract.CodeProcess.Core.Language.SyntaxNodes.Base;
+using Tq.CodeProcess.Core.EvaluationData.IntermediateTree.Values;
+using Tq.CodeProcess.Core.EvaluationData.LanguageObjects;
+using Tq.CodeProcess.Core.EvaluationData.LanguageReferences.FunctionReferences;
+using Tq.CodeProcess.Core.EvaluationData.LanguageReferences.TypeReferences;
+using Tq.CodeProcess.Core.EvaluationData.LanguageReferences.TypeReferences.Builtin;
 
-namespace Abstract.CodeProcess.Core.EvaluationData.IntermediateTree.Expressions;
+namespace Tq.CodeProcess.Core.EvaluationData.IntermediateTree.Expressions;
 
 public class IrCall(
     SyntaxNode origin,

@@ -1,11 +1,12 @@
 using System.Diagnostics;
-using System.Reflection;
 using System.Text.RegularExpressions;
 using Abstract.CodeProcess;
 using Abstract.CodeProcess.Core;
+using Tq.CodeProcess;
+using Analyser = Tq.CodeProcess.Analyser;
 using Module = Abstract.CodeProcess.Core.Language.Module.Module;
 
-namespace Abstract.Cli.Build;
+namespace Tq.Cli.Build;
 
 public static class Builder
 {

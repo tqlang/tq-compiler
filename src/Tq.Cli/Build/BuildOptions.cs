@@ -1,6 +1,6 @@
 using System.Text;
 
-namespace Abstract.Cli.Build;
+namespace Tq.Cli.Build;
 
 public class BuildOptions(string projectName)
 {

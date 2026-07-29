@@ -1,20 +1,7 @@
-from Dotnet.System.IO import {
-	FileInfo as CsFileInfo,
-}
-
-
 @public struct FileInfo {
-
-	let *CsFileInfo _fileInfo
 
 	@public let string name
 	@public let string directory
 	@public let uint length
 
-	constructor(*CsFileInfo fInfo) {
-		_fileInfo = fInfo
-		name      = fInfo.get_Name()
-		directory = fInfo.get_DirectoryName()
-		length    = fInfo.get_Length()
-	}
 }

@@ -1,7 +1,7 @@
-using Abstract.CodeProcess.Core.EvaluationData.LanguageObjects.CodeObjects;
-using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.TypeReferences;
+using Tq.CodeProcess.Core.EvaluationData.LanguageObjects.CodeObjects;
+using Tq.CodeProcess.Core.EvaluationData.LanguageReferences.TypeReferences;
 
-namespace Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.CodeReferences;
+namespace Tq.CodeProcess.Core.EvaluationData.LanguageReferences.CodeReferences;
 
 public class ParameterReference(ParameterObject param) : Reference
 {

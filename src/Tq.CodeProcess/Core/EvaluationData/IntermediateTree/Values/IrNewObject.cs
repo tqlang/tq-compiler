@@ -1,9 +1,10 @@
 using System.Text;
-using Abstract.CodeProcess.Core.EvaluationData.IntermediateTree.Expressions;
-using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.TypeReferences;
+using Abstract.CodeProcess.Core;
 using Abstract.CodeProcess.Core.Language.SyntaxNodes.Base;
+using Tq.CodeProcess.Core.EvaluationData.IntermediateTree.Expressions;
+using Tq.CodeProcess.Core.EvaluationData.LanguageReferences.TypeReferences;
 
-namespace Abstract.CodeProcess.Core.EvaluationData.IntermediateTree.Values;
+namespace Tq.CodeProcess.Core.EvaluationData.IntermediateTree.Values;
 
 public class IrNewObject(SyntaxNode origin, IrReference type, IrExpression[] args, IrAssign[] inlineAssigns) : IrExpression(origin)
 {

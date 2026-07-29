@@ -1,4 +1,4 @@
-namespace Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.TypeReferences.Builtin;
+namespace Tq.CodeProcess.Core.EvaluationData.LanguageReferences.TypeReferences.Builtin;
 
 public class AnytypeTypeReference : BuiltInTypeReference
 {

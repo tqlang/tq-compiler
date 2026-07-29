@@ -1,46 +1,7 @@
-from Dotnet.System.IO import {
-	FileStream as CsFStream,
-	SeekOrigin as CsSeekOrigin,
-	FileMode as CsFileMode,
-	FileAccess as CsFileAccess,
-	File as CsFile
-}
+@public func open(string path) File {}
 
-@public func open(string path) File {
-	let filestream = new CsFStream(path, FileMode.openOrCreate, FileAccess.RO)
-	return new File(filestream)
-}
+@public func fileExists(string path) bool {}
 
-@public func fileExists(string path) bool {
-	return CsFile.Exists(path)
-}
+@public func readAllText(string path) string {}
 
-@public func readAllText(string path) string {
-	return CsFile.ReadAllText(path)
-}
-
-@public func writeAllText(string path, string content) {
-	CsFile.WriteAllText(path, content)
-}
-
-
-@public typedef(CsSeekOrigin) SeekOrigin {
-	case begin = CsSeekOrigin.Begin
-	case current = CsSeekOrigin.Current
-	case end = CsSeekOrigin.End
-}
-
-@public typedef(CsFileMode) FileMode {
-	case createNew = CsFileMode.CreateNew
-	case create = CsFileMode.Create
-	case open = CsFileMode.Open
-	case openOrCreate = CsFileMode.OpenOrCreate
-	case truncate = CsFileMode.Truncate
-	case append = CsFileMode.Append
-}
-
-@public typedef(CsFileAccess) FileAccess {
-	case RO = CsFileAccess.Read
-	case WO = CsFileAccess.Write
-	case RW = CsFileAccess.ReadWrite
-}
+@public func writeAllText(string path, string content) {}

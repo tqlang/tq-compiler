@@ -1,5 +1,3 @@
-from Dotnet.System import { Span }
-
 @public func copy([]i8 source, []i8 target) { __copy_impl__(i8, source, target) }
 @public func copy([]u8 source, []u8 target) { __copy_impl__(u8, source, target) }
 @public func copy([]i16 source, []i16 target) { __copy_impl__(i16, source, target) }

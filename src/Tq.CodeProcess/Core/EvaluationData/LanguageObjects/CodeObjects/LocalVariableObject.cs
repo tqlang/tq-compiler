@@ -1,7 +1,6 @@
-using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences;
-using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.TypeReferences;
+using Tq.CodeProcess.Core.EvaluationData.LanguageReferences;
 
-namespace Abstract.CodeProcess.Core.EvaluationData.LanguageObjects.CodeObjects;
+namespace Tq.CodeProcess.Core.EvaluationData.LanguageObjects.CodeObjects;
 
 public class LocalVariableObject(Reference? typeref, string name)//: LangObject(null!)
 {

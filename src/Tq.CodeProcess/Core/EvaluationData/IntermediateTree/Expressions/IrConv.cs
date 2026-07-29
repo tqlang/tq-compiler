@@ -1,7 +1,7 @@
-using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.TypeReferences;
 using Abstract.CodeProcess.Core.Language.SyntaxNodes.Base;
+using Tq.CodeProcess.Core.EvaluationData.LanguageReferences.TypeReferences;
 
-namespace Abstract.CodeProcess.Core.EvaluationData.IntermediateTree.Expressions;
+namespace Tq.CodeProcess.Core.EvaluationData.IntermediateTree.Expressions;
 
 public class IrConv(SyntaxNode origin, IrExpression v, ITypeReference ty) : IrExpression(origin)
 {

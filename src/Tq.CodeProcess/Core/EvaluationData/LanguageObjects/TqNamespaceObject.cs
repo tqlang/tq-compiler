@@ -1,8 +1,9 @@
 using System.Text;
-using Abstract.CodeProcess.Core.EvaluationData.LanguageObjects.Containers;
+using Abstract.CodeProcess.Core;
 using Abstract.CodeProcess.Core.Language.SyntaxNodes.Control;
+using Tq.CodeProcess.Core.EvaluationData.LanguageObjects.Containers;
 
-namespace Abstract.CodeProcess.Core.EvaluationData.LanguageObjects;
+namespace Tq.CodeProcess.Core.EvaluationData.LanguageObjects;
 
 public class TqNamespaceObject(string n, NamespaceNode synNode) : BaseNamespaceObject(n),
     INamespaceContainer,

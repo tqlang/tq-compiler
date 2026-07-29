@@ -1,30 +1,29 @@
 using System.Diagnostics;
 using System.Numerics;
 using Abstract.CodeProcess.Core;
-using Abstract.CodeProcess.Core.EvaluationData;
-using Abstract.CodeProcess.Core.EvaluationData.IntermediateTree;
-using Abstract.CodeProcess.Core.EvaluationData.IntermediateTree.Expressions;
-using Abstract.CodeProcess.Core.EvaluationData.IntermediateTree.Statements;
-using Abstract.CodeProcess.Core.EvaluationData.IntermediateTree.Values;
-using Abstract.CodeProcess.Core.EvaluationData.LanguageObjects;
-using Abstract.CodeProcess.Core.EvaluationData.LanguageObjects.Attributes;
-using Abstract.CodeProcess.Core.EvaluationData.LanguageObjects.CodeObjects;
-using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences;
-using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.CodeReferences;
-using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.Dotnet;
-using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.FunctionReferences;
-using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.NamespaceReferences;
-using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.TypeReferences;
-using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.TypeReferences.Builtin;
-using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.TypeReferences.Builtin.Integer;
-using Abstract.CodeProcess.Core.EvaluationData.Misc;
 using Abstract.CodeProcess.Core.Language.SyntaxNodes.Base;
 using Abstract.CodeProcess.Core.Language.SyntaxNodes.Value;
+using Tq.CodeProcess.Core.EvaluationData;
+using Tq.CodeProcess.Core.EvaluationData.IntermediateTree;
+using Tq.CodeProcess.Core.EvaluationData.IntermediateTree.Expressions;
+using Tq.CodeProcess.Core.EvaluationData.IntermediateTree.Statements;
+using Tq.CodeProcess.Core.EvaluationData.IntermediateTree.Values;
+using Tq.CodeProcess.Core.EvaluationData.LanguageObjects;
+using Tq.CodeProcess.Core.EvaluationData.LanguageObjects.Attributes;
+using Tq.CodeProcess.Core.EvaluationData.LanguageObjects.CodeObjects;
+using Tq.CodeProcess.Core.EvaluationData.LanguageReferences;
+using Tq.CodeProcess.Core.EvaluationData.LanguageReferences.CodeReferences;
+using Tq.CodeProcess.Core.EvaluationData.LanguageReferences.FunctionReferences;
+using Tq.CodeProcess.Core.EvaluationData.LanguageReferences.NamespaceReferences;
+using Tq.CodeProcess.Core.EvaluationData.LanguageReferences.TypeReferences;
+using Tq.CodeProcess.Core.EvaluationData.LanguageReferences.TypeReferences.Builtin;
+using Tq.CodeProcess.Core.EvaluationData.LanguageReferences.TypeReferences.Builtin.Integer;
+using Tq.CodeProcess.Core.EvaluationData.Misc;
 
-namespace Abstract.CodeProcess;
+namespace Tq.CodeProcess;
 
 /*
- * Stage Four:
+ * Stage 4:
  *  Semantic analysis, solving automatic type inference, type conversion,
  *  operator overloading, function overloading, etc.
  */
@@ -270,9 +269,6 @@ public partial class Analyser
             FunctionGroupReference @r => SolveFunctionOverload(
                 r.FunctionGroup.Overloads.ToArray<ICallable>(), node.Arguments, node.Origin),
             
-            DotnetMethodGroupReference @r => SolveFunctionOverload(
-                r.MethodGroup.Overloads.ToArray<ICallable>(), node.Arguments, node.Origin),
-            
             _ => throw new NotImplementedException(),
         };
         
@@ -304,15 +300,9 @@ public partial class Analyser
     {
         node.Target = (IrReference)NodeSemaAnal(node.Target, ctx);
         var instanceTypeRef = GetEffectiveTypeReference(node.Target);
-        
         if (instanceTypeRef is IrReference { IsSolved: false }) throw new Exception($"Not able to resolve reference to '{node.Origin}'");
-        if (instanceTypeRef is not StructReference and not DotnetTypeReference)
-            throw new Exception($"Cannot instantiate type {node.Origin} as an object");
         
         node.InstanceType = instanceTypeRef;
-        if (instanceTypeRef is DotnetTypeReference { Reference.IsValueType: false }) 
-            node.OverrideReturnType = new ReferenceTypeReference((Reference)instanceTypeRef);
-        
         for (var i = 0; i < node.Arguments.Length; i++)
             node.Arguments[i] = (IrExpression)NodeSemaAnal(node.Arguments[i], ctx);
 
@@ -320,10 +310,7 @@ public partial class Analyser
         {
             StructReference structRef => SolveFunctionOverload(
                 structRef.Struct.Constructors.ToArray<ICallable>(), node.Arguments, node.Origin),
-            
-            DotnetTypeReference dotnetRef => SolveFunctionOverload(
-                dotnetRef.Reference.Constructors.ToArray<ICallable>(), node.Arguments, node.Origin),
-            
+
             _ => throw new NotImplementedException()
         };
 
@@ -914,16 +901,6 @@ public partial class Analyser
                         ? new IrReference(origin, GetObjectReference(refe))
                         : new IrReference(origin),
                 
-                DotnetTypeReference @dotnetType
-                    => @dotnetType.Reference.SearchChild(accessName, SearchChildMode.OnlyStatic) is {} @refe
-                        ? new IrReference(origin, GetObjectReference(refe))
-                        : new IrReference(origin),
-                
-                DotnetGenericImplReference @dotnetGenericType
-                    => dotnetGenericType.Reference.SearchChild(accessName, SearchChildMode.OnlyStatic) is {} @refe
-                        ? new IrReference(origin, GetObjectReference(refe))
-                        : new IrReference(origin),
-                
                 SolvedNamespaceReference @staticTypedef
                     => staticTypedef.Namespace.SearchChild(accessName, SearchChildMode.OnlyStatic) is {} @refe
                         ? new IrReference(origin, GetObjectReference(refe))
@@ -931,11 +908,6 @@ public partial class Analyser
                 
                 _ => throw new NotImplementedException(),
             },
-            
-            DotnetTypeReference @instanceRef
-                => instanceRef.Reference.SearchChild(accessName, SearchChildMode.OnlyInstance) is {} @refe
-                    ? new IrAccess(origin, accessBase, new IrReference(origin, GetObjectReference(refe)))
-                    : new IrReference(origin),
             
             StructReference instanceRef
                 => instanceRef.Struct.SearchChild(accessName, SearchChildMode.OnlyInstance) is {} @refe

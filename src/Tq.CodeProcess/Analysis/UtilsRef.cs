@@ -1,15 +1,12 @@
-using System.Diagnostics.CodeAnalysis;
-using Abstract.CodeProcess.Core.EvaluationData.LanguageObjects;
-using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences;
-using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.Dotnet;
-using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.FieldReferences;
-using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.FunctionReferences;
-using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.NamespaceReferences;
-using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.TypedefReferences;
-using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.TypeReferences;
-using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.TypeReferences.Builtin;
+using Tq.CodeProcess.Core.EvaluationData.LanguageObjects;
+using Tq.CodeProcess.Core.EvaluationData.LanguageReferences;
+using Tq.CodeProcess.Core.EvaluationData.LanguageReferences.FieldReferences;
+using Tq.CodeProcess.Core.EvaluationData.LanguageReferences.FunctionReferences;
+using Tq.CodeProcess.Core.EvaluationData.LanguageReferences.NamespaceReferences;
+using Tq.CodeProcess.Core.EvaluationData.LanguageReferences.TypedefReferences;
+using Tq.CodeProcess.Core.EvaluationData.LanguageReferences.TypeReferences;
 
-namespace Abstract.CodeProcess;
+namespace Tq.CodeProcess;
 
 public partial class Analyser
 {
@@ -28,12 +25,6 @@ public partial class Analyser
             TypedefNamedValue @i => new SolvedTypedefNamedValueReference(i),
 
             TqNamespaceObject @n => new NamespaceReference(n),
-            
-            DotnetTypeObject @t => new DotnetTypeReference(t),
-            DotnetFieldObject @f => new DotnetFieldReference(f),
-            DotnetNamespaceObject @n => new SolvedNamespaceReference(n),
-            DotnetMethodGroupObject @mg => new DotnetMethodGroupReference(mg),
-            DotnetStaticClassObject @sc => new SolvedNamespaceReference(sc),
             
             _ => throw new NotImplementedException(),
         };

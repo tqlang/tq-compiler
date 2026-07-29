@@ -1,33 +1,31 @@
 using System.Diagnostics;
 using Abstract.CodeProcess.Core;
-using Abstract.CodeProcess.Core.EvaluationData;
-using Abstract.CodeProcess.Core.EvaluationData.Exceptions;
-using Abstract.CodeProcess.Core.EvaluationData.IntermediateTree;
-using Abstract.CodeProcess.Core.EvaluationData.IntermediateTree.Expressions;
-using Abstract.CodeProcess.Core.EvaluationData.IntermediateTree.Statements;
-using Abstract.CodeProcess.Core.EvaluationData.IntermediateTree.Values;
-using Abstract.CodeProcess.Core.EvaluationData.LanguageObjects;
-using Abstract.CodeProcess.Core.EvaluationData.LanguageObjects.CodeObjects;
-using Abstract.CodeProcess.Core.EvaluationData.LanguageObjects.Containers;
-using Abstract.CodeProcess.Core.EvaluationData.LanguageObjects.Imports;
-using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences;
-using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.CodeReferences;
-using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.TypeReferences;
-using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.TypeReferences.Builtin;
-using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.TypeReferences.Builtin.Integer;
 using Abstract.CodeProcess.Core.Language;
 using Abstract.CodeProcess.Core.Language.SyntaxNodes.Base;
 using Abstract.CodeProcess.Core.Language.SyntaxNodes.Expression;
 using Abstract.CodeProcess.Core.Language.SyntaxNodes.Expression.TypeModifiers;
 using Abstract.CodeProcess.Core.Language.SyntaxNodes.Statement;
 using Abstract.CodeProcess.Core.Language.SyntaxNodes.Value;
-using AsmResolver.DotNet;
+using Tq.CodeProcess.Core.EvaluationData;
+using Tq.CodeProcess.Core.EvaluationData.Exceptions;
+using Tq.CodeProcess.Core.EvaluationData.IntermediateTree;
+using Tq.CodeProcess.Core.EvaluationData.IntermediateTree.Expressions;
+using Tq.CodeProcess.Core.EvaluationData.IntermediateTree.Statements;
+using Tq.CodeProcess.Core.EvaluationData.IntermediateTree.Values;
+using Tq.CodeProcess.Core.EvaluationData.LanguageObjects;
+using Tq.CodeProcess.Core.EvaluationData.LanguageObjects.CodeObjects;
+using Tq.CodeProcess.Core.EvaluationData.LanguageObjects.Containers;
+using Tq.CodeProcess.Core.EvaluationData.LanguageObjects.Imports;
+using Tq.CodeProcess.Core.EvaluationData.LanguageReferences;
+using Tq.CodeProcess.Core.EvaluationData.LanguageReferences.CodeReferences;
+using Tq.CodeProcess.Core.EvaluationData.LanguageReferences.TypeReferences;
+using Tq.CodeProcess.Core.EvaluationData.LanguageReferences.TypeReferences.Builtin;
+using Tq.CodeProcess.Core.EvaluationData.LanguageReferences.TypeReferences.Builtin.Integer;
 
-namespace Abstract.CodeProcess;
-
+namespace Tq.CodeProcess;
 
 /*
- * Stage Three:
+ * Stage 3:
  *  Processes every function body into a intermediate
  *  representation that will be used for data storage,
  *  compile time execution, runtime evaluation and
@@ -66,7 +64,6 @@ public partial class Analyser
             if (i.Extends is UnknownReference) throw new Exception($"Cannot solve type {i.SyntaxNode:pos}");
             if (i.Extends is not StructReference) throw new Exception("Non-struct types cannot be inherited");
             if (i.Extends is StructReference { Struct.Static: true }) throw new Exception("Cannot extends static type");
-            Console.WriteLine(i.Extends);
         }
         
         var structsSortedList = TopologicalSort(_globalReferenceTable.Values.OfType<StructObject>());
@@ -112,8 +109,8 @@ public partial class Analyser
             }
             catch (CompilationException e)
             {
-                _errorHandler.SetFile(sourceScript);
-                _errorHandler.RegisterError(e);
+                errorHandler.SetFile(sourceScript);
+                errorHandler.RegisterError(e);
             }
         }
     }
@@ -127,8 +124,8 @@ public partial class Analyser
             }
             catch (CompilationException e)
             {
-                _errorHandler.SetFile(structure.SourceScript);
-                _errorHandler.RegisterError(e);
+                errorHandler.SetFile(structure.SourceScript);
+                errorHandler.RegisterError(e);
             }
         }
 
@@ -147,8 +144,8 @@ public partial class Analyser
         }
         catch (CompilationException e)
         {
-            _errorHandler.SetFile(typedef.SourceScript);
-            _errorHandler.RegisterError(e);
+            errorHandler.SetFile(typedef.SourceScript);
+            errorHandler.RegisterError(e);
         }
     }
     private void ScanFunctionMeta(FunctionObject function)
@@ -691,8 +688,8 @@ public partial class Analyser
         }
         catch (CompilationException e)
         {
-            _errorHandler.SetFile(structure.SourceScript);
-            _errorHandler.RegisterError(e);
+            errorHandler.SetFile(structure.SourceScript);
+            errorHandler.RegisterError(e);
         }
     }
     
@@ -905,11 +902,6 @@ public partial class Analyser
                 }
 
                 return parent as BaseNamespaceObject;
-            }
-            case DotnetModuleObject dotnetModule:
-            {
-                var stringNamespace = string.Join('.', path[1..]);
-                return DotnetMembers.GetOrCreateNamespaceObject(stringNamespace, dotnetModule);
             }
             
             default: throw new UnreachableException();

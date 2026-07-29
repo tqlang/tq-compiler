@@ -1,7 +1,8 @@
-using Abstract.CodeProcess.Core.EvaluationData.LanguageObjects;
-using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.TypeReferences.Builtin;
+using Abstract.CodeProcess.Core;
+using Tq.CodeProcess.Core.EvaluationData.LanguageObjects;
+using Tq.CodeProcess.Core.EvaluationData.LanguageReferences.TypeReferences.Builtin;
 
-namespace Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.TypeReferences;
+namespace Tq.CodeProcess.Core.EvaluationData.LanguageReferences.TypeReferences;
 
 public class TypedefReference(TypedefObject typedef) : Reference, ITypeReference
 {

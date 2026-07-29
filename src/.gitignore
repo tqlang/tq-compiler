@@ -2,8 +2,8 @@
 .vscode/
 *.user
 
-*/.abs-cache/
-*/.abs-out/
+*/.tq-cache/
+*/.tq-out/
 
 */bin/
 */obj/

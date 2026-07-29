@@ -1,6 +1,6 @@
-using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.TypeReferences;
+using Tq.CodeProcess.Core.EvaluationData.LanguageReferences.TypeReferences;
 
-namespace Abstract.CodeProcess.Core.EvaluationData.LanguageReferences;
+namespace Tq.CodeProcess.Core.EvaluationData.LanguageReferences;
 
 public abstract class Reference
 {

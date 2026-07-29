@@ -1,21 +1,19 @@
 using System.Diagnostics;
-using Abstract.CodeProcess.Core.EvaluationData.LanguageObjects;
-using Abstract.CodeProcess.Core.EvaluationData.LanguageObjects.Containers;
-using Abstract.CodeProcess.Core.EvaluationData.LanguageObjects.Imports;
-using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences;
-using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.AttributeReferences;
-using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.TypeReferences;
 using Abstract.CodeProcess.Core.Language.Module;
 using Abstract.CodeProcess.Core.Language.SyntaxNodes.Control;
 using Abstract.CodeProcess.Core.Language.SyntaxNodes.Expression;
 using Abstract.CodeProcess.Core.Language.SyntaxNodes.Misc;
 using Abstract.CodeProcess.Core.Language.SyntaxNodes.Value;
-using AsmResolver.DotNet;
+using Tq.CodeProcess.Core.EvaluationData.LanguageObjects;
+using Tq.CodeProcess.Core.EvaluationData.LanguageObjects.Containers;
+using Tq.CodeProcess.Core.EvaluationData.LanguageObjects.Imports;
+using Tq.CodeProcess.Core.EvaluationData.LanguageReferences;
+using Tq.CodeProcess.Core.EvaluationData.LanguageReferences.AttributeReferences;
 
-namespace Abstract.CodeProcess;
+namespace Tq.CodeProcess;
 
 /*
- * Stage One:
+ * Stage 1:
  *  Iterates though the syntactic tree and
  *  collects the headers for general metadata
  *  generation. All generated data is organized
@@ -27,7 +25,6 @@ public partial class Analyser
     private void SearchReferences(Module[] modules, string[] includes)
     {
         _modules.Clear();
-        _assemblies.Clear();
         _namespaces.Clear();
         _onHoldAttributes.Clear();
         _globalReferenceTable.Clear();
@@ -57,31 +54,11 @@ public partial class Analyser
                 SearchNamespaceRecursive(obj);
             }
 
-            LoadGlobalsRecursive(module);
+            BakeTreeRecursive(module);
             _modules.Add(module);
         }
         
-        // Search dotnet included references
-        var dotnetModule = new DotnetModuleObject("Dotnet");
-        foreach (var (_, i) in _assemblyResolver.Assemblies)
-        {
-            var res = _assemblyResolver.Resolve(i);
-            if (res?.ManifestModule != null) dotnetModule.AddModule(res.ManifestModule);
-        }
-        foreach (var i in includes)
-        {
-            var asmRef = new AssemblyReference(i, new Version());
-            var res = _assemblyResolver.Resolve(asmRef);
-            if (res == null) throw new Exception($"Assembly '{i}' not found");
-            _assemblies.Add(res);
-            
-            if (res.ManifestModule != null) dotnetModule.AddModule(res.ManifestModule);
-        }
-        LoadGlobalsRecursive(dotnetModule);
-        _modules.Add(dotnetModule);
-        
         _modules.TrimExcess();
-        _assemblies.TrimExcess();
         _namespaces.TrimExcess();
         _onHoldAttributes.Clear();
     }
@@ -102,7 +79,7 @@ public partial class Analyser
         foreach (var unbounded in poppedList)
         {
             try { throw new Exception($"Attribute {unbounded} not assigned to any member"); }
-            catch (Exception e) { _errorHandler.RegisterError(e); }
+            catch (Exception e) { errorHandler.RegisterError(e); }
         }
     }
     private void SearchGenericScopeRecursive(LangObject parent, ControlNode node, SourceScript script)
@@ -233,7 +210,7 @@ public partial class Analyser
             foreach (var unbinded in poppedList)
             {
                 try { throw new Exception($"Attribute {unbinded} not assigned to any member"); }
-                catch (Exception e) { _errorHandler.RegisterError(e); }
+                catch (Exception e) { errorHandler.RegisterError(e); }
             }
         } while (false);
 
@@ -257,7 +234,7 @@ public partial class Analyser
             foreach (var unbinded in poppedList)
             {
                 try { throw new Exception($"Attribute {unbinded} not assigned to any member"); }
-                catch (Exception e) { _errorHandler.RegisterError(e); }
+                catch (Exception e) { errorHandler.RegisterError(e); }
             }
         } while (false);
 
@@ -302,14 +279,14 @@ public partial class Analyser
         return dtor;
     }
 
-    private void LoadGlobalsRecursive(LangObject obj)
+    private void BakeTreeRecursive(LangObject obj)
     {
         if (obj is not BaseModuleObject) _globalReferenceTable.Add(obj.Global, obj);
         
         if (obj is TqModuleObject { Root: not null } @m)
         {
             m.Root.Parent = m;
-            LoadGlobalsRecursive(m.Root);
+            BakeTreeRecursive(m.Root);
         }
         
         if (obj is INamespaceContainer @nc)
@@ -317,7 +294,7 @@ public partial class Analyser
             foreach (var i in nc.Namespaces)
             {
                 i.Parent = obj;
-                LoadGlobalsRecursive(i);
+                BakeTreeRecursive(i);
             }
         }
 
@@ -325,21 +302,21 @@ public partial class Analyser
             foreach (var i in fc.Fields)
             {
                 i.Parent = obj;
-                LoadGlobalsRecursive(i);
+                BakeTreeRecursive(i);
             }
 
         if (obj is IStructContainer @sc)
             foreach (var i in sc.Structs)
             {
                 i.Parent = obj;
-                LoadGlobalsRecursive(i);
+                BakeTreeRecursive(i);
             }
 
         if (obj is ITypedefContainer @tc)
             foreach (var i in tc.Typedefs)
             {
                 i.Parent = obj;
-                LoadGlobalsRecursive(i);
+                BakeTreeRecursive(i);
             }
 
         if (obj is IFunctionContainer gc)
@@ -351,45 +328,13 @@ public partial class Analyser
                     j.Parent = obj;
                     j.ParentGroup = i;
                 }
-                LoadGlobalsRecursive(i);
+                BakeTreeRecursive(i);
             }
         
         if (obj is ICtorDtorContainer @cdc)
         {
             foreach (var i in cdc.Constructors) i.Parent = obj;
             foreach (var i in cdc.Destructors) i.Parent = obj;
-        }
-        
-        if (obj is IDotnetTypeContainer dc)
-            foreach (var i in dc.Types)
-            {
-                i.Parent = obj;
-                LoadGlobalsRecursive(i);
-            }
-        
-        if (obj is IDotnetFieldContainer fd)
-            foreach (var i in fd.Fields)
-            {
-                i.Parent = obj;
-                LoadGlobalsRecursive(i);
-            }
-        
-        if (obj is IDotnetMethodContainer dm)
-            foreach (var i in dm.Methods)
-            {
-                i.Parent = obj;
-                foreach (var j in i.Overloads)
-                {
-                    j.Parent = obj;
-                    j.MethodGroup = i;
-                }
-                LoadGlobalsRecursive(i);
-            }
-
-        if (obj is IDotnetCtorDtorContainer c)
-        {
-            foreach (var i in c.Constructors) i.Parent = obj;
-            c.Destructor?.Parent = obj;
         }
     }
     

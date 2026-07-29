@@ -1,6 +1,6 @@
-﻿using Abstract.Cli.Build;
+﻿using Tq.Cli.Build;
 
-namespace Abstract.Cli;
+namespace Tq.Cli;
 
 public class Program
 {

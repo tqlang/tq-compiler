@@ -1,4 +1,4 @@
-namespace Abstract.CodeProcess.Core.EvaluationData.LanguageObjects.Containers;
+namespace Tq.CodeProcess.Core.EvaluationData.LanguageObjects.Containers;
 
 public interface IFieldContainer
 {

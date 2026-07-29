@@ -1,6 +1,6 @@
-using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.TypeReferences.Builtin;
+using Tq.CodeProcess.Core.EvaluationData.LanguageReferences.TypeReferences.Builtin;
 
-namespace Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.TypeReferences;
+namespace Tq.CodeProcess.Core.EvaluationData.LanguageReferences.TypeReferences;
 
 public interface ITypeReference
 {

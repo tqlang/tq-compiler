@@ -1,8 +1,9 @@
 using System.Text;
-using Abstract.CodeProcess.Core.EvaluationData.IntermediateTree;
-using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.TypeReferences.Builtin;
+using Abstract.CodeProcess.Core;
+using Tq.CodeProcess.Core.EvaluationData.IntermediateTree;
+using Tq.CodeProcess.Core.EvaluationData.LanguageReferences.TypeReferences.Builtin;
 
-namespace Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.TypeReferences;
+namespace Tq.CodeProcess.Core.EvaluationData.LanguageReferences.TypeReferences;
 
 public class GenericTypeImplReference(ITypeReference generic) : Reference, ITypeReference
 {

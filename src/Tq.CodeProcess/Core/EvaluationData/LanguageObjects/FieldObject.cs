@@ -1,12 +1,12 @@
 using System.Text;
-using Abstract.CodeProcess.Core.EvaluationData.IntermediateTree;
-using Abstract.CodeProcess.Core.EvaluationData.LanguageObjects.Attributes;
-using Abstract.CodeProcess.Core.EvaluationData.LanguageObjects.Containers;
-using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences;
-using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.TypeReferences;
+using Abstract.CodeProcess.Core;
 using Abstract.CodeProcess.Core.Language.SyntaxNodes.Control;
+using Tq.CodeProcess.Core.EvaluationData.IntermediateTree;
+using Tq.CodeProcess.Core.EvaluationData.LanguageObjects.Attributes;
+using Tq.CodeProcess.Core.EvaluationData.LanguageObjects.Containers;
+using Tq.CodeProcess.Core.EvaluationData.LanguageReferences;
 
-namespace Abstract.CodeProcess.Core.EvaluationData.LanguageObjects;
+namespace Tq.CodeProcess.Core.EvaluationData.LanguageObjects;
 
 public class FieldObject(SourceScript sourceScript, string n, TopLevelVariableNode synNode, Reference t) : LangObject(sourceScript, n),
         IPublicModifier,

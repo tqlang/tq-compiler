@@ -1,4 +1,4 @@
-namespace Abstract.CodeProcess.Core.EvaluationData.IntermediateTree.Statements;
+namespace Tq.CodeProcess.Core.EvaluationData.IntermediateTree.Statements;
 
 public interface IIfElse
 {
