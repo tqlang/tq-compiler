@@ -1,0 +1,8 @@
+@public @readonly struct Token {
+
+	@public let TokenKind kind
+	@public let uint line 
+	@public let uint collumn 
+	@public let ?string value
+
+}

@@ -1,0 +1,12 @@
+@public struct SyntaxNode {
+}
+
+@public @readonly struct TokenNode extends SyntaxNode {
+
+	@public let Token token
+
+
+	constructor(Token tkn) {
+		token = tkn
+	}
+}

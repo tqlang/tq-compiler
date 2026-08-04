@@ -1,0 +1,252 @@
+from Std import { Test }
+
+func testArithmeticU8() {
+    let u8 u8_0 = 0
+    let u8 u8_1 = 1
+    let u8 u8_2 = 2
+    let u8 u8_3 = 3
+    let u8 u8_100 = 100
+    let u8 u8_101 = 101
+    let u8 u8_255 = 255
+    let u8 u8_min = u8.min
+    let u8 u8_max = u8.max
+    
+    Test.newTestUnit("u8 arithmetic - checked add")
+    Test.assert(u8_1 + u8_1, 2)
+    Test.assert(u8_2 + u8_2, 4)
+    Test.assert(u8_max + 0, u8_max)
+    #Test.assert(u8_max + 1, ?) #!! FATAL ERROR !!
+    #Test.assert(u8_max + 100, ?) #!! FATAL ERROR !!
+
+    Test.newTestUnit("u8 arithmetic - add with overflow")
+    Test.assert(u8_1 +% u8_1, 2)
+    Test.assert(u8_2 +% u8_2, 4)
+    Test.assert(u8_max +% u8_0, u8_max)
+    Test.assert(u8_max +% u8_1, u8_min)
+    Test.assert(u8_max +% u8_100, 99)
+
+    Test.newTestUnit("u8 arithmetic - add saturated")
+    Test.assert(u8_1 +| u8_1, 2)
+    Test.assert(u8_2 +| u8_2, 4)
+    Test.assert(u8_max +| u8_0, u8_max)
+    Test.assert(u8_max +| u8_1, u8_max)
+    Test.assert(u8_max +| u8_100, u8_max)
+
+
+    Test.newTestUnit("u8 arithmetic - checked sub")
+	Test.assert(u8_1 - u8_1, 0)
+    Test.assert(u8_2 - u8_1, 1)
+    Test.assert(0 - 0, 0)
+    #Test.assert(u8_1 - u8_2, ?) #!! FATAL ERROR !!
+    #Test.assert(u8_0 - 100, ?) #!! FATAL ERROR !!
+
+	Test.newTestUnit("u8 arithmetic - sub with overflow")
+	Test.assert(u8_1 -% u8_1, 0)
+    Test.assert(u8_2 -% u8_1, 1)
+    Test.assert(0 -% 0, 0)
+    Test.assert(u8_1 -% u8_2, 255)
+    Test.assert(u8_0 -% 100, 156)
+
+	Test.newTestUnit("u8 arithmetic - sub saturated")
+	Test.assert(u8_1 -| u8_1, 0)
+    Test.assert(u8_2 -| u8_1, 1)
+    Test.assert(0 -| 0, 0)
+    Test.assert(u8_1 -| u8_2, 0)
+    Test.assert(u8_0 -| 100, 0)
+
+	Test.newTestUnit("u8 arithmetic - mul checked")
+	Test.assert(u8_1 * u8_1, 1)
+	Test.assert(u8_2 * u8_2, 4)
+	Test.assert(u8_2 * u8_100, 200)
+	Test.assert(u8_0 * u8_100, 0)
+	#Test.assert(u8_100 * u8_100, ?) #!! FATAL ERROR !!
+
+	Test.newTestUnit("u8 arithmetic - mul with overflow - SKIPPED")
+	# Test.assert(u8_1 *% u8_1, 1)
+	# Test.assert(u8_2 *% u8_2, 4)
+	# Test.assert(u8_2 *% u8_100, 200)
+	# Test.assert(u8_100 *% u8_100, 16)
+	# Test.assert(u8_max *% u8_2, 254)
+
+	Test.newTestUnit("u8 arithmetic - mul saturated - SKIPPED")
+	# Test.assert(u8_1 *| u8_1, 1)
+	# Test.assert(u8_2 *| u8_2, 4)
+	# Test.assert(u8_2 *| u8_100, 200)
+	# Test.assert(u8_100 *| u8_100, u8_max)
+	# Test.assert(u8_max *| u8_2, u8_max)
+
+	Test.newTestUnit("u8 arithmetic - div checked")
+	Test.assert(u8_2 / u8_1, 2)
+	Test.assert(u8_100 / u8_2, 50)
+	Test.assert(u8_0 / u8_100, 0)
+	#Test.assert(u8_1 / u8_2, ?) #!! FATAL ERROR !!
+	#Test.assert(u8_1 / u8_0, ?) #!! FATAL ERROR !!
+
+	Test.newTestUnit("u8 arithmetic - div floor - SKIPPED")
+	# Test.assert(u8_2 /_ u8_1, 2)
+	# Test.assert(u8_100 /_ u8_2, 50)
+	# Test.assert(u8_1 /_ u8_2, 0)
+	# Test.assert(u8_0 /_ u8_100, 0)
+
+	Test.newTestUnit("u8 arithmetic - div ceil - SKIPPED")
+	# Test.assert(u8_2 /^ u8_1, 2)
+	# Test.assert(u8_100 /^ u8_2, 50)
+	# Test.assert(u8_1 /^ u8_2, 1)
+	# Test.assert(u8_3 /^ u8_2, 2)
+	# Test.assert(u8_0 /^ u8_100, 0)
+
+	Test.newTestUnit("u8 arithmetic - reminder")
+	Test.assert(u8_2 % u8_1, 0)
+	Test.assert(u8_100 % u8_2, 0)
+	Test.assert(u8_101 % u8_2, 1)
+	Test.assert(u8_255 % u8_2, 1)
+	Test.assert(u8_0 % u8_100, 0)
+	#Test.assert(u8_1 % u8_0, ?)
+	
+	Test.newTestUnit("u8 arithmetic - pow checked - SKIPPED")
+	# Test.assert(u8_2 ** u8_1, 2)
+	# Test.assert(u8_2 ** u8_2, 4)
+	# Test.assert(u8_2 ** u8_3, 8)
+	# Test.assert(u8_1 ** u8_100, 1)
+	# Test.assert(u8_0 ** u8_1, 0)
+	# Test.assert(u8_0 ** u8_0, 1)
+	# #Test.assert(u8_2 ** u8_8, ?) #!! FATAL ERROR !!
+
+	Test.newTestUnit("u8 arithmetic - pow with overflow - SKIPPED")
+	# Test.assert(u8_2 **% u8_8, 0)
+	# Test.assert(u8_2 **% u8_9, 0)
+	# Test.assert(u8_3 **% u8_5, 243)
+	# Test.assert(u8_5 **% u8_4, 113)
+
+	Test.newTestUnit("u8 arithmetic - pow saturated - SKIPPED")
+	# Test.assert(u8_2 **| u8_3, 8)
+	# Test.assert(u8_2 **| u8_7, 128)
+	# Test.assert(u8_2 **| u8_8, u8_max)
+	# Test.assert(u8_3 **| u8_6, u8_max)
+}
+
+func testArithmeticI8() {
+    let i8 i8_0 = 0
+    let i8 i8_1 = 1
+    let i8 i8_2 = 2
+    let i8 i8_3 = 3
+    let i8 i8_100 = 100
+    let i8 i8_101 = 101
+    let i8 i8_127 = 127
+    let i8 i8_min = i8.min
+    let i8 i8_max = i8.max
+    
+    Test.newTestUnit("i8 arithmetic - checked add")
+    Test.assert(i8_1 + i8_1, 2)
+    Test.assert(i8_2 + i8_2, 4)
+    Test.assert(i8_max + 0, i8_max)
+    #Test.assert(i8_max + 1, ?) #!! FATAL ERROR !!
+    #Test.assert(i8_max + 100, ?) #!! FATAL ERROR !!
+
+    Test.newTestUnit("i8 arithmetic - add with overflow")
+    Test.assert(i8_1 +% i8_1, 2)
+    Test.assert(i8_2 +% i8_2, 4)
+    Test.assert(i8_max +% i8_0, i8_max)
+    Test.assert(i8_max +% i8_1, i8_min)
+    Test.assert(i8_max +% i8_100, -29)
+
+    Test.newTestUnit("i8 arithmetic - add saturated")
+    Test.assert(i8_1 +| i8_1, 2)
+    Test.assert(i8_2 +| i8_2, 4)
+    Test.assert(i8_max +| i8_0, i8_max)
+    Test.assert(i8_max +| i8_1, i8_max)
+    Test.assert(i8_max +| i8_100, i8_max)
+
+
+    Test.newTestUnit("i8 arithmetic - checked sub")
+	Test.assert(i8_1 - i8_1, 0)
+    Test.assert(i8_2 - i8_1, 1)
+    Test.assert(0 - 0, 0)
+    #Test.assert(i8_1 - i8_2, ?) #!! FATAL ERROR !!
+    #Test.assert(i8_0 - 100, ?) #!! FATAL ERROR !!
+
+	Test.newTestUnit("i8 arithmetic - sub with overflow")
+	Test.assert(i8_1 -% i8_1, 0)
+    Test.assert(i8_2 -% i8_1, 1)
+    Test.assert(0 -% 0, 0)
+    Test.assert(i8_1 -% i8_2, -1)
+	Test.assert(i8_0 -% 100, -100)
+
+	Test.newTestUnit("i8 arithmetic - sub saturated")
+	Test.assert(i8_1 -| i8_1, 0)
+    Test.assert(i8_2 -| i8_1, 1)
+    Test.assert(0 -| 0, 0)
+    Test.assert(i8_1 -| i8_2, -1)
+    Test.assert(i8_0 -| 100, -100)
+
+	Test.newTestUnit("i8 arithmetic - mul checked")
+	Test.assert(i8_1 * i8_1, 1)
+	Test.assert(i8_2 * i8_2, 4)
+	#Test.assert(i8_2 * i8_100, 200) #!! FATAL ERROR !!
+	Test.assert(i8_0 * i8_100, 0)
+	#Test.assert(i8_100 * i8_100, ?) #!! FATAL ERROR !!
+
+	Test.newTestUnit("i8 arithmetic - mul with overflow - SKIPPED")
+	# Test.assert(i8_1 *% i8_1, 1)
+	# Test.assert(i8_2 *% i8_2, 4)
+	# Test.assert(i8_2 *% i8_100, 200)
+	# Test.assert(i8_100 *% i8_100, 16)
+	# Test.assert(i8_max *% i8_2, 254)
+
+	Test.newTestUnit("i8 arithmetic - mul saturated - SKIPPED")
+	# Test.assert(i8_1 *| i8_1, 1)
+	# Test.assert(i8_2 *| i8_2, 4)
+	# Test.assert(i8_2 *| i8_100, 200)
+	# Test.assert(i8_100 *| i8_100, i8_max)
+	# Test.assert(i8_max *| i8_2, i8_max)
+
+	Test.newTestUnit("i8 arithmetic - div checked")
+	Test.assert(i8_2 / i8_1, 2)
+	Test.assert(i8_100 / i8_2, 50)
+	Test.assert(i8_0 / i8_100, 0)
+	#Test.assert(i8_1 / i8_2, ?) #!! FATAL ERROR !!
+	#Test.assert(i8_1 / i8_0, ?) #!! FATAL ERROR !!
+
+	Test.newTestUnit("i8 arithmetic - div floor - SKIPPED")
+	# Test.assert(i8_2 /_ i8_1, 2)
+	# Test.assert(i8_100 /_ i8_2, 50)
+	# Test.assert(i8_1 /_ i8_2, 0)
+	# Test.assert(i8_0 /_ i8_100, 0)
+
+	Test.newTestUnit("i8 arithmetic - div ceil - SKIPPED")
+	# Test.assert(i8_2 /^ i8_1, 2)
+	# Test.assert(i8_100 /^ i8_2, 50)
+	# Test.assert(i8_1 /^ i8_2, 1)
+	# Test.assert(i8_3 /^ i8_2, 2)
+	# Test.assert(i8_0 /^ i8_100, 0)
+
+	Test.newTestUnit("i8 arithmetic - reminder")
+	Test.assert(i8_2 % i8_1, 0)
+	Test.assert(i8_100 % i8_2, 0)
+	Test.assert(i8_101 % i8_2, 1)
+	Test.assert(i8_127 % i8_2, 1)
+	Test.assert(i8_0 % i8_100, 0)
+	#Test.assert(i8_1 % i8_0, ?)
+	
+	Test.newTestUnit("i8 arithmetic - pow checked - SKIPPED")
+	# Test.assert(i8_2 ** i8_1, 2)
+	# Test.assert(i8_2 ** i8_2, 4)
+	# Test.assert(i8_2 ** i8_3, 8)
+	# Test.assert(i8_1 ** i8_100, 1)
+	# Test.assert(i8_0 ** i8_1, 0)
+	# Test.assert(i8_0 ** i8_0, 1)
+	# #Test.assert(i8_2 ** i8_8, ?) #!! FATAL ERROR !!
+
+	Test.newTestUnit("i8 arithmetic - pow with overflow - SKIPPED")
+	# Test.assert(i8_2 **% i8_8, 0)
+	# Test.assert(i8_2 **% i8_9, 0)
+	# Test.assert(i8_3 **% i8_5, 243)
+	# Test.assert(i8_5 **% i8_4, 113)
+
+	Test.newTestUnit("i8 arithmetic - pow saturated - SKIPPED")
+	# Test.assert(i8_2 **| i8_3, 8)
+	# Test.assert(i8_2 **| i8_7, 128)
+	# Test.assert(i8_2 **| i8_8, i8_max)
+	# Test.assert(i8_3 **| i8_6, i8_max)
+}
+

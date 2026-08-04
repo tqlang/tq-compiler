@@ -1,0 +1,38 @@
+out-dir = ".tq-out"
+cache-dir = ".tq-cache"
+
+[project]
+    name = "myapp"
+    target = "dotnet"
+    root = "Tqc"
+
+[[module]]
+    name = "Tqc"
+    path = "./Bootstrap/Tqc"
+    dependencies = [
+        "module : Tqc.Syntax",
+        "module : Std"
+    ]
+
+[[module]]
+    name = "Tqc.Syntax"
+    path = "./Bootstrap/Tqc.Syntax"
+    dependencies = [
+        "module : Tqc.Syntax",
+        "module : Std"
+    ]
+
+[[module]]
+    name = "Std"
+    path = "./Lib/Std"
+    dependencies = [
+        "module : Dotnet"
+    ]
+
+[[module]]
+    name = "Dotnet"
+    dependencies = [
+        "dotnet : System.Runtime : 10.0.0.0",
+        "dotnet : System.Console : 10.0.0.0",
+        "dotnet : System.Collections : 10.0.0.0",
+    ]

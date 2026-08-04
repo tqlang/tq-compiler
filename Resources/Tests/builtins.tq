@@ -1,0 +1,29 @@
+from Std import { Test }
+
+func testBuiltins() {
+	Test.newTestUnit("builtins")
+    Test.assert(u8.min, 0)
+    Test.assert(u8.max, 2 ** 8 - 1)
+    Test.assert(i8.min, -(2 ** 7))
+    Test.assert(i8.max, 2 ** 7 - 1)
+
+    Test.assert(u16.min, 0)
+    Test.assert(u16.max, 2 ** 16 - 1)
+    Test.assert(i16.min, -(2 ** 15))
+    Test.assert(i16.max, 2 ** 15 - 1)
+
+    Test.assert(u32.min, 0)
+    Test.assert(u32.max, 2 ** 32 - 1)
+    Test.assert(i32.min, -(2 ** 31))
+    Test.assert(i32.max, 2 ** 31 - 1)
+
+    Test.assert(u64.min, 0)
+    Test.assert(u64.max, 2 ** 64 - 1)
+    Test.assert(i64.min, -(2 ** 63))
+    Test.assert(i64.max, 2 ** 63 - 1)
+
+    Test.assert(u128.min, 0)
+    Test.assert(u128.max, 2 ** 128 - 1)
+    Test.assert(i128.min, -(2 ** 127))
+    Test.assert(i128.max, 2 ** 127 - 1)
+}

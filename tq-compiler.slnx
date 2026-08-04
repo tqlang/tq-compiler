@@ -1,0 +1,11 @@
+<Solution>
+  <Folder Name="/Src/">
+    <Project Path="Src/Tqc.Build.Toml/Tqc.Build.Toml.csproj" />
+    <Project Path="Src/Tqc.Build/Tqc.Build.csproj" />
+    <Project Path="Src/Tqc.CLI/Tqc.CLI.csproj" />
+    <Project Path="Src/Tqc.Semantics/Tqc.Semantics.csproj" />
+    <Project Path="Src/Tqc.Syntax/Tqc.Syntax.csproj" />
+    <Project Path="Src\Tqc.Logging\Tqc.Logging.csproj" />
+  </Folder>
+  <Folder Name="/Tests/" />
+</Solution>
