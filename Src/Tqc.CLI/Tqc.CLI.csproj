@@ -9,7 +9,8 @@
 
     <ItemGroup>
       <ProjectReference Include="..\Tqc.Build.Toml\Tqc.Build.Toml.csproj" />
-      <ProjectReference Include="..\Tqc.Logging\Tqc.Logging.csproj" />
+      <ProjectReference Include="..\Tqc.Diagnostics\Tqc.Diagnostics.csproj" />
+      <ProjectReference Include="..\Tqc.Syntax\Tqc.Syntax.csproj" />
     </ItemGroup>
 
 </Project>

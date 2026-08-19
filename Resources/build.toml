@@ -30,6 +30,7 @@ cache-dir = ".tq-cache"
     ]
 
 [[module]]
+    type = "dotnet"
     name = "Dotnet"
     dependencies = [
         "dotnet : System.Runtime : 10.0.0.0",

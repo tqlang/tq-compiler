@@ -6,4 +6,8 @@
         <Nullable>enable</Nullable>
     </PropertyGroup>
 
+    <ItemGroup>
+      <ProjectReference Include="..\Tqc.Diagnostics\Tqc.Diagnostics.csproj" />
+    </ItemGroup>
+
 </Project>

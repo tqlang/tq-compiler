@@ -1,6 +1,6 @@
 namespace Tqc.Syntax.Nodes;
 
-public class SyntaxNode
+public abstract record SyntaxNode
 {
     
 }
