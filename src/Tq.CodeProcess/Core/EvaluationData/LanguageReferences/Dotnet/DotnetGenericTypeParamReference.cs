@@ -1,8 +1,8 @@
-using System.Data.SqlTypes;
+using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences;
 using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.TypeReferences;
 using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.TypeReferences.Builtin;
 
-namespace Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.Dotnet;
+namespace Tq.CodeProcess.Core.EvaluationData.LanguageReferences;
 
 public class DotnetGenericTypeParamReference(int index) : Reference, ITypeReference
 {

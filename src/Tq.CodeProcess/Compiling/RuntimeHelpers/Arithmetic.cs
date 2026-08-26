@@ -4,7 +4,7 @@ using AsmResolver.DotNet.Signatures;
 using AsmResolver.PE.DotNet.Cil;
 using AsmResolver.PE.DotNet.Metadata.Tables.Rows;
 
-namespace Abstract.CodeProcess;
+namespace Tq.CodeProcess;
 
 public partial class Compiler
 {

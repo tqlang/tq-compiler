@@ -1,7 +1,7 @@
 using System.Text;
 using AsmResolver.DotNet;
 
-namespace Abstract.CodeProcess.Core.EvaluationData.LanguageObjects;
+namespace Tq.CodeProcess.Core.EvaluationData.LanguageObjects;
 
 public class DotnetModuleObject(string n) : BaseModuleObject(n)
 {

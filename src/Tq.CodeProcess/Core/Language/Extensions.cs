@@ -1,22 +1,16 @@
-﻿namespace Abstract.CodeProcess.Core.Language;
+﻿namespace Tq.CodeProcess.Core.Language;
 
 public static class CharExtensions
 {
-
-    public static bool IsValidOnIdentifier(this char c)
-    {
-        return char.IsLetterOrDigit(c) || c == '_';
-    }
-    public static bool IsValidOnIdentifierStarter(this char c)
-    {
-        return char.IsLetter(c) || c == '_';
-    }
-
     private static readonly char[] _languageSymbols = [
         '=', '+', '-', '*', '/', '!', '@', '$', '%', '&', '|', ':', ';', '.', '?', '<', '>'
     ];
 
-    public static bool IsLanguageSymbol(this char c)
-        => _languageSymbols.Contains(c);
+    extension(char c)
+    {
+        public bool IsValidOnIdentifier() => char.IsLetterOrDigit(c) || c == '_';
+        public bool IsValidOnIdentifierStarter() => char.IsLetter(c) || c == '_';
+        public bool IsLanguageSymbol() => _languageSymbols.Contains(c);
+    }
 
 }

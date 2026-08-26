@@ -1,3 +1,5 @@
+using Tq.CodeProcess.Core.EvaluationData.LanguageReferences;
+
 namespace Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.TypeReferences.Builtin;
 
 public class ReferenceTypeReference(Reference internalType) : BuiltInTypeReference

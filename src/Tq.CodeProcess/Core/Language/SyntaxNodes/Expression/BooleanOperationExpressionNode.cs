@@ -1,4 +1,4 @@
-namespace Abstract.CodeProcess.Core.Language.SyntaxNodes.Expression;
+namespace Tq.CodeProcess.Core.Language.SyntaxNodes;
 
 public class BooleanOperationExpressionNode : BinaryExpressionNode
 {

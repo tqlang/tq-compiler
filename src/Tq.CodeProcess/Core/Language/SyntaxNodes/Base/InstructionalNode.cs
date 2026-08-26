@@ -1,4 +1,4 @@
-namespace Abstract.CodeProcess.Core.Language.SyntaxNodes.Base;
+namespace Tq.CodeProcess.Core.Language.SyntaxNodes;
 
 public class InstructionalNode : SyntaxNode
 {

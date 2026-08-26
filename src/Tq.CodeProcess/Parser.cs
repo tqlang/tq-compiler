@@ -1,15 +1,10 @@
 using System.Diagnostics;
 using Abstract.CodeProcess.Core;
-using Abstract.CodeProcess.Core.Language;
-using Abstract.CodeProcess.Core.Language.SyntaxNodes.Base;
-using Abstract.CodeProcess.Core.Language.SyntaxNodes.Control;
-using Abstract.CodeProcess.Core.Language.SyntaxNodes.Expression;
-using Abstract.CodeProcess.Core.Language.SyntaxNodes.Expression.TypeModifiers;
-using Abstract.CodeProcess.Core.Language.SyntaxNodes.Misc;
-using Abstract.CodeProcess.Core.Language.SyntaxNodes.Statement;
-using Abstract.CodeProcess.Core.Language.SyntaxNodes.Value;
+using Tq.CodeProcess.Core.Language;
+using Tq.CodeProcess.Core.Language.SyntaxNodes;
+using Tq.CodeProcess.Core.Language.SyntaxNodes.TypeModifiers;
 
-namespace Abstract.CodeProcess;
+namespace Tq.CodeProcess;
 
 public class Parser(ErrorHandler errHandler)
 {
@@ -68,7 +63,7 @@ public class Parser(ErrorHandler errHandler)
                     => n.AppendChild(ParseRoot()))); // {...}
             
             } catch { DiscardLine(); throw; }
-            break;
+        break;
 
             case TokenType.FuncKeyword:
             try {
@@ -108,7 +103,8 @@ public class Parser(ErrorHandler errHandler)
                 
                 EndLine();
 
-            } catch { DiscardLine(); throw; }
+            }
+            catch { DiscardLine(); throw; }
             break;
 
             case TokenType.TypedefKeyword:
@@ -178,7 +174,7 @@ public class Parser(ErrorHandler errHandler)
 
             case TokenType.FromKeyword:
                 node = ParseImport();
-                break;
+            break;
 
             case TokenType.AtSignChar:
             try{
@@ -192,7 +188,8 @@ public class Parser(ErrorHandler errHandler)
 
                 TryEndLine();
 
-            } catch { DiscardLine(); throw; }
+            }
+            catch { DiscardLine(); throw; }
             break;
 
             case TokenType.ConstructorKeyword:
@@ -257,7 +254,8 @@ public class Parser(ErrorHandler errHandler)
                 node.AppendChild(ParseStatement()); // <statement>
                 if (Taste(TokenType.ElifKeyword, TokenType.ElseKeyword)) endLine = false;
 
-            } catch { DiscardLine(); throw; }
+            }
+            catch { DiscardLine(); throw; }
             break;
             
             case TokenType.ElifKeyword:
@@ -270,7 +268,8 @@ public class Parser(ErrorHandler errHandler)
                 node.AppendChild(ParseStatement()); // <statement>
                 if (Taste(TokenType.ElifKeyword, TokenType.ElseKeyword)) endLine = false;
 
-            } catch { DiscardLine(); throw; }
+            }
+            catch { DiscardLine(); throw; }
             break;
             
             case TokenType.ElseKeyword:
@@ -281,7 +280,8 @@ public class Parser(ErrorHandler errHandler)
                 TryEndLine();
                 node.AppendChild(ParseStatement()); // <statement>
 
-            } catch { DiscardLine(); throw; }
+            }
+            catch { DiscardLine(); throw; }
             break;
 
             // Loops
@@ -306,7 +306,8 @@ public class Parser(ErrorHandler errHandler)
                 TryEndLine();
                 node.AppendChild(ParseStatement()); // <statement>
 
-            } catch { DiscardLine(); throw; }
+            }
+            catch { DiscardLine(); throw; }
             break;
             case TokenType.ForKeyword:
             try {
@@ -318,7 +319,8 @@ public class Parser(ErrorHandler errHandler)
                     => throw new Exception($"Unexpected token '{Bite()}'")));
                 node.AppendChild(ParseStatement()); // <statement>
 
-            } catch { DiscardLine(); throw; }
+            }
+            catch { DiscardLine(); throw; }
             break;
 
             // Return
@@ -768,12 +770,94 @@ public class Parser(ErrorHandler errHandler)
             or TokenType.StarChar
             or TokenType.BangChar
             or TokenType.QuestionChar:
-                return ParseType();
+                node = ParseType();
+            break;
 
             // null
             case TokenType.NullKeyword:
-                return new NullLiteralNode(Eat());
+                node = new NullLiteralNode(Eat());
+            break;
 
+            // match
+            case TokenType.MatchKeyword:
+            {
+                var expressionAroundParenthesis = false;
+                
+                node = new MatchExpressionNode();
+                node.AppendChild(EatAsNode());
+                
+                if (Bite().type == TokenType.LeftParenthesisChar)
+                {
+                    expressionAroundParenthesis = true;
+                    Eat();
+                }
+                
+                node.AppendChild(ParseExpression());
+                
+                if (expressionAroundParenthesis)
+                {
+                    Diet(TokenType.RightParenthesisChar,
+                        t => throw new Exception($"Unexpected token '{t}'. Expected Closing parenthesis"));
+                }
+                
+                TryEndLine();
+
+                var block = new BlockNode();
+                block.AppendChild(DietAsNode(TokenType.LeftBracketChar,
+                    (t) => throw new Exception($"Unexpected token '{Bite()}'")));
+                TryEndLine();
+
+                bool _break = false;
+                while (!IsEOF() && !Taste(TokenType.RightBracketChar))
+                {
+                    try {
+                        switch (Bite().type)
+                        {
+                            case TokenType.CaseKeyword:
+                            {
+                                var caseNode = new MatchExpressionCaseNode();
+                                caseNode.AppendChild(EatAsNode());
+                                caseNode.AppendChild(ParseExpression());
+                                TryEndLine();
+                                caseNode.AppendChild(DietAsNode(TokenType.RightArrowOperator,
+                                    (t) =>  throw new Exception($"Unexpected token '{Bite()}'. Expected '=>'")));
+                                TryEndLine();
+                                caseNode.AppendChild(ParseStatement());
+                                
+                                block.AppendChild(caseNode);
+                                EndLine();
+                            }
+                            break;
+
+                            case TokenType.DefaultKeyword:
+                            {
+                                var defaultNode = new MatchExpressionDefaultNode();
+                                defaultNode.AppendChild(EatAsNode());
+                                TryEndLine();
+                                defaultNode.AppendChild(DietAsNode(TokenType.RightArrowOperator,
+                                    (t) =>  throw new Exception($"Unexpected token '{Bite()}'. Expected '=>'")));
+                                TryEndLine();
+                                defaultNode.AppendChild(ParseStatement());
+                                
+                                block.AppendChild(defaultNode);
+                                EndLine();
+                            }
+                            break;
+                            
+                            default:
+                                throw new Exception($"Unexpected token '{Eat()}'. Expected 'case' or 'default'");
+                        }
+                    }
+                    catch (Exception ex) { _errHandler.RegisterError(ex); }
+                }
+
+                block.AppendChild(DietAsNode(TokenType.RightBracketChar,
+                    (t) => throw new Exception($"Unexpected token {Bite()}")));
+                
+                node.AppendChild(block);
+            }
+            break;
+            
             default: throw new Exception($"Unexpected token {Eat()}");
         }
 

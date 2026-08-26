@@ -1,7 +1,4 @@
-using Abstract.CodeProcess.Core.Language.SyntaxNodes.Base;
-using Abstract.CodeProcess.Core.Language.SyntaxNodes.Misc;
-
-namespace Abstract.CodeProcess.Core.Language.SyntaxNodes.Control;
+namespace Tq.CodeProcess.Core.Language.SyntaxNodes;
 
 public class DestructorDeclarationNode : ControlNode
 {

@@ -1,4 +1,4 @@
-namespace Abstract.CodeProcess.Core.Language.SyntaxNodes.Control;
+namespace Tq.CodeProcess.Core.Language.SyntaxNodes;
 
 public abstract class TypeDefinitionItemNode : ControlNode
 {

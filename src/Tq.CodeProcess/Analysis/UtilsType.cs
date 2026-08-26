@@ -1,25 +1,21 @@
 using System.Diagnostics;
 using Abstract.CodeProcess.Core.EvaluationData.IntermediateTree;
-using Abstract.CodeProcess.Core.EvaluationData.IntermediateTree.Expressions;
 using Abstract.CodeProcess.Core.EvaluationData.IntermediateTree.Values;
-using Abstract.CodeProcess.Core.EvaluationData.LanguageObjects;
-using Abstract.CodeProcess.Core.EvaluationData.LanguageObjects.CodeObjects;
 using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences;
 using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.CodeReferences;
-using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.Dotnet;
 using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.FieldReferences;
 using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.FunctionReferences;
 using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.TypedefReferences;
 using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.TypeReferences;
 using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.TypeReferences.Builtin;
 using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.TypeReferences.Builtin.Integer;
-using Abstract.CodeProcess.Core.Language.SyntaxNodes.Base;
-using Abstract.CodeProcess.Core.Language.SyntaxNodes.Expression;
-using Abstract.CodeProcess.Core.Language.SyntaxNodes.Expression.TypeModifiers;
-using Abstract.CodeProcess.Core.Language.SyntaxNodes.Value;
 using AsmResolver.DotNet.Signatures.Types;
+using Tq.CodeProcess.Core.EvaluationData.IntermediateTree.Expressions;
+using Tq.CodeProcess.Core.EvaluationData.LanguageObjects;
+using Tq.CodeProcess.Core.EvaluationData.LanguageObjects.CodeObjects;
+using Tq.CodeProcess.Core.EvaluationData.LanguageReferences;
 
-namespace Abstract.CodeProcess;
+namespace Tq.CodeProcess;
 
 public partial class Analyser
 {
@@ -76,6 +72,10 @@ public partial class Analyser
                         // }
                         result = (ITypeReference)param.Parameter.Type;
                     } break;
+
+                    case GenericTypeImplReference genericImpl:
+                        result = genericImpl;
+                        break;
 
                     default:
                         result = solved.Type;
@@ -194,6 +194,7 @@ public partial class Analyser
             case IRUnaryExp:
             case IrLogicalExp:
             case IrNewObject:
+            case IrPatternMatch:
                 return origin ?? value;
             
             default: throw new UnreachableException();

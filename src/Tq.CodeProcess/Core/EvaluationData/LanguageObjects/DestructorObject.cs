@@ -1,12 +1,13 @@
 using System.Text;
+using Abstract.CodeProcess.Core;
 using Abstract.CodeProcess.Core.EvaluationData.IntermediateTree;
-using Abstract.CodeProcess.Core.EvaluationData.LanguageObjects.CodeObjects;
-using Abstract.CodeProcess.Core.EvaluationData.LanguageObjects.Containers;
 using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences;
-using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.TypeReferences;
-using Abstract.CodeProcess.Core.Language.SyntaxNodes.Control;
+using Tq.CodeProcess.Core.EvaluationData.LanguageObjects.CodeObjects;
+using Tq.CodeProcess.Core.EvaluationData.LanguageObjects.Containers;
+using Tq.CodeProcess.Core.EvaluationData.LanguageReferences;
+using Tq.CodeProcess.Core.Language.SyntaxNodes;
 
-namespace Abstract.CodeProcess.Core.EvaluationData.LanguageObjects;
+namespace Tq.CodeProcess.Core.EvaluationData.LanguageObjects;
 
 public class DestructorObject(SourceScript sourceScript, DestructorDeclarationNode synNode) : LangObject(sourceScript, "destructor"),
         ICallable

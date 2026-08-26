@@ -1,4 +1,4 @@
-﻿namespace Abstract.CodeProcess.Core.Language.SyntaxNodes.Expression.TypeModifiers;
+﻿namespace Tq.CodeProcess.Core.Language.SyntaxNodes.TypeModifiers;
 
 public class ReferenceTypeModifierNode : ExpressionNode
 {

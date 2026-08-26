@@ -1,8 +1,6 @@
 using System.Diagnostics;
 using System.Text;
-using Abstract.CodeProcess.Core.EvaluationData.LanguageObjects;
 using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences;
-using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.Dotnet;
 using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.NamespaceReferences;
 using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.TypeReferences;
 using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.TypeReferences.Builtin;
@@ -13,12 +11,14 @@ using AsmResolver.DotNet.Signatures;
 using AsmResolver.DotNet.Signatures.Types;
 using AsmResolver.PE.DotNet.Cil;
 using AsmResolver.PE.DotNet.Metadata.Tables.Rows;
+using Tq.CodeProcess.Core.EvaluationData.LanguageObjects;
+using Tq.CodeProcess.Core.EvaluationData.LanguageReferences;
 using Parameter = AsmResolver.DotNet.Collections.Parameter;
 using FieldDefinition = AsmResolver.DotNet.FieldDefinition;
 using MethodDefinition = AsmResolver.DotNet.MethodDefinition;
 using TypeDefinition = AsmResolver.DotNet.TypeDefinition;
 
-namespace Abstract.CodeProcess;
+namespace Tq.CodeProcess;
 
 public partial class Compiler
 {
@@ -45,8 +45,8 @@ public partial class Compiler
                 sb.Append(method.IsPublic ? "public " : "private ");
                 sb.Append(method.IsStatic ? "static " : "instance ");
                 sb.Append($"{method.Name}");
-                if (method.Signature!.IsGeneric) sb.Append($" <{string.Join(", ", method.GenericParameters)}>");
-                sb.Append($" ({string.Join(", ", method.Parameters)}) ");
+                if (method.Signature!.IsGeneric) sb.Append($" <{string.Join<GenericParameter>(", ", method.GenericParameters)}>");
+                sb.Append($" ({string.Join<Parameter>(", ", method.Parameters)}) ");
                 sb.Append($"{method.Signature!.ReturnType} ");
                 sb.AppendLine("{");
                 if (method.CilMethodBody != null)
@@ -70,32 +70,34 @@ public partial class Compiler
         if (typeRef == null) return _corLibFactory.Void;
         switch (typeRef)
         {
-            case UnknownReference: throw new Exception("Type reference is unsolved!");
+            case RuntimeIntegerTypeReference @i:
+            {
+                return i.BitSize.Bits switch
+                {
+                    <= 8   => i.Signed ? _corLibFactory.SByte : _corLibFactory.Byte,
+                    <= 16  => i.Signed ? _corLibFactory.Int16 : _corLibFactory.UInt16,
+                    <= 32  => i.Signed ? _corLibFactory.Int32 : _corLibFactory.UInt32,
+                    <= 64  => i.Signed ? _corLibFactory.Int64 : _corLibFactory.UInt64,
+                    <= 128 => _coreLib[i.Signed ? "System.Int128" : "System.UInt128"].t,
+                    _      => throw new UnreachableException()
+                };
+            }
             
             case ReferenceTypeReference @r:
             {
                 var b = TypeFromRef((ITypeReference)r.InternalType);
                 return b.IsValueType ? b.MakeByReferenceType() : b;
             }
+            case NullableTypeReference @n:
+            {
+                var b = TypeFromRef((ITypeReference)n.InternalType);
+                return b; //return b.IsValueType ? 
+            }
             case SliceTypeReference @s:
                 return new SzArrayTypeSignature(TypeFromRef((ITypeReference)s.ElementType));
             case GenericTypeReference @g:
                 return new GenericParameterSignature(_module, GenericParameterType.Method, g.Parameter.Index);
             
-            
-            case RuntimeIntegerTypeReference @i:
-            {
-                return i.BitSize.Bits switch
-                {
-                    <= 8 => i.Signed ? _corLibFactory.SByte : _corLibFactory.Byte,
-                    <= 16 => i.Signed ? _corLibFactory.Int16 : _corLibFactory.UInt16,
-                    <= 32 => i.Signed ? _corLibFactory.Int32 : _corLibFactory.UInt32,
-                    <= 64 => i.Signed ? _corLibFactory.Int64 : _corLibFactory.UInt64,
-                    <= 128 => _coreLib[i.Signed ? "System.Int128" : "System.UInt128"].t,
-                    _ => throw new UnreachableException()
-                };
-            }
-    
             case CharTypeReference: return _corLibFactory.Char;
             case StringTypeReference: return _corLibFactory.String;
             case BooleanTypeReference: return _corLibFactory.Boolean;
@@ -130,10 +132,10 @@ public partial class Compiler
         }
     }
     
-    private IMethodDescriptor CreateMethodRef(ITypeDefOrRef basetype, string name, MethodSignature signature)
+    private IMethodDescriptor CreateMethodRef(ITypeDefOrRef baseType, string name, MethodSignature signature)
     {
-        var importedsig = _module.DefaultImporter.ImportMethodSignature(signature);
-        var meth = basetype.CreateMemberReference(name, importedsig);
+        var importedSig = _module.DefaultImporter.ImportMethodSignature(signature);
+        var meth = baseType.CreateMemberReference(name, importedSig);
         return _module.DefaultImporter.ImportMethod(meth);
     }
 

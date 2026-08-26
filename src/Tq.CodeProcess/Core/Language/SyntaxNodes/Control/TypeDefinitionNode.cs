@@ -1,9 +1,6 @@
 using System.Text;
-using Abstract.CodeProcess.Core.Language.SyntaxNodes.Base;
-using Abstract.CodeProcess.Core.Language.SyntaxNodes.Misc;
-using Abstract.CodeProcess.Core.Language.SyntaxNodes.Value;
 
-namespace Abstract.CodeProcess.Core.Language.SyntaxNodes.Control;
+namespace Tq.CodeProcess.Core.Language.SyntaxNodes;
 
 public class TypeDefinitionNode : ControlNode
 {
@@ -24,15 +21,7 @@ public class TypeDefinitionNode : ControlNode
         sb.AppendLine("{");
 
         var blockList = Body.Content.ToArray();
-        for (var i = 0; i < blockList.Length; i++)
-        {
-            var b = blockList[i];
-            
-            if (b is TypeDefinitionNode || i == blockList.Length - 1)
-                sb.AppendLine($"\t{b}");
-            else
-                sb.AppendLine($"\t{b},");
-        }
+        foreach (var b in blockList) sb.AppendLine($"\tcase {b}");
         
         sb.Append('}');
 

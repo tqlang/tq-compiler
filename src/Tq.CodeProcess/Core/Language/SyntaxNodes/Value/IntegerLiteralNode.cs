@@ -1,8 +1,7 @@
 using System.Diagnostics;
-using System.Globalization;
 using System.Numerics;
 
-namespace Abstract.CodeProcess.Core.Language.SyntaxNodes.Value;
+namespace Tq.CodeProcess.Core.Language.SyntaxNodes;
 
 public class IntegerLiteralNode(Token token) : ValueNode(token)
 {

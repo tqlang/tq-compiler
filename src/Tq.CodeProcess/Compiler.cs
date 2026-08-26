@@ -2,8 +2,6 @@ using System.Buffers.Binary;
 using System.Diagnostics;
 using Abstract.CodeProcess.Core.EvaluationData;
 using Abstract.CodeProcess.Core.EvaluationData.IntermediateTree.Values;
-using Abstract.CodeProcess.Core.EvaluationData.LanguageObjects;
-using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.Dotnet;
 using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.TypeReferences;
 using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.TypeReferences.Builtin.Integer;
 using AsmResolver.DotNet;
@@ -13,6 +11,8 @@ using AsmResolver.DotNet.Signatures;
 using AsmResolver.DotNet.Signatures.Types;
 using AsmResolver.PE.DotNet.Cil;
 using AsmResolver.PE.DotNet.Metadata.Tables.Rows;
+using Tq.CodeProcess.Core.EvaluationData.LanguageObjects;
+using Tq.CodeProcess.Core.EvaluationData.LanguageReferences;
 using AssemblyDefinition = AsmResolver.DotNet.AssemblyDefinition;
 using FieldAttributes = AsmResolver.PE.DotNet.Metadata.Tables.Rows.FieldAttributes;
 using FieldDefinition = AsmResolver.DotNet.FieldDefinition;
@@ -22,7 +22,7 @@ using ModuleDefinition = AsmResolver.DotNet.ModuleDefinition;
 using TypeAttributes = AsmResolver.PE.DotNet.Metadata.Tables.Rows.TypeAttributes;
 using TypeDefinition = AsmResolver.DotNet.TypeDefinition;
 
-namespace Abstract.CodeProcess;
+namespace Tq.CodeProcess;
 
 public partial class Compiler
 {
@@ -416,9 +416,10 @@ public partial class Compiler
         switch (typedefObj.BackType)
         {
             case null:
-                valueType = _corLibFactory.Int64;
+                valueType = _corLibFactory.Int32;
                 isPrimitiveType = true;
-                break;
+            break;
+            
             case RuntimeIntegerTypeReference @integer:
             {
                 var s = integer.Signed;
@@ -440,10 +441,12 @@ public partial class Compiler
                 };
                 break;
             }
+            
             case DotnetTypeReference { Reference: { IsEnum: true } @e }:
                 isPrimitiveType = true;
                 valueType = e.Reference.Fields[0].Signature!.FieldType;
             break;
+            
             default:
                 isPrimitiveType = false;
                 valueType = TypeFromRef((ITypeReference)typedefObj.BackType);
@@ -503,19 +506,41 @@ public partial class Compiler
                 if (o.Value is IrIntegerLiteral @intlit)
                 {
                     var largeVal = (Int128)intlit.Value;
+                    ulong maskedVal;
                     switch (valueType.ElementType)
                     {
-                        case ElementType.I1 or ElementType.U1: bytes[0] = (byte)largeVal; break;
-                        case ElementType.I2: BinaryPrimitives.WriteInt16LittleEndian(bytes.AsSpan(), unchecked((short)largeVal)); break;
-                        case ElementType.U2: BinaryPrimitives.WriteUInt16LittleEndian(bytes.AsSpan(), unchecked((ushort)largeVal)); break;
-                        case ElementType.I4: BinaryPrimitives.WriteInt32LittleEndian(bytes.AsSpan(), unchecked((int)largeVal)); break;
-                        case ElementType.U4: BinaryPrimitives.WriteUInt32LittleEndian(bytes.AsSpan(), unchecked((uint)largeVal));break;
-                        case ElementType.I8: BinaryPrimitives.WriteInt64LittleEndian(bytes.AsSpan(), unchecked((long)largeVal)); break;
-                        case ElementType.U8: BinaryPrimitives.WriteUInt64LittleEndian(bytes.AsSpan(), unchecked((ulong)largeVal)); break;
+                        case ElementType.I1 or ElementType.U1:
+                            bytes[0]  = (byte)largeVal;
+                            maskedVal = bytes[0];
+                        break;
+                        case ElementType.I2:
+                            BinaryPrimitives.WriteInt16LittleEndian(bytes.AsSpan(), unchecked((short)largeVal));
+                            maskedVal = unchecked((ushort)(short)largeVal);
+                        break;
+                        case ElementType.U2:
+                            BinaryPrimitives.WriteUInt16LittleEndian(bytes.AsSpan(), unchecked((ushort)largeVal));
+                            maskedVal = unchecked((ushort)largeVal);
+                        break;
+                        case ElementType.I4:
+                            BinaryPrimitives.WriteInt32LittleEndian(bytes.AsSpan(), unchecked((int)largeVal));
+                            maskedVal = unchecked((uint)(int)largeVal);
+                        break;
+                        case ElementType.U4:
+                            BinaryPrimitives.WriteUInt32LittleEndian(bytes.AsSpan(), unchecked((uint)largeVal));
+                            maskedVal = unchecked((uint)largeVal);
+                        break;
+                        case ElementType.I8:
+                            BinaryPrimitives.WriteInt64LittleEndian(bytes.AsSpan(), unchecked((long)largeVal));
+                            maskedVal = unchecked((ulong)(long)largeVal);
+                        break;
+                        case ElementType.U8:
+                            BinaryPrimitives.WriteUInt64LittleEndian(bytes.AsSpan(), unchecked((ulong)largeVal));
+                            maskedVal = unchecked((ulong)largeVal);
+                        break;
                         default: throw new ArgumentOutOfRangeException();
                     }
                     d.Constant = new Constant(valueType.ElementType, new DataBlobSignature(bytes.ToArray()));
-                    usedValues.Add(unchecked((ulong)largeVal));
+                    usedValues.Add(maskedVal);
                 }
                 else
                 {
@@ -531,7 +556,7 @@ public partial class Compiler
                     d.Constant = constant;
 
                     var constBytes = constant.Value!.Data;
-                    var entryValue = valueType.ElementType switch
+                    ulong entryValue = valueType.ElementType switch
                     {
                         ElementType.I1 or ElementType.U1 => constBytes[0],
                         ElementType.I2 => unchecked((ulong)BinaryPrimitives.ReadInt16LittleEndian(constBytes)),
@@ -551,6 +576,7 @@ public partial class Compiler
             foreach (var i in fieldsWithoutDefaultValue)
             {
                 while (usedValues.Contains(val)) val++;
+                usedValues.Add(val);
 
                 switch (valueType.ElementType)
                 {
@@ -563,6 +589,8 @@ public partial class Compiler
                     case ElementType.U8: BinaryPrimitives.WriteUInt64LittleEndian(bytes.AsSpan(),val); break;
                     default: throw new ArgumentOutOfRangeException();
                 }
+
+                val++;
                 i.Constant = new Constant(valueType.ElementType, new DataBlobSignature(bytes.ToArray()));
             }
         }

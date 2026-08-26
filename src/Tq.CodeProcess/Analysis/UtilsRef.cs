@@ -1,15 +1,13 @@
-using System.Diagnostics.CodeAnalysis;
-using Abstract.CodeProcess.Core.EvaluationData.LanguageObjects;
 using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences;
-using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.Dotnet;
 using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.FieldReferences;
 using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.FunctionReferences;
 using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.NamespaceReferences;
 using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.TypedefReferences;
 using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.TypeReferences;
-using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.TypeReferences.Builtin;
+using Tq.CodeProcess.Core.EvaluationData.LanguageObjects;
+using Tq.CodeProcess.Core.EvaluationData.LanguageReferences;
 
-namespace Abstract.CodeProcess;
+namespace Tq.CodeProcess;
 
 public partial class Analyser
 {

@@ -1,6 +1,4 @@
-using Abstract.CodeProcess.Core.Language.SyntaxNodes.Misc;
-
-namespace Abstract.CodeProcess.Core.Language.SyntaxNodes.Expression;
+namespace Tq.CodeProcess.Core.Language.SyntaxNodes;
 
 public class IndexExpressionNode : ExpressionNode
 {

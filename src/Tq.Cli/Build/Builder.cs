@@ -1,9 +1,11 @@
 using System.Diagnostics;
-using System.Reflection;
 using System.Text.RegularExpressions;
 using Abstract.CodeProcess;
 using Abstract.CodeProcess.Core;
-using Module = Abstract.CodeProcess.Core.Language.Module.Module;
+using Tq.CodeProcess;
+using Analyser = Tq.CodeProcess.Analyser;
+using Compiler = Tq.CodeProcess.Compiler;
+using Module = Tq.CodeProcess.Core.Language.Module.Module;
 
 namespace Abstract.Cli.Build;
 

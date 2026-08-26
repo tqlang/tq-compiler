@@ -1,7 +1,6 @@
 using System.Text;
-using Abstract.CodeProcess.Core.Language.SyntaxNodes.Misc;
 
-namespace Abstract.CodeProcess.Core.Language.SyntaxNodes.Control;
+namespace Tq.CodeProcess.Core.Language.SyntaxNodes;
 
 public class AttributeNode : ControlNode
 {

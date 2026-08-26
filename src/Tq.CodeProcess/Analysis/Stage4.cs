@@ -3,25 +3,24 @@ using System.Numerics;
 using Abstract.CodeProcess.Core;
 using Abstract.CodeProcess.Core.EvaluationData;
 using Abstract.CodeProcess.Core.EvaluationData.IntermediateTree;
-using Abstract.CodeProcess.Core.EvaluationData.IntermediateTree.Expressions;
 using Abstract.CodeProcess.Core.EvaluationData.IntermediateTree.Statements;
 using Abstract.CodeProcess.Core.EvaluationData.IntermediateTree.Values;
-using Abstract.CodeProcess.Core.EvaluationData.LanguageObjects;
-using Abstract.CodeProcess.Core.EvaluationData.LanguageObjects.Attributes;
-using Abstract.CodeProcess.Core.EvaluationData.LanguageObjects.CodeObjects;
 using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences;
 using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.CodeReferences;
-using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.Dotnet;
 using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.FunctionReferences;
 using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.NamespaceReferences;
 using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.TypeReferences;
 using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.TypeReferences.Builtin;
 using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.TypeReferences.Builtin.Integer;
 using Abstract.CodeProcess.Core.EvaluationData.Misc;
-using Abstract.CodeProcess.Core.Language.SyntaxNodes.Base;
-using Abstract.CodeProcess.Core.Language.SyntaxNodes.Value;
+using Tq.CodeProcess.Core.EvaluationData.IntermediateTree.Expressions;
+using Tq.CodeProcess.Core.EvaluationData.LanguageObjects;
+using Tq.CodeProcess.Core.EvaluationData.LanguageObjects.Attributes;
+using Tq.CodeProcess.Core.EvaluationData.LanguageObjects.CodeObjects;
+using Tq.CodeProcess.Core.EvaluationData.LanguageReferences;
+using Tq.CodeProcess.Core.Language.SyntaxNodes;
 
-namespace Abstract.CodeProcess;
+namespace Tq.CodeProcess;
 
 /*
  * Stage Four:
@@ -210,6 +209,7 @@ public partial class Analyser
                 IrReturn @re => NodeSemaAnal_Return(re, ctx),
                 IRIf @iff => NodeSemaAnal_If(iff, ctx),
                 IRWhile @iwhile => NodeSemaAnal_While(iwhile, ctx),
+                IrPatternMatch @match => NodeSemaAnal_Match(match, ctx),
                 IrReference { IsSolved: true } @re => NodeSemaAnal_Reference(re, ctx),
                 
                 IrCharLiteral
@@ -240,7 +240,15 @@ public partial class Analyser
             case LocalReference @lr:
                 ctx.LocalVariables.Add(lr.Local);
                 return re;
-            
+
+            case GenericTypeImplReference @generic:
+            {
+                var newGeneric = new GenericTypeImplReference(@generic);
+                foreach (var i in generic.Arguments)
+                    newGeneric.Arguments.Add((IrExpression)NodeSemaAnal(i, ctx));
+                return new IrReference(re.Origin, newGeneric);
+            }
+
             default: return re;       
         }
     }
@@ -306,8 +314,8 @@ public partial class Analyser
         var instanceTypeRef = GetEffectiveTypeReference(node.Target);
         
         if (instanceTypeRef is IrReference { IsSolved: false }) throw new Exception($"Not able to resolve reference to '{node.Origin}'");
-        if (instanceTypeRef is not StructReference and not DotnetTypeReference)
-            throw new Exception($"Cannot instantiate type {node.Origin} as an object");
+        if (instanceTypeRef is not StructReference and not DotnetTypeReference and not GenericTypeImplReference)
+            throw new Exception($"Cannot instantiate type '{node.Target.Origin}' as an object");
         
         node.InstanceType = instanceTypeRef;
         if (instanceTypeRef is DotnetTypeReference { Reference.IsValueType: false }) 
@@ -756,7 +764,33 @@ public partial class Analyser
         BlockSemaAnal(node.Then, ctx);
         return node;
     }
+    private IrNode NodeSemaAnal_Match(IrPatternMatch node, IrBlockExecutionContextData ctx)
+    {
+        var patterMatch = new IrPatternMatch(node.Origin);
+        patterMatch.Expression = (IrExpression)NodeSemaAnal(node.Expression, ctx);
 
+        foreach (var i in node.Cases)
+        {
+            var @case = new IrPatternMatchCase(i.Origin)
+            {
+                Pattern = (IrExpression)NodeSemaAnal(i.Pattern!, ctx),
+                Action = NodeSemaAnal(i.Action!, ctx),
+            };
+            patterMatch.Cases.Add(@case);
+        }
+        if (node.Default is {} @j)
+        {
+            var @default = new IrPatternMatchCase(j.Origin)
+            {
+                Pattern = null,
+                Action = NodeSemaAnal(j.Action!, ctx),
+            };
+            patterMatch.Default = @default;
+        }
+        
+        return patterMatch;
+    }
+    
     private IrNode NodeSemaAnal_While(IRWhile node, IrBlockExecutionContextData ctx)
     {
         ctx.PushFrame();
@@ -780,91 +814,91 @@ public partial class Analyser
         return new IrCollectionLiteral(node.Origin, node.ElementType, items);
     }
 
-    /// <summary>
-    /// Will search between the provided callables for the best fit based on the provided argument
-    /// expressions.
-    /// If the best option is a generic function, it will request that this generic gets baked and
-    /// will return the new non-static version of it.
-    /// It also returns an array of type references, that represents the types that must be used when
-    /// calling the resulted callable. In some cases, it may return `IgnoreTypeReference`, that represents
-    /// a argument that must be skipped when generating the final invocation IR node.
-    /// </summary>
-    /// <param name="options"> The callable overloads to search </param>
-    /// <param name="arguments"> The arguments provided in the call </param>
-    /// <returns>
-    /// Item1 = better option found, null if no option;
-    /// Item2 = final argument types or ignored arguments
-    /// </returns>
     private ISolvedOverloadResult SolveFunctionOverload(ICallable[] options, IrExpression[] arguments, SyntaxNode origin)
     {
-        ICallable? betterFound = null;
-        var betterFoundSum = 0;
-        Dictionary<ParameterObject, ITypeReference>? betterFoundGenerics = null;
-        ITypeReference[]? betterFoundArgTypes = null;
+        ICallable? bestOverload = null;
+        var bestScore = -1;
         
-        foreach (var ov in options)
+        Dictionary<ParameterObject, ITypeReference?> bestGenerics = null; 
+
+        foreach (var overload in options)
         {
-            if (arguments.Length != ov.Parameters.Count) continue;
-            if (ov.Parameters.Count == 0)
+            if (arguments.Length != overload.Parameters.Count) continue;
+            
+            if (overload.Parameters.Count == 0)
             {
-                betterFound = ov;
-                betterFoundSum = 0;
-                betterFoundArgTypes = [];
+                if (100 > bestScore)
+                {
+                    bestOverload = overload;
+                    bestScore    = 100;
+                    bestGenerics = [];
+                }
                 continue;
             }
             
-            var parameters = ov.Parameters;
-            var argTypes = new ITypeReference[parameters.Count];
-            var generics = new Dictionary<ParameterObject, ITypeReference?>();
-            var suitability = new int[parameters.Count];
+            var (isSuitable, score, inferredGenerics) = EvaluateOverload(overload, arguments);
 
-            for (var i = 0; i < parameters.Count; i++)
+            if (isSuitable && score > bestScore)
             {
-                var argt = GetEffectiveTypeReference(arguments[i], (LangObject)ov);
-                argTypes[i] = argt;
-
-                switch (parameters[i].Type)
-                {
-                    case TypeTypeReference when argt is not GenericTypeReference:
-                        generics[parameters[i]] = ((TypeTypeReference)argt).ReferencedType;
-                        suitability[i] = (int)Suitability.NeedsSoftCast;
-                        break;
-
-                    case TypeTypeReference when argt is GenericTypeReference @argtg:
-                    {
-                        generics[parameters[i]] = argtg;
-                        suitability[i] = (int)Suitability.NeedsSoftCast;
-                    } break;
-                    
-                    case ITypeReference { IsGeneric: true } @t:
-                    {
-                        var concreteType = ConcretizeGeneric(t, generics);
-                        var s = (int)CalculateTypeSuitability(concreteType, argt, true);
-                        if (s == 0) goto NoSuitability;
-                        suitability[i] = s;
-                    } break;
-
-                    default:
-                    {
-                        var s = (int)CalculateTypeSuitability((ITypeReference)parameters[i].Type, argt, true);
-                        if (s == 0) goto NoSuitability;
-                        suitability[i] = s;
-                    } break;
-                }
+                bestOverload = overload;
+                bestScore    = score;
+                bestGenerics = inferredGenerics; 
             }
-
-            var sum = (suitability.Sum() * 100) / parameters.Count;
-            if (sum <= betterFoundSum) continue;
-            betterFound = ov;
-            betterFoundSum = sum;
-            betterFoundArgTypes = argTypes;
-
-            NoSuitability: ;
         }
 
-        if (betterFound == null || betterFoundArgTypes == null) return new NoOverloadResult();
-        return new SimpleOverloadResult(betterFound);
+        if (bestOverload == null) return new NoOverloadResult();
+        
+        return new SimpleOverloadResult(bestOverload);
     }
+    
+    private (bool, int, Dictionary<ParameterObject, ITypeReference?> generics) EvaluateOverload(ICallable overload, IrExpression[] arguments)
+    {
+        var parameters = overload.Parameters;
+        var generics = new Dictionary<ParameterObject, ITypeReference?>();
+        var totalSuitability = 0;
+
+        for (var i = 0; i < parameters.Count; i++)
+        {
+            var parameter = parameters[i];
+            var argType = GetEffectiveTypeReference(arguments[i], (LangObject)overload);
+            
+            var suitabilityScore = 0;
+
+            switch (parameter.Type)
+            {
+                case TypeTypeReference:
+                {
+                    if (argType is GenericTypeReference genericArg)
+                    {
+                        generics[parameter] = genericArg;
+                    }
+                    else
+                    {
+                        generics[parameter] = ((TypeTypeReference)argType).ReferencedType;
+                    }
+                    suitabilityScore = (int)Suitability.NeedsSoftCast;
+                    break;
+                }
+                
+                case ITypeReference { IsGeneric: true } genericParam:
+                {
+                    var concreteType = ConcretizeGeneric(genericParam, generics);
+                    suitabilityScore = (int)CalculateTypeSuitability(concreteType, argType, true);
+                    break;
+                }
+                
+                default: suitabilityScore = (int)CalculateTypeSuitability((ITypeReference)parameter.Type, argType, true); break;
+            }
+            
+            if (suitabilityScore == 0) return (false, 0, generics);
+
+            totalSuitability += suitabilityScore;
+        }
+
+        var finalScore = totalSuitability * 100 / parameters.Count;
+        return (true, finalScore, generics);
+    }
+    
     private IrExpression SolveAccessInExpression(SyntaxNode origin, IrExpression accessBase, IrReference accessMember)
     {
         if (accessMember.IsSolved) return new IrAccess(origin, accessBase, accessMember);
@@ -953,7 +987,6 @@ public partial class Analyser
     }
     private IrNode SolveReference(IrReference node, IrBlockExecutionContextData? ctx, LangObject? reference)
     {
-      
         var syntaxNode = node.Origin;
         var parent = reference;
         if (ctx == null && parent == null) throw new UnreachableException();
@@ -961,69 +994,82 @@ public partial class Analyser
 
         switch (syntaxNode)
         {
-            case IdentifierNode @idnode:
+            case IdentifierNode idnode:
             {
                 // Search in local variables and parameters
                 if (ctx != null)
                 {
-                    var r = ctx.LocalVariables.FirstOrDefault(e => e.Name == idnode.Value);
-                    if (r != null) return new IrReference(syntaxNode, new LocalReference(r));
+                    var localVariable = ctx.LocalVariables.FirstOrDefault(e => e.Name == idnode.Value);
+                    if (localVariable != null)
+                        return new IrReference(syntaxNode, new LocalReference(localVariable));
 
-                    var r2 = (ctx.Parent as ICallable)?.Parameters.FirstOrDefault(e => e.Name == idnode.Value);
-                    if (r2 != null) return new IrReference(syntaxNode, new ParameterReference(r2));
+                    var callableParameter = (ctx.Parent as ICallable)?.Parameters.FirstOrDefault(e => e.Name == idnode.Value);
+                    if (callableParameter != null)
+                        return new IrReference(syntaxNode, new ParameterReference(callableParameter));
                 }
 
-                // Search in inherited
-                if (parent?.Container is StructObject @structObject)
+                if (parent?.Container is StructObject structObject)
                 {
-                    LangObject? curr2 = structObject;
+                    // Search in generic parameters
+                    var genericParameter = structObject.Parameters.FirstOrDefault(e => e.Name == idnode.Value);
+                    if (genericParameter != null) return new IrReference(syntaxNode, new ParameterReference(genericParameter));
+
+                    // Search in inherited members
+                    LangObject? currentStructScope = structObject;
                     do
                     {
-                        var r3 = curr2.SearchChild(idnode.Value, SearchChildMode.All);
-                        if (r3 != null)
+                        var inheritedMember = currentStructScope.SearchChild(idnode.Value, SearchChildMode.All);
+                        if (inheritedMember != null)
                         {
-                            var refeNode = new IrReference(syntaxNode, GetObjectReference(r3));
-                            return r3 is IStaticModifier { Static: false }
-                                ? new IrAccess(syntaxNode, new IrReference(syntaxNode, new SelfReference()), refeNode)
-                                : refeNode;
+                            var referenceNode = new IrReference(syntaxNode, GetObjectReference(inheritedMember));
+
+                            return inheritedMember is IStaticModifier { Static: false }
+                                ? new IrAccess(syntaxNode, new IrReference(syntaxNode, new SelfReference()), referenceNode)
+                                : referenceNode;
                         }
 
-                        curr2 = ((curr2 as StructObject)?.Extends as StructReference)?.Struct;
-                    } while (curr2 != null && curr2 is not TqNamespaceObject);
+                        currentStructScope = ((currentStructScope as StructObject)?.Extends as StructReference)?.Struct;
+                    } while (currentStructScope != null && currentStructScope is not TqNamespaceObject);
                 }
 
                 // Search inside namespace
-                var r4 = parent?.Namespace?.SearchChild(idnode.Value, SearchChildMode.OnlyStatic);
-                if (r4 != null) return new IrReference(syntaxNode, GetObjectReference(r4));
+                var staticNamespaceMember = parent?.Namespace?.SearchChild(idnode.Value, SearchChildMode.OnlyStatic);
+                if (staticNamespaceMember != null)
+                    return new IrReference(syntaxNode, GetObjectReference(staticNamespaceMember));
 
                 // Search inside imports
                 if (parent?.SourceScript != null)
                 {
-                    foreach (var i in parent.SourceScript.Imports)
+                    foreach (var importStatement in parent.SourceScript.Imports)
                     {
-                        var r5 = i.SearchReference(idnode.Value);
-                        if (r5 != null) return new IrReference(syntaxNode, GetObjectReference(r5));
+                        var importedSymbol = importStatement.SearchReference(idnode.Value);
+                        if (importedSymbol != null)
+                            return new IrReference(syntaxNode, GetObjectReference(importedSymbol));
                     }
                 }
 
                 // Search global references
-                var r6 = _globalReferenceTable.FirstOrDefault(e => e.Key.Length == 1 && e.Key[0] == idnode.Value);
-                if (r6.Key != null) return new IrReference(syntaxNode, GetObjectReference(r6.Value));
+                var globalReferenceEntry = _globalReferenceTable
+                    .FirstOrDefault(e => e.Key.Length == 1 && e.Key[0] == idnode.Value);
+                if (globalReferenceEntry.Key != null)
+                    return new IrReference(syntaxNode, GetObjectReference(globalReferenceEntry.Value));
 
-                if (parent is TqNamespaceObject @nmsp)
+                if (parent is TqNamespaceObject currentNamespace)
                 {
-                    string[] name = [.. nmsp.Global, idnode.Value];
-                    var r7 = _globalReferenceTable.FirstOrDefault(e => IdentifierComparer.IsEquals(e.Key, name));
-                    if (r7.Key != null) return new IrReference(syntaxNode, GetObjectReference(r7.Value));
+                    string[] qualifiedName = [.. currentNamespace.Global, idnode.Value];
+                    var namespacedGlobalEntry = _globalReferenceTable
+                        .FirstOrDefault(e => IdentifierComparer.IsEquals(e.Key, qualifiedName));
+                    if (namespacedGlobalEntry.Key != null)
+                        return new IrReference(syntaxNode, GetObjectReference(namespacedGlobalEntry.Value));
                 }
-                
-                throw new Exception($"Cannot find reference to {idnode:pos}");
-            }
 
+                throw new Exception($"Cannot find reference to {idnode.Value}");
+            }
+            
             default: throw new UnreachableException();
         }
     }
-    
+
     private Reference ReferenceOf(IrNode node) => node switch
         {
             IrReference { IsSolved: true } @sr => sr.Reference,

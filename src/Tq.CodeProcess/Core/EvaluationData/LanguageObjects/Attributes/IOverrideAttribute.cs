@@ -1,4 +1,4 @@
-namespace Abstract.CodeProcess.Core.EvaluationData.LanguageObjects.Attributes;
+namespace Tq.CodeProcess.Core.EvaluationData.LanguageObjects.Attributes;
 
 public interface IOverrideAttribute
 {

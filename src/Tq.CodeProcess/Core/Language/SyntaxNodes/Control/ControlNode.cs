@@ -1,6 +1,4 @@
-using Abstract.CodeProcess.Core.Language.SyntaxNodes.Base;
-
-namespace Abstract.CodeProcess.Core.Language.SyntaxNodes.Control;
+namespace Tq.CodeProcess.Core.Language.SyntaxNodes;
 
 public abstract class ControlNode : SyntaxNode
 {

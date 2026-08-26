@@ -1,4 +1,4 @@
-namespace Abstract.CodeProcess.Core.Language.SyntaxNodes.Statement;
+namespace Tq.CodeProcess.Core.Language.SyntaxNodes;
 
 public class ForStatementNode : StatementNode
 {

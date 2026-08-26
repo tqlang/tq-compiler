@@ -1,4 +1,4 @@
-﻿using Abstract.CodeProcess.Core.Language;
+﻿using Tq.CodeProcess.Core.Language;
 
 namespace Abstract.CodeProcess;
 
@@ -56,6 +56,7 @@ public class Lexer
         { "packet", TokenType.PacketKeyword },
         { "typedef", TokenType.TypedefKeyword },
         { "case", TokenType.CaseKeyword },
+        { "default", TokenType.DefaultKeyword },
         { "constructor", TokenType.ConstructorKeyword },
         { "destructor", TokenType.DestructorKeyword },
         

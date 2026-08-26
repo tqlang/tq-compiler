@@ -1,6 +1,6 @@
 ﻿using System.Globalization;
 
-namespace Abstract.CodeProcess.Core.Language.SyntaxNodes.Value;
+namespace Tq.CodeProcess.Core.Language.SyntaxNodes;
 
 public class CharacterLiteralNode(Token token, bool insideString = false) : ValueNode(token)
 {
@@ -23,10 +23,10 @@ public class CharacterLiteralNode(Token token, bool insideString = false) : Valu
 
             // Characters
             "\\\"" => "\"",
-            "\\\'" => "\'",
-            "\\\\" => "\\",
+            @"\'" => "\'",
+            @"\\" => "\\",
 
-            _ => Value
+            _ => Value,
         };
     }
 }

@@ -1,6 +1,4 @@
-﻿using Abstract.CodeProcess.Core.Language.SyntaxNodes.Value;
-
-namespace Abstract.CodeProcess.Core.Language.SyntaxNodes.Misc;
+﻿namespace Tq.CodeProcess.Core.Language.SyntaxNodes;
 
 public class StringSectionNode(Token tkn) : ValueNode(tkn)
 {

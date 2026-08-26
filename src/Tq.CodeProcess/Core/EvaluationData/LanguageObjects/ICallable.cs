@@ -1,10 +1,10 @@
 using Abstract.CodeProcess.Core.EvaluationData.IntermediateTree;
-using Abstract.CodeProcess.Core.EvaluationData.LanguageObjects.CodeObjects;
-using Abstract.CodeProcess.Core.EvaluationData.LanguageObjects.Containers;
 using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences;
-using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.TypeReferences;
+using Tq.CodeProcess.Core.EvaluationData.LanguageObjects.CodeObjects;
+using Tq.CodeProcess.Core.EvaluationData.LanguageObjects.Containers;
+using Tq.CodeProcess.Core.EvaluationData.LanguageReferences;
 
-namespace Abstract.CodeProcess.Core.EvaluationData.LanguageObjects;
+namespace Tq.CodeProcess.Core.EvaluationData.LanguageObjects;
 
 public interface ICallable
 {

@@ -1,8 +1,4 @@
-using Abstract.CodeProcess.Core.Language.SyntaxNodes.Base;
-using Abstract.CodeProcess.Core.Language.SyntaxNodes.Misc;
-using Abstract.CodeProcess.Core.Language.SyntaxNodes.Value;
-
-namespace Abstract.CodeProcess.Core.Language.SyntaxNodes.Control;
+namespace Tq.CodeProcess.Core.Language.SyntaxNodes;
 
 public partial class StructureDeclarationNode : ControlNode
 {

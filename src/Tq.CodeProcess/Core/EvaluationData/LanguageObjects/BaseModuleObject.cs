@@ -1,4 +1,4 @@
-namespace Abstract.CodeProcess.Core.EvaluationData.LanguageObjects;
+namespace Tq.CodeProcess.Core.EvaluationData.LanguageObjects;
 
 public abstract class BaseModuleObject(string n) : ContainerObject(null!, n)
 {

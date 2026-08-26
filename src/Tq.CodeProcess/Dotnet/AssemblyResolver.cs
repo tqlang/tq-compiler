@@ -23,19 +23,19 @@ public class AssemblyResolver : DotNetCoreAssemblyResolver
         Assemblies["System.Console"] = new AssemblyReference("System.Console", runtimeVersion)
             { PublicKeyOrToken = [0xb0, 0x3f, 0x5f, 0x7f, 0x11, 0xd5, 0x0a, 0x3a] };
         
-        Assemblies["System.Collections.Generic"] = new AssemblyReference("System.Collections.Generic", runtimeVersion)
+        Assemblies["System.Collections"] = new AssemblyReference("System.Collections", runtimeVersion)
             { PublicKeyOrToken = [0xb0, 0x3f, 0x5f, 0x7f, 0x11, 0xd5, 0x0a, 0x3a] };
         
         Resolve(Assemblies["System.Runtime"]);
         Resolve(Assemblies["System.Console"]);
-        Resolve(Assemblies["System.Collections.Generic"]);
+        Resolve(Assemblies["System.Collections"]);
     }
     
-    protected override string? ProbeRuntimeDirectories(AssemblyDescriptor assembly)
+    override protected string? ProbeRuntimeDirectories(AssemblyDescriptor assembly)
     {
         throw new NotImplementedException();
     }
-    protected override AssemblyDefinition? ResolveImpl(AssemblyDescriptor assembly)
+    override protected AssemblyDefinition? ResolveImpl(AssemblyDescriptor assembly)
     {
         var asmName = assembly.Name;
         var asmVersion = assembly.Version;

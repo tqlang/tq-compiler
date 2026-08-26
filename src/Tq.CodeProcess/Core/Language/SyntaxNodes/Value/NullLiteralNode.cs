@@ -1,4 +1,4 @@
-﻿namespace Abstract.CodeProcess.Core.Language.SyntaxNodes.Value;
+﻿namespace Tq.CodeProcess.Core.Language.SyntaxNodes;
 
 public class NullLiteralNode(Token t) : ValueNode(t)
 {

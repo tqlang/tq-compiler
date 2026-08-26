@@ -1,6 +1,6 @@
-using Abstract.CodeProcess.Core.Language.SyntaxNodes.Base;
+using Tq.CodeProcess.Core.Language.SyntaxNodes;
 
-namespace Abstract.CodeProcess.Core.EvaluationData.LanguageObjects.Imports;
+namespace Tq.CodeProcess.Core.EvaluationData.LanguageObjects.Imports;
 
 public class GeneralImportObject(SyntaxNode node, string[] path) : ImportObject
 {

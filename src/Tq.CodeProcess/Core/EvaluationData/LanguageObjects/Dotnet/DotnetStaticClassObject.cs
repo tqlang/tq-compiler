@@ -1,6 +1,7 @@
+using Abstract.CodeProcess.Core.EvaluationData;
 using AsmResolver.DotNet;
 
-namespace Abstract.CodeProcess.Core.EvaluationData.LanguageObjects;
+namespace Tq.CodeProcess.Core.EvaluationData.LanguageObjects;
 
 public class DotnetStaticClassObject(string fullNamespace, TypeDefinition type) : BaseNamespaceObject(fullNamespace)
 {

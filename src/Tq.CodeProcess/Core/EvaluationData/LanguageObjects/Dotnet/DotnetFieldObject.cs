@@ -2,8 +2,9 @@ using System.Text;
 using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences;
 using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.TypeReferences;
 using AsmResolver.DotNet;
+using Tq.CodeProcess.Core.EvaluationData.LanguageReferences;
 
-namespace Abstract.CodeProcess.Core.EvaluationData.LanguageObjects;
+namespace Tq.CodeProcess.Core.EvaluationData.LanguageObjects;
 
 public class DotnetFieldObject(FieldDefinition field, Reference t) : LangObject(null!, field.Name!)
 {

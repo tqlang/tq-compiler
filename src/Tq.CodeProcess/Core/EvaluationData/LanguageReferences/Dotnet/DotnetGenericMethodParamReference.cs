@@ -1,7 +1,8 @@
+using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences;
 using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.TypeReferences;
 using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.TypeReferences.Builtin;
 
-namespace Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.Dotnet;
+namespace Tq.CodeProcess.Core.EvaluationData.LanguageReferences;
 
 public class DotnetGenericMethodParamReference(int index) : Reference, ITypeReference
 {

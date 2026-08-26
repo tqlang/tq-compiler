@@ -1,4 +1,4 @@
-using Abstract.CodeProcess.Core.EvaluationData.LanguageObjects;
+using Tq.CodeProcess.Core.EvaluationData.LanguageObjects;
 
 namespace Abstract.CodeProcess.Core.EvaluationData.Misc;
 

@@ -1,6 +1,6 @@
 using System.Text;
 
-namespace Abstract.CodeProcess.Core.EvaluationData.LanguageObjects;
+namespace Tq.CodeProcess.Core.EvaluationData.LanguageObjects;
 
 public class DotnetMethodGroupObject(string n) : DotnetMemberObject(null!, n)
 {

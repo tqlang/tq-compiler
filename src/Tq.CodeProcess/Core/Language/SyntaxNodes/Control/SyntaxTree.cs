@@ -1,6 +1,6 @@
 using System.Text;
 
-namespace Abstract.CodeProcess.Core.Language.SyntaxNodes.Control;
+namespace Tq.CodeProcess.Core.Language.SyntaxNodes;
 
 public class SyntaxTree(string path): ControlNode
 {

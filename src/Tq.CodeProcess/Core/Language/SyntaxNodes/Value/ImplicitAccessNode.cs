@@ -1,6 +1,4 @@
-using Abstract.CodeProcess.Core.Language.SyntaxNodes.Expression;
-
-namespace Abstract.CodeProcess.Core.Language.SyntaxNodes.Value;
+namespace Tq.CodeProcess.Core.Language.SyntaxNodes;
 
 public class ImplicitAccessNode() : ValueNode(default)
 {

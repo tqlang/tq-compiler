@@ -10,7 +10,6 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Tq.CodeProcess\Tq.CodeProcess.csproj" />
-    <ProjectReference Include="..\Tq.Resources\Tq.Resources.csproj" />
   </ItemGroup>
 
 </Project>

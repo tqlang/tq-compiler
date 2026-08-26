@@ -1,4 +1,4 @@
-﻿namespace Abstract.CodeProcess.Core.Language;
+﻿namespace Tq.CodeProcess.Core.Language;
 
 public struct Token
 {
@@ -42,6 +42,7 @@ public enum TokenType : byte
     PacketKeyword,          // packet
     TypedefKeyword,         // typedef
     CaseKeyword,            // case
+    DefaultKeyword,         // default
     ConstructorKeyword,     // constructor
     DestructorKeyword,      // destructor
     

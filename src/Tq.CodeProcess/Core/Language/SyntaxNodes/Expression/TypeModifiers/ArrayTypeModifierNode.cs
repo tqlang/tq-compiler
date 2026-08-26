@@ -1,6 +1,4 @@
-using Abstract.CodeProcess.Core.Language.SyntaxNodes.Value;
-
-namespace Abstract.CodeProcess.Core.Language.SyntaxNodes.Expression.TypeModifiers;
+namespace Tq.CodeProcess.Core.Language.SyntaxNodes;
 
 public class ArrayTypeModifierNode : ExpressionNode
 {

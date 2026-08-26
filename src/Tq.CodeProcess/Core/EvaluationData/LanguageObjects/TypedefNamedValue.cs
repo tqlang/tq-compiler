@@ -1,7 +1,7 @@
 using Abstract.CodeProcess.Core.EvaluationData.IntermediateTree;
-using Abstract.CodeProcess.Core.Language.SyntaxNodes.Control;
+using Tq.CodeProcess.Core.Language.SyntaxNodes;
 
-namespace Abstract.CodeProcess.Core.EvaluationData.LanguageObjects;
+namespace Tq.CodeProcess.Core.EvaluationData.LanguageObjects;
 
 public class TypedefNamedValue(TypeDefinitionNamedItemNode node, string name) : LangObject(null!, name)
 {

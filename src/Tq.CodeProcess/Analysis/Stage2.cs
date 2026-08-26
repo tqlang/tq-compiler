@@ -1,17 +1,15 @@
 using System.Diagnostics;
-using Abstract.CodeProcess.Core.EvaluationData.LanguageObjects;
-using Abstract.CodeProcess.Core.EvaluationData.LanguageObjects.Attributes;
-using Abstract.CodeProcess.Core.EvaluationData.LanguageObjects.CodeObjects;
 using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences;
 using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.AttributeReferences;
-using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.TypeReferences;
 using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.TypeReferences.Builtin;
-using Abstract.CodeProcess.Core.Language.SyntaxNodes.Base;
-using Abstract.CodeProcess.Core.Language.SyntaxNodes.Expression;
-using Abstract.CodeProcess.Core.Language.SyntaxNodes.Misc;
-using Abstract.CodeProcess.Core.Language.SyntaxNodes.Value;
+using Tq.CodeProcess.Core.EvaluationData.LanguageObjects;
+using Tq.CodeProcess.Core.EvaluationData.LanguageObjects.Attributes;
+using Tq.CodeProcess.Core.EvaluationData.LanguageObjects.CodeObjects;
+using Tq.CodeProcess.Core.EvaluationData.LanguageReferences;
+using Tq.CodeProcess.Core.EvaluationData.LanguageReferences.AttributeReferences;
+using Tq.CodeProcess.Core.Language.SyntaxNodes;
 
-namespace Abstract.CodeProcess;
+namespace Tq.CodeProcess;
 
 
 /*
@@ -26,7 +24,7 @@ public partial class Analyser
 {
     private void ScanHeadersMetadata()
     {
-        foreach (var reference in _globalReferenceTable.ToArray())
+        foreach (var reference in Enumerable.ToArray<KeyValuePair<string[], LangObject>>(_globalReferenceTable))
         {
             var langObj = reference.Value;
 

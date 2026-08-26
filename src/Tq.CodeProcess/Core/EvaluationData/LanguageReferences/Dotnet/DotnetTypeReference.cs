@@ -1,8 +1,9 @@
-using Abstract.CodeProcess.Core.EvaluationData.LanguageObjects;
+using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences;
 using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.TypeReferences;
 using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.TypeReferences.Builtin;
+using Tq.CodeProcess.Core.EvaluationData.LanguageObjects;
 
-namespace Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.Dotnet;
+namespace Tq.CodeProcess.Core.EvaluationData.LanguageReferences;
 
 public class DotnetTypeReference(DotnetTypeObject dotnetTypeObject) : Reference, ITypeReference
 {

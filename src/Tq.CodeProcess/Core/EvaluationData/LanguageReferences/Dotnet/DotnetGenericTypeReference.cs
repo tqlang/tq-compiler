@@ -1,9 +1,10 @@
-using Abstract.CodeProcess.Core.EvaluationData.LanguageObjects;
+using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences;
 using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.TypeReferences;
 using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.TypeReferences.Builtin;
 using AsmResolver.DotNet.Signatures.Types;
+using Tq.CodeProcess.Core.EvaluationData.LanguageObjects;
 
-namespace Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.Dotnet;
+namespace Tq.CodeProcess.Core.EvaluationData.LanguageReferences;
 
 public class DotnetGenericImplReference(DotnetTypeObject baseRef, GenericInstanceTypeSignature typeSig, ITypeReference[] args) : Reference, ITypeReference
 {

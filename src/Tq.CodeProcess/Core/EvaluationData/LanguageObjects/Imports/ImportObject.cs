@@ -1,4 +1,4 @@
-namespace Abstract.CodeProcess.Core.EvaluationData.LanguageObjects.Imports;
+namespace Tq.CodeProcess.Core.EvaluationData.LanguageObjects.Imports;
 
 public abstract class ImportObject
 {

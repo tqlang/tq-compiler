@@ -1,6 +1,6 @@
-using Abstract.CodeProcess.Core.EvaluationData.LanguageObjects.Imports;
+using Tq.CodeProcess.Core.EvaluationData.LanguageObjects.Imports;
 
-namespace Abstract.CodeProcess.Core.EvaluationData.LanguageObjects.Containers;
+namespace Tq.CodeProcess.Core.EvaluationData.LanguageObjects.Containers;
 
 public class SourceScript(string path)
 {

@@ -1,18 +1,15 @@
 using System.Diagnostics;
-using Abstract.CodeProcess.Core.EvaluationData.LanguageObjects;
-using Abstract.CodeProcess.Core.EvaluationData.LanguageObjects.Containers;
-using Abstract.CodeProcess.Core.EvaluationData.LanguageObjects.Imports;
-using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences;
 using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.AttributeReferences;
-using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.TypeReferences;
-using Abstract.CodeProcess.Core.Language.Module;
-using Abstract.CodeProcess.Core.Language.SyntaxNodes.Control;
-using Abstract.CodeProcess.Core.Language.SyntaxNodes.Expression;
-using Abstract.CodeProcess.Core.Language.SyntaxNodes.Misc;
-using Abstract.CodeProcess.Core.Language.SyntaxNodes.Value;
 using AsmResolver.DotNet;
+using Tq.CodeProcess.Core.EvaluationData.LanguageObjects;
+using Tq.CodeProcess.Core.EvaluationData.LanguageObjects.Containers;
+using Tq.CodeProcess.Core.EvaluationData.LanguageObjects.Imports;
+using Tq.CodeProcess.Core.EvaluationData.LanguageReferences;
+using Tq.CodeProcess.Core.EvaluationData.LanguageReferences.AttributeReferences;
+using Tq.CodeProcess.Core.Language.Module;
+using Tq.CodeProcess.Core.Language.SyntaxNodes;
 
-namespace Abstract.CodeProcess;
+namespace Tq.CodeProcess;
 
 /*
  * Stage One:
@@ -165,7 +162,12 @@ public partial class Analyser
     {
         if (fromImport.Children.Length < 4)
         {
-            var namespaceParts = ((AccessNode)fromImport.Children[1]).StringValues;
+            var namespaceParts = fromImport.Children[1] switch
+            {
+                AccessNode acc => acc.StringValues,
+                IdentifierNode id => [id.Value],
+                _              => throw new NotImplementedException()
+            };
 
             if (namespaceParts.Any(string.IsNullOrEmpty)) throw new Exception("Invalid expression inside namespace identifier");
             sourceScript.Imports.Add(new GeneralImportObject(fromImport, namespaceParts));

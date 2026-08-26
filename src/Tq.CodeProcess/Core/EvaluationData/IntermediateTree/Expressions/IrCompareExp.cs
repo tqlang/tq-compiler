@@ -1,8 +1,9 @@
+using Abstract.CodeProcess.Core.EvaluationData.IntermediateTree;
 using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.TypeReferences;
 using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.TypeReferences.Builtin;
-using Abstract.CodeProcess.Core.Language.SyntaxNodes.Expression;
+using Tq.CodeProcess.Core.Language.SyntaxNodes;
 
-namespace Abstract.CodeProcess.Core.EvaluationData.IntermediateTree.Expressions;
+namespace Tq.CodeProcess.Core.EvaluationData.IntermediateTree.Expressions;
 
 public class IrCompareExp(
     BinaryExpressionNode origin,

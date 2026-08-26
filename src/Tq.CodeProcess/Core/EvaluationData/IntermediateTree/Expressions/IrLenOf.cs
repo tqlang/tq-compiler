@@ -1,8 +1,9 @@
+using Abstract.CodeProcess.Core.EvaluationData.IntermediateTree;
 using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.TypeReferences;
 using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.TypeReferences.Builtin.Integer;
-using Abstract.CodeProcess.Core.Language.SyntaxNodes.Base;
+using Tq.CodeProcess.Core.Language.SyntaxNodes;
 
-namespace Abstract.CodeProcess.Core.EvaluationData.IntermediateTree.Expressions;
+namespace Tq.CodeProcess.Core.EvaluationData.IntermediateTree.Expressions;
 
 public class IrLenOf(SyntaxNode origin, IrExpression ofvalue) : IrExpression(origin)
 {

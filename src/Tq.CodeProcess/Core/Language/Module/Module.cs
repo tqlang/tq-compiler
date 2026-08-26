@@ -1,6 +1,6 @@
-using Abstract.CodeProcess.Core.Language.SyntaxNodes.Control;
+using Tq.CodeProcess.Core.Language.SyntaxNodes;
 
-namespace Abstract.CodeProcess.Core.Language.Module;
+namespace Tq.CodeProcess.Core.Language.Module;
 
 public sealed class Module(string name)
 {

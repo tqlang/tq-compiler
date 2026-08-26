@@ -1,13 +1,14 @@
 using System.Text;
 using Abstract.CodeProcess.Core;
 using Abstract.CodeProcess.Core.EvaluationData;
-using Abstract.CodeProcess.Core.EvaluationData.LanguageObjects;
 using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.AttributeReferences;
-using Abstract.CodeProcess.Core.Language.Module;
 using Abstract.CodeProcess.Dotnet;
 using AsmResolver.DotNet;
+using Tq.CodeProcess.Core.EvaluationData.LanguageObjects;
+using Tq.CodeProcess.Core.EvaluationData.LanguageReferences.AttributeReferences;
+using Tq.CodeProcess.Core.Language.Module;
 
-namespace Abstract.CodeProcess;
+namespace Tq.CodeProcess;
 
 public partial class Analyser(ErrorHandler handler)
 {
@@ -62,6 +63,13 @@ public partial class Analyser(ErrorHandler handler)
         if (dumpEvaluatedData) DumpEvaluatedData();
         if (dumpGlobalTable) DumpGlobalTable();
 
+        // Stage 5
+
+        FixMess();
+        if (dumpEvaluatedData) DumpEvaluatedData();
+        if (dumpGlobalTable) DumpGlobalTable();
+
+        
         if (_errorHandler.ErrorCount > 0) return null!;
         return new ProgramObject(
             programName,

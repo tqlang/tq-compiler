@@ -1,6 +1,7 @@
 using System.Text;
+using Abstract.CodeProcess.Core;
 
-namespace Abstract.CodeProcess.Core.EvaluationData.LanguageObjects;
+namespace Tq.CodeProcess.Core.EvaluationData.LanguageObjects;
 
 public class TqModuleObject(string n) : BaseModuleObject(n)
 {

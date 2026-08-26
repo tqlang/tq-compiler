@@ -3,27 +3,24 @@ using Abstract.CodeProcess.Core;
 using Abstract.CodeProcess.Core.EvaluationData;
 using Abstract.CodeProcess.Core.EvaluationData.Exceptions;
 using Abstract.CodeProcess.Core.EvaluationData.IntermediateTree;
-using Abstract.CodeProcess.Core.EvaluationData.IntermediateTree.Expressions;
 using Abstract.CodeProcess.Core.EvaluationData.IntermediateTree.Statements;
 using Abstract.CodeProcess.Core.EvaluationData.IntermediateTree.Values;
-using Abstract.CodeProcess.Core.EvaluationData.LanguageObjects;
-using Abstract.CodeProcess.Core.EvaluationData.LanguageObjects.CodeObjects;
-using Abstract.CodeProcess.Core.EvaluationData.LanguageObjects.Containers;
-using Abstract.CodeProcess.Core.EvaluationData.LanguageObjects.Imports;
 using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences;
 using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.CodeReferences;
 using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.TypeReferences;
 using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.TypeReferences.Builtin;
 using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.TypeReferences.Builtin.Integer;
-using Abstract.CodeProcess.Core.Language;
-using Abstract.CodeProcess.Core.Language.SyntaxNodes.Base;
-using Abstract.CodeProcess.Core.Language.SyntaxNodes.Expression;
-using Abstract.CodeProcess.Core.Language.SyntaxNodes.Expression.TypeModifiers;
-using Abstract.CodeProcess.Core.Language.SyntaxNodes.Statement;
-using Abstract.CodeProcess.Core.Language.SyntaxNodes.Value;
-using AsmResolver.DotNet;
+using Tq.CodeProcess.Core.EvaluationData.IntermediateTree.Expressions;
+using Tq.CodeProcess.Core.EvaluationData.LanguageObjects;
+using Tq.CodeProcess.Core.EvaluationData.LanguageObjects.CodeObjects;
+using Tq.CodeProcess.Core.EvaluationData.LanguageObjects.Containers;
+using Tq.CodeProcess.Core.EvaluationData.LanguageObjects.Imports;
+using Tq.CodeProcess.Core.EvaluationData.LanguageReferences;
+using Tq.CodeProcess.Core.Language;
+using Tq.CodeProcess.Core.Language.SyntaxNodes;
+using Tq.CodeProcess.Core.Language.SyntaxNodes.TypeModifiers;
 
-namespace Abstract.CodeProcess;
+namespace Tq.CodeProcess;
 
 
 /*
@@ -58,7 +55,7 @@ public partial class Analyser
             }
         }
 
-        foreach (var i in _globalReferenceTable.Values.OfType<StructObject>())
+        foreach (var i in Enumerable.OfType<StructObject>(_globalReferenceTable.Values))
         {
             if (i.Extends == null) continue;
             i.Extends = (Reference)SolveTypeReference(i.Extends, null, i);
@@ -69,7 +66,7 @@ public partial class Analyser
             Console.WriteLine(i.Extends);
         }
         
-        var structsSortedList = TopologicalSort(_globalReferenceTable.Values.OfType<StructObject>());
+        var structsSortedList = TopologicalSort(Enumerable.OfType<StructObject>(_globalReferenceTable.Values));
         foreach (var structs in structsSortedList) LazyScanStructureMeta(structs);
     }
     
@@ -119,6 +116,9 @@ public partial class Analyser
     }
     private void ScanStructureMeta(StructObject structure)
     {
+        foreach (var i in structure.SyntaxNode.ParameterCollection?.Items ?? [])
+            structure.Parameters.Add(new ParameterObject((Reference)SolveTypeReference(i.Type, null, structure), i.Identifier.Value));
+        
         foreach (var i in structure.Fields)
         {
             try
@@ -564,6 +564,40 @@ public partial class Analyser
                     UnwrapExecutionContext_Expression(texp.IfTrue, ctx),
                     UnwrapExecutionContext_Expression(texp.IfFalse, ctx));
             }
+            case MatchExpressionNode @match:
+            {
+                var irMatch = new IrPatternMatch(match);
+                irMatch.Expression = UnwrapExecutionContext_Expression(match.Expression, ctx);
+
+                foreach (var i in match.Scope.Content) switch (i)
+                {
+                    case MatchExpressionCaseNode @c:
+                    {
+                        var defaultCase = new IrPatternMatchCase(i);
+                        defaultCase.Pattern = UnwrapExecutionContext_Expression(c.Value, ctx);
+                        var (action, _) = UnwrapExecutionContext_Statement(c.Operation, ctx);
+                        defaultCase.Action  = (IrNode)action!;
+                        
+                        irMatch.Cases.Add(defaultCase);
+                    }
+                    break;
+                    case MatchExpressionDefaultNode @d:
+                    {
+                        if (irMatch.Default != null)
+                            throw new Exception("Pattern matching expression can only have one default block!");
+                        
+                        var defaultCase = new IrPatternMatchCase(i);
+                        defaultCase.Pattern = null;
+                        var (action, _) = UnwrapExecutionContext_Statement(d.Operation, ctx);
+                        defaultCase.Action = action!;
+                        
+                        irMatch.Default = defaultCase;
+                    }
+                    break;
+                }
+                
+                return irMatch;
+            }
             
             case TypeCastNode @tcast:
             {
@@ -637,11 +671,11 @@ public partial class Analyser
             case IrReference @irRef: return irRef;
 
             case IrCall @call:
-            {
-                var genericImpl = new GenericTypeImplReference(ReferenceOf(call.Target) as ITypeReference ?? throw new NotImplementedException());
-                genericImpl.Arguments.AddRange(call.Arguments);
-                return new IrReference(call.Origin, genericImpl);
-            }
+                var a = SolveTypeReference((UnknownReference)((IrReference)call.Target).Reference, ctx, ctx.Parent);
+                var generic = new GenericTypeImplReference(a);
+                generic.Arguments.AddRange(call.Arguments);
+                return new IrReference(call.Origin, generic);
+                //return new IrReference(call.Origin, new UnknownReference((ExpressionNode)call.Target.Origin));
 
             default:
                 throw new NotImplementedException();
@@ -828,8 +862,8 @@ public partial class Analyser
                 if (parent is TqNamespaceObject @nmsp)
                 {
                     string[] name = [.. nmsp.Global, idnode.Value];
-                    var r7 = _globalReferenceTable
-                        .FirstOrDefault(e => IdentifierComparer.IsEquals(e.Key, name));
+                    var r7 = Enumerable
+                        .FirstOrDefault<KeyValuePair<string[], LangObject>>(_globalReferenceTable, e => IdentifierComparer.IsEquals(e.Key, name));
                     if (r7.Key != null) return (ITypeReference)GetObjectReference(r7.Value);
                 }
                 

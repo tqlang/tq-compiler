@@ -1,6 +1,10 @@
 
-@public func main() {
+@public func runTests() {
+    testConditionals()
+    testArraysAndSlices()
+    
     testBuiltins()
+    testNullables()
     testArithmeticU8()
     testArithmeticI8()
 }

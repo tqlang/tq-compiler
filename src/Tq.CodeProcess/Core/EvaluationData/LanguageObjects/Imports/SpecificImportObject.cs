@@ -1,7 +1,7 @@
 using System.Text;
-using Abstract.CodeProcess.Core.Language.SyntaxNodes.Control;
+using Tq.CodeProcess.Core.Language.SyntaxNodes;
 
-namespace Abstract.CodeProcess.Core.EvaluationData.LanguageObjects.Imports;
+namespace Tq.CodeProcess.Core.EvaluationData.LanguageObjects.Imports;
 
 public class SpecificImportObject(FromImportNode node, string[] namespacePath) : ImportObject
 {

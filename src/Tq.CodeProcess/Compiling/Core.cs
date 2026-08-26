@@ -8,7 +8,7 @@ using AsmResolver.DotNet.Signatures.Types;
 using AsmResolver.PE.DotNet.Cil;
 using AsmResolver.PE.DotNet.Metadata.Tables.Rows;
 
-namespace Abstract.CodeProcess;
+namespace Tq.CodeProcess;
 
 public partial class Compiler
 {
@@ -305,12 +305,12 @@ public partial class Compiler
             var checkLbl = new CilInstructionLabel();
             var skipLbl = new CilInstructionLabel();
             
-            gen.Add(CilOpCodes.Newobj, sbNew);
+            gen.Add(CilOpCodes.Newobj, (IMethodDescriptor)sbNew);
             gen.Add(CilOpCodes.Stloc, tmpSb);
 
             gen.Add(CilOpCodes.Ldloc, tmpSb);
             gen.Add(CilOpCodes.Ldc_I4_S, (byte)'[');
-            gen.Add(CilOpCodes.Call, sbAppendC);
+            gen.Add(CilOpCodes.Call, (IMethodDescriptor)sbAppendC);
             gen.Add(CilOpCodes.Pop);
             
             gen.Add(CilOpCodes.Ldc_I4_0);
@@ -328,13 +328,13 @@ public partial class Compiler
                 loopLbl.Instruction = gen.Add(CilOpCodes.Ldloc, tmpSb);
                 gen.Add(CilOpCodes.Ldarg_0);
                 gen.Add(CilOpCodes.Ldloc, tmpI);
-                gen.Add(CilOpCodes.Ldelem, elmType);
-                gen.Add(CilOpCodes.Box, elmType);
-                gen.Add(CilOpCodes.Callvirt, _coreLib["System.Object"].m["ToString"]);
-                gen.Add(CilOpCodes.Call, sbAppendS);
+                gen.Add(CilOpCodes.Ldelem, (ITypeDefOrRef)elmType);
+                gen.Add(CilOpCodes.Box, (ITypeDefOrRef)elmType);
+                gen.Add(CilOpCodes.Callvirt, (IMethodDescriptor)_coreLib["System.Object"].m["ToString"]);
+                gen.Add(CilOpCodes.Call, (IMethodDescriptor)sbAppendS);
                 
                 gen.Add(CilOpCodes.Ldstr, ", ");
-                gen.Add(CilOpCodes.Call, sbAppendS);
+                gen.Add(CilOpCodes.Call, (IMethodDescriptor)sbAppendS);
                 gen.Add(CilOpCodes.Pop);
                 
                 gen.Add(CilOpCodes.Ldloc, tmpI);
@@ -352,16 +352,16 @@ public partial class Compiler
             
             gen.Add(CilOpCodes.Ldloc, tmpSb);
             gen.Add(CilOpCodes.Dup);
-            gen.Add(CilOpCodes.Call, stringBuilder.m["get_Len"]);
+            gen.Add(CilOpCodes.Call, (IMethodDescriptor)stringBuilder.m["get_Len"]);
             gen.Add(CilOpCodes.Ldc_I4_2);
             gen.Add(CilOpCodes.Sub);
-            gen.Add(CilOpCodes.Call, stringBuilder.m["set_Len"]);
+            gen.Add(CilOpCodes.Call, (IMethodDescriptor)stringBuilder.m["set_Len"]);
             
             skipLbl.Instruction = gen.Add(CilOpCodes.Ldloc, tmpSb);
             gen.Add(CilOpCodes.Ldc_I4_S, (byte)']');
-            gen.Add(CilOpCodes.Call, sbAppendC);
+            gen.Add(CilOpCodes.Call, (IMethodDescriptor)sbAppendC);
             
-            gen.Add(CilOpCodes.Call, sbToStr);
+            gen.Add(CilOpCodes.Call, (IMethodDescriptor)sbToStr);
             gen.Add(CilOpCodes.Ret);
             
             _runtimeHelpers[""].m["Array_AsString"] = m;
@@ -373,7 +373,7 @@ public partial class Compiler
     
     private (ITypeDefOrRef type, TypeSignature sig, Dictionary<string, IMethodDescriptor> methods) ImportType(string ns, string name)
     {
-        var type = _module.DefaultImporter.ImportType(_module.CorLibTypeFactory.CorLibScope.CreateTypeReference(ns, name));
+        var type = _module.DefaultImporter.ImportType(TypeDescriptorExtensions.CreateTypeReference(_module.CorLibTypeFactory.CorLibScope, ns, name));
         var sig = _module.DefaultImporter.ImportTypeSignature(type.ToTypeSignature());
         var met = new Dictionary<string, IMethodDescriptor>();
         _coreLib.Add(type.FullName, (sig, met));

@@ -1,4 +1,4 @@
-using Abstract.CodeProcess.Core.Language.SyntaxNodes.Base;
+using Tq.CodeProcess.Core.Language.SyntaxNodes;
 
 namespace Abstract.CodeProcess.Core.EvaluationData.IntermediateTree;
 

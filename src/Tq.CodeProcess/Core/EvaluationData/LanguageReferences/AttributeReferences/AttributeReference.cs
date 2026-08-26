@@ -1,6 +1,6 @@
-using Abstract.CodeProcess.Core.Language.SyntaxNodes.Control;
+using Tq.CodeProcess.Core.Language.SyntaxNodes;
 
-namespace Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.AttributeReferences;
+namespace Tq.CodeProcess.Core.EvaluationData.LanguageReferences.AttributeReferences;
 
 public abstract class AttributeReference(AttributeNode node)
 {
