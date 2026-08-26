@@ -1,0 +1,29 @@
+from Std import { Test }
+
+func testConditionals() {
+    let i32 val = 10
+    let i32 result = 0
+
+    Test.newTestUnit("conditionals - if/elif/else")
+    if val == 5 result = 1
+    elif val == 10 result = 2
+    else result = 3
+    Test.assert(result, 2)
+
+    #Test.newTestUnit("conditionals - match expression returning value")
+    #let i32 matchResult = match val {
+    #    case 5  => 100
+    #    case 10 => 200
+    #    case 15 => 300
+    #    default => 0
+    #}
+    #Test.assert(matchResult, 200)
+
+    #Test.newTestUnit("conditionals - match with default fallback")
+    #let i32 fallbackResult = match 99 {
+    #    case 1 => 10
+    #    case 2 => 20
+    #    default => 404
+    #}
+    #Test.assert(fallbackResult, 404)
+}

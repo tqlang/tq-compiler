@@ -1,0 +1,131 @@
+@public typedef TokenKind {
+    case undefined              # undefined token (default value)
+        
+    case integerNumberLiteral
+    case floatingNumberLiteral
+    
+    case stringLiteral
+    case characterLiteral
+    case identifier
+    
+    case fromKeyword            # from
+    case importKeyword          # import
+    case typeKeyword
+    case letKeyword             # let
+    case constKeyword           # const
+    case funcKeyword            # func
+    case structKeyword          # struct
+    case extendsKeyword         # extends
+    case packetKeyword          # packet
+    case typedefKeyword         # typedef
+    case caseKeyword            # case
+    case constructorKeyword     # constructor
+    case destructorKeyword      # destructor
+    
+    case matchKeyword           # match
+    case ifKeyword              # if
+    case elifKeyword            # elif
+    case elseKeyword            # else
+    case whileKeyword           # while
+    case forKeyword             # for
+    case doKeyword              # do
+    case inKeyword              # in
+    case breakKeyword           # break
+    case unreachableKeyword     # unreachable
+
+    case asKeyword              # as
+    case newKeyword             # new
+
+    case returnKeyword          # return
+
+    case nullKeyword            # null
+    case trueKeyword            # true
+    case falseKeyword           # false
+    
+    case bitwiseAndKeyword      # AND
+    case bitwiseOrKeyword       # OR
+    case bitwiseXorKeyword      # XOR
+
+    case leftParenthesisChar    # (
+    case rightParenthesisChar   # )
+
+    case leftBracketChar        # {
+    case rightBracketChar       # }
+
+    case leftSquareBracketChar  # [
+    case rightSquareBracketChar # ]
+
+    case leftAngleChar          # <
+    case rightAngleChar         # >
+
+    case escapedLeftBracket     # \{
+
+    case crossChar              # +
+    case minusChar              # -
+    case starChar               # *
+    case slashChar              # /
+    case percentChar            # %
+    case equalsChar             # =
+    case circumflexChar         # ^
+    case tildeChar              # ~
+    case ampersandChar          # &
+    case questionChar           # ?
+    case bangChar               # !
+    case pipeChar               # |
+    case colonChar              # :
+    
+    case addWrapOperator        # +%
+    case addOnBoundsOperator    # +|
+    case subWrapOperator        # -%
+    case subOnBoundsOperator    # -|
+    case mulWrapOperator        # *%
+    case mulOnBoundsOperator    # *|
+    
+    case divideFloorOperator    # /_
+    case divideCeilOperator     # /^
+
+    case atSignChar            # @
+
+    case rightArrowOperator     # =>
+
+    case equalOperator          # ==
+    case unequalOperator        # !=
+    case exactEqualOperator     # ===
+    case exactUnequalOperator   # !==
+    case lessEqualsOperator     # <=
+    case greatEqualsOperator    # >=
+
+    case andOperator            # and
+    case orOperator             # or
+    
+    case bitShiftLeftOperator   # <<
+    case bitShiftRightOperator  # >>
+
+    case powerOperator          # **
+
+    case addAssign              # +=
+    case subAssign              # -=
+    case mulAssign              # *=
+    case divAssign              # /=
+    case restAssign             # %=
+    case bitwiseXorAssign       # ^=
+    case bitwiseAndAssign       # &=
+    case bitwiseOrAssign        # |=
+    case bitShiftLeftAssign     # <<=
+    case bitShiftRightAssign    # >>=
+
+    case incrementOperator      # ++
+    case decrementOperator      # --
+
+    case intervalOperator       # ..
+
+    case singleQuotes           # '
+    case doubleQuotes           # "
+
+    case commaChar              # 
+    case dotChar                # .
+
+    case eofChar                # \EOF
+    case endOfStatement         # \n or ;
+    case spaceChar              # ' '
+}

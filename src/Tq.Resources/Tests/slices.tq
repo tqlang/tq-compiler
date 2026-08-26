@@ -1,0 +1,20 @@
+from Std import { Test }
+
+func testArraysAndSlices() {
+    # Test.newTestUnit("collections - array indexing")
+    # let [5]i32 numbers = {10, 20, 30, 40, 50}
+    
+    # Test.assert(numbers[0], 10)
+    # Test.assert(numbers[2], 30)
+    # Test.assert(numbers[4], 50)
+
+    # Test.newTestUnit("collections - slice creation and access")
+    # let []i32 middle = numbers[1..4] 
+    # Test.assert(middle[0], 20)
+    # Test.assert(middle[1], 30)
+
+    # Test.newTestUnit("collections - slice modification reflects on array")
+    # middle[0] = 99
+    # Test.assert(numbers[1], 99)
+    # Test.assert(middle[0], 99)
+}

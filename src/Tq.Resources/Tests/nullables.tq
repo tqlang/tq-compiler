@@ -1,0 +1,18 @@
+from Std import { Test }
+
+func testNullables() {
+    # Test.newTestUnit("nullability - coalescing operator with null")
+    # let ?i32 maybeNull = null
+    # let i32 safeVal = maybeNull ?? 42
+    # Test.assert(safeVal, 42)
+
+    # Test.newTestUnit("nullability - coalescing operator with valid value")
+    # let ?i32 validNum = 100
+    # let i32 unwrappedVal = validNum ?? 0
+    # Test.assert(unwrappedVal, 100)
+
+    # Test.newTestUnit("nullability - explicit unwrap method")
+    # let ?i32 anotherValid = 55
+    # let i32 manualUnwrap = anotherValid.unwrap()
+    # Test.assert(manualUnwrap, 55)
+}
