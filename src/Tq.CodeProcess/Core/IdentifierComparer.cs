@@ -1,4 +1,4 @@
-namespace Abstract.CodeProcess.Core;
+namespace Tq.CodeProcess.Core;
 
 public class IdentifierComparer : IEqualityComparer<string[]>
 {

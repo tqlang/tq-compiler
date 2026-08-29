@@ -1,6 +1,6 @@
 ﻿using Tq.CodeProcess.Core.Language;
 
-namespace Abstract.CodeProcess;
+namespace Tq.CodeProcess;
 
 public class Lexer
 {

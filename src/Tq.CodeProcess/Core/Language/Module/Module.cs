@@ -2,7 +2,7 @@ using Tq.CodeProcess.Core.Language.SyntaxNodes;
 
 namespace Tq.CodeProcess.Core.Language.Module;
 
-public sealed class Module(string name)
+public sealed class TempModule(string name)
 {
     public readonly string name = name;
     

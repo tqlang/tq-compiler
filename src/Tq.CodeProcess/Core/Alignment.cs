@@ -1,6 +1,6 @@
 using System.Diagnostics.CodeAnalysis;
 
-namespace Abstract.CodeProcess.Core;
+namespace Tq.CodeProcess.Core;
 
 public readonly struct Alignment(int bitlen, int nativelen)
 {

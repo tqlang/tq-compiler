@@ -1,7 +1,7 @@
 ﻿using System.Text;
-using Tq.CodeProcess.Core.EvaluationData.LanguageObjects.Containers;
+using Tq.CodeProcess.Core.Language;
 
-namespace Abstract.CodeProcess.Core;
+namespace Tq.CodeProcess.Core;
 
 public class ErrorHandler
 {
@@ -14,7 +14,7 @@ public class ErrorHandler
     
     public void SetFileNull() => _currentFile = null;
     public void SetFile(string? file) => _currentFile = file;
-    public void SetFile(SourceScript file) => _currentFile = file?.Path;
+    public void SetFile(SourceScript? file) => _currentFile = file?.Path;
     
     public void RegisterError(Exception ex)
     {

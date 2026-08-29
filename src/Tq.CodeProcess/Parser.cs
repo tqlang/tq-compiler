@@ -1,8 +1,7 @@
 using System.Diagnostics;
-using Abstract.CodeProcess.Core;
+using Tq.CodeProcess.Core;
 using Tq.CodeProcess.Core.Language;
 using Tq.CodeProcess.Core.Language.SyntaxNodes;
-using Tq.CodeProcess.Core.Language.SyntaxNodes.TypeModifiers;
 
 namespace Tq.CodeProcess;
 

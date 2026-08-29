@@ -1,11 +1,8 @@
 using System.Diagnostics;
 using System.Text.RegularExpressions;
-using Abstract.CodeProcess;
-using Abstract.CodeProcess.Core;
 using Tq.CodeProcess;
-using Analyser = Tq.CodeProcess.Analyser;
-using Compiler = Tq.CodeProcess.Compiler;
-using Module = Tq.CodeProcess.Core.Language.Module.Module;
+using Tq.CodeProcess.Core;
+using Tq.CodeProcess.Core.Language.Module;
 
 namespace Abstract.Cli.Build;
 
@@ -21,29 +18,27 @@ public static class Builder
         // are in the right place
         SetupBuildCache();
         
-        var verbose = options.Verbose;
-        
         var err = new ErrorHandler();
         
         var lexer = new Lexer();
         var parser = new Parser(err);
-        var analyzer = new Analyser(err);
-        var compiler = new Compiler();
+        var analyzer = new Analyzer(err);
+        //var compiler = new Compiler();
         
-        if (verbose) Console.WriteLine("Starting build...");
+        Console.WriteLine("Starting build...");
         var completeBuild = Stopwatch.StartNew();
 
         var parsingModules = Stopwatch.StartNew();
         
-        List<Module> modules = [];
+        List<TempModule> modules = [];
         foreach (var mod in options.Modules)
         {
-            var module = new Module(mod.name);
+            var module = new TempModule(mod.name);
             modules.Add(module);
             var mod_path = mod.path;
 
-            if (verbose) Console.WriteLine($"# Processing module '{module.name}':");
-            if (verbose) Console.Write("\tSearching for files... ");
+            Console.WriteLine($"# Processing module '{module.name}':");
+            Console.Write("\tSearching for files... ");
             var singleModule = Stopwatch.StartNew();
             
             var nodes = SearchSourceFiles(
@@ -51,8 +46,8 @@ public static class Builder
                 options.DirectoryQueryRegex,
                 options.ScriptQueryRegex);
             
-            if (verbose) Console.WriteLine($"Done ({singleModule.Elapsed})");
-            if (verbose) Console.Write($"\tProcessing {nodes.Length} namespaces... ");
+            Console.WriteLine($"Done ({singleModule.Elapsed})");
+            Console.Write($"\tProcessing {nodes.Length} namespaces... ");
             singleModule.Restart();
             
             foreach (var (dir, scripts) in nodes)
@@ -86,12 +81,12 @@ public static class Builder
 
             }
             
-            if (verbose) Console.WriteLine($"Done ({singleModule.Elapsed})");
+            Console.WriteLine($"Done ({singleModule.Elapsed})");
         }
         err.SetFileNull();
         
         parsingModules.Stop();
-        if (verbose) Console.WriteLine($"Modules parsed ({parsingModules.Elapsed})");
+        Console.WriteLine($"Modules parsed ({parsingModules.Elapsed})");
 
         if (err.ErrorCount > 0)
         {
@@ -103,13 +98,10 @@ public static class Builder
         var progObj = analyzer.Analyze(
             options.ProjectName,
             [.. modules],
-            [.. options.Includes],
-            dumpGlobalTable: options.DebugDumpAnalyzerIr,
-            dumpEvaluatedData: options.DebugDumpAnalyzerIr);
+            [.. options.Includes]);
         analysis.Stop();
         Console.WriteLine($"Analysis done ({analysis.Elapsed})");
         
-        var binaryEmission = Stopwatch.StartNew();
         
         if (progObj == null || err.ErrorCount > 0)
         {
@@ -117,13 +109,15 @@ public static class Builder
             Environment.Exit(1);
         }
         
-        compiler.Compile(progObj);
+        var binaryEmission = Stopwatch.StartNew();
+        
+        // compiler.Compile(progObj);
         
         binaryEmission.Stop();
         Console.WriteLine($"Binary emission done ({binaryEmission.Elapsed})");
         
         completeBuild.Stop();
-        if (verbose) Console.WriteLine($"Build Finished ({completeBuild.Elapsed})");
+        Console.WriteLine($"Build Finished ({completeBuild.Elapsed})");
 
         if (!options.Run) return;
 

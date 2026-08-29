@@ -1,6 +1,6 @@
 using System.Text;
 
-namespace Abstract.CodeProcess.Core;
+namespace Tq.CodeProcess.Core;
 
 public static class StringExtensions
 {
