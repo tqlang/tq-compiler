@@ -62,7 +62,8 @@ public class FunctionObject(SourceScript sourceScript, string n, FunctionDeclara
             p.index = lastidx++;
         }
     }
-    
+
+    public override LangObject? SearchChild(string name, SearchChildMode mode = SearchChildMode.All) => null;
     public override string ToString()
     {
         var sb = new StringBuilder();

@@ -13,7 +13,8 @@ public class DotnetFieldObject(FieldDefinition field, Reference t) : LangObject(
     
     public bool IsConstant => Reference.Constant != null;
     public bool IsStatic => Reference.Constant is null;
-    
+
+    public override LangObject? SearchChild(string name, SearchChildMode mode = SearchChildMode.All) => null;
     public override string ToString()
     {
         var isConstant = Reference.Constant == null;

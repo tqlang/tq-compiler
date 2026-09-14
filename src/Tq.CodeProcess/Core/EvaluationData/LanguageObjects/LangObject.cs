@@ -1,18 +1,20 @@
-using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.AttributeReferences;
 using Tq.CodeProcess.Core.EvaluationData.LanguageObjects.Containers;
 using Tq.CodeProcess.Core.EvaluationData.LanguageReferences.AttributeReferences;
 
 namespace Tq.CodeProcess.Core.EvaluationData.LanguageObjects;
 
-public abstract class LangObject(SourceScript sourceScript, string name) : IFormattable
+public abstract class LangObject(SourceScript sourceScript, string name) : IMember, IFormattable
 {
     private readonly List<AttributeReference> _attributes = [];
     private LangObject? _parent;
+    private Dictionary<BuiltinAttributes, object?> _encapsilation = [];
 
-    public string[] Global => string.IsNullOrEmpty(Name) ? [.._parent?.Global ?? []] : [.._parent?.Global ?? [], Name];
-
-    public readonly string Name = name;
+    public string Name => name;
     public LangObject Parent { get =>_parent!; set => _parent = value; }
+    public string[] Global => string.IsNullOrEmpty(Name) ? [.._parent?.Global ?? []] : [.._parent?.Global ?? [], Name];
+    public IDictionary<BuiltinAttributes, object?> Encapsulation => _encapsilation;
+
+    
 
     public ContainerObject? Container
     {
@@ -45,11 +47,11 @@ public abstract class LangObject(SourceScript sourceScript, string name) : IForm
     }
     
     public AttributeReference[] Attributes => [.. _attributes];
-    
+
+    public abstract LangObject? SearchChild(string name, SearchChildMode mode = SearchChildMode.All);
     public void AppendAttributes(params AttributeReference[] attrs) => _attributes.AddRange(attrs);
 
-    public virtual LangObject? SearchChild(string name, SearchChildMode mode) => null;
-    
+
     public string ToString(string? format, IFormatProvider? formatProvider)
     {
         return format switch
@@ -58,7 +60,7 @@ public abstract class LangObject(SourceScript sourceScript, string name) : IForm
             _ => ToString(),
         };
     }
-    public abstract override string ToString();
+    public override abstract string ToString();
     public abstract string ToSignature();
 }
 

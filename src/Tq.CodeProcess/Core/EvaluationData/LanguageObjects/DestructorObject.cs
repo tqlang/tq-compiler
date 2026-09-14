@@ -42,7 +42,8 @@ public class DestructorObject(SourceScript sourceScript, DestructorDeclarationNo
             p.index = i++;
         }
     }
-    
+
+    public override LangObject? SearchChild(string name, SearchChildMode mode = SearchChildMode.All) => null;
     public override string ToString()
     {
         var sb = new StringBuilder();

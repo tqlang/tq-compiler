@@ -27,7 +27,8 @@ public class FieldObject(SourceScript sourceScript, string n, TopLevelVariableNo
 
     public Alignment? Offset { get; set; }
     public IrExpression? Value = null;
-    
+
+    public override LangObject? SearchChild(string name, SearchChildMode mode = SearchChildMode.All) => null;
     public override string ToString()
     {
         var sb = new StringBuilder();

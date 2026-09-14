@@ -1,7 +1,6 @@
 using System.Text;
 using Abstract.CodeProcess.Core;
 using Abstract.CodeProcess.Core.EvaluationData;
-using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.AttributeReferences;
 using Abstract.CodeProcess.Dotnet;
 using AsmResolver.DotNet;
 using Tq.CodeProcess.Core.EvaluationData.LanguageObjects;
@@ -16,7 +15,6 @@ public partial class Analyser(ErrorHandler handler)
     
     private readonly List<BaseModuleObject> _modules = [];
     private readonly List<TqNamespaceObject> _namespaces = [];
-    private readonly Dictionary<string[], LangObject> _globalReferenceTable = new(new IdentifierComparer());
     private readonly Stack<List<AttributeReference>> _onHoldAttributes = [];
     
     private AssemblyResolver _assemblyResolver = null!;
@@ -84,26 +82,20 @@ public partial class Analyser(ErrorHandler handler)
     {
         var sb = new StringBuilder();
 
-        foreach (var i in _globalReferenceTable)
+        // Walks the tree from the module roots instead of iterating a
+        // flat `_globalReferenceTable`. `.GetType().Name` stands in for
+        // the old switch, so this needs no case for Dotnet* types (or
+        // any future member kind) to stay generic.
+        foreach (var member in _modules.SelectMany(WalkMembers))
         {
-            var kind = i.Value switch
-            {
-                BaseModuleObject => "Modl",
-                TqNamespaceObject => "Nmsp",
-                FunctionGroupObject => "FnGp",
-                FunctionObject => "Func",
-                StructObject => "Type",
-                TypedefObject => "TDef",
-                TypedefNamedValue => "DefN",
-                FieldObject @fld => fld.Static ? "SFld" : "LFld",
-                DotnetNamespaceObject @dn => "DotNS",
-                DotnetTypeObject @dt => "DClas",
-                DotnetMethodGroupObject => "DMtGp",
-                DotnetMethodObject => "DMthd",
-                
-                _ => throw new NotImplementedException()
-            };
-            sb.AppendLine($"{kind}\t{string.Join('.', i.Key)}");
+            var kind = member.GetType().Name;
+            if (member is FieldObject && member.HasFlag(BuiltinAttributes.Static)) kind += "(static)";
+
+            List<string> path = [member.Name];
+            for (var p = member.Parent; p != null; p = p.Parent) path.Add(p.Name);
+            path.Reverse();
+
+            sb.AppendLine($"{kind}\t{string.Join('.', path)}");
         }
         
         File.WriteAllText(".tq-cache/debug/reftable.txt", sb.ToString());

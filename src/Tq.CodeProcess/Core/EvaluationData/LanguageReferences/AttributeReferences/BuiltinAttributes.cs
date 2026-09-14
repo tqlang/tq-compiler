@@ -1,4 +1,4 @@
-namespace Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.AttributeReferences;
+namespace Tq.CodeProcess.Core.EvaluationData.LanguageReferences.AttributeReferences;
 
 public enum BuiltinAttributes
 {

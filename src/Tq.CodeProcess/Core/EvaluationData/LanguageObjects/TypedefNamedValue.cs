@@ -7,7 +7,8 @@ public class TypedefNamedValue(TypeDefinitionNamedItemNode node, string name) : 
 {
     public TypeDefinitionNamedItemNode syntaxNode = node;
     public IrExpression? Value = null!;
-    
+
+    public override LangObject? SearchChild(string name, SearchChildMode mode = SearchChildMode.All) => null;
     public override string ToString() => Value == null ? $"{Name}" : $"{Name} = {Value}";
     public override string ToSignature() => $"{Parent.ToSignature()}.{Name}";
 }

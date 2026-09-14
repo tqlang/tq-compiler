@@ -1,0 +1,5 @@
+from Tests import
+from Std import { Console , Fs , Mem }
+@public()
+func main () { runTests() Console.writeln("Hello, World!") }
+

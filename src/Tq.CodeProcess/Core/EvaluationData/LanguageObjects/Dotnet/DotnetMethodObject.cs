@@ -42,7 +42,8 @@ public class DotnetMethodObject(
     {
         throw new NotImplementedException();
     }
-    
+
+    public override LangObject? SearchChild(string name, SearchChildMode mode = SearchChildMode.All) => null;
     public override string ToString()
     {
         var sb = new StringBuilder();

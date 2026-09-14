@@ -18,6 +18,7 @@ using Tq.CodeProcess.Core.EvaluationData.LanguageObjects;
 using Tq.CodeProcess.Core.EvaluationData.LanguageObjects.Attributes;
 using Tq.CodeProcess.Core.EvaluationData.LanguageObjects.CodeObjects;
 using Tq.CodeProcess.Core.EvaluationData.LanguageReferences;
+using Tq.CodeProcess.Core.EvaluationData.LanguageReferences.AttributeReferences;
 using Tq.CodeProcess.Core.Language.SyntaxNodes;
 
 namespace Tq.CodeProcess;
@@ -38,31 +39,26 @@ public partial class Analyser
         List<DestructorObject> dtorList = [];
         List<FieldObject> fldlist = [];
 
-        foreach (var (_, i) in _globalReferenceTable)
+        var allMembers = _modules.SelectMany(WalkMembers).ToList();
+
+        foreach (var i in allMembers)
         {
             switch (i)
             {
                 case TqNamespaceObject nmsp: NamespaceSemaAnal(nmsp); break;
-                case FunctionGroupObject group: funclist.AddRange(group.Overloads); break;
                 case TypedefObject t: typedeflist.Add(t); break;
                 case FunctionObject f: funclist.Add(f); break;
                 case FieldObject f: fldlist.Add(f); break;
-                case StructObject s:
-                    ctorList.AddRange(s.Constructors);
-                    dtorList.AddRange(s.Destructors);
-                    break;
+                case ConstructorObject c: ctorList.Add(c); break;
+                case DestructorObject d: dtorList.Add(d); break;
             }
         }
         
         // Header analysis
-        foreach (var obj in _globalReferenceTable.Values)
+        foreach (var obj in allMembers)
         {
             switch (obj)
             {
-                case FunctionGroupObject @functionGroup:
-                    foreach (var fun in @functionGroup.Overloads) FunctionSemaAnal(fun);
-                    break;
-                
                 case FunctionObject @fun:
                     FunctionSemaAnal(fun);
                     break;
@@ -1023,7 +1019,15 @@ public partial class Analyser
                         {
                             var referenceNode = new IrReference(syntaxNode, GetObjectReference(inheritedMember));
 
-                            return inheritedMember is IStaticModifier { Static: false }
+                            // NOTE: previously, a member that wasn't even
+                            // IStaticModifier (couldn't ever be static)
+                            // fell through to `referenceNode` with no
+                            // self-prefix. Now every member answers
+                            // HasFlag(Static), so anything never marked
+                            // static gets the self-prefix. Double check
+                            // this is fine for whatever kinds of members
+                            // used to skip IStaticModifier entirely.
+                            return !inheritedMember.HasFlag(BuiltinAttributes.Static)
                                 ? new IrAccess(syntaxNode, new IrReference(syntaxNode, new SelfReference()), referenceNode)
                                 : referenceNode;
                         }
@@ -1048,19 +1052,29 @@ public partial class Analyser
                     }
                 }
 
-                // Search global references
-                var globalReferenceEntry = _globalReferenceTable
-                    .FirstOrDefault(e => e.Key.Length == 1 && e.Key[0] == idnode.Value);
-                if (globalReferenceEntry.Key != null)
-                    return new IrReference(syntaxNode, GetObjectReference(globalReferenceEntry.Value));
+                // Search top-level module members (replaces the flat
+                // `_globalReferenceTable` bare-identifier fallback)
+                LangObject? topLevelMember = null;
+                foreach (var m in _modules)
+                {
+                    topLevelMember = m switch
+                    {
+                        TqModuleObject { Root: not null } tq => tq.Root.SearchChild(idnode.Value, SearchChildMode.OnlyStatic),
+                        DotnetModuleObject dn => dn.SearchChild(idnode.Value, SearchChildMode.OnlyStatic),
+                        _ => null
+                    };
+                    if (topLevelMember != null) break;
+                }
+                if (topLevelMember != null)
+                    return new IrReference(syntaxNode, GetObjectReference(topLevelMember));
 
+                // Search inside the current namespace itself (replaces
+                // the flat, namespaced `_globalReferenceTable` fallback)
                 if (parent is TqNamespaceObject currentNamespace)
                 {
-                    string[] qualifiedName = [.. currentNamespace.Global, idnode.Value];
-                    var namespacedGlobalEntry = _globalReferenceTable
-                        .FirstOrDefault(e => IdentifierComparer.IsEquals(e.Key, qualifiedName));
-                    if (namespacedGlobalEntry.Key != null)
-                        return new IrReference(syntaxNode, GetObjectReference(namespacedGlobalEntry.Value));
+                    var ownMember = currentNamespace.SearchChild(idnode.Value, SearchChildMode.OnlyStatic);
+                    if (ownMember != null)
+                        return new IrReference(syntaxNode, GetObjectReference(ownMember));
                 }
 
                 throw new Exception($"Cannot find reference to {idnode.Value}");

@@ -1,5 +1,4 @@
 using System.Diagnostics;
-using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.AttributeReferences;
 using AsmResolver.DotNet;
 using Tq.CodeProcess.Core.EvaluationData.LanguageObjects;
 using Tq.CodeProcess.Core.EvaluationData.LanguageObjects.Containers;
@@ -16,7 +15,8 @@ namespace Tq.CodeProcess;
  *  Iterates though the syntactic tree and
  *  collects the headers for general metadata
  *  generation. All generated data is organized
- *  in a tree and dumped into `_globalReferenceTable`
+ *  in a tree rooted at `_modules`; `WireParents`
+ *  wires it up and `WalkMembers` walks it later.
  */
 
 public partial class Analyser
@@ -27,7 +27,6 @@ public partial class Analyser
         _assemblies.Clear();
         _namespaces.Clear();
         _onHoldAttributes.Clear();
-        _globalReferenceTable.Clear();
         
         // Search tq references
         foreach (var m in modules)
@@ -54,7 +53,7 @@ public partial class Analyser
                 SearchNamespaceRecursive(obj);
             }
 
-            LoadGlobalsRecursive(module);
+            WireParents(module);
             _modules.Add(module);
         }
         
@@ -74,7 +73,7 @@ public partial class Analyser
             
             if (res.ManifestModule != null) dotnetModule.AddModule(res.ManifestModule);
         }
-        LoadGlobalsRecursive(dotnetModule);
+        WireParents(dotnetModule);
         _modules.Add(dotnetModule);
         
         _modules.TrimExcess();
@@ -304,14 +303,14 @@ public partial class Analyser
         return dtor;
     }
 
-    private void LoadGlobalsRecursive(LangObject obj)
+    // Wires up `.Parent` across the whole tree. Run once per module root
+    // (from SearchReferences) before anything reads .Parent.
+    private void WireParents(LangObject obj)
     {
-        if (obj is not BaseModuleObject) _globalReferenceTable.Add(obj.Global, obj);
-        
         if (obj is TqModuleObject { Root: not null } @m)
         {
             m.Root.Parent = m;
-            LoadGlobalsRecursive(m.Root);
+            WireParents(m.Root);
         }
         
         if (obj is INamespaceContainer @nc)
@@ -319,7 +318,7 @@ public partial class Analyser
             foreach (var i in nc.Namespaces)
             {
                 i.Parent = obj;
-                LoadGlobalsRecursive(i);
+                WireParents(i);
             }
         }
 
@@ -327,21 +326,21 @@ public partial class Analyser
             foreach (var i in fc.Fields)
             {
                 i.Parent = obj;
-                LoadGlobalsRecursive(i);
+                WireParents(i);
             }
 
         if (obj is IStructContainer @sc)
             foreach (var i in sc.Structs)
             {
                 i.Parent = obj;
-                LoadGlobalsRecursive(i);
+                WireParents(i);
             }
 
         if (obj is ITypedefContainer @tc)
             foreach (var i in tc.Typedefs)
             {
                 i.Parent = obj;
-                LoadGlobalsRecursive(i);
+                WireParents(i);
             }
 
         if (obj is IFunctionContainer gc)
@@ -353,7 +352,7 @@ public partial class Analyser
                     j.Parent = obj;
                     j.ParentGroup = i;
                 }
-                LoadGlobalsRecursive(i);
+                WireParents(i);
             }
         
         if (obj is ICtorDtorContainer @cdc)
@@ -366,14 +365,14 @@ public partial class Analyser
             foreach (var i in dc.Types)
             {
                 i.Parent = obj;
-                LoadGlobalsRecursive(i);
+                WireParents(i);
             }
         
         if (obj is IDotnetFieldContainer fd)
             foreach (var i in fd.Fields)
             {
                 i.Parent = obj;
-                LoadGlobalsRecursive(i);
+                WireParents(i);
             }
         
         if (obj is IDotnetMethodContainer dm)
@@ -385,13 +384,77 @@ public partial class Analyser
                     j.Parent = obj;
                     j.MethodGroup = i;
                 }
-                LoadGlobalsRecursive(i);
+                WireParents(i);
             }
 
         if (obj is IDotnetCtorDtorContainer c)
         {
             foreach (var i in c.Constructors) i.Parent = obj;
             c.Destructor?.Parent = obj;
+        }
+    }
+
+    // Pure enumeration of every member reachable from a root, in tree
+    // order — this is what replaces `_globalReferenceTable` everywhere
+    // stages 2-4 used to iterate it. Unlike SearchChild (name lookup),
+    // this also surfaces function overloads, constructors and
+    // destructors directly, so callers no longer need a special case
+    // for FunctionGroupObject/StructObject just to reach them.
+    private static IEnumerable<LangObject> WalkMembers(LangObject obj)
+    {
+        if (obj is not BaseModuleObject) yield return obj;
+
+        if (obj is TqModuleObject { Root: not null } m)
+            foreach (var d in WalkMembers(m.Root)) yield return d;
+
+        if (obj is INamespaceContainer nc)
+            foreach (var i in nc.Namespaces)
+                foreach (var d in WalkMembers(i)) yield return d;
+
+        if (obj is IFieldContainer fc)
+            foreach (var i in fc.Fields)
+                foreach (var d in WalkMembers(i)) yield return d;
+
+        if (obj is IStructContainer sc)
+            foreach (var i in sc.Structs)
+                foreach (var d in WalkMembers(i)) yield return d;
+
+        if (obj is ITypedefContainer tc)
+            foreach (var i in tc.Typedefs)
+                foreach (var d in WalkMembers(i)) yield return d;
+
+        if (obj is IFunctionContainer gc)
+            foreach (var i in gc.Functions)
+            {
+                foreach (var j in i.Overloads) yield return j;
+                foreach (var d in WalkMembers(i)) yield return d;
+            }
+
+        if (obj is ICtorDtorContainer cdc)
+        {
+            foreach (var i in cdc.Constructors) yield return i;
+            foreach (var i in cdc.Destructors) yield return i;
+        }
+
+        if (obj is IDotnetTypeContainer dc)
+            foreach (var i in dc.Types)
+                foreach (var d in WalkMembers(i)) yield return d;
+
+        if (obj is IDotnetFieldContainer fd)
+            foreach (var i in fd.Fields)
+                foreach (var d in WalkMembers(i)) yield return d;
+
+        if (obj is IDotnetMethodContainer dm)
+            foreach (var i in dm.Methods)
+            {
+                foreach (var j in i.Overloads) yield return j;
+                foreach (var d in WalkMembers(i)) yield return d;
+            }
+
+        if (obj is IDotnetCtorDtorContainer c)
+        {
+            foreach (var i in c.Constructors) yield return i;
+            if (c.Destructor != null) yield return c.Destructor;
         }
     }
     

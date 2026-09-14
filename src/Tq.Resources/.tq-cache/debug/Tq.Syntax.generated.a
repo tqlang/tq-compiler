@@ -1,0 +1,116 @@
+
+@public()
+struct SyntaxNode { }
+@public()
+@readonly()
+struct TokenNode extends SyntaxNode { @public() let Token token constructor (Token tkn) { token = tkn } }
+
+@public()
+@readonly()
+struct Token { @public() let TokenKind kind @public() let uint line @public() let uint collumn @public() let ? string value }
+
+@public()
+typedef TokenKind {
+	case undefined
+	case integerNumberLiteral
+	case floatingNumberLiteral
+	case stringLiteral
+	case characterLiteral
+	case identifier
+	case fromKeyword
+	case importKeyword
+	case typeKeyword
+	case letKeyword
+	case constKeyword
+	case funcKeyword
+	case structKeyword
+	case extendsKeyword
+	case packetKeyword
+	case typedefKeyword
+	case caseKeyword
+	case constructorKeyword
+	case destructorKeyword
+	case matchKeyword
+	case ifKeyword
+	case elifKeyword
+	case elseKeyword
+	case whileKeyword
+	case forKeyword
+	case doKeyword
+	case inKeyword
+	case breakKeyword
+	case unreachableKeyword
+	case asKeyword
+	case newKeyword
+	case returnKeyword
+	case nullKeyword
+	case trueKeyword
+	case falseKeyword
+	case bitwiseAndKeyword
+	case bitwiseOrKeyword
+	case bitwiseXorKeyword
+	case leftParenthesisChar
+	case rightParenthesisChar
+	case leftBracketChar
+	case rightBracketChar
+	case leftSquareBracketChar
+	case rightSquareBracketChar
+	case leftAngleChar
+	case rightAngleChar
+	case escapedLeftBracket
+	case crossChar
+	case minusChar
+	case starChar
+	case slashChar
+	case percentChar
+	case equalsChar
+	case circumflexChar
+	case tildeChar
+	case ampersandChar
+	case questionChar
+	case bangChar
+	case pipeChar
+	case colonChar
+	case addWrapOperator
+	case addOnBoundsOperator
+	case subWrapOperator
+	case subOnBoundsOperator
+	case mulWrapOperator
+	case mulOnBoundsOperator
+	case divideFloorOperator
+	case divideCeilOperator
+	case atSignChar
+	case rightArrowOperator
+	case equalOperator
+	case unequalOperator
+	case exactEqualOperator
+	case exactUnequalOperator
+	case lessEqualsOperator
+	case greatEqualsOperator
+	case andOperator
+	case orOperator
+	case bitShiftLeftOperator
+	case bitShiftRightOperator
+	case powerOperator
+	case addAssign
+	case subAssign
+	case mulAssign
+	case divAssign
+	case restAssign
+	case bitwiseXorAssign
+	case bitwiseAndAssign
+	case bitwiseOrAssign
+	case bitShiftLeftAssign
+	case bitShiftRightAssign
+	case incrementOperator
+	case decrementOperator
+	case intervalOperator
+	case singleQuotes
+	case doubleQuotes
+	case commaChar
+	case dotChar
+	case eofChar
+	case endOfStatement
+	case spaceChar
+}
+

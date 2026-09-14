@@ -16,6 +16,7 @@ using Tq.CodeProcess.Core.EvaluationData.LanguageObjects.CodeObjects;
 using Tq.CodeProcess.Core.EvaluationData.LanguageObjects.Containers;
 using Tq.CodeProcess.Core.EvaluationData.LanguageObjects.Imports;
 using Tq.CodeProcess.Core.EvaluationData.LanguageReferences;
+using Tq.CodeProcess.Core.EvaluationData.LanguageReferences.AttributeReferences;
 using Tq.CodeProcess.Core.Language;
 using Tq.CodeProcess.Core.Language.SyntaxNodes;
 using Tq.CodeProcess.Core.Language.SyntaxNodes.TypeModifiers;
@@ -35,9 +36,9 @@ public partial class Analyser
 {
     private void ScanObjectHeaders()
     {
-        foreach (var i in _globalReferenceTable)
+        foreach (var member in _modules.SelectMany(WalkMembers))
         {
-            switch (i.Value)
+            switch (member)
             {
                 case FunctionObject @funcobj: ScanFunctionMeta(funcobj); break;
                 case StructObject @structobj: ScanStructureMeta(structobj); break;
@@ -48,25 +49,28 @@ public partial class Analyser
                 case TqNamespaceObject @nmsp:
                     foreach (var i2 in nmsp.Scripts) ScanScriptMeta(i2);
                     break;
-                    
-                case FunctionGroupObject @funcgroup:
-                    foreach (var i2 in funcgroup.Overloads) ScanFunctionMeta(i2);
-                    break;
+                
+                // FunctionObject overloads are walked directly now (see
+                // WalkMembers), so there's no separate FunctionGroupObject
+                // case needed here anymore.
             }
         }
 
-        foreach (var i in Enumerable.OfType<StructObject>(_globalReferenceTable.Values))
+        var allStructs = _modules.SelectMany(WalkMembers).OfType<StructObject>().ToList();
+
+        foreach (var i in allStructs)
         {
             if (i.Extends == null) continue;
             i.Extends = (Reference)SolveTypeReference(i.Extends, null, i);
             
             if (i.Extends is UnknownReference) throw new Exception($"Cannot solve type {i.SyntaxNode:pos}");
             if (i.Extends is not StructReference) throw new Exception("Non-struct types cannot be inherited");
-            if (i.Extends is StructReference { Struct.Static: true }) throw new Exception("Cannot extends static type");
+            if (i.Extends is StructReference { Struct: var extendsStruct } && extendsStruct.HasFlag(BuiltinAttributes.Static))
+                throw new Exception("Cannot extends static type");
             Console.WriteLine(i.Extends);
         }
         
-        var structsSortedList = TopologicalSort(Enumerable.OfType<StructObject>(_globalReferenceTable.Values));
+        var structsSortedList = TopologicalSort(allStructs);
         foreach (var structs in structsSortedList) LazyScanStructureMeta(structs);
     }
     
@@ -170,30 +174,23 @@ public partial class Analyser
     
     private void ScanObjectBodies()
     {
-        foreach (var i in _globalReferenceTable)
+        foreach (var member in _modules.SelectMany(WalkMembers))
         {
-            switch (i.Value)
+            switch (member)
             {
-                case FunctionGroupObject @funcgroup:
-                {
-                    foreach (var i2 in funcgroup.Overloads)
-                    {
-                        ScanFunctionExecutionBody(i2);
-                        foreach (var l in i2.Locals)
-                            if (l.Type != null && !l.Type.IsSolved) l.Type = (Reference)SolveTypeReference(l.Type, null, i2);
-                    }
+                case FunctionObject @fn:
+                    ScanFunctionExecutionBody(fn);
+                    foreach (var l in fn.Locals)
+                        if (l.Type != null && !l.Type.IsSolved) l.Type = (Reference)SolveTypeReference(l.Type, null, fn);
                     break;
-                }
                 
                 case FieldObject @fld: ScanFieldValueBody(fld); break;
 
                 case TypedefObject @tdf: ScanTypedefEntriesValueBody(tdf); break;
-                
-                case StructObject @st:
-                {
-                    foreach (var j in st.Constructors) ScanCtorExecutionBody(j);
-                    foreach (var j in st.Destructors) ScanDtorExecutionBody(j);
-                } break;
+
+                case ConstructorObject @ctor: ScanCtorExecutionBody(ctor); break;
+
+                case DestructorObject @dtor: ScanDtorExecutionBody(dtor); break;
             }
         }
     }
@@ -690,7 +687,7 @@ public partial class Analyser
         try
         {
             var parent = (structure.Extends as StructReference)?.Struct;
-            var virtualCount = structure.Functions.SelectMany(e => e.Overloads).Count(e => e.Abstract || e.Virtual);
+            var virtualCount = structure.Functions.SelectMany(e => e.Overloads).Count(e => e.HasFlag(BuiltinAttributes.Abstract) || e.HasFlag(BuiltinAttributes.Virtual));
             virtualCount += parent?.VirtualTable?.Length ?? 0;
 
             structure.VirtualTable = new (FunctionObject, FunctionObject?, bool)[virtualCount];
@@ -707,7 +704,7 @@ public partial class Analyser
             {
                 // Checking if it is virtual, so a new entries
                 // Should be allocated in the vtable
-                if (func.Abstract || func.Virtual)
+                if (func.HasFlag(BuiltinAttributes.Abstract) || func.HasFlag(BuiltinAttributes.Virtual))
                 {
                     structure.VirtualTable[i].parent = func;
                     structure.VirtualTable[i].overrided = func;
@@ -716,7 +713,7 @@ public partial class Analyser
                 }
                 
                 // Solving a override function
-                if (func.Override) SolveOverridingFunction(func, structure);
+                if (func.HasFlag(BuiltinAttributes.Override)) SolveOverridingFunction(func, structure);
             }
             
             var fields = structure.Fields.ToArray();
@@ -820,12 +817,16 @@ public partial class Analyser
                     if (param != null) return new GenericTypeReference(param);
                 }
                 
-                // Search in parent tree
+                // Search in parent tree (now also checks the enclosing
+                // namespace's own children before stopping, instead of
+                // stopping one level short and needing a separate flat
+                // `_globalReferenceTable` lookup to cover that case)
                 var curr = parent;
-                while (curr != null && curr is not TqNamespaceObject)
+                while (curr != null)
                 {
                     var r3 = curr.SearchChild(idnode.Value, SearchChildMode.All);
                     if (r3 != null) return (ITypeReference)GetObjectReference(r3);
+                    if (curr is TqNamespaceObject) break;
                     curr = curr.Parent;
                 }
                 
@@ -854,17 +855,20 @@ public partial class Analyser
                     }
                 }
 
-                // Search global references
-                var r6 = _globalReferenceTable
-                    .FirstOrDefault(e => e.Key.Length == 1 && e.Key[0] == idnode.Value);
-                if (r6.Key != null) return (ITypeReference)GetObjectReference(r6.Value);
-
-                if (parent is TqNamespaceObject @nmsp)
+                // Search top-level module members (replaces the old flat
+                // `_globalReferenceTable` bare-identifier fallback; the
+                // namespaced fallback that used to sit here is now
+                // redundant, since the fixed loop above already checks
+                // the enclosing namespace's own children)
+                foreach (var mod in _modules)
                 {
-                    string[] name = [.. nmsp.Global, idnode.Value];
-                    var r7 = Enumerable
-                        .FirstOrDefault<KeyValuePair<string[], LangObject>>(_globalReferenceTable, e => IdentifierComparer.IsEquals(e.Key, name));
-                    if (r7.Key != null) return (ITypeReference)GetObjectReference(r7.Value);
+                    var topLevel = mod switch
+                    {
+                        TqModuleObject { Root: not null } tq => tq.Root.SearchChild(idnode.Value, SearchChildMode.OnlyStatic),
+                        DotnetModuleObject dn => dn.SearchChild(idnode.Value, SearchChildMode.OnlyStatic),
+                        _ => null
+                    };
+                    if (topLevel != null) return (ITypeReference)GetObjectReference(topLevel);
                 }
                 
                 throw new CompilationException($"Cannot find reference to {idnode:pos}");

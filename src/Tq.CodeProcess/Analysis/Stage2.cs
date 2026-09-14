@@ -1,9 +1,6 @@
 using System.Diagnostics;
-using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences;
-using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.AttributeReferences;
 using Abstract.CodeProcess.Core.EvaluationData.LanguageReferences.TypeReferences.Builtin;
 using Tq.CodeProcess.Core.EvaluationData.LanguageObjects;
-using Tq.CodeProcess.Core.EvaluationData.LanguageObjects.Attributes;
 using Tq.CodeProcess.Core.EvaluationData.LanguageObjects.CodeObjects;
 using Tq.CodeProcess.Core.EvaluationData.LanguageReferences;
 using Tq.CodeProcess.Core.EvaluationData.LanguageReferences.AttributeReferences;
@@ -16,34 +13,24 @@ namespace Tq.CodeProcess;
  * Stage Two:
  *  Scans all the headers, unwraps the build-in
  *  attributes and evaluate header-level references.
- *  This step should be done early as it may dump
- *  more shit into `_globalReferenceTable`.
+ *  This step should run early, since later stages
+ *  rely on encapsulation (Static/Public/...) already
+ *  being resolved on every member of the tree.
  */
 
 public partial class Analyser
 {
     private void ScanHeadersMetadata()
     {
-        foreach (var reference in Enumerable.ToArray<KeyValuePair<string[], LangObject>>(_globalReferenceTable))
-        {
-            var langObj = reference.Value;
-
-            ProcessHeader(langObj);
-            
-            switch (langObj)
-            {
-                case FunctionGroupObject @funcg:
-                {
-                    foreach (var o in funcg.Overloads) ProcessHeader(o);
-                } break;
-                case StructObject @struc:
-                {
-                    UnwrapStructureMeta(struc);
-                    foreach (var i in struc.Constructors) ProcessHeader(i);
-                    foreach (var i in struc.Destructors) ProcessHeader(i);
-                } break;
-            }
-        }
+        // WalkMembers already surfaces function overloads, constructors
+        // and destructors directly, and ProcessHeader already dispatches
+        // to UnwrapStructureMeta/UnwrapFunctionMeta/etc per concrete
+        // type internally — so no switch is needed here anymore (the
+        // old code's explicit `UnwrapStructureMeta(struc)` call was
+        // actually calling it a second time on top of what ProcessHeader
+        // already did).
+        foreach (var member in _modules.SelectMany(WalkMembers))
+            ProcessHeader(member);
     }
     private void ProcessHeader(LangObject reference)
     {
@@ -58,14 +45,14 @@ public partial class Analyser
         }
         
         // Handling quick inheritance
-        if (reference is IStaticModifier @refStatic and not StructObject)
+        if (reference is not StructObject)
         {
-            refStatic.Static = reference.Parent switch
+            reference.SetFlag(BuiltinAttributes.Static, reference.Parent switch
             {
                 BaseModuleObject or TqNamespaceObject => true,
-                IStaticModifier @parentStatic => parentStatic.Static,
-                _ => refStatic.Static
-            };
+                LangObject parentRef => parentRef.HasFlag(BuiltinAttributes.Static),
+                _ => reference.HasFlag(BuiltinAttributes.Static)
+            });
         }
         
         // Handling builtin attributes
@@ -75,23 +62,20 @@ public partial class Analyser
 
             switch (builtInAttribute.Attribute)
             {
-                case BuiltinAttributes.Static: if (reference is IStaticModifier @s) s.Static = true; break;
-                case BuiltinAttributes.Public: if (reference is IPublicModifier @p) p.Public = true; break;
-                case BuiltinAttributes.Private: if (reference is IPublicModifier @p2) p2.Public = false; break;
-                case BuiltinAttributes.Internal: if (reference is IInternalModifier @i) i.Internal = true; break;
-                case BuiltinAttributes.Final: if (reference is StructObject @f) f.Final = true; break;
-                case BuiltinAttributes.Abstract: if (reference is IAbstractModifier @a) a.Abstract = true; break;
-                case BuiltinAttributes.Interface: if (reference is StructObject @i2) i2.Interface = true; break;
-                case BuiltinAttributes.Virtual: if (reference is IVirtualModifier @v) v.Virtual = true; break;
-                case BuiltinAttributes.Override: if (reference is IOverrideAttribute @o) o.Override = true; break;
-                case BuiltinAttributes.ConstExp: if (reference is FunctionObject @c) c.ConstExp = true; break;
+                case BuiltinAttributes.Static: reference.SetFlag(BuiltinAttributes.Static); break;
+                case BuiltinAttributes.Public: reference.SetFlag(BuiltinAttributes.Public); break;
+                case BuiltinAttributes.Private: reference.SetFlag(BuiltinAttributes.Public, false); break;
+                case BuiltinAttributes.Internal: reference.SetFlag(BuiltinAttributes.Internal); break;
+                case BuiltinAttributes.Final: reference.SetFlag(BuiltinAttributes.Final); break;
+                case BuiltinAttributes.Abstract: reference.SetFlag(BuiltinAttributes.Abstract); break;
+                case BuiltinAttributes.Interface: reference.SetFlag(BuiltinAttributes.Interface); break;
+                case BuiltinAttributes.Virtual: reference.SetFlag(BuiltinAttributes.Virtual); break;
+                case BuiltinAttributes.Override: reference.SetFlag(BuiltinAttributes.Override); break;
+                case BuiltinAttributes.ConstExp: reference.SetFlag(BuiltinAttributes.ConstExp); break;
                 
                 case BuiltinAttributes.Extern:
                 {
                     var node = builtInAttribute.syntaxNode;
-                    
-                    if (reference is not IExternModifier @externModifier)
-                        throw new Exception($"Attribute {attr} is not suitable to {reference.GetType().Name}");
                     
                     if (node.Children.Length != 3) throw new Exception("'Extern' expected arguments");
                     var args = (node.Children[2] as ArgumentCollectionNode)!.Arguments;
@@ -105,7 +89,7 @@ public partial class Analyser
                             if (args[1] is not StringLiteralNode @strlit2)
                                 throw new Exception("'Extern' expected argument 1 as ComptimeString");
                             
-                            externModifier.Extern = (strlit1.RawContent, strlit2.RawContent);
+                            reference.SetValue(BuiltinAttributes.Extern, (strlit1.RawContent, strlit2.RawContent));
                             break;
                         }
                         default: throw new Exception($"'Extern' expected 2 arguments, found {args.Length}");
@@ -116,9 +100,6 @@ public partial class Analyser
                 {
                     var node = builtInAttribute.syntaxNode;
                     
-                    if (reference is not IExportModifier @exportModifier)
-                        throw new Exception($"Attribute {attr} is not suitable to {reference.GetType().Name}");
-                    
                     if (node.Children.Length != 3) throw new Exception("'Export' expected arguments");
                     var args = (node.Children[2] as ArgumentCollectionNode)!.Arguments;
                     
@@ -126,7 +107,7 @@ public partial class Analyser
                     if (args[0] is not StringLiteralNode @strlit1)
                         throw new Exception("'Export' expected argument 0 as ComptimeString");
 
-                    exportModifier.Export = strlit1.RawContent;
+                    reference.SetValue(BuiltinAttributes.Export, strlit1.RawContent);
                 } break;
 
                 

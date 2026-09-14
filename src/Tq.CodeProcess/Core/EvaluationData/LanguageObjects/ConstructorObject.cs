@@ -45,6 +45,8 @@ public class ConstructorObject(SourceScript sourceScript, ConstructorDeclaration
         }
     }
     
+    public override LangObject? SearchChild(string name, SearchChildMode mode = SearchChildMode.All) => null;
+
     public override string ToString()
     {
         var sb = new StringBuilder();

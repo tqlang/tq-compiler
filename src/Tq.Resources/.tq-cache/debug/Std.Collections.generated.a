@@ -1,0 +1,4 @@
+from Dotnet.System.Collections.Generic import { List }
+@public()
+struct DynamicArray (type T) { let * List(T) _list = new List(T)() }
+
