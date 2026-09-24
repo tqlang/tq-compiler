@@ -5,10 +5,15 @@ public enum TokenKind
     LineFeed,
     Semicolon,
     Whitespace,
+    Comment,
     
     FloatingNumberLiteral,
     IntegerNumberLiteral,
+    StringLiteral,
     Identifier,
+    
+    EscapedLeftBracket, // \{
+    EscapedCharacter,
     
     LeftParenthesis, RightParenthesis, // ( )
     LeftBrace, RightBrace,             // { }
@@ -37,9 +42,11 @@ public enum TokenKind
     GreaterEqual,       // >=
     
     BitShiftLeft,        // <<
-    BitShiftLeftAssign,  // <<=
     BitShiftRight,       // >>
-    BitShiftRightAssign, // >>=
+    
+    BitwiseAnd, // ⋏
+    BitwiseOr,  // ⋎
+    BitwiseXor, // ⊕
     
     Plus,              // +
     Increment,         // ++
@@ -65,4 +72,6 @@ public enum TokenKind
     
     Rest,       // %
     RestAssign, // %=
+    
+    Eof
 }

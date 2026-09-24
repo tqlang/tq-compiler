@@ -133,9 +133,9 @@ static class Program
     {
         foreach (var file in node.Files)
         {
-            var parser = new Parser();
+            var parser = new Parser(diagnostics);
             var sourceText = File.ReadAllText(file.FilePath);
-            var syntaxTree = parser.Parse(sourceText, diagnostics);
+            var syntaxTree = parser.Parse(sourceText);
             parsedTrees.Add(syntaxTree);
         }
         

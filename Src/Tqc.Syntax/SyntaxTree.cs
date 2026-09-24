@@ -1,8 +1,9 @@
 using Tqc.Diagnostics;
+using Tqc.Syntax.Nodes;
 
 namespace Tqc.Syntax;
 
-public class SyntaxTree
+public record SyntaxTree(IReadOnlyList<SyntaxNode> Root)
 {
     public DiagnosticBag Diagnostics { get; } = new();
 }
