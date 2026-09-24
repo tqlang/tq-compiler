@@ -6,4 +6,13 @@
         <Nullable>enable</Nullable>
     </PropertyGroup>
 
+    <ItemGroup>
+      <ProjectReference Include="..\Tqc.Syntax\Tqc.Syntax.csproj" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <Folder Include="IrNodes\" />
+      <Folder Include="References\" />
+    </ItemGroup>
+
 </Project>

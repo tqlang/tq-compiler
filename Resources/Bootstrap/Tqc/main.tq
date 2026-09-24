@@ -1,9 +1,6 @@
-from Tests import
-from Std import { Console, Fs, Mem }
+from Dotnet.System import { Console }
+
 
 @public func main() {
-    runTests()
-
-    Console.writeln("Hello, World!")
-    
+    Console.WriteLine("Hello, World!")
 }

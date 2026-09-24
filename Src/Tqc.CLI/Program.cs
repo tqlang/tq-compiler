@@ -3,6 +3,7 @@ using System.Reflection;
 using Tqc.Build.Model;
 using Tqc.Build.Toml;
 using Tqc.Diagnostics;
+using Tqc.Semantics;
 using Tqc.Syntax;
 
 namespace Tqc.CLI;
@@ -71,20 +72,21 @@ static class Program
                 default: throw new Exception($"Unknown module type: {i.Type}"); 
             }
         }
+        
+        
     }
 
     static void BuildTqModule(ModuleDefinition module, DiagnosticBag diagnostics)
     {
         Console.WriteLine($"COMPILING {module.Name}...");
-
-        List<SyntaxTree> moduleSyntaxTrees = [];
         
         if (!module.ExtraFields.TryGetValue("path", out var pathobj) || pathobj is not string path)
             throw new UnreachableException($"Expected 'path' field with value string inside '{module.Name}' module");
 
         var tree = DirectoryParser.BuildTree(path, module.Name);
-
-        ParseNamespaceRecursively(tree, moduleSyntaxTrees, diagnostics);
+        var moduleRoot = ParseNamespaceRecursively(tree, diagnostics);
+        var syntaxModuleContainer = new SyntaxModuleContainer(module.Name, moduleRoot);
+        SemanticAnalyser.Resolve(syntaxModuleContainer);
         
         Console.WriteLine($"COMPILED {module.Name}");
     }
@@ -129,18 +131,24 @@ static class Program
         }
     }
     
-    static void ParseNamespaceRecursively(NamespaceNode node, List<SyntaxTree> parsedTrees, DiagnosticBag diagnostics)
+    static SyntaxNamespaceContainer ParseNamespaceRecursively(NamespaceNode node, DiagnosticBag diagnostics)
     {
+        var container = new SyntaxNamespaceContainer(node.Name);
+        
         foreach (var file in node.Files)
         {
-            var parser = new Parser();
+            var parser = new Parser(diagnostics);
             var sourceText = File.ReadAllText(file.FilePath);
-            var syntaxTree = parser.Parse(sourceText, diagnostics);
-            parsedTrees.Add(syntaxTree);
+            var syntaxTree = parser.Parse(sourceText);
+            container.Trees.Add(syntaxTree);
         }
         
         foreach (var subNamespace in node.SubNamespaces)
-            ParseNamespaceRecursively(subNamespace, parsedTrees, diagnostics);
+            container.Namespaces.Add(ParseNamespaceRecursively(subNamespace, diagnostics));
+
+        container.Namespaces.TrimExcess();
+        container.Trees.TrimExcess();
+        return container;
     }
     static BuildManifest ParseManifest(string manifestPath) => TomlBuild.Load(manifestPath);
     

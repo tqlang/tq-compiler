@@ -1,12 +1,16 @@
 using System.Collections;
+using System.Text;
 
 namespace Tqc.Syntax.Nodes;
 
-public record RootNode : SyntaxNode, IEnumerable<SyntaxNode>
+public record RootNode(SyntaxNode[] Children) : SyntaxNode, IEnumerable<SyntaxNode>
 {
-    internal List<SyntaxNode> _children = [];
-    public IReadOnlyList<SyntaxNode> Children => _children;
-    
-    public IEnumerator<SyntaxNode> GetEnumerator() => _children.GetEnumerator();
+    public IEnumerator<SyntaxNode> GetEnumerator() => Children.AsEnumerable().GetEnumerator();
     IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
+
+    override internal StringBuilder AppendSyntaxToStringBuilder(StringBuilder sb)
+    {
+        foreach (var i in Children) i.AppendSyntaxToStringBuilder(sb);
+        return sb;
+    }
 }

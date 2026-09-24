@@ -10,23 +10,23 @@ cache-dir = ".tq-cache"
     name = "Tqc"
     path = "./Bootstrap/Tqc"
     dependencies = [
-        "module : Tqc.Syntax",
-        "module : Std"
+        #"module : Tqc.Syntax",
+        "module : Std",
     ]
-
-[[module]]
-    name = "Tqc.Syntax"
-    path = "./Bootstrap/Tqc.Syntax"
-    dependencies = [
-        "module : Tqc.Syntax",
-        "module : Std"
-    ]
+#
+#[[module]]
+#    name = "Tqc.Syntax"
+#    path = "./Bootstrap/Tqc.Syntax"
+#    dependencies = [
+#        "module : Tqc.Syntax",
+#        "module : Std"
+#    ]
 
 [[module]]
     name = "Std"
     path = "./Lib/Std"
     dependencies = [
-        "module : Dotnet"
+        "module : Dotnet",
     ]
 
 [[module]]
