@@ -1,4 +1,6 @@
+using System.Collections;
 using System.Text;
+using Tqc.Core;
 
 namespace Tqc.Syntax.Nodes;
 
@@ -6,9 +8,9 @@ public record ArgumentsCollectionNode(
     TokenNode LeftParenthesis,
     (ExpressionNode node, TokenNode? comma)[] Arguments,
     TokenNode RightParenthesis
-) : SyntaxNode
+) : SyntaxNode, IEnumerable<ExpressionNode>
 {
-    override internal StringBuilder AppendSyntaxToStringBuilder(StringBuilder sb)
+    internal override StringBuilder AppendSyntaxToStringBuilder(StringBuilder sb)
     {
         LeftParenthesis.AppendSyntaxToStringBuilder(sb);
         foreach (var (node, comma) in Arguments)
@@ -19,4 +21,12 @@ public record ArgumentsCollectionNode(
         RightParenthesis.AppendSyntaxToStringBuilder(sb);
         return sb;
     }
+    
+    public override SourceSpan Span => LeftParenthesis.Span + RightParenthesis.Span;
+    
+    public IEnumerator<ExpressionNode> GetEnumerator()
+    {
+        foreach (var (node, _) in Arguments) yield return node;
+    }
+    IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
 }

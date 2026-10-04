@@ -1,15 +1,16 @@
 using System.Text;
+using Tqc.Core;
 
 namespace Tqc.Syntax.Nodes;
 
 public record StructDeclarationNode(
-    AttributeNode[] attributes,
     TokenNode StructKeyword,
     IdentifierExpressionNode Name,
     ParametersCollectionNode? Parameters,
     (SyntaxNode extends, ExpressionNode type)? extends,
-    BlockNode Body
-) : DeclarationNode(attributes)
+    BlockNode Body,
+    TriviaNode[] LeadingTrivia
+) : DeclarationNode(LeadingTrivia)
 {
     override internal StringBuilder AppendSyntaxToStringBuilder(StringBuilder sb)
     {
@@ -25,8 +26,10 @@ public record StructDeclarationNode(
                 .AppendSyntaxNode(extends.Value.type);
         }
         
-        sb.AppendSyntaxNode(Body);
-        
-        return sb;
-    } 
+        return sb
+            .AppendSyntaxNode(Body)
+            .AppendTrivia(LeadingTrivia);
+    }
+
+    public override SourceSpan Span => StructKeyword.Span + Body.Span;
 }

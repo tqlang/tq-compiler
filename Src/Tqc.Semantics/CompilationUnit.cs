@@ -1,6 +1,9 @@
+using System.Collections.Immutable;
+using System.Reflection;
+
 namespace Tqc.Semantics;
 
-public class CompilationUnit
+public record CompilationUnit(ImmutableArray<Module> Modules)
 {
     
 }

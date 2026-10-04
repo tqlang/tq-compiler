@@ -3,7 +3,10 @@
     <Project Path="Src/Tqc.Build.Toml/Tqc.Build.Toml.csproj" />
     <Project Path="Src/Tqc.Build/Tqc.Build.csproj" />
     <Project Path="Src/Tqc.CLI/Tqc.CLI.csproj" />
+    <Project Path="Src/Tqc.Core/Tqc.Core.csproj" />
     <Project Path="Src/Tqc.Diagnostics/Tqc.Diagnostics.csproj" />
+    <Project Path="Src/Tqc.Dotnet/Tqc.Dotnet.csproj" />
+    <Project Path="Src/Tqc.IR/Tqc.IR.csproj" />
     <Project Path="Src/Tqc.Semantics/Tqc.Semantics.csproj" />
     <Project Path="Src/Tqc.Syntax/Tqc.Syntax.csproj" />
   </Folder>

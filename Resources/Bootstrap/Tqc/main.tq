@@ -1,6 +1,6 @@
-from Dotnet.System import { Console }
+from Std.Console import
 
 
 @public func main() {
-    Console.WriteLine("Hello, World!")
+    writeln("Hello, World!")
 }

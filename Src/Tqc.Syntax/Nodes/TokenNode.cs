@@ -1,27 +1,29 @@
 using System.Text;
+using Tqc.Core;
 
 namespace Tqc.Syntax.Nodes;
 
-public record TokenNode : SyntaxNode
+public record TokenNode(
+    TriviaNode[] Trivia,
+    string Value,
+    TokenKind Kind,
+    int Line,
+    int Column
+) : SyntaxNode
 {
-    private TriviaNode[] Trivia;
-    public string? Value;
-    public TokenKind Kind;
-    public int Line;
-    public int Column;
-    
-    internal TokenNode(TriviaNode[] Trivia, TokenValue Value)
-    {
-        this.Trivia = Trivia;
-        this.Value = Value.value;
-        Kind       = Value.kind;
-        Line       = Value.Line;
-        Column     = Value.Column;
-    }
+    internal TokenNode(TriviaNode[] Trivia, TokenValue Value) : this(
+        Trivia,
+        Value.value,
+        Value.kind,
+        Value.Line,
+        Value.Column
+    ) { }
 
     override internal StringBuilder AppendSyntaxToStringBuilder(StringBuilder sb)
     {
         foreach (var i in Trivia) i.AppendSyntaxToStringBuilder(sb);
         return sb.Append(Value);
     }
+    
+    public override SourceSpan Span => new SourceSpan(Line, Column, Line, Column + Value!.Length);
 }

@@ -1,4 +1,5 @@
 using System.Text;
+using Tqc.Core;
 
 namespace Tqc.Syntax.Nodes;
 
@@ -19,4 +20,5 @@ public record IndexCollectionNode(
         sb.AppendSyntaxNode(RightBrackets);
         return sb;
     }
+    public override SourceSpan Span => LeftBrackets.Span + RightBrackets.Span;
 }

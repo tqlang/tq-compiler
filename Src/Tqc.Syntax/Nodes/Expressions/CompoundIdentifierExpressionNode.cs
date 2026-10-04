@@ -1,5 +1,6 @@
 using System.Collections.Immutable;
 using System.Text;
+using Tqc.Core;
 
 namespace Tqc.Syntax.Nodes;
 
@@ -15,4 +16,6 @@ public record CompoundIdentifierExpressionNode(ImmutableArray<(TokenNode token, 
         }
         return sb;
     }
+
+    public override SourceSpan Span => Identifier[0].token.Span + Identifier[^1].token.Span;
 }

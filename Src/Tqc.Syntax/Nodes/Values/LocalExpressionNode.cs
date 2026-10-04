@@ -1,4 +1,5 @@
 using System.Text;
+using Tqc.Core;
 
 namespace Tqc.Syntax.Nodes;
 
@@ -10,4 +11,5 @@ public record LocalExpressionNode(
 {
     override internal StringBuilder AppendSyntaxToStringBuilder(StringBuilder sb) => sb
         .Append(LetOrConstKeyword).AppendSyntaxNode(Type).AppendSyntaxNode(Name);
+    public override SourceSpan Span => LetOrConstKeyword.Span + Name.Span;
 }

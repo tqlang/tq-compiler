@@ -1,17 +1,18 @@
 using System.Text;
+using Tqc.Core;
 
 namespace Tqc.Syntax.Nodes;
 
 public record PropertyDeclarationNode(
-    AttributeNode[] attributes,
     TokenNode LetKeyword,
     ExpressionNode? Type,
     IdentifierExpressionNode Name,
     TokenNode LeftBracket,
     (TokenNode Keyword, TokenNode? Expression)? Get,
     (TokenNode Keyword, TokenNode? Expression)? Set,
-    TokenNode RightBracket
-) : DeclarationNode(attributes)
+    TokenNode RightBracket,
+    TriviaNode[] LeadingTrivia
+) : DeclarationNode(LeadingTrivia)
 {
     override internal StringBuilder AppendSyntaxToStringBuilder(StringBuilder sb)
     {
@@ -35,7 +36,10 @@ public record PropertyDeclarationNode(
                 .AppendSyntaxNode(Set.Value.Expression);
         }
         
-        sb.AppendSyntaxNode(RightBracket);
-        return sb;
+        return sb
+            .AppendSyntaxNode(RightBracket)
+            .AppendTrivia(LeadingTrivia);
     }
+    
+    public override SourceSpan Span => LetKeyword.Span + RightBracket.Span;
 }

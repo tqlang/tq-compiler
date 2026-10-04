@@ -1,4 +1,5 @@
 using System.Text;
+using Tqc.Core;
 
 namespace Tqc.Syntax.Nodes;
 
@@ -10,4 +11,5 @@ public record NewExpressionNode(
 {
     override internal StringBuilder AppendSyntaxToStringBuilder(StringBuilder sb) => sb
         .Append(NewKeyword).AppendSyntaxNode(Type).AppendSyntaxNode(Arguments);
+    public override SourceSpan Span => NewKeyword.Span + Arguments.Span;
 }

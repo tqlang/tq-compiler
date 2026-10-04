@@ -1,4 +1,5 @@
 using System.Text;
+using Tqc.Core;
 
 namespace Tqc.Syntax.Nodes;
 
@@ -6,4 +7,6 @@ public record BinaryExpressionNode(ExpressionNode Left, TokenNode Op, Expression
 {
     public string OperatorValue => Op.Value!;
     override internal StringBuilder AppendSyntaxToStringBuilder(StringBuilder sb) => sb.AppendSyntaxNode(Left).AppendSyntaxNode(Op).AppendSyntaxNode(Right);
+    
+    public override SourceSpan Span => Left.Span + Right.Span;
 }

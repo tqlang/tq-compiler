@@ -249,7 +249,7 @@ internal class Lexer(string Source)
 
             default:
             {
-                while (IsEof())
+                while (!IsEof())
                 {
                     var c2 = PeekRune();
                     switch (c2.Value)

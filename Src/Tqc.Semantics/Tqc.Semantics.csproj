@@ -7,12 +7,8 @@
     </PropertyGroup>
 
     <ItemGroup>
+      <ProjectReference Include="..\Tqc.IR\Tqc.IR.csproj" />
       <ProjectReference Include="..\Tqc.Syntax\Tqc.Syntax.csproj" />
-    </ItemGroup>
-
-    <ItemGroup>
-      <Folder Include="IrNodes\" />
-      <Folder Include="References\" />
     </ItemGroup>
 
 </Project>

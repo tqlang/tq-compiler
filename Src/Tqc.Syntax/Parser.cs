@@ -1,4 +1,4 @@
-using System.Linq.Expressions;
+using Tqc.Core;
 using Tqc.Diagnostics;
 using Tqc.Syntax.Nodes;
 using Tqc.Syntax.Nodes.TypeModifiers;
@@ -7,11 +7,10 @@ namespace Tqc.Syntax;
 
 public class Parser(DiagnosticBag diagnostics)
 {
-    
+    private string _path = null!;
     private Lexer _lexer = null!;
     private TokenValue? _peeked;
     private List<TriviaNode> _trivia = [];
-    private List<AttributeNode> attributeNodes = [];
 
     #region Trivia Collections
     private readonly TokenKind[] _midDeclarationTrivia = [TokenKind.Comment, TokenKind.LineFeed, TokenKind.Whitespace];
@@ -21,14 +20,15 @@ public class Parser(DiagnosticBag diagnostics)
     private readonly TokenKind[] _midExpressionConservativeTrivia = [TokenKind.Comment, TokenKind.Whitespace];
     #endregion
 
-    public SyntaxTree Parse(string Source)
+    public SyntaxTree Parse(string path, string source)
     {
-        _lexer = new Lexer(Source);
+        _path   = path;
+        _lexer  = new Lexer(source);
         _peeked = null;
-        return new SyntaxTree(ParseRoot().AsReadOnly());
+        return new SyntaxTree(path, ParseRoot());
     }
 
-    public List<SyntaxNode> ParseRoot()
+    public SyntaxNode[] ParseRoot()
     {
         var declarations = new List<SyntaxNode>();
         while (true)
@@ -43,22 +43,12 @@ public class Parser(DiagnosticBag diagnostics)
                 | ScopeAllowedDeclarations.Typedef
             ));
         }
-        return declarations;
+        return [.. declarations];
     }
 
     private SyntaxNode ParseDeclaration(ScopeAllowedDeclarations allowedDeclarations)
     {
-        while (allowedDeclarations.HasFlag(ScopeAllowedDeclarations.Attributes))
-        {
-            if (Check(TokenKind.At))
-            {
-                var attribute = ParseAttribute();
-                attributeNodes.Add(attribute);
-                AdvanceTrivia(_midDeclarationTrivia);
-                continue;
-            }
-            break;
-        }
+        if (allowedDeclarations.HasFlag(ScopeAllowedDeclarations.Attributes) && Check(TokenKind.At)) return ParseAttribute();
         
         if (allowedDeclarations.HasFlag(ScopeAllowedDeclarations.Field) && CheckKeyword("let")) return ParseFieldDeclaration();
         if (allowedDeclarations.HasFlag(ScopeAllowedDeclarations.Field) && CheckKeyword("const")) return ParseFieldDeclaration();
@@ -68,10 +58,10 @@ public class Parser(DiagnosticBag diagnostics)
         if (allowedDeclarations.HasFlag(ScopeAllowedDeclarations.Struct) && CheckKeyword("struct")) return ParseStructDeclaration();
         if (allowedDeclarations.HasFlag(ScopeAllowedDeclarations.Typedef) && CheckKeyword("typedef")) return ParseTypedefDeclaration();
         
-        if (allowedDeclarations.HasFlag(ScopeAllowedDeclarations.Constructor) && CheckKeyword("constructor")) return parseConstructorDeclaration();
-        if (allowedDeclarations.HasFlag(ScopeAllowedDeclarations.Destructor) && CheckKeyword("destructor")) return parseDestructorDeclaration();
+        if (allowedDeclarations.HasFlag(ScopeAllowedDeclarations.Constructor) && CheckKeyword("constructor")) return ParseConstructorDeclaration();
+        if (allowedDeclarations.HasFlag(ScopeAllowedDeclarations.Destructor) && CheckKeyword("destructor")) return ParseDestructorDeclaration();
         
-        if (allowedDeclarations.HasFlag(ScopeAllowedDeclarations.Case) && CheckKeyword("case")) return parseCaseDeclaration();
+        if (allowedDeclarations.HasFlag(ScopeAllowedDeclarations.Case) && CheckKeyword("case")) return ParseCaseDeclaration();
         
         var token = Advance();
         Console.WriteLine($"'{token.value}' ({token.kind})");
@@ -79,7 +69,7 @@ public class Parser(DiagnosticBag diagnostics)
     }
 
     #region declarations - entities
-    private ImportDefinitionNode parseImportDefinition()
+    private ImportDirectiveNode parseImportDefinition()
     {
         var fromKeyword = ExpectNode("from", "'from' keyword");
         AdvanceTrivia(TokenKind.Whitespace);
@@ -87,18 +77,68 @@ public class Parser(DiagnosticBag diagnostics)
         AdvanceTrivia(_midDeclarationTrivia);
         var importKeyword = ExpectNode("import", "'import' keyword");
         AdvanceTrivia(TokenKind.Whitespace);
-        
+
         if (!Check(TokenKind.LeftBrace))
-            return new ImportDefinitionNode(fromKeyword, namespaceIdentifier, importKeyword, null);
+        {
+            return new ImportDirectiveNode(
+                fromKeyword,
+                namespaceIdentifier,
+                importKeyword,
+                null,
+                ConsumeDeclarationsLeadingTrivia()
+            );
+        }
 
         var leftBrace = ExpectNode(TokenKind.LeftBrace, "open brace ('{')");
         AdvanceTrivia(_midExpressionTrivia);
-        var importsList = ParseCommaSeparatedIdentifierCollection(TokenKind.RightBrace);
+
+        List<(MembersCollectionItemNode node, TokenNode? comma)> items = [];
+        while (!AtEnd())
+        {
+            if (PeekKind() == TokenKind.LeftParenthesis) break;
+            var firstIdentifier = ParseSingleIdentifier();
+            AdvanceTrivia(_midExpressionTrivia);
+
+            MembersCollectionItemNode item;
+
+            if (CheckKeyword("as"))
+            {
+                var asKeyword = AdvanceNode();
+                AdvanceTrivia(_midExpressionTrivia);
+                var identifier = ParseSingleIdentifier();
+                item = new MembersCollectionAliasedItemNode(firstIdentifier, asKeyword, identifier);
+            }
+            else
+            {
+                item = new MembersCollectionPureItemNode(firstIdentifier);
+            }
+
+            AdvanceTrivia(_midExpressionTrivia);
+
+            TokenNode? comma = null;
+
+            if (Check(TokenKind.Comma))
+            {
+                comma = AdvanceNode();
+                AdvanceTrivia(_midExpressionTrivia);
+            }
+
+            items.Add((item, comma));
+
+            if (Check(TokenKind.RightBrace)) break;
+        }
+    
         AdvanceTrivia(_midExpressionTrivia);
         var rightBrace = ExpectNode(TokenKind.RightBrace, "close brace ('}')");
-        var imports = new MembersCollectionNode(leftBrace, [.. importsList], rightBrace);
-
-        return new ImportDefinitionNode(fromKeyword, namespaceIdentifier, importKeyword, imports);
+        var imports = new MembersCollectionNode(leftBrace, [.. items], rightBrace);
+        
+        return new ImportDirectiveNode(
+            fromKeyword,
+            namespaceIdentifier,
+            importKeyword,
+            imports, 
+            ConsumeDeclarationsLeadingTrivia()
+        );
     }
     private FunctionDeclarationNode ParseFunctionDeclaration()
     {
@@ -120,12 +160,12 @@ public class Parser(DiagnosticBag diagnostics)
         AdvanceTrivia(_midDeclarationTrivia);
         
         return new FunctionDeclarationNode(
-            attributeNodes.Dump(),
             funcKeyword,
             nameIdentifier,
             parameters,
             returnType,
-            body
+            body,
+            ConsumeDeclarationsLeadingTrivia()
         );
     }
     private StructDeclarationNode ParseStructDeclaration()
@@ -157,15 +197,15 @@ public class Parser(DiagnosticBag diagnostics)
         var body = ParseStructContent();
         
         return new StructDeclarationNode(
-            attributeNodes.Dump(),
             structKeyword,
             nameIdentifier,
             parameters,
             extends,
-            body
+            body,
+            ConsumeDeclarationsLeadingTrivia()
         );
     }
-    private TypedefDeclaration ParseTypedefDeclaration()
+    private TypedefDeclarationNode ParseTypedefDeclaration()
     {
         var structKeyword = ExpectNode("typedef", "'typedef' keyword");
         AdvanceTrivia(TokenKind.Whitespace);
@@ -174,17 +214,17 @@ public class Parser(DiagnosticBag diagnostics)
         
         var body = ParseTypedefContent();
         
-        return new TypedefDeclaration(
-            attributeNodes.Dump(),
+        return new TypedefDeclarationNode(
             structKeyword,
             nameIdentifier,
-            body
+            body,
+            ConsumeDeclarationsLeadingTrivia()
         );
     }
-    private SyntaxNode ParseFieldDeclaration()
+    private FieldDeclarationNode ParseFieldDeclaration()
     {
         TokenNode letKeyword;
-        ExpressionNode? firstExpression = null;
+        ExpressionNode? firstExpression;
         IdentifierExpressionNode? secondExpression = null;
         
         letKeyword = ExpectNode("let", "'let' keyword");
@@ -214,12 +254,12 @@ public class Parser(DiagnosticBag diagnostics)
             }
 
             return new FieldDeclarationNode(
-                attributeNodes.Dump(),
                 letKeyword,
                 firstExpression,
                 secondExpression,
                 equals,
-                value
+                value,
+                ConsumeDeclarationsLeadingTrivia()
             );
         }
         
@@ -237,17 +277,17 @@ public class Parser(DiagnosticBag diagnostics)
         }
 
         return new FieldDeclarationNode(
-            attributeNodes.Dump(),
             letKeyword,
             firstExpression,
             secondExpression,
             null,
-            null
+            null,
+            ConsumeDeclarationsLeadingTrivia()
         );
         
     }
     
-    private ConstructorDeclarationNode parseConstructorDeclaration()
+    private ConstructorDeclarationNode ParseConstructorDeclaration()
     {
         var ctorKeyword = ExpectNode("constructor", "'constructor' keyword");
         AdvanceTrivia(_midDeclarationTrivia);
@@ -266,14 +306,14 @@ public class Parser(DiagnosticBag diagnostics)
         AdvanceTrivia(_midDeclarationTrivia);
         
         return new ConstructorDeclarationNode(
-            attributeNodes.Dump(),
             ctorKeyword,
             parameters,
             returnType,
-            body
+            body,
+            ConsumeDeclarationsLeadingTrivia()
         );
     }
-    private DestructorDeclarationNode parseDestructorDeclaration()
+    private DestructorDeclarationNode ParseDestructorDeclaration()
     {
         var dtorKeyword = ExpectNode("destructor", "'destructor' keyword");
         AdvanceTrivia(_midDeclarationTrivia);
@@ -292,15 +332,15 @@ public class Parser(DiagnosticBag diagnostics)
         AdvanceTrivia(_midDeclarationTrivia);
         
         return new DestructorDeclarationNode(
-            attributeNodes.Dump(),
             dtorKeyword,
             parameters,
             returnType,
-            body
+            body,
+            ConsumeDeclarationsLeadingTrivia()
         );
     }
 
-    private TypedefCaseDeclaration parseCaseDeclaration()
+    private TypedefCaseDeclaration ParseCaseDeclaration()
     {
         var caseKeyword = ExpectNode("case", "'case' keyword");
         AdvanceTrivia(_midDeclarationConservativeTrivia);
@@ -325,7 +365,11 @@ public class Parser(DiagnosticBag diagnostics)
                 if (comma == null) break;
             }
 
-            return new TypedefNumberedCaseDeclaration(attributeNodes.Dump(), caseKeyword, [.. items]);
+            return new TypedefNumberedCaseDeclaration(
+                caseKeyword,
+                [.. items],
+                ConsumeDeclarationsLeadingTrivia()
+            );
         }
 
         var identifier = ParseSingleIdentifier();
@@ -346,7 +390,8 @@ public class Parser(DiagnosticBag diagnostics)
         var name = ParseSingleIdentifier();
         ArgumentsCollectionNode? arguments = null;
         if (Check(TokenKind.LeftParenthesis)) arguments = ParseArgumentCollection();
-        
+
+        AdvanceTrivia(_midDeclarationTrivia);
         return new AttributeNode(at, name, arguments);
     }
     private ParametersCollectionNode ParseParameters()
@@ -440,11 +485,7 @@ public class Parser(DiagnosticBag diagnostics)
         else if (Check(TokenKind.LeftBrace)) statement = ParseScope();
         
         else statement = ParseExpressionStatement();
-
-        AdvanceTrivia(TokenKind.Whitespace);
-        if (Check(TokenKind.Semicolon) || Check(TokenKind.LineFeed)) AdvanceTrivia();
-        else if (!Check(TokenKind.RightBrace)) Expect(TokenKind.LineFeed, "Line feed after statement");
-
+        
         AdvanceTrivia(_midStatementTrivia);
         return statement;
     }
@@ -458,7 +499,7 @@ public class Parser(DiagnosticBag diagnostics)
         AdvanceTrivia(_midDeclarationTrivia);
         var thenBranch = ParseStatement();
         
-        return new IfStatementNode(ifKeyword, condition, thenBranch);
+        return new IfStatementNode(ifKeyword, condition, thenBranch, ConsumeStatementLeadingTrivia());
     }
     private ElifStatementNode ParseElifStatement()
     {
@@ -468,7 +509,7 @@ public class Parser(DiagnosticBag diagnostics)
         AdvanceTrivia(_midDeclarationTrivia);
         var thenBranch = ParseStatement();
         
-        return new ElifStatementNode(ifKeyword, condition, thenBranch);
+        return new ElifStatementNode(ifKeyword, condition, thenBranch, ConsumeStatementLeadingTrivia());
     }
     private ElseStatementNode ParseElseStatement()
     {
@@ -476,7 +517,7 @@ public class Parser(DiagnosticBag diagnostics)
         AdvanceTrivia(_midDeclarationTrivia);
         var thenBranch = ParseStatement();
         
-        return new ElseStatementNode(ifKeyword, thenBranch);
+        return new ElseStatementNode(ifKeyword, thenBranch, ConsumeStatementLeadingTrivia());
     }
     #endregion
 
@@ -487,7 +528,7 @@ public class Parser(DiagnosticBag diagnostics)
         AdvanceTrivia(TokenKind.Whitespace);
         var value = Check(TokenKind.LineFeed) ? null : ParseExpression();
         
-        return new ReturnStatementNode(start, value);
+        return new ReturnStatementNode(start, value, ConsumeStatementLeadingTrivia());
     }
     private ScopeNode ParseScope()
     {
@@ -497,11 +538,11 @@ public class Parser(DiagnosticBag diagnostics)
         while (!AtEnd() && !Check(TokenKind.RightBrace)) content.Add(ParseStatement());
         var end = ExpectNode(TokenKind.RightBrace, "'}'");
         
-        return new ScopeNode(start, [..content], end);
+        return new ScopeNode(start, [..content], end, ConsumeStatementLeadingTrivia());
     }
     private ExpressionStatementNode ParseExpressionStatement()
     {
-        return new ExpressionStatementNode(ParseExpression());
+        return new ExpressionStatementNode(ParseExpression(), ConsumeStatementLeadingTrivia());
     }
     #endregion
     
@@ -845,30 +886,6 @@ public class Parser(DiagnosticBag diagnostics)
 
         return arguments;
     }
-    private List<(IdentifierExpressionNode, TokenNode?)> ParseCommaSeparatedIdentifierCollection(params TokenKind[] alsoBreaksAt)
-    {
-        List<(IdentifierExpressionNode, TokenNode?)> identifiers = [];
-        
-        while (!AtEnd())
-        {
-            if (PeekKind() == TokenKind.LeftParenthesis) break;
-            
-            var identifier = ParseSingleIdentifier();
-            AdvanceTrivia(_midExpressionTrivia);
-            TokenNode? comma = null;
-            
-            if (Check(TokenKind.Comma))
-            {
-                comma = AdvanceNode();
-                AdvanceTrivia(_midExpressionTrivia);
-            }
-            
-            identifiers.Add((identifier, comma));
-            if (alsoBreaksAt.Contains(PeekKind())) break;
-        }
-
-        return identifiers;
-    }
     private ArgumentsCollectionNode ParseArgumentCollection()
     {
         var leftParenthesis = ExpectNode(TokenKind.LeftParenthesis, "open parenthesis ('(')");
@@ -879,6 +896,22 @@ public class Parser(DiagnosticBag diagnostics)
         return new ArgumentsCollectionNode(leftParenthesis, [..args], rightParenthesis);
     }
 
+    private TriviaNode[] ConsumeStatementLeadingTrivia()
+    {
+        AdvanceTrivia(TokenKind.Whitespace);
+        if (Check(TokenKind.Semicolon) || Check(TokenKind.LineFeed)) AdvanceTrivia();
+        else if (!Check(TokenKind.RightBrace)) Expect(TokenKind.LineFeed, "Line feed after statement");
+        
+        return _trivia.Dump();
+    }
+    private TriviaNode[] ConsumeDeclarationsLeadingTrivia()
+    {
+        AdvanceTrivia(TokenKind.Whitespace);
+        if (Check(TokenKind.Semicolon) || Check(TokenKind.LineFeed)) AdvanceTrivia();
+        
+        return _trivia.Dump();
+    }
+    
     private static bool IsAssignOp(TokenKind kind) => kind is TokenKind.Equals
         or TokenKind.AddAssign or TokenKind.SubAssign or TokenKind.MulAssign
         or TokenKind.DivAssign or TokenKind.RestAssign;
@@ -966,7 +999,8 @@ public class Parser(DiagnosticBag diagnostics)
         cp.Item3.Restore();
     }
     
-    private Exception Error(TokenValue tok, string message) => new ParseException(message, tok.Line, tok.Column);
+    private ParsingError Error(TokenValue tok, string message) => new (message,
+        new SourceLocation(_path, tok.Line, tok.Column, tok.Line, tok.Column + tok.value.Length));
     
     #endregion
     
@@ -982,10 +1016,6 @@ public class Parser(DiagnosticBag diagnostics)
         Constructor = 1 << 6,
         Destructor = 1 << 7,
     }
-}
 
-public class ParseException(string message, int line, int column) : Exception($"[{line}:{column}] {message}")
-{
-    public int Line { get; } = line;
-    public int Column { get; } = column;
+    private class ParsingError(string message, SourceLocation location) : CompilationError(message, location);
 }

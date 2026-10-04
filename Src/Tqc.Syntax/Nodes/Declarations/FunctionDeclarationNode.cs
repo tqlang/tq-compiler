@@ -1,21 +1,24 @@
 using System.Text;
+using Tqc.Core;
 
 namespace Tqc.Syntax.Nodes;
 
 public record FunctionDeclarationNode(
-    AttributeNode[] attributes,
     TokenNode FuncToken,
     IdentifierExpressionNode Name,
     ParametersCollectionNode Parameters,
     ExpressionNode? ReturnType,
-    ScopeNode? Body
-) : DeclarationNode(attributes)
+    ScopeNode? Body,
+    TriviaNode[] LeadingTrivia
+) : DeclarationNode(LeadingTrivia)
 {
     override internal StringBuilder AppendSyntaxToStringBuilder(StringBuilder sb) => sb
-        .AppendAttributesSyntaxNode(attributes)
         .AppendSyntaxNode(FuncToken)
         .AppendSyntaxNode(Name)
         .AppendSyntaxNode(Parameters)
         .AppendSyntaxNode(ReturnType)
-        .AppendSyntaxNode(Body);
+        .AppendSyntaxNode(Body)
+        .AppendTrivia(LeadingTrivia);
+    
+    public override SourceSpan Span => FuncToken.Span + SourceSpan.FirstAndLastNotNull(Parameters, ReturnType, Body);
 }

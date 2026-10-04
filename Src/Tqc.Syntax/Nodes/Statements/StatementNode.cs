@@ -1,6 +1,3 @@
 namespace Tqc.Syntax.Nodes;
 
-public abstract record StatementNode : SyntaxNode
-{
-    
-}
+public abstract record StatementNode(TriviaNode[] LeadingTrivia) : SyntaxNode;

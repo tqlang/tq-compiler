@@ -3,6 +3,8 @@ using System.Reflection;
 using Tqc.Build.Model;
 using Tqc.Build.Toml;
 using Tqc.Diagnostics;
+using Tqc.Dotnet;
+using Tqc.IR.ProgramMembers;
 using Tqc.Semantics;
 using Tqc.Syntax;
 
@@ -34,7 +36,8 @@ static class Program
         var manifestFile = Path.GetFullPath(args.Length > 0 ? args[0] : "./build.toml");
         if (!File.Exists(manifestFile))
         {
-            throw new NotImplementedException($"File not found in path '{manifestFile}'. "
+            throw new NotImplementedException(
+                $"File not found in path '{manifestFile}'. "
                 + $"Default BuildManifest not implemented.");
         }
         
@@ -54,29 +57,36 @@ static class Program
 
         var buildPlanner = new BuildPlanner();
         var order = buildPlanner.CreateOrder(modulesDictionary, manifest.Project!.Root);
+        Dictionary<ModuleDefinition, IModule> map = []; 
         DiagnosticBag diagnostics = new();
         
-        foreach (var i in order)
+        foreach (var moduleDescriptor in order)
         {
-            switch (i.Type)
+            switch (moduleDescriptor.Type)
             {
                 case "dotnet":
-                    BuildDotnetModule(i);
+                    map.Add(moduleDescriptor, BuildDotnetModule(moduleDescriptor));
                 break;
-                
+
                 case "tq":
                 case null:
-                    BuildTqModule(i, diagnostics);
-                break;
+                {
+                    var module = BuildTqModule(moduleDescriptor, diagnostics);
+                    map.Add(moduleDescriptor, module);
+                    var dependencies = moduleDescriptor.Dependencies
+                        .OfType<ModuleReference>()
+                        .Select(reference => reference.Definition)
+                        .Select(definition => map[definition]);
+                    SemanticAnalyser.BindReferences(module, [..dependencies]);
+                } break;
                 
-                default: throw new Exception($"Unknown module type: {i.Type}"); 
+                default: throw new Exception($"Unknown module type: {moduleDescriptor.Type}"); 
             }
         }
         
-        
     }
 
-    static void BuildTqModule(ModuleDefinition module, DiagnosticBag diagnostics)
+    static IModule BuildTqModule(ModuleDefinition module, DiagnosticBag diagnostics)
     {
         Console.WriteLine($"COMPILING {module.Name}...");
         
@@ -86,14 +96,17 @@ static class Program
         var tree = DirectoryParser.BuildTree(path, module.Name);
         var moduleRoot = ParseNamespaceRecursively(tree, diagnostics);
         var syntaxModuleContainer = new SyntaxModuleContainer(module.Name, moduleRoot);
-        SemanticAnalyser.Resolve(syntaxModuleContainer);
+        var m = SemanticAnalyser.Resolve(syntaxModuleContainer);
         
-        Console.WriteLine($"COMPILED {module.Name}");
+        Console.WriteLine($"PARSED {module.Name}");
+        return m;
     }
 
-    static void BuildDotnetModule(ModuleDefinition module)
+    static IModule BuildDotnetModule(ModuleDefinition module)
     {
-        Console.WriteLine($"TODO dotnet module resolution for {module.Name}");
+        var m = DotnetSemanticAnalyser.AnalyseDotnetModule(module.Name, [.. module.Dependencies.OfType<DotnetAssemblyReference>()]);
+        Console.WriteLine($"PARSED {module.Name}");
+        return m;
     }
     
     
@@ -139,7 +152,7 @@ static class Program
         {
             var parser = new Parser(diagnostics);
             var sourceText = File.ReadAllText(file.FilePath);
-            var syntaxTree = parser.Parse(sourceText);
+            var syntaxTree = parser.Parse(file.FilePath, sourceText);
             container.Trees.Add(syntaxTree);
         }
         

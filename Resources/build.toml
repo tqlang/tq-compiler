@@ -36,4 +36,5 @@ cache-dir = ".tq-cache"
         "dotnet : System.Runtime : 10.0.0.0",
         "dotnet : System.Console : 10.0.0.0",
         "dotnet : System.Collections : 10.0.0.0",
+        "dotnet : System.Threading : 10.0.0.0",
     ]

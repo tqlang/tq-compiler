@@ -1,6 +1,7 @@
 using System.Collections;
 using System.Collections.Immutable;
 using System.Text;
+using Tqc.Core;
 
 namespace Tqc.Syntax.Nodes;
 
@@ -19,4 +20,6 @@ public record BlockNode(
         foreach (var i in Children) i.AppendSyntaxToStringBuilder(sb);
         return RightBrace.AppendSyntaxToStringBuilder(sb);
     }
+    
+    public override SourceSpan Span => LeftBrace.Span + RightBrace.Span;
 }

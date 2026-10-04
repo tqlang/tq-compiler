@@ -6,4 +6,8 @@
         <Nullable>enable</Nullable>
     </PropertyGroup>
 
+    <ItemGroup>
+      <ProjectReference Include="..\Tqc.Core\Tqc.Core.csproj" />
+    </ItemGroup>
+
 </Project>

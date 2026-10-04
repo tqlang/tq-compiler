@@ -1,4 +1,10 @@
+using Tqc.Core;
+
 namespace Tqc.Diagnostics;
 
-public record Diagnostic(string Message, int Line, int Column);
-public class ParseException : Exception { }
+public abstract class Diagnostic : Exception
+{
+    protected Diagnostic() { }
+    protected Diagnostic(string message) : base(message) { }
+}
+public abstract class CompilationError(string message, SourceLocation? location) : Diagnostic;

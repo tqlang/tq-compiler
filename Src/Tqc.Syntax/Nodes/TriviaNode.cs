@@ -1,4 +1,5 @@
 using System.Text;
+using Tqc.Core;
 
 namespace Tqc.Syntax.Nodes;
 
@@ -18,4 +19,5 @@ public record TriviaNode : SyntaxNode
     }
 
     override internal StringBuilder AppendSyntaxToStringBuilder(StringBuilder sb) => sb.Append(Value ?? "");
+    public override SourceSpan Span => new SourceSpan(Line, Column, Line, Column + Value!.Length);
 }

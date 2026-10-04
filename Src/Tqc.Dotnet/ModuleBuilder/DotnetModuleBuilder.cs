@@ -1,0 +1,334 @@
+using System.Collections.Immutable;
+using Mono.Cecil;
+using Tqc.Dotnet.ProgramMembers;
+using Tqc.IR.ProgramMembers;
+using Tqc.IR.References;
+
+namespace Tqc.Dotnet.ModuleBuilder;
+
+sealed internal class DotnetModuleBuilder(AssemblyDefinition[] assemblies)
+{
+    /// Identifica uma definição (não uma referência): o mesmo tipo alcançado por caminhos diferentes cai no mesmo nó.
+    private readonly record struct TypeKey(string Assembly, string FullName)
+    {
+        public static TypeKey Of(TypeDefinition type) => new(type.Module.Assembly.FullName, type.FullName);
+    }
+
+    private readonly Dictionary<TypeKey, TypeNode> _nodes = new();
+    private TqTypeTranslator? _translator;
+    private MemberReferenceFactory? _members;
+
+    private TqTypeTranslator Translator => _translator ??= new TqTypeTranslator(LookupNode);
+    private MemberReferenceFactory Members => _members ??= new MemberReferenceFactory(new SignatureRemapper(MapNamedType), Translator);
+
+    public DotnetModule Build(string moduleName)
+    {
+        // A ordem importa: os membros só podem ser construídos depois que TODOS os tipos do módulo
+        // estão registrados, senão as assinaturas cairiam em nós externos com o escopo do assembly que define.
+        var root = DiscoverTypes(moduleName);
+        LinkBaseTypes();
+        BuildMembers();
+        AttachContents();
+
+        //TypeTreeDumper.Dump(root);
+
+        return new DotnetModule
+        {
+            Assemblies = assemblies,
+            RootNamespace = BuildNamespace(root),
+        };
+    }
+
+    // ───────────────────────── 4. Saída ─────────────────────────
+
+    /// <summary>
+    /// Passa base type, membros e aninhados dos nós para os Dotnet*. Só depois de todos os tipos existirem,
+    /// para que os membros possam apontar para qualquer tipo, inclusive o próprio.
+    /// Struct, enum e interface ainda não recebem nada: quando ganharem Members, é um case a mais aqui.
+    /// </summary>
+    private void AttachContents()
+    {
+        foreach (var node in _nodes.Values.Where(n => !n.IsExternal))
+        {
+            switch (node.DotnetType)
+            {
+                case DotnetStaticClass staticClass:
+                    // As estáticas aninhadas ficam só em NestedStaticClasses; GetAllMembers junta as duas coleções.
+                    staticClass.Members = BuildMemberTable(node, includeNestedStaticClasses: false);
+                    staticClass.NestedStaticClasses = BuildNestedStaticClasses(node);
+                    break;
+
+                case DotnetClass dotnetClass:
+                    dotnetClass.BaseType = node.BaseType;
+                    dotnetClass.Members = BuildMemberTable(node, includeNestedStaticClasses: true);
+                    break;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Tabela de membros por nome: campos e propriedades, um DotnetMethodGroup por nome de método
+    /// (sobrecargas, e os construtores em ".ctor") e os tipos aninhados.
+    /// Em colisão de nomes (só acontece em IL que o C# não gera) vale o primeiro.
+    /// </summary>
+    private static ImmutableDictionary<string, IMember> BuildMemberTable(TypeNode node, bool includeNestedStaticClasses)
+    {
+        var table = ImmutableDictionary.CreateBuilder<string, IMember>();
+        var methods = new Dictionary<string, List<DotnetMethod>>();
+
+        foreach (var member in node.Members)
+        {
+            switch (member)
+            {
+                case DotnetField field:
+                    AddFirst(table, field.Name, field);
+                    break;
+
+                case DotnetProperty property:
+                    AddFirst(table, property.Name, property);
+                    break;
+
+                case DotnetMethod method:
+                    if (!methods.TryGetValue(method.Name, out var overloads))
+                    {
+                        overloads = [];
+                        methods.Add(method.Name, overloads);
+                    }
+                    overloads.Add(method);
+                    break;
+            }
+        }
+
+        foreach (var (name, overloads) in methods)
+            AddFirst(table, name, new DotnetMethodGroup(name) { Methods = overloads.ToImmutableArray() });
+
+        foreach (var nested in node.Nested)
+        {
+            // Delegates ainda não têm DotnetType (null).
+            if (nested.DotnetType is not { } nestedType) continue;
+            if (nestedType is DotnetStaticClass && !includeNestedStaticClasses) continue;
+
+            AddFirst(table, nestedType.Name, nestedType);
+        }
+
+        return table.ToImmutable();
+    }
+
+    private static ImmutableDictionary<string, DotnetStaticClass> BuildNestedStaticClasses(TypeNode node)
+    {
+        var table = ImmutableDictionary.CreateBuilder<string, DotnetStaticClass>();
+
+        foreach (var nested in node.Nested)
+        {
+            if (nested.DotnetType is DotnetStaticClass staticClass) AddFirst(table, staticClass.Name, staticClass);
+        }
+
+        return table.ToImmutable();
+    }
+
+    private static void AddFirst<T>(ImmutableDictionary<string, T>.Builder table, string name, T value)
+    {
+        if (!table.ContainsKey(name)) table.Add(name, value);
+    }
+
+    private static DotnetNamespace BuildNamespace(NamespaceNode node)
+    {
+        var namespaces = ImmutableDictionary.CreateBuilder<string, INamespace>();
+        var types = ImmutableDictionary.CreateBuilder<string, IDotnetType>();
+
+        foreach (var type in node.Types)
+        {
+            if (type.DotnetType is DotnetStaticClass staticClass) namespaces.Add(staticClass.Name, staticClass);
+            else if (type.DotnetType is { } dotnetType) types.Add(dotnetType.Name, dotnetType);
+        }
+
+        foreach (var child in node.Namespaces.Values)
+            namespaces.Add(child.Name, BuildNamespace(child));
+
+        return new DotnetNamespace(node.Name)
+        {
+            Namespaces = [..namespaces],
+            Types = [.. types],
+        };
+    }
+
+    // ───────────────────────── 1. Descoberta ─────────────────────────
+
+    private NamespaceNode DiscoverTypes(string moduleName)
+    {
+        var root = new NamespaceNode(moduleName);
+        var scopes = assemblies.Select(TypeReferenceFactory.ScopeOf).ToArray();
+
+        // Definições diretas primeiro: se um tipo é definido E exportado por assemblies do módulo,
+        // a referência direta vence. Entre exports, vale o primeiro assembly da lista.
+        for (var i = 0; i < assemblies.Length; i++)
+        {
+            foreach (var type in assemblies[i].MainModule.Types)
+            {
+                if (IsExposed(type)) Register(root, type, scopes[i]);
+            }
+        }
+
+        // Tipos exportados: a referência é relativa ao assembly que exporta, não ao que define.
+        for (var i = 0; i < assemblies.Length; i++)
+        {
+            foreach (var exported in assemblies[i].MainModule.ExportedTypes)
+            {
+                // Aninhados são alcançados pelo tipo que os declara.
+                if (exported.DeclaringType != null) continue;
+
+                var type = exported.Resolve();
+                if (type != null && IsExposed(type)) Register(root, type, scopes[i]);
+            }
+        }
+
+        return root;
+    }
+
+    private void Register(NamespaceNode root, TypeDefinition type, AssemblyNameReference scope)
+    {
+        if (_nodes.ContainsKey(TypeKey.Of(type))) return;
+
+        var node = CreateNode(type, TypeReferenceFactory.Create(type, scope), isExternal: false);
+
+        var ns = root;
+        foreach (var segment in type.Namespace.Split('.', StringSplitOptions.RemoveEmptyEntries))
+            ns = ns.GetOrAddNamespace(segment);
+
+        ns.Types.Add(node);
+    }
+
+    private TypeNode CreateNode(TypeDefinition definition, TypeReference reference, bool isExternal)
+    {
+        var kind = TypeClassifier.Classify(definition);
+        var node = new TypeNode(TypeClassifier.GetTypeName(definition), kind, reference, definition, isExternal)
+        {
+            DotnetType = CreateDotnetType(kind, reference),
+        };
+        _nodes.Add(TypeKey.Of(definition), node);
+
+        // Tipos externos só entram como referência: não precisamos da estrutura deles.
+        if (isExternal) return node;
+
+        foreach (var nested in definition.NestedTypes)
+        {
+            if (!IsVisibleNested(nested)) continue;
+            node.Nested.Add(CreateNode(nested, TypeReferenceFactory.CreateNested(nested, reference), isExternal: false));
+        }
+
+        return node;
+    }
+
+    private static bool IsExposed(TypeDefinition type) => type.Name != "<Module>" && type.IsPublic;
+
+    private static bool IsVisibleNested(TypeDefinition type) =>
+        type.IsNestedPublic || type.IsNestedFamily || type.IsNestedFamilyOrAssembly;
+
+    // O Dotnet* guarda a Reference (como o tipo é endereçado), nunca a Definition.
+    private static IDotnetType? CreateDotnetType(TypeKind kind, TypeReference reference) => kind switch
+    {
+        TypeKind.StaticClass => new DotnetStaticClass(reference, reference.Name),
+        TypeKind.Class       => new DotnetClass(reference, reference.Name),
+        TypeKind.Struct      => new DotnetStruct(reference, reference.Name),
+        TypeKind.Enum        => new DotnetEnum(reference, reference.Name),
+        TypeKind.Interface   => new DotnetInterface(reference, reference.Name),
+        TypeKind.Delegate    => null, // TODO: DotnetDelegate
+
+        _ => throw new ArgumentOutOfRangeException(nameof(kind), kind, null),
+    };
+
+    // ───────────────────────── 2. Tipos base ─────────────────────────
+
+    private void LinkBaseTypes()
+    {
+        // Snapshot: resolver um base type pode criar nós externos em _nodes.
+        foreach (var node in _nodes.Values.Where(n => !n.IsExternal).ToArray())
+        {
+            if (node.Kind == TypeKind.Delegate) continue;
+
+            if (node.Definition.BaseType is { } baseType)
+                node.BaseType = ResolveBaseType(baseType);
+        }
+    }
+
+    private ITypeRef? ResolveBaseType(TypeReference baseType)
+    {
+        // Os argumentos genéricos do tipo base ainda não têm representação na IR: usa o tipo aberto.
+        var element = baseType is GenericInstanceType generic ? generic.ElementType : baseType;
+
+        return TypeClassifier.IsImplicitBase(element.FullName) ? null : Translator.Translate(element);
+    }
+
+    // ───────────────────────── 3. Membros ─────────────────────────
+
+    private void BuildMembers()
+    {
+        // Snapshot: remapear assinaturas pode criar nós externos em _nodes.
+        foreach (var node in _nodes.Values.Where(n => !n.IsExternal && n.Kind != TypeKind.Delegate).ToArray())
+            BuildMembers(node);
+    }
+
+    private void BuildMembers(TypeNode node)
+    {
+        var definition = node.Definition;
+        var declaring = node.Reference; // relativa ao assembly que exporta
+
+        // value__ de enums e afins não é um campo utilizável.
+        foreach (var field in definition.Fields)
+        {
+            if (field.IsRuntimeSpecialName || !MemberVisibility.IsVisible(field)) continue;
+            node.Members.Add(Members.Field(field, declaring));
+        }
+
+        // Acessores pertencem à propriedade, não entram de novo como métodos.
+        var accessors = new HashSet<MethodDefinition>();
+        foreach (var property in definition.Properties)
+        {
+            if (property.GetMethod is { } get) accessors.Add(get);
+            if (property.SetMethod is { } set) accessors.Add(set);
+
+            if (MemberVisibility.IsVisible(property))
+                node.Members.Add(Members.Property(property, declaring));
+        }
+
+        foreach (var method in definition.Methods)
+        {
+            if (!MemberVisibility.IsVisible(method) || accessors.Contains(method) || method.Name == ".cctor") continue;
+            node.Members.Add(Members.Method(method, declaring));
+        }
+    }
+
+    /// <summary>
+    /// Troca a referência de metadata de um tipo nomeado pela Reference do builder.
+    /// Se o tipo não for resolvível, mantém a original em vez de derrubar o build.
+    /// </summary>
+    private TypeReference MapNamedType(TypeReference type) =>
+        TryGetOrCreateNode(type, out var node) ? node.Reference : type;
+
+    // ───────────────────────── Resolução de nós ─────────────────────────
+
+    private TypeNode? LookupNode(TypeReference reference) =>
+        TryGetOrCreateNode(reference, out var node) ? node : null;
+
+    /// <summary>
+    /// Devolve o nó do tipo. Se ele não pertence ao módulo, cria um nó externo cuja Reference é
+    /// a própria referência vista no ponto de uso (já relativa ao assembly correto).
+    /// </summary>
+    private bool TryGetOrCreateNode(TypeReference reference, out TypeNode node)
+    {
+        // List<int> -> List<>: os argumentos genéricos não mudam qual tipo é referenciado.
+        var element = reference is GenericInstanceType generic ? generic.ElementType : reference;
+
+        var definition = element.Resolve();
+        if (definition == null)
+        {
+            node = null!;
+            return false;
+        }
+
+        node = _nodes.TryGetValue(TypeKey.Of(definition), out var existing)
+            ? existing
+            : CreateNode(definition, element, isExternal: true);
+        return true;
+    }
+}

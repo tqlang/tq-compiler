@@ -1,11 +1,12 @@
 using System.Collections.Immutable;
 using System.Text;
+using Tqc.Core;
 
 namespace Tqc.Syntax.Nodes;
 
 public record StringExpressionNode(
     TokenNode LeftDoubleQuotes,
-    ImmutableArray<StringContentNode> Contents,
+    StringContentNode[] Contents,
     TokenNode RightDoubleQuotes
 ) : ExpressionNode
 {
@@ -16,21 +17,27 @@ public record StringExpressionNode(
         sb.AppendSyntaxNode(RightDoubleQuotes);
         return sb;
     }
+    
+    public override SourceSpan Span => LeftDoubleQuotes.Span + RightDoubleQuotes.Span;
 }
 
 public abstract record StringContentNode : SyntaxNode;
 public record StringCharacterLiteralNode(TokenNode Value) : StringContentNode
 {
     override internal StringBuilder AppendSyntaxToStringBuilder(StringBuilder sb) => sb.AppendSyntaxNode(Value);
+    public override SourceSpan Span => Value.Span;
 }
 public record StringLiteralNode(TokenNode Value) : StringContentNode
 {
     override internal StringBuilder AppendSyntaxToStringBuilder(StringBuilder sb) => sb.AppendSyntaxNode(Value);
+    public override SourceSpan Span => Value.Span;
 }
-public record InterpolatedExpressionNode(TokenNode LeftEscapedBrace, ExpressionNode Expresison, TokenNode RightBrace) : StringContentNode
+public record InterpolatedExpressionNode(TokenNode LeftEscapedBrace, ExpressionNode Expressison, TokenNode RightBrace) : StringContentNode
 {
     override internal StringBuilder AppendSyntaxToStringBuilder(StringBuilder sb) => sb
         .AppendSyntaxNode(LeftEscapedBrace)
-        .AppendSyntaxNode(Expresison)
+        .AppendSyntaxNode(Expressison)
         .AppendSyntaxNode(RightBrace);
+    
+    public override SourceSpan Span => LeftEscapedBrace.Span + RightBrace.Span;
 }
