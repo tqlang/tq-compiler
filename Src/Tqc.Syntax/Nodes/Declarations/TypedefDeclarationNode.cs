@@ -5,16 +5,28 @@ namespace Tqc.Syntax.Nodes;
 
 public record TypedefDeclarationNode(
     TokenNode TypedefKeyword,
+    (TokenNode Left, ExpressionNode Type, TokenNode Right)? UnderlyingType,
     IdentifierExpressionNode Name,
     BlockNode Body,
     TriviaNode[] LeadingTrivia
 ) : DeclarationNode(LeadingTrivia) {
-    override internal StringBuilder AppendSyntaxToStringBuilder(StringBuilder sb) => sb
-        .AppendSyntaxNode(TypedefKeyword)
-        .AppendSyntaxNode(Name)
-        .AppendSyntaxNode(Body)
-        .AppendTrivia(LeadingTrivia);
-    
+    override internal StringBuilder AppendSyntaxToStringBuilder(StringBuilder sb)
+    {
+        sb.AppendSyntaxNode(TypedefKeyword);
+        if (UnderlyingType != null)
+        {
+            sb
+                .AppendSyntaxNode(UnderlyingType.Value.Left)
+                .AppendSyntaxNode(UnderlyingType.Value.Type)
+                .AppendSyntaxNode(UnderlyingType.Value.Right);
+        }
+
+        return sb
+            .AppendSyntaxNode(Name)
+            .AppendSyntaxNode(Body)
+            .AppendTrivia(LeadingTrivia);
+    }
+
     public override SourceSpan Span => TypedefKeyword.Span + SourceSpan.FirstAndLastNotNull(Name, Body);
 }
 
@@ -75,8 +87,8 @@ public record TypedefNamedCaseWithValueDeclaration(
     override internal StringBuilder AppendSyntaxToStringBuilder(StringBuilder sb) => sb
         .AppendSyntaxNode(CaseKeyword)
         .AppendSyntaxNode(Name)
-        .AppendSyntaxNode(Value)
         .AppendSyntaxNode(EqualsToken)
+        .AppendSyntaxNode(Value)
         .AppendTrivia(LeadingTrivia);
     
     public override SourceSpan Span => CaseKeyword.Span + Value.Span;

@@ -1,3 +1,5 @@
+using Tqc.IR.References;
+
 namespace Tqc.IR.ProgramMembers;
 
 public interface IMember : IReferable

@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using Mono.Cecil;
 using Tqc.Dotnet.ProgramMembers;
+using Tqc.IR.ProgramMembers.Primitive;
 using Tqc.IR.References;
 
 namespace Tqc.Dotnet.ModuleBuilder;
@@ -57,13 +58,9 @@ internal static class TypeTreeDumper
 
     private static string Tq(ITypeRef type) => type switch
     {
-        BooleanTypeRef                       => "bool",
-        IntegerTypeRef(var signed, var size) => $"{(signed ? 'i' : 'u')}{size}",
-        FloatingTypeRef floating             => floating.Type.ToString(),
-        StringTypeRef                        => "string",
         DotnetCharacterTypeRef               => "char16",
-        CharacterTypeRef                     => "char",
         ReferenceTypeRef reference           => $"ref({Tq(reference.Referred)})",
+        StructTypeReference { Struct: PrimitiveStruct primitive } => primitive.Name,
         StructTypeReference structure        => NameOf(structure.Struct),
         ProtocolTypeReference protocol       => NameOf(protocol.Protocol),
         UnsupportedTypeRef unsupported       => $"?{unsupported.Name}",

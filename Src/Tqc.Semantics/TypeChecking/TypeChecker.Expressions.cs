@@ -1,0 +1,266 @@
+using Tqc.Dotnet.ProgramMembers;
+using Tqc.IR.ProgramMembers;
+using Tqc.IR.Nodes;
+using Tqc.IR.ProgramMembers.Primitive;
+using Tqc.IR.ProgramMembers.Tq;
+using Tqc.IR.References;
+
+namespace Tqc.Semantics;
+
+internal sealed partial class TypeChecker
+{
+    /// <summary>
+    /// Types an expression and everything inside it. Returns the expression, rewritten if something inside
+    /// it was resolved; its type, when known, is in the table under the returned node.
+    /// </summary>
+    private IrExpression Visit(IrExpression expression)
+    {
+        var (result, type) = Compute(expression);
+        if (type != null) types.Set(result, type);
+        return result;
+    }
+
+    /// <summary>The type of an expression returned by <see cref="Visit"/>; null if it is not known.</summary>
+    private ITypeRef? TypeOf(IrExpression visited) => types.Get(visited);
+
+    private (IrExpression Node, ITypeRef? Type) Compute(IrExpression expression)
+    {
+        switch (expression)
+        {
+            case IrComptimeInt:
+                return (expression, new ComptimeIntegerTypeRef());
+
+            case IrComptimeDecimal:
+                return (expression, new ComptimeDecimalTypeRef());
+
+            case IrComptimeBool:
+                return (expression, BoolType());
+
+            case IrStringConstant:
+                return (expression, StringType());
+
+            case IrBinary binary:
+                return VisitBinary(binary);
+
+            case IrUnary unary:
+                return VisitUnary(unary);
+
+            case IrIndex index:
+                return VisitIndex(index);
+
+            case IrStringConcat concat:
+                return (concat with { Parts = [..concat.Parts.Select(Visit)] }, StringType());
+
+            case IrReference reference:
+                return (reference, TypeOfReference(reference.Reference));
+
+            case IrLocal local:
+                return (local, local.type != null ? TypeFromExpression(local.type) : types.Get(local));
+
+            case IrAssign assign:
+                return VisitAssign(assign);
+
+            case IrCall call:
+                return VisitCall(call);
+
+            case IrNew creation:
+            {
+                var visited = creation with { ArgumentsList = VisitArguments(creation.ArgumentsList) };
+                return (ResolveConstructor(visited) ?? visited, TypeFromExpression(creation.Type));
+            }
+
+            case IrArray array:
+                return VisitArray(array);
+
+            case IrConvert conversion:
+                return (conversion with { Expression = Visit(conversion.Expression) },
+                    TypeFromExpression(conversion.toType));
+
+            case IrAccess access:
+                return VisitAccess(access);
+
+            default:
+                return (expression, null);
+        }
+    }
+
+    private IrArgumentsList VisitArguments(IrArgumentsList list) =>
+        list with { arguments = [..list.arguments.Select(Visit)] };
+
+    /// <summary>
+    /// `[a, b]` is a slice of the type its elements share. Literals have no size, so they make a slice of the
+    /// default integer; elements of different types, or of unknown type, leave the type unknown.
+    /// </summary>
+    private (IrExpression, ITypeRef?) VisitArray(IrArray array)
+    {
+        var elements = array.Elements.Select(Visit).ToArray();
+        var visited = array with { Elements = elements };
+        if (elements.Length == 0) return (visited, null);
+
+        var first = TypeOf(elements[0]);
+        if (first == null || elements.Any(element => !Equals(TypeOf(element), first))) return (visited, null);
+
+        ITypeRef element = first switch
+        {
+            ComptimeIntegerTypeRef => new StructTypeReference(CompilerStd.Types.Natural(true)),
+            ComptimeDecimalTypeRef => new StructTypeReference(CompilerStd.Types.FloatOf(64)),
+            _ => first,
+        };
+        return (visited, new SliceTypeRef(element));
+    }
+
+    /// <summary>
+    /// `value.name`: the member is looked up in the type of the value, including what the type extends.
+    /// A type that does not list its members is left alone; a type that does and has no such member is an error.
+    /// </summary>
+    private (IrExpression, ITypeRef?) VisitAccess(IrAccess access)
+    {
+        var baseExpr = Visit(access.baseExpr);
+        var visited = access with { baseExpr = baseExpr };
+
+        if (access.access.Reference is not UnsolvedRef name) return (visited, TypeOfReference(access.access.Reference));
+
+        var container = ContainerOf(TypeOf(baseExpr));
+        if (container == null) return (visited, null);
+
+        var member = container.TryGetMember(name.Value);
+        if (member == null)
+        {
+            if (ListsMembers(container))
+                Error($"'{TypeFormatter.Format(TypeOf(baseExpr))}' has no member named '{name.Value}'", access.access.Location);
+            return (visited, null);
+        }
+
+        if (!AccessChecker.CanAccess(member, _accessor))
+        {
+            Error(AccessChecker.Explain(name.Value, member, _accessor), access.access.Location);
+            return (visited, null);
+        }
+
+        var reference = member.GetReference();
+        var resolved = visited with { access = new IrReference(access.access.Location, reference) };
+        return (resolved, TypeOfReference(reference));
+    }
+
+    /// <summary>What has the members of a value of this type; null if the type has none known.</summary>
+    private static IMemberContainer? ContainerOf(ITypeRef? type) => type switch
+    {
+        StructTypeReference { Struct: GenericInstance instance } => instance.Definition as IMemberContainer,
+        StructTypeReference { Struct: IMemberContainer container } => container,
+        ReferenceTypeRef reference => ContainerOf(reference.Referred),
+        TypedefTypeReference typedef => typedef.Typedef,
+        ProtocolTypeReference { Protocol: IMemberContainer container } => container,
+        _ => null,
+    };
+
+    /// <summary>Whether a missing member is an error: the container must know all of its members.</summary>
+    private static bool ListsMembers(IMemberContainer container) => container switch
+    {
+        TqStruct or TqTypedef => true,
+        DotnetClass { Members: not null } or DotnetStruct { Members: not null } => true,
+        DotnetEnum { Members: not null } or DotnetInterface { Members: not null } => true,
+        _ => false,
+    };
+
+    private (IrExpression, ITypeRef?) VisitAssign(IrAssign assign)
+    {
+        if (assign.Target is IrIndex indexTarget) return VisitIndexAssign(assign, indexTarget);
+
+        var source = Visit(assign.Source);
+        var sourceType = TypeOf(source);
+
+        // `let a = 1`: a local without a declared type takes the type of its value.
+        // A literal has no size, so the variable gets the default integer.
+        if (assign.Target is IrLocal { type: null } local && sourceType != null)
+        {
+            types.Set(local, sourceType switch
+            {
+                ComptimeIntegerTypeRef => new StructTypeReference(CompilerStd.Types.Natural(true)),
+                ComptimeDecimalTypeRef => new StructTypeReference(CompilerStd.Types.FloatOf(64)),
+                _ => sourceType,
+            });
+        }
+
+        var target = Visit(assign.Target);
+        var targetType = TypeOf(target);
+
+        // A local that took its type from the value needs no check; any other target keeps its own type.
+        if (!(assign.Target is IrLocal { type: null }))
+        {
+            var typeExpression = target is IrLocal { type: { } declared } ? declared : null;
+            source = Coerce(source, targetType, typeExpression, "the assignment");
+        }
+
+        return (assign with { Target = target, Source = source }, targetType);
+    }
+
+    private (IrExpression, ITypeRef?) VisitCall(IrCall call)
+    {
+        var visited = call with
+        {
+            callee = Visit(call.callee),
+            ArgumentsList = VisitArguments(call.ArgumentsList),
+        };
+
+        // `a.f()` keeps `a` as the receiver; a function reached through a value is not static.
+        var viaValue = visited.callee is IrAccess;
+
+        switch (CalleeReference(visited.callee))
+        {
+            case FunctionGroupTypeReference group:
+                visited = ResolveOverload(visited, group.FunctionGroup.Name, OverloadsOf(group.FunctionGroup, viaValue)) ?? visited;
+                break;
+
+            // A single function is a group of one: its arguments are checked and converted all the same.
+            case FunctionTypeReference { Function: TqFunction function }:
+                visited = ResolveOverload(visited, function.Name, [ToOverload(function)]) ?? visited;
+                break;
+
+            case FunctionTypeReference { Function: DotnetMethod { IsConstructor: false } method }:
+                visited = ResolveOverload(visited, method.Name, [ToOverload(method)]) ?? visited;
+                break;
+        }
+
+        return (visited, ReturnTypeOf(visited.callee));
+    }
+
+    /// <summary>What a callee refers to: a name, or a member reached through a value.</summary>
+    private static Ref? CalleeReference(IrExpression callee) => callee switch
+    {
+        IrReference reference => reference.Reference,
+        IrAccess { access.Reference: var member } => member,
+        _ => null,
+    };
+
+    /// <summary>
+    /// The type of a call to a single function is its return type. A call to an overload group that could not be
+    /// resolved yet has no known type.
+    /// </summary>
+    private ITypeRef? ReturnTypeOf(IrExpression callee)
+    {
+        if (CalleeReference(callee) is not FunctionTypeReference { Function: var function }) return null;
+
+        return FunctionSignature.Of(function)?.Return;
+    }
+
+    private ITypeRef? TypeOfReference(Ref reference) => reference switch
+    {
+        LocalReference { Local: var local } => local.type != null ? TypeFromExpression(local.type) : types.Get(local),
+        ParameterReference { Parameter: var parameter } => TypeFromExpression(parameter.Type),
+        FieldReference { Field: TqField { Type: not null } field } => TypeFromExpression(field.Type),
+        FieldReference { Field: DotnetField field } => field.Type,
+        FieldReference { Field: DotnetProperty property } => property.Type,
+        ThisReference { Owner: TqTypedef typedef } => new TypedefTypeReference(typedef),
+        ThisReference { Owner: IStruct owner } => StructSemantics.TypeOf(owner),
+        FieldReference { Field: TqNamedCase { Typedef: { } typedef } } => new TypedefTypeReference(typedef),
+        // A type used as a value (for a `type T` parameter) has the type `Type`.
+        TypeMetaReference => new StructTypeReference(CompilerStd.Types.Type),
+        _ => null,
+    };
+
+    private static bool IsBool(ITypeRef type) => ConversionRules.IsStruct(type, CompilerStd.Types.Bool);
+
+    private static StructTypeReference BoolType() => new(CompilerStd.Types.Bool);
+    private static StructTypeReference StringType() => new(CompilerStd.Types.String);
+    private static StructTypeReference VoidType() => new(CompilerStd.Types.Void);
+}

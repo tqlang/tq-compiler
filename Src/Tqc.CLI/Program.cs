@@ -1,10 +1,12 @@
-﻿using System.Diagnostics;
+using System.Diagnostics;
 using System.Reflection;
+using System.Text.RegularExpressions;
 using Tqc.Build.Model;
 using Tqc.Build.Toml;
 using Tqc.Diagnostics;
 using Tqc.Dotnet;
 using Tqc.IR.ProgramMembers;
+using Tqc.IR.ProgramMembers.Primitive;
 using Tqc.Semantics;
 using Tqc.Syntax;
 
@@ -23,15 +25,14 @@ static class Program
         switch (args[0])
         {
             case "build_toml":
-                Build(args[1..]);
-                Environment.Exit(0);
+                Environment.Exit(Build(args[1..]));
             break;
         }
         
         Environment.Exit(1);
     }
 
-    static void Build(string[] args)
+    static int Build(string[] args)
     {
         var manifestFile = Path.GetFullPath(args.Length > 0 ? args[0] : "./build.toml");
         if (!File.Exists(manifestFile))
@@ -72,18 +73,27 @@ static class Program
                 case null:
                 {
                     var module = BuildTqModule(moduleDescriptor, diagnostics);
-                    map.Add(moduleDescriptor, module);
-                    var dependencies = moduleDescriptor.Dependencies
-                        .OfType<ModuleReference>()
-                        .Select(reference => reference.Definition)
-                        .Select(definition => map[definition]);
-                    SemanticAnalyser.BindReferences(module, [..dependencies]);
+                    // The Std of the project is merged with the one the compiler creates.
+                    var view = moduleDescriptor.Name == CompilerStd.ModuleName
+                        ? SemanticAnalyser.MergeStd(module, diagnostics)
+                        : module;
+                    map.Add(moduleDescriptor, view);
+                    var dependencies = 
+                            moduleDescriptor.Dependencies
+                            .OfType<ModuleReference>()
+                            .Select(reference => reference.Definition)
+                            .Select(definition => map[definition]);
+                    
+                    SemanticAnalyser.BindReferences(module, view, [..dependencies], diagnostics);
+                    SemanticAnalyser.TypeCheck(module, [..dependencies], diagnostics);
                 } break;
                 
                 default: throw new Exception($"Unknown module type: {moduleDescriptor.Type}"); 
             }
         }
         
+        PrintDiagnostics(diagnostics);
+        return diagnostics.HasErrors ? 1 : 0;
     }
 
     static IModule BuildTqModule(ModuleDefinition module, DiagnosticBag diagnostics)
@@ -97,9 +107,34 @@ static class Program
         var moduleRoot = ParseNamespaceRecursively(tree, diagnostics);
         var syntaxModuleContainer = new SyntaxModuleContainer(module.Name, moduleRoot);
         var m = SemanticAnalyser.Resolve(syntaxModuleContainer);
+        CollectSyntaxDiagnostics(moduleRoot, diagnostics);
         
         Console.WriteLine($"PARSED {module.Name}");
         return m;
+    }
+
+    /// <summary>TreeLower errors live in each file's tree; gather them into the build report.</summary>
+    static void CollectSyntaxDiagnostics(SyntaxNamespaceContainer container, DiagnosticBag target)
+    {
+        foreach (var tree in container.Trees)
+        foreach (var diagnostic in tree.Diagnostics)
+            if (diagnostic is CompilationError error)
+                target.ReportError(error);
+
+        foreach (var child in container.Namespaces) CollectSyntaxDiagnostics(child, target);
+    }
+
+    static void PrintDiagnostics(DiagnosticBag diagnostics)
+    {
+        foreach (var diagnostic in diagnostics)
+        {
+            var where = diagnostic is CompilationError { Location: { } location }
+                ? $"{location.filePath}({location.span.LineStart},{location.span.ColStart}): "
+                : "";
+            Console.Error.WriteLine($"{where}error: {diagnostic.Message}");
+        }
+
+        if (diagnostics.HasErrors) Console.Error.WriteLine($"{diagnostics.Count} error(s)");
     }
 
     static IModule BuildDotnetModule(ModuleDefinition module)
@@ -113,6 +148,11 @@ static class Program
     private static class DirectoryParser
     {
         private const string Extension = "*.tq"; 
+        
+        // Entries that do not match are ignored (see "Naming Limitations" in the language reference).
+        private static readonly Regex ValidDirectoryName = new(@"^[a-zA-Z_][a-zA-Z0-9_]*$", RegexOptions.Compiled);
+        private static readonly Regex ValidFileName = new(@"^[a-zA-Z_][a-zA-Z0-9_]*\.tq$", RegexOptions.Compiled);
+        
         public static NamespaceNode BuildTree(string rootPath, string moduleName)
         {
             var rootInfo = new DirectoryInfo(Path.GetFullPath(rootPath));
@@ -125,11 +165,14 @@ static class Program
         private static void PopulateNode(NamespaceNode node, DirectoryInfo dirInfo, string currentNamespace)
         {
             foreach (var file in dirInfo.GetFiles(Extension))
+            {
+                if (!ValidFileName.IsMatch(file.Name)) continue;
                 node.Files.Add(new SourceFile(file.FullName));
+            }
             
             foreach (var subDir in dirInfo.GetDirectories())
             {
-                if (subDir.Name.StartsWith('.') || subDir.Name == "bin" || subDir.Name == "obj") 
+                if (subDir.Name is "bin" or "obj" || !ValidDirectoryName.IsMatch(subDir.Name)) 
                     continue;
                 
                 var nextNamespace = string.IsNullOrEmpty(currentNamespace) 

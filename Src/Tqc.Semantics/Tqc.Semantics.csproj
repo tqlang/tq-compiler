@@ -7,6 +7,7 @@
     </PropertyGroup>
 
     <ItemGroup>
+      <ProjectReference Include="..\Tqc.Dotnet\Tqc.Dotnet.csproj" />
       <ProjectReference Include="..\Tqc.IR\Tqc.IR.csproj" />
       <ProjectReference Include="..\Tqc.Syntax\Tqc.Syntax.csproj" />
     </ItemGroup>

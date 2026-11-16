@@ -207,7 +207,20 @@ public class Parser(DiagnosticBag diagnostics)
     }
     private TypedefDeclarationNode ParseTypedefDeclaration()
     {
-        var structKeyword = ExpectNode("typedef", "'typedef' keyword");
+        var typedefKeyword = ExpectNode("typedef", "'typedef' keyword");
+
+        // `typedef(u32) Name`: the type the entries are stored as.
+        (TokenNode, ExpressionNode, TokenNode)? underlyingType = null;
+        if (Check(TokenKind.LeftParenthesis))
+        {
+            var left = AdvanceNode();
+            AdvanceTrivia(_midExpressionTrivia);
+            var type = ParseExpression();
+            AdvanceTrivia(_midExpressionTrivia);
+            var right = ExpectNode(TokenKind.RightParenthesis, "close parenthesis (')')");
+            underlyingType = (left, type, right);
+        }
+
         AdvanceTrivia(TokenKind.Whitespace);
         var nameIdentifier = ParseSingleIdentifier();
         AdvanceTrivia(_midDeclarationTrivia);
@@ -215,7 +228,8 @@ public class Parser(DiagnosticBag diagnostics)
         var body = ParseTypedefContent();
         
         return new TypedefDeclarationNode(
-            structKeyword,
+            typedefKeyword,
+            underlyingType,
             nameIdentifier,
             body,
             ConsumeDeclarationsLeadingTrivia()
@@ -372,13 +386,31 @@ public class Parser(DiagnosticBag diagnostics)
             );
         }
 
+        // `case name` or `case name = value`
         var identifier = ParseSingleIdentifier();
-        var cp = SaveCheckpoint();
         AdvanceTrivia(_midDeclarationTrivia);
-        
-        
-        Rollback(cp);
-        throw new NotImplementedException();
+
+        if (Check(TokenKind.Equals))
+        {
+            var equals = AdvanceNode();
+            AdvanceTrivia(_midExpressionTrivia);
+            var value = ParseExpression();
+            AdvanceTrivia(_midDeclarationTrivia);
+
+            return new TypedefNamedCaseWithValueDeclaration(
+                caseKeyword,
+                identifier,
+                equals,
+                value,
+                ConsumeDeclarationsLeadingTrivia()
+            );
+        }
+
+        return new TypedefNamedCaseDeclaration(
+            caseKeyword,
+            identifier,
+            ConsumeDeclarationsLeadingTrivia()
+        );
     }
     #endregion
     
@@ -480,6 +512,10 @@ public class Parser(DiagnosticBag diagnostics)
         else if (CheckKeyword("elif")) statement =  ParseElifStatement();
         else if (CheckKeyword("else")) statement = ParseElseStatement();
         
+        // Loops
+        else if (CheckKeyword("while")) statement = ParseWhileStatement();
+        else if (CheckKeyword("break")) statement = ParseBreakStatement();
+        
         // Misc
         else if (CheckKeyword("return")) statement =  ParseReturnStatement();
         else if (Check(TokenKind.LeftBrace)) statement = ParseScope();
@@ -518,6 +554,51 @@ public class Parser(DiagnosticBag diagnostics)
         var thenBranch = ParseStatement();
         
         return new ElseStatementNode(ifKeyword, thenBranch, ConsumeStatementLeadingTrivia());
+    }
+    #endregion
+
+    #region statements - loops
+    /// <summary>
+    /// `while c s`, `while c : step s`, `while decl : c : step s`: the colons say which parts there are.
+    /// A `{` after the last part is the body, as in `if`.
+    /// </summary>
+    private WhileStatementNode ParseWhileStatement()
+    {
+        var whileKeyword = ExpectNode("while", "'while' keyword");
+        AdvanceTrivia(TokenKind.Whitespace);
+
+        List<ExpressionNode> parts = [ParseExpression()];
+        List<TokenNode> colons = [];
+
+        while (parts.Count < 3)
+        {
+            var cp = SaveCheckpoint();
+            AdvanceTrivia(TokenKind.Whitespace);
+            if (!Check(TokenKind.Colon))
+            {
+                Rollback(cp);
+                break;
+            }
+
+            colons.Add(AdvanceNode());
+            AdvanceTrivia(TokenKind.Whitespace);
+            parts.Add(ParseExpression());
+        }
+
+        AdvanceTrivia(_midDeclarationTrivia);
+        var body = ParseStatement();
+
+        return parts.Count switch
+        {
+            1 => new WhileStatementNode(whileKeyword, null, null, parts[0], null, null, body, ConsumeStatementLeadingTrivia()),
+            2 => new WhileStatementNode(whileKeyword, null, null, parts[0], colons[0], parts[1], body, ConsumeStatementLeadingTrivia()),
+            _ => new WhileStatementNode(whileKeyword, parts[0], colons[0], parts[1], colons[1], parts[2], body, ConsumeStatementLeadingTrivia()),
+        };
+    }
+    private BreakStatementNode ParseBreakStatement()
+    {
+        var keyword = ExpectNode("break", "'break' keyword");
+        return new BreakStatementNode(keyword, ConsumeStatementLeadingTrivia());
     }
     #endregion
 
@@ -663,6 +744,17 @@ public class Parser(DiagnosticBag diagnostics)
             case TokenKind.LeftBracket:
             {
                 var leftBracket = AdvanceNode();
+                AdvanceTrivia(_midExpressionTrivia);
+
+                // `[a, b]` is an array literal; `[]T` is a slice type.
+                if (!Check(TokenKind.RightBracket))
+                {
+                    var elements = ParseCommaSeparatedExpressionCollection(TokenKind.RightBracket);
+                    AdvanceTrivia(_midExpressionTrivia);
+                    var close = ExpectNode(TokenKind.RightBracket, "close bracket (']')");
+                    return new ArrayLiteralExpressionNode(leftBracket, [..elements], close);
+                }
+
                 var rightBracket = ExpectNode(TokenKind.RightBracket, "Right bracket (']')");
                 var type = ParsePrefix();
                 return new SliceTypeModifierNode(leftBracket, rightBracket, type);
@@ -701,11 +793,11 @@ public class Parser(DiagnosticBag diagnostics)
             
             if (Check(TokenKind.LeftBracket))
             {
-                var leftBracket = ExpectNode(TokenKind.LeftParenthesis, "open bracket ('[')");
+                var leftBracket = ExpectNode(TokenKind.LeftBracket, "open bracket ('[')");
                 AdvanceTrivia(_midExpressionTrivia);
-                var args = ParseCommaSeparatedExpressionCollection();
+                var args = ParseCommaSeparatedExpressionCollection(TokenKind.RightBracket);
                 AdvanceTrivia(_midExpressionTrivia);
-                var rightBracket = ExpectNode(TokenKind.LeftParenthesis, "close bracket (']')");
+                var rightBracket = ExpectNode(TokenKind.RightBracket, "close bracket (']')");
                 expr = new IndexExpressionNode(expr, new IndexCollectionNode(leftBracket, [..args], rightBracket));
                 
                 continue;
@@ -868,7 +960,7 @@ public class Parser(DiagnosticBag diagnostics)
         
         while (!AtEnd())
         {
-            if (PeekKind() == TokenKind.RightParenthesis) break;
+            if (PeekKind() == TokenKind.RightParenthesis || alsoBreaksAt.Contains(PeekKind())) break;
             
             var exp = ParseExpression();
             AdvanceTrivia(_midExpressionTrivia);

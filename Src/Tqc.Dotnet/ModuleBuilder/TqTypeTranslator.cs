@@ -1,5 +1,6 @@
 using Mono.Cecil;
 using Tqc.IR.ProgramMembers;
+using Tqc.IR.ProgramMembers.Primitive;
 using Tqc.IR.References;
 
 namespace Tqc.Dotnet.ModuleBuilder;
@@ -17,35 +18,37 @@ public sealed record DotnetCharacterTypeRef() : Ref, ITypeRef;
 /// </summary>
 sealed internal class TqTypeTranslator(Func<TypeReference, TypeNode?> lookup)
 {
-    // Size em bits (suposição: confira se a sua IR usa bits ou bytes).
+    // Every primitive is a member of Std.Types, created by the compiler. Sizes are in bits.
+    private static readonly StdTypes Std = CompilerStd.Types;
+
     private static readonly Dictionary<string, ITypeRef> Primitives = new()
     {
-        ["System.Boolean"] = new BooleanTypeRef(),
+        ["System.Boolean"] = new StructTypeReference(Std.Bool),
 
-        ["System.SByte"]   = new IntegerTypeRef(Signed: true,  Size: 8),
-        ["System.Byte"]    = new IntegerTypeRef(Signed: false, Size: 8),
-        ["System.Int16"]   = new IntegerTypeRef(Signed: true,  Size: 16),
-        ["System.UInt16"]  = new IntegerTypeRef(Signed: false, Size: 16),
-        ["System.Int64"]   = new IntegerTypeRef(Signed: true,  Size: 64),
-        ["System.UInt64"]  = new IntegerTypeRef(Signed: false, Size: 64),
-        ["System.Int128"]  = new IntegerTypeRef(Signed: true,  Size: 128),
-        ["System.UInt128"] = new IntegerTypeRef(Signed: false, Size: 128),
-        
-        ["System.Int32"]   = new DefaultIntegerTypeRef(Signed: true),
-        ["System.UInt32"]  = new DefaultIntegerTypeRef(Signed: false),
-        
-        ["System.IntPtr"]  = new NativeIntegerTypeRef(Signed: true),
-        ["System.UIntPtr"] = new NativeIntegerTypeRef(Signed: false),
-        
+        ["System.SByte"]   = new StructTypeReference(Std.IntegerOf(signed: true,  bitSize: 8)),
+        ["System.Byte"]    = new StructTypeReference(Std.IntegerOf(signed: false, bitSize: 8)),
+        ["System.Int16"]   = new StructTypeReference(Std.IntegerOf(signed: true,  bitSize: 16)),
+        ["System.UInt16"]  = new StructTypeReference(Std.IntegerOf(signed: false, bitSize: 16)),
+        ["System.Int64"]   = new StructTypeReference(Std.IntegerOf(signed: true,  bitSize: 64)),
+        ["System.UInt64"]  = new StructTypeReference(Std.IntegerOf(signed: false, bitSize: 64)),
+        ["System.Int128"]  = new StructTypeReference(Std.IntegerOf(signed: true,  bitSize: 128)),
+        ["System.UInt128"] = new StructTypeReference(Std.IntegerOf(signed: false, bitSize: 128)),
+
+        ["System.Int32"]   = new StructTypeReference(Std.Natural(signed: true)),
+        ["System.UInt32"]  = new StructTypeReference(Std.Natural(signed: false)),
+
+        ["System.IntPtr"]  = new StructTypeReference(Std.Native(signed: true)),
+        ["System.UIntPtr"] = new StructTypeReference(Std.Native(signed: false)),
+
         ["System.Char"]    = new DotnetCharacterTypeRef(),
 
-        ["System.Half"]    = new FloatingTypeRef(FloatingTypeRef.FloatingPointType.f16),
-        ["System.Single"]  = new FloatingTypeRef(FloatingTypeRef.FloatingPointType.f32),
-        ["System.Double"]  = new FloatingTypeRef(FloatingTypeRef.FloatingPointType.f64),
+        ["System.Half"]    = new StructTypeReference(Std.FloatOf(16)),
+        ["System.Single"]  = new StructTypeReference(Std.FloatOf(32)),
+        ["System.Double"]  = new StructTypeReference(Std.FloatOf(64)),
 
-        ["System.String"]  = new StringTypeRef(),
+        ["System.String"]  = new StructTypeReference(Std.String),
 
-        // IntPtr/UIntPtr (tamanho depende da plataforma) e Decimal ficam de fora: seguem como struct.
+        // Decimal stays out: it remains a struct.
     };
 
     /// <summary>Tipo de retorno: null significa void (a IR não tem referência para void).</summary>

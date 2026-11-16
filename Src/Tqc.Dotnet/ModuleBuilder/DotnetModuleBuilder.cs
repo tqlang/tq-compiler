@@ -44,7 +44,6 @@ sealed internal class DotnetModuleBuilder(AssemblyDefinition[] assemblies)
     /// <summary>
     /// Passa base type, membros e aninhados dos nós para os Dotnet*. Só depois de todos os tipos existirem,
     /// para que os membros possam apontar para qualquer tipo, inclusive o próprio.
-    /// Struct, enum e interface ainda não recebem nada: quando ganharem Members, é um case a mais aqui.
     /// </summary>
     private void AttachContents()
     {
@@ -61,6 +60,19 @@ sealed internal class DotnetModuleBuilder(AssemblyDefinition[] assemblies)
                 case DotnetClass dotnetClass:
                     dotnetClass.BaseType = node.BaseType;
                     dotnetClass.Members = BuildMemberTable(node, includeNestedStaticClasses: true);
+                    break;
+
+                case DotnetStruct dotnetStruct:
+                    dotnetStruct.Members = BuildMemberTable(node, includeNestedStaticClasses: true);
+                    break;
+
+                // The values of an enum are static constant fields.
+                case DotnetEnum dotnetEnum:
+                    dotnetEnum.Members = BuildMemberTable(node, includeNestedStaticClasses: true);
+                    break;
+
+                case DotnetInterface dotnetInterface:
+                    dotnetInterface.Members = BuildMemberTable(node, includeNestedStaticClasses: true);
                     break;
             }
         }
