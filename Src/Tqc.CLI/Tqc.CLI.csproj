@@ -8,6 +8,7 @@
     </PropertyGroup>
 
     <ItemGroup>
+      <ProjectReference Include="..\Tqc.Backend.Cecil\Tqc.Backend.Cecil.csproj" />
       <ProjectReference Include="..\Tqc.Build.Toml\Tqc.Build.Toml.csproj" />
       <ProjectReference Include="..\Tqc.Diagnostics\Tqc.Diagnostics.csproj" />
       <ProjectReference Include="..\Tqc.Dotnet\Tqc.Dotnet.csproj" />

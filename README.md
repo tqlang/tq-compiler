@@ -290,3 +290,34 @@ depois da checagem de tipos e mesmo quando há erros. É um formato de texto pr�
   (tipo e valor padrão), retorno, corpo, e a posição no arquivo `arquivo(linha,coluna)`; nós levam `@linha:coluna`.
 - Também aparecem imports e declarações por arquivo, `extends`, construtores, `typedef`s (tipo base, casos),
   propriedades (acessores, fonte, `backing=yes/no`).
+
+## Backend .NET (`Tqc.Backend.Cecil`)
+
+Com `target = "dotnet"` em `[project]` do `build.toml`, depois de checar todos os módulos sem erros o compilador emite um
+assembly por módulo Tq (`<Módulo>.dll`) em `out-dir` (padrão `.tq-out`), com Mono.Cecil. O módulo raiz (`root`) vira um
+programa: `main()` ou `main([]string args)` é chamado por `<Módulo>.EntryPoint.Main(string[])`, e ele ganha um
+`<Módulo>.runtimeconfig.json` para rodar com `dotnet <Módulo>.dll`. Os módulos saem em ordem de dependência, e um
+assembly referencia os definidos antes dele.
+
+**Esta versão emite a estrutura**, não o código: o corpo de cada função lança `NotImplementedException` (propriedades
+automáticas e construtores padrão são reais). O build precisa de um módulo `dotnet` com `System.Runtime`, de onde vêm
+`Object`, `Int32` etc.
+
+- Namespaces são namespaces .NET (`Modulo.Pasta`). Funções e campos de um namespace são membros estáticos de uma classe
+  `Globals` dele.
+- `struct` é um value type, ou uma classe com `@class`; `@abstract`, `@final` e `@interface` viram os flags .NET.
+  `extends` de uma struct-interface é `implements`, o resto é a classe base. `typedef` é um enum (os casos nomeados são
+  as constantes; casos numéricos sem nome não aparecem). Structs genéricas ainda não.
+- Acesso: `@public` é público; o resto (namespace/módulo) é `internal`, o máximo que o .NET diz.
+- Funções: `@static`, `@virtual` e `@override` viram os flags; `lazy` e valores padrão de parâmetros ainda não.
+  Classes sem construtor ganham o construtor sem argumentos; o `destructor` é o `Finalize` (vazio por enquanto).
+- Propriedades são propriedades .NET; o campo de apoio (`<nome>k__BackingField`) é criado pelo backend quando
+  `HasBackingField`. `get = f` precisa nomear uma função do mesmo tipo.
+- Tipos: `i8`..`i128`/`u8`..`u128`, `int`/`uint` = 32 bits, `iptr`/`uptr` = `IntPtr`/`UIntPtr`, `f16/f32/f64`
+  (`Half/Single/Double`), `bool`, `char`, `string`, `[]T` = `T[]`, `const T` = `T` (uma constante com valor literal é
+  um campo `literal`). `*T` de uma classe é a própria classe e de um valor é `T&` (só em parâmetros e retornos).
+  `?T` é `Nullable<T>` para valores e `T` para referências. `!T` é `Tq.Failable<T>` e `!void` é `Tq.Failable`, structs
+  de um assembly `Tq.Runtime.dll` (campos `Value` e `Error`; `Error` é `object` até existir `Std.Types.Error`).
+- Ainda sem: valor inicial de campos (precisa de construtor), `@packed`/`@union`/layout, `f80`/`f128`/`i256`,
+  funções ou campos dentro de `typedef`, e tudo que um corpo precisaria.
+

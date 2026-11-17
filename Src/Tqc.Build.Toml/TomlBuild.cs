@@ -15,8 +15,8 @@ public static class TomlBuild
     
     private static BuildManifest ParseManifest(string directory, TomlTable root)
     {
-        var outDir = root["out-dir"].ToString() ?? ".tq-out";
-        var cacheDir = root["cache-dir"].ToString() ?? ".tq-cache";
+        var outDir = root.TryGetValue("out-dir", out var outValue) ? outValue?.ToString() ?? ".tq-out" : ".tq-out";
+        var cacheDir = root.TryGetValue("cache-dir", out var cacheValue) ? cacheValue?.ToString() ?? ".tq-cache" : ".tq-cache";
         
         ProjectDefinition project = null!;
         if (root.TryGetValue("project", out var projectTableObj) && projectTableObj is TomlTable projectTable)

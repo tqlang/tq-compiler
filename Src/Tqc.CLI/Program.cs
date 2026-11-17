@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Reflection;
 using System.Text.RegularExpressions;
+using Tqc.Backend.Cecil;
 using Tqc.Build.Model;
 using Tqc.Build.Toml;
 using Tqc.Diagnostics;
@@ -73,13 +74,17 @@ static class Program
         var order = buildPlanner.CreateOrder(modulesDictionary, manifest.Project!.Root);
         Dictionary<ModuleDefinition, IModule> map = []; 
         DiagnosticBag diagnostics = new();
+        List<(IModule Module, string Name)> tqModules = [];
+        List<IModule> dotnetModules = [];
         
         foreach (var moduleDescriptor in order)
         {
             switch (moduleDescriptor.Type)
             {
                 case "dotnet":
-                    map.Add(moduleDescriptor, BuildDotnetModule(moduleDescriptor));
+                    var dotnetModule = BuildDotnetModule(moduleDescriptor);
+                    map.Add(moduleDescriptor, dotnetModule);
+                    dotnetModules.Add(dotnetModule);
                 break;
 
                 case "tq":
@@ -99,6 +104,7 @@ static class Program
                     
                     SemanticAnalyser.BindReferences(module, view, [..dependencies], diagnostics);
                     SemanticAnalyser.TypeCheck(module, [..dependencies], diagnostics);
+                    tqModules.Add((module, moduleDescriptor.Name));
 
                     // Written even when there are errors: that is when it is most useful.
                     if (dumpDirectory != null) DumpIr(module, moduleDescriptor.Name, dumpDirectory);
@@ -108,8 +114,28 @@ static class Program
             }
         }
         
+        // `target = "dotnet"` compiles each Tq module to an assembly in `out-dir`, if the code has no errors.
+        if (!diagnostics.HasErrors && manifest.Project.Target == "dotnet")
+        {
+            var outDirectory = Path.Combine(Path.GetDirectoryName(manifestFile)!, manifest.OutDirectory ?? ".tq-out");
+            EmitDotnet(tqModules, dotnetModules, manifest.Project.Root, outDirectory, diagnostics);
+        }
+
         PrintDiagnostics(diagnostics);
         return diagnostics.HasErrors ? 1 : 0;
+    }
+
+    static void EmitDotnet(
+        List<(IModule Module, string Name)> modules, List<IModule> dotnetModules, string root, string outDirectory, DiagnosticBag diagnostics)
+    {
+        var backend = new CecilBackend(diagnostics);
+        foreach (var dotnetModule in dotnetModules) backend.AddDotnetModule(dotnetModule);
+        foreach (var (module, name) in modules) backend.Emit(module, name, isEntry: name == root);
+
+        if (diagnostics.HasErrors) return;
+
+        backend.Write(outDirectory);
+        Console.WriteLine($"EMITTED {modules.Count} module(s) to {outDirectory}");
     }
 
     static void DumpIr(IModule module, string name, string directory)
