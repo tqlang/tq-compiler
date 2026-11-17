@@ -115,7 +115,6 @@ public static class TreeLower
                     {
                         var property = LowerPropertyMember(ctx, LowerAttributes(ctx, attributes.Dump(), AttributeTarget.Field), propertyNode);
                         if (!members.TryAdd(property.Name, property)) throw DuplicatedNameError(property.Name, propertyNode.Name.GetLoc(ctx.SrcFile));
-                        if (property.BackingField != null) members.Add(property.BackingField.Name, property.BackingField);
                     }
                     break;
 
@@ -315,7 +314,7 @@ public static class TreeLower
     }
     /// <summary>
     /// The accessors become functions of the struct (`get_name`, `set_name`) that the property holds. One that has
-    /// no body and no function is automatic: it uses a hidden field of the type of the property.
+    /// no body and no function is automatic: the backend gives the property its storage.
     /// </summary>
     private static TqProperty LowerPropertyMember(STContext ctx, TqAttribute[] attributes, PropertyDeclarationNode node)
     {
@@ -326,8 +325,6 @@ public static class TreeLower
 
         if (node.Accessors.Length == 0)
             throw Error($"The property '{name}' needs a 'get' or a 'set'", location);
-
-        var automatic = false;
 
         foreach (var accessor in node.Accessors)
         {
@@ -355,13 +352,9 @@ public static class TreeLower
             };
 
             if (accessor.Body != null) function.Body = LowerScope(ctx, accessor.Body);
-            else automatic = true;
 
             if (isGetter) property.GetterFunction = function; else property.SetterFunction = function;
         }
-
-        if (automatic)
-            property.BackingField = new TqField(type, $"<{name}>k__BackingField", null, location);
 
         property.Getter = property.GetterFunction;
         property.Setter = property.SetterFunction;
@@ -432,41 +425,10 @@ public static class TreeLower
 
         // A function knows the type it belongs to: whether it is abstract depends on it.
         SetOwner(structure, structure.Members.Values);
-        FinishProperties(structure);
         foreach (var constructor in structure.Constructors) constructor.Owner = structure;
         if (structure.Destructor != null) structure.Destructor.Owner = structure;
 
         return structure;
-    }
-
-    /// <summary>
-    /// An accessor without a body reads or writes the backing field. In an abstract struct or an interface it
-    /// stays without a body: whoever extends the struct implements it.
-    /// </summary>
-    private static void FinishProperties(TqStruct structure)
-    {
-        if (structure.IsAbstract) return;
-
-        foreach (var property in structure.Members.Values.OfType<TqProperty>())
-        {
-            if (property.BackingField == null) continue;
-            var backing = property.BackingField;
-            var field = new IrReference(backing.SourceLocation, new FieldReference(backing));
-
-            if (property.GetterFunction is { Body: null } getter)
-            {
-                getter.Body = new IrBody(getter.SourceLocation);
-                getter.Body.Children.Add(new IrReturnStatement(getter.SourceLocation, field));
-            }
-
-            if (property.SetterFunction is { Body: null } setter)
-            {
-                var value = new IrReference(setter.SourceLocation, new ParameterReference(setter.Parameters[0]));
-                setter.Body = new IrBody(setter.SourceLocation);
-                setter.Body.Children.Add(new IrExpressionStatement(
-                    setter.SourceLocation, new IrAssign(setter.SourceLocation, field, value)));
-            }
-        }
     }
 
     private static void SetOwner(IObjectType owner, IEnumerable<IMember> members)

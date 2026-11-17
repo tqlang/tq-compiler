@@ -206,10 +206,14 @@ while let i = 0 : i < 5 : i++ statement
 
 ```tq
 struct Pessoa {
-    let int idade { get; set }          # automática: o compilador cria um campo oculto
+    let int idade { get; set }          # automática: a propriedade tem armazenamento próprio
     let nome { get = lerNome }          # o tipo vem da função (get: () -> T, set: (T) -> void)
     let int dobro {
         get { return this.idade * 2 }
+    }
+    let int nivel {
+        get                              # vazio: lê o armazenamento
+        set { field = Math.clamp(value, 0, 10) }   # `field` é o armazenamento
     }
     let int limite {
         get = lerLimite
@@ -225,7 +229,12 @@ struct Pessoa {
 - Sem tipo declarado, ele vem do `get` ou do `set` indicado por função. Um acessor vazio ou escrito no lugar exige o tipo.
 - Ler `a.p` chama o `get` em `a`; `a.p = v` converte `v` ao tipo da propriedade e chama o `set`. O nome sozinho (`p`)
   dentro da struct usa `this`. `a.p += 1` vira `a.p = a.p + 1`.
-- Uma propriedade vazia numa struct `@abstract` ou `@interface` não tem corpo: quem estende a struct declara uma
+- Um dos dois acessores, ou os dois, podem ser vazios (como no C# moderno), e o outro pode ser escrito. Dentro de um
+  acessor escrito ali, `field` é o armazenamento da propriedade, do tipo dela; `field` só existe nos acessores.
+- A IR **não declara** esse armazenamento nem gera corpo para o acessor vazio: `TqProperty.HasBackingField` diz que o
+  backend precisa criar o campo (true se um acessor usa `field` ou se há acessor vazio numa struct que pode ser criada), e
+  o acessor vazio sem corpo (`Body == null`) é implementado por ele.
+- Uma propriedade vazia numa struct `@abstract` ou `@interface` é abstrata: quem estende a struct declara uma
   propriedade de mesmo nome com o acessor (não precisa de `@override`).
 - Ainda não: propriedades estáticas, `@virtual`/`@override` em propriedades, `++`/`--` sobre propriedades.
 

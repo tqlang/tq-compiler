@@ -5,8 +5,10 @@ namespace Tqc.IR.ProgramMembers.Tq;
 
 /// <summary>
 /// `let T name { get; set }`. Each accessor is a function with the signature `() -> T` or `(T) -> void`, and is
-/// either written here (`GetterFunction`, `SetterFunction`: `get { }`, or without a body, which makes it an
-/// automatic one that uses `BackingField`) or defined by a function that exists (`GetterSource`, `get = f`).
+/// either written here (`GetterFunction`, `SetterFunction`: `get { }`) or defined by a function that exists
+/// (`GetterSource`, `get = f`). An accessor written here without a body is automatic: it reads or writes the
+/// storage of the property (in an abstract struct it is abstract instead). Inside an accessor, `field` is that
+/// storage. The IR does not declare it: <see cref="HasBackingField"/> says the backend needs to create one.
 /// Reading the property calls the getter and assigning to it calls the setter.
 /// </summary>
 public class TqProperty(IrExpression? type, string name, SourceLocation location) : IMember, ITqMember
@@ -47,8 +49,15 @@ public class TqProperty(IrExpression? type, string name, SourceLocation location
     public IFunction? Getter { get; set; }
     public IFunction? Setter { get; set; }
 
-    /// <summary>The hidden field of an automatic property.</summary>
-    public TqField? BackingField { get; set; }
+    /// <summary>Set once an accessor body uses `field`.</summary>
+    public bool UsesFieldKeyword { get; set; }
+
+    /// <summary>
+    /// Whether the property has storage: an accessor uses `field`, or one of them is automatic (it has no body
+    /// and the struct can be created). The backend declares it, with the type of the property.
+    /// </summary>
+    public bool HasBackingField => UsesFieldKeyword
+        || (Owner is { IsAbstract: false } && (GetterFunction is { Body: null } || SetterFunction is { Body: null }));
 
     public bool HasGetter => GetterFunction != null || GetterSource != null;
     public bool HasSetter => SetterFunction != null || SetterSource != null;

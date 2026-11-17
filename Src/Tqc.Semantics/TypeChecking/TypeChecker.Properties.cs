@@ -26,6 +26,13 @@ internal sealed partial class TypeChecker
     private (IrExpression, ITypeRef?) VisitReference(IrReference reference)
     {
         var asTarget = TakeTarget();
+
+        if (reference.Reference is BackingFieldReference { Property: var owner })
+        {
+            owner.UsesFieldKeyword = true;
+            return (reference, PropertyTypeOf(owner));
+        }
+
         if (reference.Reference is not PropertyReference { Property: var property })
             return (reference, TypeOfReference(reference.Reference));
 

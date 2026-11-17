@@ -48,14 +48,19 @@ internal static partial class ReferenceBinder
         if (field.Value != null) field.Value = BindExpression(ctx, field.Value);
     }
 
-    /// <summary>The type, the functions that define the accessors and the accessors written in the property.</summary>
+    /// <summary>The type, the functions that define the accessors and the accessors written in the property, which see `field`.</summary>
     private static void BindProperty(BindingContext ctx, TqProperty property)
     {
         if (property.Type != null) property.Type = BindExpression(ctx, property.Type);
         if (property.GetterSource != null) property.GetterSource = BindExpression(ctx, property.GetterSource);
         if (property.SetterSource != null) property.SetterSource = BindExpression(ctx, property.SetterSource);
+
+        // `field` is the storage of the property, seen by the accessors written in it.
+        ctx.PushFrame();
+        ctx.Add("field", new BackingFieldReference(property));
         if (property.GetterFunction != null) BindFunction(ctx, property.GetterFunction);
         if (property.SetterFunction != null) BindFunction(ctx, property.SetterFunction);
+        ctx.PopFrame();
     }
 
     /// <summary>
