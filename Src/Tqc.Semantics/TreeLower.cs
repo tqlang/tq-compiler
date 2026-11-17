@@ -111,6 +111,14 @@ public static class TreeLower
                     }
                     break;
 
+                    case PropertyDeclarationNode propertyNode:
+                    {
+                        var property = LowerPropertyMember(ctx, LowerAttributes(ctx, attributes.Dump(), AttributeTarget.Field), propertyNode);
+                        if (!members.TryAdd(property.Name, property)) throw DuplicatedNameError(property.Name, propertyNode.Name.GetLoc(ctx.SrcFile));
+                        if (property.BackingField != null) members.Add(property.BackingField.Name, property.BackingField);
+                    }
+                    break;
+
                     case FunctionDeclarationNode functionNode:
                     {
                         var function = LowerFunctionMember(ctx, LowerAttributes(ctx, attributes.Dump(), AttributeTarget.Function), functionNode);
@@ -186,7 +194,7 @@ public static class TreeLower
     {
         MemberScope.Root => node is ImportDirectiveNode or FieldDeclarationNode or FunctionDeclarationNode
             or StructDeclarationNode or TypedefDeclarationNode,
-        MemberScope.Struct => node is FieldDeclarationNode or FunctionDeclarationNode
+        MemberScope.Struct => node is FieldDeclarationNode or PropertyDeclarationNode or FunctionDeclarationNode
             or ConstructorDeclarationNode or DestructorDeclarationNode,
         _ => node is FieldDeclarationNode or FunctionDeclarationNode or TypedefCaseDeclaration,
     };
@@ -195,6 +203,7 @@ public static class TreeLower
     {
         ImportDirectiveNode => "import",
         FieldDeclarationNode => "field",
+        PropertyDeclarationNode => "property",
         FunctionDeclarationNode => "function",
         ConstructorDeclarationNode => "constructor",
         DestructorDeclarationNode => "destructor",
@@ -304,6 +313,61 @@ public static class TreeLower
         
         return new TqField(type, name, value, fieldNode.GetLoc(ctx.SrcFile)) { Attributes = attributes };
     }
+    /// <summary>
+    /// The accessors become functions of the struct (`get_name`, `set_name`) that the property holds. One that has
+    /// no body and no function is automatic: it uses a hidden field of the type of the property.
+    /// </summary>
+    private static TqProperty LowerPropertyMember(STContext ctx, TqAttribute[] attributes, PropertyDeclarationNode node)
+    {
+        var name = node.Name.Value;
+        var location = node.GetLoc(ctx.SrcFile);
+        var type = node.Type != null ? LowerExpression(ctx, node.Type) : null;
+        var property = new TqProperty(type, name, location) { Attributes = attributes };
+
+        if (node.Accessors.Length == 0)
+            throw Error($"The property '{name}' needs a 'get' or a 'set'", location);
+
+        var automatic = false;
+
+        foreach (var accessor in node.Accessors)
+        {
+            var isGetter = accessor.IsGetter;
+            var accessorLocation = accessor.GetLoc(ctx.SrcFile);
+
+            if (isGetter ? property.HasGetter : property.HasSetter)
+                throw Error($"The property '{name}' has more than one '{accessor.Keyword.Value}'", accessorLocation);
+
+            if (accessor.Function != null)
+            {
+                var source = LowerExpression(ctx, accessor.Function);
+                if (isGetter) property.GetterSource = source; else property.SetterSource = source;
+                continue;
+            }
+
+            if (type == null)
+                throw Error($"The property '{name}' needs a type: only accessors defined by a function can give it", location);
+
+            var function = new TqFunction(isGetter ? $"get_{name}" : $"set_{name}", accessorLocation)
+            {
+                Parameters = isGetter ? [] : [new TqParameter(type, "value")],
+                ReturnType = isGetter ? type : null,
+                Attributes = [],
+            };
+
+            if (accessor.Body != null) function.Body = LowerScope(ctx, accessor.Body);
+            else automatic = true;
+
+            if (isGetter) property.GetterFunction = function; else property.SetterFunction = function;
+        }
+
+        if (automatic)
+            property.BackingField = new TqField(type, $"<{name}>k__BackingField", null, location);
+
+        property.Getter = property.GetterFunction;
+        property.Setter = property.SetterFunction;
+        return property;
+    }
+
     private static TqFunction LowerFunctionMember(STContext ctx, TqAttribute[] attributes, FunctionDeclarationNode functionNode)
     {
         var name = functionNode.Name.Value;
@@ -368,10 +432,41 @@ public static class TreeLower
 
         // A function knows the type it belongs to: whether it is abstract depends on it.
         SetOwner(structure, structure.Members.Values);
+        FinishProperties(structure);
         foreach (var constructor in structure.Constructors) constructor.Owner = structure;
         if (structure.Destructor != null) structure.Destructor.Owner = structure;
 
         return structure;
+    }
+
+    /// <summary>
+    /// An accessor without a body reads or writes the backing field. In an abstract struct or an interface it
+    /// stays without a body: whoever extends the struct implements it.
+    /// </summary>
+    private static void FinishProperties(TqStruct structure)
+    {
+        if (structure.IsAbstract) return;
+
+        foreach (var property in structure.Members.Values.OfType<TqProperty>())
+        {
+            if (property.BackingField == null) continue;
+            var backing = property.BackingField;
+            var field = new IrReference(backing.SourceLocation, new FieldReference(backing));
+
+            if (property.GetterFunction is { Body: null } getter)
+            {
+                getter.Body = new IrBody(getter.SourceLocation);
+                getter.Body.Children.Add(new IrReturnStatement(getter.SourceLocation, field));
+            }
+
+            if (property.SetterFunction is { Body: null } setter)
+            {
+                var value = new IrReference(setter.SourceLocation, new ParameterReference(setter.Parameters[0]));
+                setter.Body = new IrBody(setter.SourceLocation);
+                setter.Body.Children.Add(new IrExpressionStatement(
+                    setter.SourceLocation, new IrAssign(setter.SourceLocation, field, value)));
+            }
+        }
     }
 
     private static void SetOwner(IObjectType owner, IEnumerable<IMember> members)
@@ -386,6 +481,12 @@ public static class TreeLower
 
                 case TqFunction function:
                     function.Owner = owner;
+                    break;
+
+                case TqProperty property:
+                    property.Owner = owner;
+                    if (property.GetterFunction != null) property.GetterFunction.Owner = owner;
+                    if (property.SetterFunction != null) property.SetterFunction.Owner = owner;
                     break;
             }
         }

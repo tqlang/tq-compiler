@@ -49,10 +49,11 @@ sealed internal class MemberReferenceFactory(SignatureRemapper remapper, TqTypeT
     public DotnetProperty Property(PropertyDefinition property, TypeReference declaring) => new(
         property.Name,
         translator.Translate(remapper.Map(property.PropertyType, declaring, null)),
-        // FIXME indexers
-        //property.Parameters.Select(p => translator.Translate(remapper.Map(p.ParameterType, declaring, null))).ToArray(),
+        property.Parameters.Select(p => translator.Translate(remapper.Map(p.ParameterType, declaring, null))).ToArray(),
         property.GetMethod is { } get && MemberVisibility.IsVisible(get) ? MethodReference(get, declaring) : null,
-        property.SetMethod is { } set && MemberVisibility.IsVisible(set) ? MethodReference(set, declaring) : null);
+        property.SetMethod is { } set && MemberVisibility.IsVisible(set) ? MethodReference(set, declaring) : null,
+        property.GetMethod is { } getDefinition && MemberVisibility.IsVisible(getDefinition) ? Method(getDefinition, declaring) : null,
+        property.SetMethod is { } setDefinition && MemberVisibility.IsVisible(setDefinition) ? Method(setDefinition, declaring) : null);
 
     public MethodReference MethodReference(MethodDefinition method, TypeReference declaring)
     {

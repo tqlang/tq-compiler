@@ -235,7 +235,7 @@ public class Parser(DiagnosticBag diagnostics)
             ConsumeDeclarationsLeadingTrivia()
         );
     }
-    private FieldDeclarationNode ParseFieldDeclaration()
+    private DeclarationNode ParseFieldDeclaration()
     {
         TokenNode letKeyword;
         ExpressionNode? firstExpression;
@@ -247,7 +247,7 @@ public class Parser(DiagnosticBag diagnostics)
         firstExpression = ParseExpression();
         AdvanceTrivia(_midDeclarationTrivia);
 
-        if (!Check(TokenKind.Equals) && !Check(TokenKind.LineFeed))
+        if (!Check(TokenKind.Equals) && !Check(TokenKind.LeftBrace) && !Check(TokenKind.LineFeed))
         {
             secondExpression = ParseSingleIdentifier();
             AdvanceTrivia(_midDeclarationTrivia);
@@ -277,9 +277,17 @@ public class Parser(DiagnosticBag diagnostics)
             );
         }
         
-        if (Check(TokenKind.LeftBracket))
+        if (Check(TokenKind.LeftBrace))
         {
-            throw new NotImplementedException("Properties");
+            // `let name { ... }` has no type; `let T name { ... }` does.
+            if (secondExpression == null && firstExpression is not IdentifierExpressionNode)
+                throw Error(Peek()!.Value, "Expected the name of the property");
+            if (secondExpression == null) {
+                secondExpression = (IdentifierExpressionNode)firstExpression;
+                firstExpression  = null!;
+            }
+
+            return ParsePropertyBody(letKeyword, firstExpression, secondExpression);
         }
         
         if (secondExpression == null && firstExpression is not IdentifierExpressionNode name)
@@ -301,6 +309,56 @@ public class Parser(DiagnosticBag diagnostics)
         
     }
     
+    /// <summary>`{ get; set }`, one accessor per line or separated by semicolons.</summary>
+    private PropertyDeclarationNode ParsePropertyBody(TokenNode letKeyword, ExpressionNode? type, IdentifierExpressionNode name)
+    {
+        var left = ExpectNode(TokenKind.LeftBrace, "'{'");
+        List<PropertyAccessorNode> accessors = [];
+
+        AdvanceTrivia(_midDeclarationTrivia);
+        while (true)
+        {
+            while (Check(TokenKind.Semicolon))
+            {
+                AdvanceTrivia();
+                AdvanceTrivia(_midDeclarationTrivia);
+            }
+
+            if (AtEnd() || Check(TokenKind.RightBrace)) break;
+            accessors.Add(ParsePropertyAccessor());
+            AdvanceTrivia(_midDeclarationTrivia);
+        }
+
+        var right = ExpectNode(TokenKind.RightBrace, "'}'");
+        return new PropertyDeclarationNode(letKeyword, type, name, left, [..accessors], right, ConsumeDeclarationsLeadingTrivia());
+    }
+
+    private PropertyAccessorNode ParsePropertyAccessor()
+    {
+        if (!CheckKeyword("get") && !CheckKeyword("set"))
+            throw Error(Peek()!.Value, "Expected 'get' or 'set'");
+
+        var keyword = AdvanceNode();
+        AdvanceTrivia(_midDeclarationConservativeTrivia);
+
+        TokenNode? equals = null;
+        ExpressionNode? function = null;
+        ScopeNode? body = null;
+
+        if (Check(TokenKind.Equals))
+        {
+            equals = AdvanceNode();
+            AdvanceTrivia(_midDeclarationConservativeTrivia);
+            function = ParseExpression();
+        }
+        else if (Check(TokenKind.LeftBrace))
+        {
+            body = ParseScope();
+        }
+
+        return new PropertyAccessorNode(keyword, equals, function, body, _trivia.Dump());
+    }
+
     private ConstructorDeclarationNode ParseConstructorDeclaration()
     {
         var ctorKeyword = ExpectNode("constructor", "'constructor' keyword");

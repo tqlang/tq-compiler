@@ -96,6 +96,12 @@ sealed internal class DotnetModuleBuilder(AssemblyDefinition[] assemblies)
                     AddFirst(table, field.Name, field);
                     break;
 
+                // An indexer is not reached by its name (`a[i]` uses it): it is listed under a key no identifier
+                // can write, with its parameters because a type may have several.
+                case DotnetProperty { IsIndexer: true } indexer:
+                    AddFirst(table, $"{indexer.Name}[{string.Join(", ", indexer.IndexParameterTypes)}]", indexer);
+                    break;
+
                 case DotnetProperty property:
                     AddFirst(table, property.Name, property);
                     break;

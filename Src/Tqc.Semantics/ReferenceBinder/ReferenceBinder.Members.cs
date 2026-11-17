@@ -16,6 +16,10 @@ internal static partial class ReferenceBinder
                 BindField(ctx, field);
                 break;
 
+            case TqProperty property:
+                BindProperty(ctx, property);
+                break;
+
             case TqFunctionGroup functionGroup:
                 foreach (var overload in functionGroup) BindFunction(ctx, overload);
                 break;
@@ -42,6 +46,16 @@ internal static partial class ReferenceBinder
     {
         if (field.Type != null) field.Type = BindExpression(ctx, field.Type);
         if (field.Value != null) field.Value = BindExpression(ctx, field.Value);
+    }
+
+    /// <summary>The type, the functions that define the accessors and the accessors written in the property.</summary>
+    private static void BindProperty(BindingContext ctx, TqProperty property)
+    {
+        if (property.Type != null) property.Type = BindExpression(ctx, property.Type);
+        if (property.GetterSource != null) property.GetterSource = BindExpression(ctx, property.GetterSource);
+        if (property.SetterSource != null) property.SetterSource = BindExpression(ctx, property.SetterSource);
+        if (property.GetterFunction != null) BindFunction(ctx, property.GetterFunction);
+        if (property.SetterFunction != null) BindFunction(ctx, property.SetterFunction);
     }
 
     /// <summary>

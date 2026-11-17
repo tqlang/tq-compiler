@@ -47,8 +47,7 @@ internal static class TypeTreeDumper
 
         DotnetProperty property =>
             $"property {property.Name}"
-            // FIXME indexer
-            //+ (property.IsIndexer ? $"[{string.Join(", ", property.IndexParameterTypes.Select(Tq))}]" : "")
+            + (property.IsIndexer ? $"[{string.Join(", ", property.IndexParameterTypes.Select(Tq))}]" : "")
             + $": {Tq(property.Type)} {{ {(property.Getter != null ? "get; " : "")}{(property.Setter != null ? "set; " : "")}}}",
 
         _ => member.ToString() ?? "?",

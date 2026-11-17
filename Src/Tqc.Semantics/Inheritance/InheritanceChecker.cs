@@ -114,11 +114,20 @@ internal sealed class InheritanceChecker(DiagnosticBag diagnostics)
         _ => [],
     };
 
+    /// <summary>
+    /// What a member implements: its methods and, for a property, its accessors. An abstract property is
+    /// implemented by a property of the same name that has the accessor.
+    /// </summary>
+    private static IEnumerable<IMethod> ImplementationsOf(IMember member) => member switch
+    {
+        TqProperty property => new[] { property.GetterFunction, property.SetterFunction }.OfType<IMethod>(),
+        _ => MethodsOf(member),
+    };
+
     /// <summary>The instance methods of a container with this name, whatever it is written in.</summary>
     private static IEnumerable<IMethod> MethodsNamed(IMemberContainer container, string name) => container.OwnMembers
-        .Where(member => member.Name == name)
-        .SelectMany(MethodsOf)
-        .Where(method => !method.IsStatic && !method.IsConstructor);
+        .SelectMany(ImplementationsOf)
+        .Where(method => method.Name == name && !method.IsStatic && !method.IsConstructor);
 
     /// <summary>The ancestors of the struct, nearest first, without repeating one (a cycle was reported already).</summary>
     private static IEnumerable<IMemberContainer> Ancestors(TqStruct structure)
@@ -182,7 +191,7 @@ internal sealed class InheritanceChecker(DiagnosticBag diagnostics)
         foreach (var ancestor in Ancestors(structure))
         {
             var required = ancestor.OwnMembers
-                .SelectMany(MethodsOf)
+                .SelectMany(ImplementationsOf)
                 .Where(method => !method.IsStatic && !method.IsConstructor && method.IsAbstract);
 
             foreach (var method in required)

@@ -66,6 +66,12 @@ internal sealed partial class TypeChecker(
                     field.Value = Coerce(field.Value, TypeFromExpression(field.Type), field.Type, $"the field '{field.Name}'");
                 break;
 
+            case TqProperty property:
+                EnsureAccessors(property);
+                if (property.GetterFunction != null) CheckFunction(property.GetterFunction);
+                if (property.SetterFunction != null) CheckFunction(property.SetterFunction);
+                break;
+
             case TqFunctionGroup functionGroup:
                 foreach (var overload in functionGroup) CheckFunction(overload);
                 break;

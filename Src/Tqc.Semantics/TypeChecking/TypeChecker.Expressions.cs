@@ -52,7 +52,7 @@ internal sealed partial class TypeChecker
                 return (concat with { Parts = [..concat.Parts.Select(Visit)] }, StringType());
 
             case IrReference reference:
-                return (reference, TypeOfReference(reference.Reference));
+                return VisitReference(reference);
 
             case IrLocal local:
                 return (local, local.type != null ? TypeFromExpression(local.type) : types.Get(local));
@@ -115,10 +115,16 @@ internal sealed partial class TypeChecker
     /// </summary>
     private (IrExpression, ITypeRef?) VisitAccess(IrAccess access)
     {
+        var asTarget = TakeTarget();
         var baseExpr = Visit(access.baseExpr);
         var visited = access with { baseExpr = baseExpr };
 
-        if (access.access.Reference is not UnsolvedRef name) return (visited, TypeOfReference(access.access.Reference));
+        if (access.access.Reference is not UnsolvedRef name)
+        {
+            return access.access.Reference is PropertyReference { Property: var known }
+                ? PropertyAccess(visited, known, asTarget)
+                : (visited, TypeOfReference(access.access.Reference));
+        }
 
         var container = ContainerOf(TypeOf(baseExpr));
         if (container == null) return (visited, null);
@@ -139,6 +145,7 @@ internal sealed partial class TypeChecker
 
         var reference = member.GetReference();
         var resolved = visited with { access = new IrReference(access.access.Location, reference) };
+        if (member is TqProperty property) return PropertyAccess(resolved, property, asTarget);
         return (resolved, TypeOfReference(reference));
     }
 
@@ -181,7 +188,12 @@ internal sealed partial class TypeChecker
             });
         }
 
+        _targetNext = assign.Target is IrAccess or IrReference;
         var target = Visit(assign.Target);
+        _targetNext = false;
+
+        if (PropertyOf(target) is { } written) return WriteProperty(assign, target, source, written);
+
         var targetType = TypeOf(target);
 
         // A local that took its type from the value needs no check; any other target keeps its own type.
@@ -247,6 +259,7 @@ internal sealed partial class TypeChecker
     {
         LocalReference { Local: var local } => local.type != null ? TypeFromExpression(local.type) : types.Get(local),
         ParameterReference { Parameter: var parameter } => TypeFromExpression(parameter.Type),
+        PropertyReference { Property: var property } => PropertyTypeOf(property),
         FieldReference { Field: TqField { Type: not null } field } => TypeFromExpression(field.Type),
         FieldReference { Field: DotnetField field } => field.Type,
         FieldReference { Field: DotnetProperty property } => property.Type,

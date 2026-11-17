@@ -201,3 +201,35 @@ while let i = 0 : i < 5 : i++ statement
 - Um argumento que não é constante (um tipo, um nome) é mantido como foi escrito.
 - Ainda não: referências a `const` (o parser não guarda se o campo é `const`), chamadas de função em tempo de compilação (`@comptime`) e
   limites específicos de cada struct (por exemplo, quais valores de `bitSize` são válidos).
+
+## Propriedades
+
+```tq
+struct Pessoa {
+    let int idade { get; set }          # automática: o compilador cria um campo oculto
+    let nome { get = lerNome }          # o tipo vem da função (get: () -> T, set: (T) -> void)
+    let int dobro {
+        get { return this.idade * 2 }
+    }
+    let int limite {
+        get = lerLimite
+        set { this.guardado = value }   # `value` é o valor atribuído
+    }
+}
+```
+
+- Os acessores ficam em linhas separadas ou separados por `;`. Cada um é vazio (`get`), definido por uma função
+  (`get = f`) ou escrito ali (`get { ... }`).
+- `get` tem a assinatura `() -> T` e `set` a assinatura `(T) -> void`. Uma função indicada (`get = f`) precisa ser de
+  instância e ter essa assinatura; se houver sobrecargas, vale a única que serve.
+- Sem tipo declarado, ele vem do `get` ou do `set` indicado por função. Um acessor vazio ou escrito no lugar exige o tipo.
+- Ler `a.p` chama o `get` em `a`; `a.p = v` converte `v` ao tipo da propriedade e chama o `set`. O nome sozinho (`p`)
+  dentro da struct usa `this`. `a.p += 1` vira `a.p = a.p + 1`.
+- Uma propriedade vazia numa struct `@abstract` ou `@interface` não tem corpo: quem estende a struct declara uma
+  propriedade de mesmo nome com o acessor (não precisa de `@override`).
+- Ainda não: propriedades estáticas, `@virtual`/`@override` em propriedades, `++`/`--` sobre propriedades.
+
+### Indexadores de tipos .NET
+
+As propriedades indexadas de um tipo .NET (`this[int i]`, `Item`) servem a `a[i]` e `a[i] = v`, com escolha de
+sobrecarga pelos argumentos, como as funções marcadas com `@indexerGet`/`@indexerSet`. Elas não são alcançadas pelo nome.

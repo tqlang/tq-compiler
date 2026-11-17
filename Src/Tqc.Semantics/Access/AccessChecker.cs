@@ -40,6 +40,7 @@ internal static class AccessChecker
     public static IMember? MemberOf(Ref reference) => reference switch
     {
         FieldReference field => field.Field,
+        PropertyReference property => property.Property,
         TypeMetaReference type => type.Type,
         FunctionTypeReference function => function.Function,
         FunctionGroupTypeReference group => group.FunctionGroup,

@@ -1,4 +1,5 @@
 using Tqc.Core;
+using Tqc.Dotnet.ProgramMembers;
 using Tqc.IR.Nodes;
 using Tqc.IR.ProgramMembers;
 using Tqc.IR.ProgramMembers.Primitive;
@@ -166,9 +167,8 @@ internal sealed partial class TypeChecker
         }
 
         var container = ContainerOf(targetType);
-        if (container is not (TqStruct or TqTypedef))
+        if (!HasIndexers(container))
         {
-            // A .NET type may have an indexer that is not read yet.
             if (container == null)
                 Error($"'{TypeFormatter.Format(targetType)}' cannot be indexed", index.Location);
             return (visited, null);
@@ -177,12 +177,14 @@ internal sealed partial class TypeChecker
         var getters = IndexerFunctions(container, BuiltinAttribute.IndexerGet);
         if (getters.Count == 0)
         {
-            Error($"'{TypeFormatter.Format(targetType)}' has no function marked '@indexerGet'", index.Location);
+            Error(container is TqStruct or TqTypedef
+                ? $"'{TypeFormatter.Format(targetType)}' has no function marked '@indexerGet'"
+                : $"'{TypeFormatter.Format(targetType)}' has no indexer to read", index.Location);
             return (visited, null);
         }
 
         var winner = ChooseOverload(
-            $"indexer of {TypeFormatter.Format(targetType)}", "overload", [..getters.Select(ToOverload)], indices, index.Location);
+            $"indexer of {TypeFormatter.Format(targetType)}", "overload", [..getters.Select(ToOverloadOf)], indices, index.Location);
         if (winner == null) return (visited, null);
 
         var callee = IndexerCallee(index, target, winner);
@@ -201,7 +203,7 @@ internal sealed partial class TypeChecker
         var visitedIndex = index with { Target = target, Indices = indices };
         var container = ContainerOf(targetType);
 
-        if (container is not (TqStruct or TqTypedef))
+        if (!HasIndexers(container))
         {
             ITypeRef? element = null;
 
@@ -222,13 +224,15 @@ internal sealed partial class TypeChecker
         var setters = IndexerFunctions(container, BuiltinAttribute.IndexerSet);
         if (setters.Count == 0)
         {
-            Error($"'{TypeFormatter.Format(targetType!)}' has no function marked '@indexerSet'", index.Location);
+            Error(container is TqStruct or TqTypedef
+                ? $"'{TypeFormatter.Format(targetType!)}' has no function marked '@indexerSet'"
+                : $"'{TypeFormatter.Format(targetType!)}' has no indexer to write", index.Location);
             return (assign with { Target = visitedIndex, Source = source }, null);
         }
 
         IrExpression[] arguments = [..indices, source];
         var winner = ChooseOverload(
-            $"indexer of {TypeFormatter.Format(targetType)}", "overload", [..setters.Select(ToOverload)], arguments, index.Location);
+            $"indexer of {TypeFormatter.Format(targetType)}", "overload", [..setters.Select(ToOverloadOf)], arguments, index.Location);
         if (winner == null) return (assign with { Target = visitedIndex, Source = source }, null);
 
         var callee = IndexerCallee(index, target, winner);
@@ -239,10 +243,24 @@ internal sealed partial class TypeChecker
     private static IrExpression IndexerCallee(IrIndex index, IrExpression target, Candidate winner) =>
         new IrAccess(index.Location, target, new IrReference(index.Location, new FunctionTypeReference(winner.Overload.Function)));
 
-    /// <summary>The functions of the container, or of what it extends, that carry the attribute.</summary>
-    private List<TqFunction> IndexerFunctions(IMemberContainer container, BuiltinAttribute kind)
+    /// <summary>Tq structs and typedefs and .NET types declare their indexers; the other types have none.</summary>
+    private static bool HasIndexers(IMemberContainer? container) =>
+        container is TqStruct or TqTypedef or DotnetClass or DotnetStruct or DotnetInterface;
+
+    private static Overload ToOverloadOf(IFunction function) => function switch
     {
-        List<TqFunction> found = [];
+        TqFunction tq => ToOverload(tq),
+        DotnetMethod method => ToOverload(method),
+        _ => throw new InvalidOperationException($"'{function.Name}' cannot be an indexer"),
+    };
+
+    /// <summary>
+    /// The functions of the container, or of what it extends, that read or write an index: the ones that carry
+    /// the attribute, and the accessors of the indexed properties of a .NET type.
+    /// </summary>
+    private List<IFunction> IndexerFunctions(IMemberContainer container, BuiltinAttribute kind)
+    {
+        List<IFunction> found = [];
         HashSet<IMemberContainer> visited = [];
 
         for (var current = container; current != null && visited.Add(current); current = current.Base)
@@ -259,6 +277,12 @@ internal sealed partial class TypeChecker
                 found.AddRange(functions.Where(function =>
                     function.Attributes.OfType<TqBuiltinAttribute>().Any(attribute => attribute.Kind == kind)
                     && AccessChecker.CanAccess(function, _accessor)));
+
+                if (member is DotnetProperty { IsIndexer: true } indexer)
+                {
+                    var accessor = kind == BuiltinAttribute.IndexerGet ? indexer.GetMethod : indexer.SetMethod;
+                    if (accessor != null) found.Add(accessor);
+                }
             }
         }
 
