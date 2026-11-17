@@ -32,9 +32,22 @@ static class Program
         Environment.Exit(1);
     }
 
-    static int Build(string[] args)
+    /// <summary>`--dump-ir` writes the IR of each Tq module as text, after type checking; `--dump-ir=dir` picks the directory.</summary>
+    const string DumpIrOption = "--dump-ir";
+    const string DefaultDumpDirectory = "tqir";
+
+    static int Build(string[] allArgs)
     {
-        var manifestFile = Path.GetFullPath(args.Length > 0 ? args[0] : "./build.toml");
+        string? dumpDirectory = null;
+        var args = new List<string>();
+        foreach (var argument in allArgs)
+        {
+            if (argument == DumpIrOption) dumpDirectory = DefaultDumpDirectory;
+            else if (argument.StartsWith(DumpIrOption + "=")) dumpDirectory = argument[(DumpIrOption.Length + 1)..];
+            else args.Add(argument);
+        }
+
+        var manifestFile = Path.GetFullPath(args.Count > 0 ? args[0] : "./build.toml");
         if (!File.Exists(manifestFile))
         {
             throw new NotImplementedException(
@@ -86,6 +99,9 @@ static class Program
                     
                     SemanticAnalyser.BindReferences(module, view, [..dependencies], diagnostics);
                     SemanticAnalyser.TypeCheck(module, [..dependencies], diagnostics);
+
+                    // Written even when there are errors: that is when it is most useful.
+                    if (dumpDirectory != null) DumpIr(module, moduleDescriptor.Name, dumpDirectory);
                 } break;
                 
                 default: throw new Exception($"Unknown module type: {moduleDescriptor.Type}"); 
@@ -94,6 +110,14 @@ static class Program
         
         PrintDiagnostics(diagnostics);
         return diagnostics.HasErrors ? 1 : 0;
+    }
+
+    static void DumpIr(IModule module, string name, string directory)
+    {
+        Directory.CreateDirectory(directory);
+        var file = Path.Combine(directory, name + ".tqir");
+        File.WriteAllText(file, SemanticAnalyser.DumpIr(module, name));
+        Console.WriteLine($"DUMPED {name} IR to {Path.GetFullPath(file)}");
     }
 
     static IModule BuildTqModule(ModuleDefinition module, DiagnosticBag diagnostics)

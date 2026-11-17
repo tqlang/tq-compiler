@@ -273,3 +273,20 @@ cada aplicação é uma `GenericInstance` da tabela compartilhada; não há nó 
   uma referência a `Failable(T)` / `Nullable(T)`; senão continua sendo o operador. `?x` com `x` valor é erro de operador.
 - Numa função `!T`, `return` é checado contra `T` (e `return` sem valor vale em `!void`); chamar a função dá `Failable(T)`.
 - Ainda não existem: propagação, `.ignored()` e as regras de uso de `?T`.
+
+## Dump da IR (`--dump-ir`)
+
+`tqc build_toml [build.toml] --dump-ir[=pasta]` escreve a IR de cada módulo Tq em `pasta/<Módulo>.tqir` (padrão `./tqir`),
+depois da checagem de tipos e mesmo quando há erros. É um formato de texto próprio, só para depuração
+(`SemanticAnalyser.DumpIr` / `IrDumper`):
+
+- Um nó por linha, filhos indentados; os rótulos (`target:`, `source:`, `callee:`, `body:` ...) dizem o papel do filho.
+- Toda expressão termina em `: tipo`, o tipo que o type checker deu a ela (`?` se não tem), escrito como nas
+  mensagens de erro (`i32`, `ref Foo`, `!i32`, `?T`, `[]string`).
+- Nomes mostram a que foram ligados (`Ref local x`, `Ref param y`, `Ref field f`, `Ref func Health.change`,
+  `Ref UNSOLVED 'x'`) e o que o type checker resolveu (`New ... constructor=...`, `Convert`, chamadas de `@onset`
+  e de indexadores já reescritas como `Call`).
+- Membros trazem acesso (`[public ns=Std.Console allow=[...] deny=[...]]`), atributos com argumentos, parâmetros
+  (tipo e valor padrão), retorno, corpo, e a posição no arquivo `arquivo(linha,coluna)`; nós levam `@linha:coluna`.
+- Também aparecem imports e declarações por arquivo, `extends`, construtores, `typedef`s (tipo base, casos),
+  propriedades (acessores, fonte, `backing=yes/no`).

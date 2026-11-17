@@ -27,6 +27,13 @@ public static class SemanticAnalyser
         TypeChecker.Check(tqModule, dependencies, diagnostics);
     }
 
+    /// <summary>The IR of a module as text, with the type of each expression (see <see cref="IrDumper"/>). For debugging.</summary>
+    public static string DumpIr(IModule module, string name)
+    {
+        if (module is not TqModule @tqModule) throw new ArgumentException("module is not TqModule", nameof(module));
+        return IrDumper.Dump(tqModule, name);
+    }
+
     /// <summary>
     /// The `Std` module of the project merged with the one the compiler creates.
     /// Conflicting names are reported to `diagnostics`.
