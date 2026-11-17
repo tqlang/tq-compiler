@@ -72,6 +72,11 @@ funções por uma chamada a uma única função (`FunctionTypeReference`), conve
 - Sem overload aplicável, ou com mais de um empatado, é erro de compilação.
 - Funções com `@implicitConvert` (um parâmetro, um retorno) registram uma conversão implícita; o argumento passa por
   uma chamada a elas, com custo maior que o alargamento. Só valem para código que alcança a função.
+- `@onset` torna um tipo observável: se o tipo de `a` tem uma função `@onset` (um parâmetro) que aceita `v`, então
+  `a = v` vira `a.f(v)` (`player.health = 80` é `player.health.change(80)`). Vale para campos, acessos e variáveis já
+  declaradas; a declaração (`let`/inicializador de campo) inicializa e não chama. Sem overload `@onset` aplicável (por
+  exemplo, atribuir um `Health` a um `Health`) a atribuição é a comum, e dentro da própria função `@onset` também, para
+  que ela consiga guardar o valor. Com vários, vale a escolha de overload das chamadas. `@onset` herda do tipo base.
 
 ## Atributos e acesso
 

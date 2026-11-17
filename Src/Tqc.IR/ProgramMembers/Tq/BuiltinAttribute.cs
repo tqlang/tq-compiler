@@ -12,7 +12,7 @@ public enum BuiltinAttribute
     Inline, NoInline, Comptime, Runtime, CallConv,
 
     // Overloading
-    Getter, Setter, IndexerGet, IndexerSet, ImplicitConvert, ExplicitConvert, OverrideOperator, DefineAttribute,
+    Getter, Setter, IndexerGet, IndexerSet, ImplicitConvert, ExplicitConvert, OverrideOperator, DefineAttribute, OnSet,
 
     // Layout
     Packed, Off, Lay, Pad, Union,

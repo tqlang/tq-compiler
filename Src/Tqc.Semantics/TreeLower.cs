@@ -386,6 +386,13 @@ public static class TreeLower
                 ctx.Diagnostics.ReportError(Error(
                     $"'@{attribute.Name}' needs a function with exactly one parameter and a return type", attribute.Location));
         }
+
+        // `@onset` takes the value that is being assigned.
+        foreach (var attribute in attributes.OfType<TqBuiltinAttribute>().Where(attribute => attribute.Kind == BuiltinAttribute.OnSet))
+        {
+            if (function.Parameters.Length != 1)
+                ctx.Diagnostics.ReportError(Error("'@onset' needs a function with exactly one parameter", attribute.Location));
+        }
         if (functionNode.Body != null) function.Body = LowerScope(ctx, functionNode.Body);
         return function;
     }

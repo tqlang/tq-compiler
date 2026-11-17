@@ -57,6 +57,7 @@ internal static class BuiltinAttributes
         ["setter"] = new(BuiltinAttribute.Setter, AttributeTarget.Function, 1, 1),
         ["indexerGet"] = new(BuiltinAttribute.IndexerGet, AttributeTarget.Function),
         ["indexerSet"] = new(BuiltinAttribute.IndexerSet, AttributeTarget.Function),
+        ["onset"] = new(BuiltinAttribute.OnSet, AttributeTarget.Function),
         ["implicitConvert"] = new(BuiltinAttribute.ImplicitConvert, AttributeTarget.Function),
         ["explicitConvert"] = new(BuiltinAttribute.ExplicitConvert, AttributeTarget.Function),
         ["overrideOperator"] = new(BuiltinAttribute.OverrideOperator, AttributeTarget.Function, 1, 1),

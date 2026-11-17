@@ -197,6 +197,9 @@ internal sealed partial class TypeChecker
 
         var targetType = TypeOf(target);
 
+        // Assigning to something whose type has an `@onset` function calls it instead (a declaration initializes).
+        if (assign.Target is not IrLocal && TryOnSet(assign, target, source, targetType) is { } onset) return onset;
+
         // A local that took its type from the value needs no check; any other target keeps its own type.
         if (!(assign.Target is IrLocal declaredLocal && NeedsInferredType(declaredLocal)))
         {
