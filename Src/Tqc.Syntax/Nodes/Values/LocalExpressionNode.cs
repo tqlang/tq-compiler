@@ -9,6 +9,8 @@ public record LocalExpressionNode(
     IdentifierExpressionNode Name
 ) : ExpressionNode
 {
+    public bool IsConst => LetOrConstKeyword.Value == "const";
+
     override internal StringBuilder AppendSyntaxToStringBuilder(StringBuilder sb) => sb
         .Append(LetOrConstKeyword).AppendSyntaxNode(Type).AppendSyntaxNode(Name);
     public override SourceSpan Span => LetOrConstKeyword.Span + Name.Span;

@@ -40,6 +40,12 @@ public sealed class StdTypes
     public PrimitiveStruct Type { get; } = new("Type");
     public PrimitiveStruct AnyType { get; } = new("AnyType");
 
+    /// <summary>
+    /// `Const(T)`: what `const` is. `const T x` is `let Const(T) x` and `const x` is `let Const(AnyType) x`, with
+    /// the type taken from the value. A constant has the values of `T`, and cannot be assigned.
+    /// </summary>
+    public PrimitiveStruct Const { get; }
+
     /// <summary>`int` and `uint`: the integer of the target's default size.</summary>
     public PrimitiveStruct NaturalInteger { get; }
 
@@ -54,6 +60,7 @@ public sealed class StdTypes
 
     public StdTypes()
     {
+        Const = new PrimitiveStruct("Const", [Parameter("type", Type)]);
         NaturalInteger = new PrimitiveStruct("NaturalInteger", [Parameter("signed", Bool)]);
         NativeInteger = new PrimitiveStruct("NativeInteger", [Parameter("signed", Bool)]);
 
@@ -65,8 +72,17 @@ public sealed class StdTypes
     public IEnumerable<IMember> All =>
     [
         Bool, Char, String, Void, Opaque, NoReturn, Label, Type, AnyType,
-        NaturalInteger, NativeInteger, Integer, Float,
+        NaturalInteger, NativeInteger, Integer, Float, Const,
     ];
+
+    /// <summary>
+    /// The type expression `Const(T)` of a constant declared with `const`; without a type (`const x = 1`) the
+    /// argument is `AnyType`, which says that the type comes from the value.
+    /// </summary>
+    public IrExpression ConstOf(Tqc.Core.SourceLocation location, IrExpression? type) => new IrCall(
+        location,
+        new IrReference(location, Const.GetReference()),
+        new IrArgumentsList(location, [type ?? new IrReference(location, AnyType.GetReference())]));
 
     public GenericInstance Natural(bool signed) => Instance(NaturalInteger, BoolArgument(signed));
     public GenericInstance Native(bool signed) => Instance(NativeInteger, BoolArgument(signed));

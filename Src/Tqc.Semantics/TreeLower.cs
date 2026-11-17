@@ -4,6 +4,7 @@ using Tqc.Core;
 using Tqc.Diagnostics;
 using Tqc.IR.Nodes;
 using Tqc.IR.ProgramMembers;
+using Tqc.IR.ProgramMembers.Primitive;
 using Tqc.IR.ProgramMembers.Tq;
 using Tqc.IR.References;
 using Tqc.Syntax;
@@ -309,7 +310,10 @@ public static class TreeLower
         var type = fieldNode.Type != null ? LowerExpression(ctx, fieldNode.Type) : null;
         var name = fieldNode.Name.Value;
         var value = fieldNode.Value != null ? LowerExpression(ctx, fieldNode.Value) : null;
-        
+
+        // `const T x` is `let Const(T) x`
+        if (fieldNode.IsConst) type = CompilerStd.Types.ConstOf(fieldNode.GetLoc(ctx.SrcFile), type);
+
         return new TqField(type, name, value, fieldNode.GetLoc(ctx.SrcFile)) { Attributes = attributes };
     }
     /// <summary>
@@ -759,11 +763,12 @@ public static class TreeLower
                 );
             
             case LocalExpressionNode local:
-                return new IrLocal(
-                    local.GetLoc(ctx.SrcFile),
-                    local.Type == null ? null : LowerExpression(ctx, local.Type),
-                    local.Name.Value
-                );
+            {
+                var localType = local.Type == null ? null : LowerExpression(ctx, local.Type);
+                if (local.IsConst) localType = CompilerStd.Types.ConstOf(local.GetLoc(ctx.SrcFile), localType);
+
+                return new IrLocal(local.GetLoc(ctx.SrcFile), localType, local.Name.Value);
+            }
             
             default:
                 throw new InvalidOperationException($"Unknown node type: {node.GetType().FullName}");

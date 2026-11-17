@@ -55,7 +55,7 @@ internal sealed partial class TypeChecker
                 return VisitReference(reference);
 
             case IrLocal local:
-                return (local, local.type != null ? TypeFromExpression(local.type) : types.Get(local));
+                return (local, LocalValueType(local));
 
             case IrAssign assign:
                 return VisitAssign(assign);
@@ -178,15 +178,8 @@ internal sealed partial class TypeChecker
 
         // `let a = 1`: a local without a declared type takes the type of its value.
         // A literal has no size, so the variable gets the default integer.
-        if (assign.Target is IrLocal { type: null } local && sourceType != null)
-        {
-            types.Set(local, sourceType switch
-            {
-                ComptimeIntegerTypeRef => new StructTypeReference(CompilerStd.Types.Natural(true)),
-                ComptimeDecimalTypeRef => new StructTypeReference(CompilerStd.Types.FloatOf(64)),
-                _ => sourceType,
-            });
-        }
+        if (assign.Target is IrLocal local && NeedsInferredType(local) && sourceType != null)
+            types.Set(local, DefaultTypeOf(sourceType));
 
         _targetNext = assign.Target is IrAccess or IrReference;
         var target = Visit(assign.Target);
@@ -194,12 +187,19 @@ internal sealed partial class TypeChecker
 
         if (PropertyOf(target) is { } written) return WriteProperty(assign, target, source, written);
 
+        // The declaration `const x = 1` gives the constant its value; nothing else writes to it.
+        if (ConstantNameOf(target) is { } constant)
+        {
+            Error($"'{constant}' is a constant and cannot be assigned", assign.Location);
+            return (assign with { Target = target, Source = source }, TypeOf(target));
+        }
+
         var targetType = TypeOf(target);
 
         // A local that took its type from the value needs no check; any other target keeps its own type.
-        if (!(assign.Target is IrLocal { type: null }))
+        if (!(assign.Target is IrLocal declaredLocal && NeedsInferredType(declaredLocal)))
         {
-            var typeExpression = target is IrLocal { type: { } declared } ? declared : null;
+            var typeExpression = target is IrLocal { type: { } declared } ? WithoutConst(declared) : null;
             source = Coerce(source, targetType, typeExpression, "the assignment");
         }
 
@@ -257,10 +257,10 @@ internal sealed partial class TypeChecker
 
     private ITypeRef? TypeOfReference(Ref reference) => reference switch
     {
-        LocalReference { Local: var local } => local.type != null ? TypeFromExpression(local.type) : types.Get(local),
+        LocalReference { Local: var local } => LocalValueType(local),
         ParameterReference { Parameter: var parameter } => TypeFromExpression(parameter.Type),
         PropertyReference { Property: var property } => PropertyTypeOf(property),
-        FieldReference { Field: TqField { Type: not null } field } => TypeFromExpression(field.Type),
+        FieldReference { Field: TqField { Type: not null } field } => FieldValueType(field),
         FieldReference { Field: DotnetField field } => field.Type,
         FieldReference { Field: DotnetProperty property } => property.Type,
         ThisReference { Owner: TqTypedef typedef } => new TypedefTypeReference(typedef),

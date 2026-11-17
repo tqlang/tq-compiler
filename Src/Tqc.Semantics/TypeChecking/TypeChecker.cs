@@ -63,7 +63,19 @@ internal sealed partial class TypeChecker(
             case TqField { Value: not null } field:
                 field.Value = Visit(field.Value);
                 if (field.Type != null)
-                    field.Value = Coerce(field.Value, TypeFromExpression(field.Type), field.Type, $"the field '{field.Name}'");
+                {
+                    var declared = TypeFromExpression(field.Type);
+
+                    // `const x = 1`: the field takes the type of its value.
+                    if (IsConst(declared, out var argument) && IsInferredArgument(argument))
+                    {
+                        if (TypeOf(field.Value) is { } valueType) _inferredConstants[field] = DefaultTypeOf(valueType);
+                    }
+                    else
+                    {
+                        field.Value = Coerce(field.Value, ValueTypeOf(declared, null), WithoutConst(field.Type), $"the field '{field.Name}'");
+                    }
+                }
                 break;
 
             case TqProperty property:

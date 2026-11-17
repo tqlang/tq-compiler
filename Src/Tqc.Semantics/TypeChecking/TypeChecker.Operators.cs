@@ -88,6 +88,9 @@ internal sealed partial class TypeChecker
         var visited = unary with { Operand = operand };
         var type = TypeOf(operand);
 
+        if (unary.Operator is UnaryOperator.Increment or UnaryOperator.Decrement && ConstantNameOf(operand) is { } constant)
+            Error($"'{constant}' is a constant and cannot be changed", unary.Location);
+
         if (type == null) return (visited, unary.Operator == UnaryOperator.Not ? BoolType() : null);
 
         var exists = unary.Operator == UnaryOperator.Not ? IsBool(type) : ConversionRules.IsNumeric(type);

@@ -50,7 +50,7 @@ public class Parser(DiagnosticBag diagnostics)
     {
         if (allowedDeclarations.HasFlag(ScopeAllowedDeclarations.Attributes) && Check(TokenKind.At)) return ParseAttribute();
         
-        if (allowedDeclarations.HasFlag(ScopeAllowedDeclarations.Field) && CheckKeyword("let")) return ParseFieldDeclaration();
+        if (allowedDeclarations.HasFlag(ScopeAllowedDeclarations.Field) && (CheckKeyword("let") || CheckKeyword("const"))) return ParseFieldDeclaration();
         if (allowedDeclarations.HasFlag(ScopeAllowedDeclarations.Field) && CheckKeyword("const")) return ParseFieldDeclaration();
         
         if (allowedDeclarations.HasFlag(ScopeAllowedDeclarations.Import) && CheckKeyword("from")) return parseImportDefinition();
@@ -241,7 +241,7 @@ public class Parser(DiagnosticBag diagnostics)
         ExpressionNode? firstExpression;
         IdentifierExpressionNode? secondExpression = null;
         
-        letKeyword = ExpectNode("let", "'let' keyword");
+        letKeyword = CheckKeyword("const") ? ExpectNode("const", "'const' keyword") : ExpectNode("let", "'let' keyword");
         AdvanceTrivia(TokenKind.Whitespace);
         
         firstExpression = ParseExpression();
@@ -312,6 +312,9 @@ public class Parser(DiagnosticBag diagnostics)
     /// <summary>`{ get; set }`, one accessor per line or separated by semicolons.</summary>
     private PropertyDeclarationNode ParsePropertyBody(TokenNode letKeyword, ExpressionNode? type, IdentifierExpressionNode name)
     {
+        if (letKeyword.Value == "const")
+            throw Error(Peek()!.Value, "A property cannot be 'const'");
+
         var left = ExpectNode(TokenKind.LeftBrace, "'{'");
         List<PropertyAccessorNode> accessors = [];
 
@@ -898,13 +901,13 @@ public class Parser(DiagnosticBag diagnostics)
 
     private ExpressionNode ParsePrimary()
     {
-        if (CheckKeyword("let"))
+        if (CheckKeyword("let") || CheckKeyword("const"))
         {
             TokenNode letKeyword;
             ExpressionNode? firstExpression;
             IdentifierExpressionNode? secondExpression = null;
         
-            letKeyword = ExpectNode("let", "'let' keyword");
+            letKeyword = CheckKeyword("const") ? ExpectNode("const", "'const' keyword") : ExpectNode("let", "'let' keyword");
             AdvanceTrivia(TokenKind.Whitespace);
         
             firstExpression = ParseType();

@@ -12,6 +12,8 @@ public record FieldDeclarationNode(
     TriviaNode[] LeadingTrivia
 ) : DeclarationNode(LeadingTrivia)
 {
+    public bool IsConst => LetKeyword.Value == "const";
+
     override internal StringBuilder AppendSyntaxToStringBuilder(StringBuilder sb) => sb
         .AppendSyntaxNode(LetKeyword)
         .AppendSyntaxNode(Type)

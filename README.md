@@ -242,3 +242,15 @@ struct Pessoa {
 
 As propriedades indexadas de um tipo .NET (`this[int i]`, `Item`) servem a `a[i]` e `a[i] = v`, com escolha de
 sobrecarga pelos argumentos, como as funções marcadas com `@indexerGet`/`@indexerSet`. Elas não são alcançadas pelo nome.
+
+## `const`
+
+`const` é um modificador do tipo, não uma palavra à parte da IR: `const T x` é `let Const(T) x`, e `const x = v` é
+`let Const(AnyType) x` (o tipo vem do valor). `Const(T)` é uma struct genérica primitiva (`Std.Types.Const`), criada pelo
+compilador como `Integer` e `Float`.
+
+- Vale para campos e locais (`const i32 myInt = 100`, `const myByte = 255`). Propriedades não podem ser `const`.
+- Os valores de uma constante são os de `T`: `const x = 1` é usada como um `int`, e o valor é convertido para `T` na declaração.
+- Depois da declaração, `x = ...`, `x += ...`, `x++` e `x--` são erros ("is a constant").
+- Um campo `const` sem tipo só tem o tipo conhecido depois de a declaração ser verificada; usado antes disso (por
+  exemplo, numa função declarada acima) seu tipo fica desconhecido e nada é checado.
