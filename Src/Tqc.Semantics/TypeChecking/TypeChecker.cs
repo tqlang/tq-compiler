@@ -143,7 +143,7 @@ internal sealed partial class TypeChecker(
 
     /// <summary>
     /// `return` gives what the function declares: nothing in a function without a return type, and a value
-    /// convertible to it otherwise. A return type that is not known yet (`!T`, `?T`, a generic) is not checked.
+    /// convertible to it otherwise. `!T` accepts a `T`. A return type that is not known yet (`?T`, a generic) is not checked.
     /// </summary>
     private IrStatement CheckReturn(IrReturnStatement returnStatement)
     {
@@ -154,6 +154,10 @@ internal sealed partial class TypeChecker(
         // Constructors and destructors do not return a value.
         var returnsNothing = function is TqConstructor or TqDestructor || function.ReturnType == null;
         var declared = returnsNothing ? null : TypeFromExpression(function.ReturnType!);
+
+        // `!T` returns a `T` (the error side is raised, not returned): the value is checked against `T`.
+        var failable = CompilerStd.Types.IsFailable(declared, out var result);
+        if (failable) declared = StructSemantics.ValueTypeOf(result);
         var isVoid = returnsNothing || (declared != null && ConversionRules.IsStruct(declared, CompilerStd.Types.Void));
 
         if (isVoid)
@@ -174,7 +178,8 @@ internal sealed partial class TypeChecker(
 
         return returnStatement with
         {
-            ReturnValue = Coerce(value, declared, function.ReturnType, $"the return value of '{function.Name}'"),
+            ReturnValue = Coerce(value, declared, failable ? TypeExpressionOf(declared, value.Location) : function.ReturnType,
+                $"the return value of '{function.Name}'"),
         };
     }
 

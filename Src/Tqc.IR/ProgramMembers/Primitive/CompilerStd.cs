@@ -46,6 +46,12 @@ public sealed class StdTypes
     /// </summary>
     public PrimitiveStruct Const { get; }
 
+    /// <summary>`Ref(T)`: a reference to a `T`. `*T` is `Ref(T)`, and so is a struct that is by reference (a `@class`, a .NET class).</summary>
+    public PrimitiveStruct Ref { get; }
+
+    /// <summary>`Failable(T)`: a `T` or an error. `!T` is `Failable(T)`, and `!void` is a function that can fail without a result.</summary>
+    public PrimitiveStruct Failable { get; }
+
     /// <summary>`int` and `uint`: the integer of the target's default size.</summary>
     public PrimitiveStruct NaturalInteger { get; }
 
@@ -61,6 +67,8 @@ public sealed class StdTypes
     public StdTypes()
     {
         Const = new PrimitiveStruct("Const", [Parameter("type", Type)]);
+        Ref = new PrimitiveStruct("Ref", [Parameter("type", Type)]);
+        Failable = new PrimitiveStruct("Failable", [Parameter("type", Type)]);
         NaturalInteger = new PrimitiveStruct("NaturalInteger", [Parameter("signed", Bool)]);
         NativeInteger = new PrimitiveStruct("NativeInteger", [Parameter("signed", Bool)]);
 
@@ -72,17 +80,52 @@ public sealed class StdTypes
     public IEnumerable<IMember> All =>
     [
         Bool, Char, String, Void, Opaque, NoReturn, Label, Type, AnyType,
-        NaturalInteger, NativeInteger, Integer, Float, Const,
+        NaturalInteger, NativeInteger, Integer, Float, Const, Ref, Failable,
     ];
+
+    /// <summary>`definition(argument)` as an expression, for a pseudotype that modifies a type (`Const`, `Ref`, `Failable`).</summary>
+    public IrExpression Apply(PrimitiveStruct definition, Tqc.Core.SourceLocation location, IrExpression argument) => new IrCall(
+        location,
+        new IrReference(location, definition.GetReference()),
+        new IrArgumentsList(location, [argument]));
 
     /// <summary>
     /// The type expression `Const(T)` of a constant declared with `const`; without a type (`const x = 1`) the
     /// argument is `AnyType`, which says that the type comes from the value.
     /// </summary>
-    public IrExpression ConstOf(Tqc.Core.SourceLocation location, IrExpression? type) => new IrCall(
-        location,
-        new IrReference(location, Const.GetReference()),
-        new IrArgumentsList(location, [type ?? new IrReference(location, AnyType.GetReference())]));
+    public IrExpression ConstOf(Tqc.Core.SourceLocation location, IrExpression? type) =>
+        Apply(Const, location, type ?? new IrReference(location, AnyType.GetReference()));
+
+    /// <summary>The type `Ref(T)`.</summary>
+    public ITypeRef RefOf(ITypeRef referred) => OfType(Ref, referred);
+
+    /// <summary>The type `Failable(T)`.</summary>
+    public ITypeRef FailableOf(ITypeRef result) => OfType(Failable, result);
+
+    /// <summary>Whether a type is `Ref(T)`; `referred` is `T` as written.</summary>
+    public bool IsRef(ITypeRef? type, out ITypeRef referred) => TryUnary(type, Ref, out referred);
+
+    /// <summary>Whether a type is `Failable(T)`; `result` is `T` as written.</summary>
+    public bool IsFailable(ITypeRef? type, out ITypeRef result) => TryUnary(type, Failable, out result);
+
+    private static ITypeRef OfType(PrimitiveStruct definition, ITypeRef argument)
+    {
+        var expression = TypeExpressions.Of(argument, default) ?? new IrReference(default, CompilerStd.Types.AnyType.GetReference());
+        return new StructTypeReference(GenericInstanceTable.Shared.GetOrAdd(definition, [expression]));
+    }
+
+    private static bool TryUnary(ITypeRef? type, PrimitiveStruct definition, out ITypeRef argument)
+    {
+        argument = null!;
+        if (type is not StructTypeReference { Struct: GenericInstance { Arguments: [var only] } instance }
+            || !ReferenceEquals(instance.Definition, definition)) return false;
+
+        var raw = TypeExpressions.Raw(only);
+        if (raw == null) return false;
+
+        argument = raw;
+        return true;
+    }
 
     public GenericInstance Natural(bool signed) => Instance(NaturalInteger, BoolArgument(signed));
     public GenericInstance Native(bool signed) => Instance(NativeInteger, BoolArgument(signed));
@@ -96,5 +139,5 @@ public sealed class StdTypes
     private static IrComptimeInt IntArgument(int value) => new(default, value);
 
     private static TqParameter Parameter(string name, PrimitiveStruct type) => new(Expression(type.GetReference()), name);
-    private static IrReference Expression(Ref reference) => new(default, reference);
+    private static IrReference Expression(Tqc.IR.References.Ref reference) => new(default, reference);
 }

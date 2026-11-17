@@ -116,7 +116,7 @@ Acesso (`Semantics/Access/`), verificado ao resolver nomes e `a.b`, e ao escolhe
 ## Statements, operadores e membros por valor
 
 - Lowering: `if`/`elif`/`else` viram uma cadeia de `IrIf` (o `else` é o próximo `IrIf`); escopos aninhados viram `IrBody`.
-  Operadores binários e unários (`IrBinary`, `IrUnary`), índice (`IrIndex`), `*T` (`IrReferenceTypeModifier`),
+  Operadores binários e unários (`IrBinary`, `IrUnary`), índice (`IrIndex`), `*T` (`Ref(T)`) e `!T` (`Failable(T)`),
   literais decimais e `true`/`false`. `a += b` vira `a = a + b` (o alvo é avaliado duas vezes) e `-1` é um literal só.
 - Operadores: os dois lados precisam ter um tipo em comum (o mesmo; o numérico ao lado de um literal; o maior, se o outro
   alarga sem perda); senão é erro e pede `as`. Comparações dão `bool`. `if` exige `bool`. `!` exige `bool`.
@@ -148,7 +148,7 @@ Acesso (`Semantics/Access/`), verificado ao resolver nomes e `a.b`, e ao escolhe
   `typedef(T)`) e `return` seguem a regra dos argumentos: só conversão sem perda é implícita (inclusive literal que
   cabe); o resto é erro e pede `as`. Quando há conversão, o valor vira `IrConvert` (ou uma chamada `@implicitConvert`).
 - `return`: função sem tipo de retorno (e construtor/destrutor) não devolve valor; com tipo, `return` sem valor é erro.
-  Tipos de retorno ainda não conhecidos (`!T`, `?T`, genéricos) não são checados.
+  `!T` aceita um `T` (e `return` sem valor em `!void`). Tipos de retorno ainda não conhecidos (`?T`, genéricos) não são checados.
 - Uma referência a uma struct `@class` (ou classe .NET) vai onde se espera uma referência a algo que ela estende;
   quanto mais degraus, maior o custo no overload. Struct por valor nunca é "cortada" para a base.
 
@@ -254,3 +254,15 @@ compilador como `Integer` e `Float`.
 - Depois da declaração, `x = ...`, `x += ...`, `x++` e `x--` são erros ("is a constant").
 - Um campo `const` sem tipo só tem o tipo conhecido depois de a declaração ser verificada; usado antes disso (por
   exemplo, numa função declarada acima) seu tipo fica desconhecido e nada é checado.
+
+## `Ref(T)` e `Failable(T)`
+
+Como `Const(T)`, são structs genéricas primitivas (`Std.Types.Ref` e `Std.Types.Failable`, parâmetro `type: Type`) e
+cada aplicação é uma `GenericInstance` da tabela compartilhada; não há nó nem tipo próprio na IR.
+
+- `*T` é `Ref(T)`. Uma struct por referência (`@class`, classe .NET, ou que estende uma) tem como tipo de valor `Ref(S)`,
+  então `*Foo` e `Foo` são o mesmo tipo quando `Foo` é uma classe. Membros de `Ref(T)` são os de `T`; o upcast entre
+  referências e a mensagem de erro (`ref T`) usam `Std.Types.IsRef`.
+- `!T` é `Failable(T)` e só é lido como tipo na posição de tipo de retorno (`func f() !i32`, `!void`); em uma expressão
+  `!` continua sendo o não lógico. Dentro da função, `return` é checado contra `T`; chamar a função dá `Failable(T)`.
+- Ainda não existem: propagação, `.ignored()` e `?T`.

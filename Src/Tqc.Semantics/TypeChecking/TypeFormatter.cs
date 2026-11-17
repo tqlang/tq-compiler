@@ -22,8 +22,11 @@ internal static class TypeFormatter
             case ComptimeDecimalTypeRef:
                 return "decimal literal";
 
-            case ReferenceTypeRef reference:
-                return "ref " + Format(reference.Referred);
+            case var _ when types.IsRef(type, out var referred):
+                return "ref " + Format(referred);
+
+            case var _ when types.IsFailable(type, out var result):
+                return "!" + Format(result);
 
             case SliceTypeRef slice:
                 return "[]" + Format(slice.Element);

@@ -60,9 +60,6 @@ internal static partial class ReferenceBinder
                     Indices = [.. index.Indices.Select(element => BindExpression(ctx, element))],
                 };
 
-            case IrReferenceTypeModifier reference:
-                return reference with { ValueType = BindExpression(ctx, reference.ValueType) };
-
             case IrArray array:
                 return array with { Elements = [.. array.Elements.Select(element => BindExpression(ctx, element))] };
 

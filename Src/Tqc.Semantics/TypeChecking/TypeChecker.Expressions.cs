@@ -152,9 +152,10 @@ internal sealed partial class TypeChecker
     /// <summary>What has the members of a value of this type; null if the type has none known.</summary>
     private static IMemberContainer? ContainerOf(ITypeRef? type) => type switch
     {
+        // A reference has the members of what it refers to.
+        StructTypeReference when CompilerStd.Types.IsRef(type, out var referred) => ContainerOf(referred),
         StructTypeReference { Struct: GenericInstance instance } => instance.Definition as IMemberContainer,
         StructTypeReference { Struct: IMemberContainer container } => container,
-        ReferenceTypeRef reference => ContainerOf(reference.Referred),
         TypedefTypeReference typedef => typedef.Typedef,
         ProtocolTypeReference { Protocol: IMemberContainer container } => container,
         _ => null,

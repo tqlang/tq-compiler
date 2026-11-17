@@ -58,7 +58,7 @@ internal static class TypeTreeDumper
     private static string Tq(ITypeRef type) => type switch
     {
         DotnetCharacterTypeRef               => "char16",
-        ReferenceTypeRef reference           => $"ref({Tq(reference.Referred)})",
+        _ when CompilerStd.Types.IsRef(type, out var referred) => $"ref({Tq(referred)})",
         StructTypeReference { Struct: PrimitiveStruct primitive } => primitive.Name,
         StructTypeReference structure        => NameOf(structure.Struct),
         ProtocolTypeReference protocol       => NameOf(protocol.Protocol),

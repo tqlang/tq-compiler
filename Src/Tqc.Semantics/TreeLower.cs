@@ -735,8 +735,12 @@ public static class TreeLower
             case ParenthesisExpressionNode parenthesis:
                 return LowerExpression(ctx, parenthesis.Expression);
 
+            // `*T` is `Ref(T)` and `!T` is `Failable(T)`.
             case ReferenceTypeModifierNode reference:
-                return new IrReferenceTypeModifier(reference.GetLoc(ctx.SrcFile), LowerExpression(ctx, reference.ValueType));
+                return CompilerStd.Types.Apply(CompilerStd.Types.Ref, reference.GetLoc(ctx.SrcFile), LowerExpression(ctx, reference.ValueType));
+
+            case FailableTypeModifierNode failable:
+                return CompilerStd.Types.Apply(CompilerStd.Types.Failable, failable.GetLoc(ctx.SrcFile), LowerExpression(ctx, failable.ValueType));
 
             case DecimalLiteralExpressionNode number:
                 return new IrComptimeDecimal(number.GetLoc(ctx.SrcFile), number.Value);

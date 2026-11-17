@@ -57,7 +57,6 @@ public record IrUnary(SourceLocation Location, UnaryOperator Operator, IrExpress
 public record IrIndex(SourceLocation Location, IrExpression Target, IrExpression[] Indices) : IrExpression(Location);
 
 /// <summary>`*T`: the type of a pointer to `T`.</summary>
-public record IrReferenceTypeModifier(SourceLocation Location, IrExpression ValueType) : IrExpression(Location);
 
 /// <summary>`[a, b, c]`</summary>
 public record IrArray(SourceLocation Location, IrExpression[] Elements) : IrExpression(Location);

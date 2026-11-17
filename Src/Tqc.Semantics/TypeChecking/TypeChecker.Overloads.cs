@@ -265,18 +265,9 @@ internal sealed partial class TypeChecker
     /// <summary>A type as an expression, to say what an argument is converted to.</summary>
     private static IrExpression? TypeExpressionOf(ITypeRef type, SourceLocation location) => type switch
     {
-        StructTypeReference structure => new IrReference(location, new TypeMetaReference(structure.Struct)),
-        // A struct that is by reference is written as itself; any other reference is `*T`.
-        ReferenceTypeRef { Referred: StructTypeReference { Struct: var structure } referred } when StructSemantics.IsReference(structure)
-            => TypeExpressionOf(referred, location),
-        ReferenceTypeRef reference => TypeExpressionOf(reference.Referred, location) is { } value
-            ? new IrReferenceTypeModifier(location, value)
-            : null,
-        TypedefTypeReference typedef => new IrReference(location, new TypeMetaReference(typedef.Typedef)),
-        SliceTypeRef slice => TypeExpressionOf(slice.Element, location) is { } element
-            ? new IrSliceTypeModifier(location, element)
-            : null,
-        _ => null,
+        // `Ref(Foo)`, `!i32`: applications of a pseudotype are references to their entry in the instance table.
+        StructTypeReference { Struct: GenericInstance instance } => new IrReference(location, instance.GetReference()),
+        _ => TypeExpressions.Of(type, location),
     };
 
     private static Overload ToOverload(TqFunction function)

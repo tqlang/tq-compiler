@@ -39,15 +39,7 @@ public sealed class GenericInstanceTable
             var parts = new object[arguments.Length];
             for (var i = 0; i < parts.Length; i++)
             {
-                object? part = arguments[i] switch
-                {
-                    IrComptimeInt integer => integer.BigInteger,
-                    IrComptimeBool boolean => boolean.Value,
-                    IrComptimeDecimal number => (object)("decimal", number.Value),
-                    IrStringConstant text => text.Value,
-                    IrReference { Reference: not UnsolvedRef } reference => reference.Reference,
-                    _ => null,
-                };
+                object? part = Part(arguments[i]);
 
                 if (part == null) return null;
                 parts[i] = part;
@@ -55,6 +47,17 @@ public sealed class GenericInstanceTable
 
             return new Key(definition, parts);
         }
+
+        private static object? Part(IrExpression argument) => argument switch
+                {
+                    IrComptimeInt integer => integer.BigInteger,
+                    IrComptimeBool boolean => boolean.Value,
+                    IrComptimeDecimal number => (object)("decimal", number.Value),
+                    IrStringConstant text => text.Value,
+                    IrReference { Reference: not UnsolvedRef } reference => reference.Reference,
+                    IrSliceTypeModifier slice => Part(slice.subtype) is { } element ? ("slice", element) : null,
+                    _ => null,
+                };
 
         public bool Equals(Key? other) =>
             other != null && ReferenceEquals(definition, other.Definition) && parts.SequenceEqual(other.Parts);

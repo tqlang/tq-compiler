@@ -59,7 +59,7 @@ sealed internal class TqTypeTranslator(Func<TypeReference, TypeNode?> lookup)
     public ITypeRef Translate(TypeReference type) => type switch
     {
         // ref/out: uma referência ao tipo
-        ByReferenceType byRef => new ReferenceTypeRef(Translate(byRef.ElementType)),
+        ByReferenceType byRef => CompilerStd.Types.RefOf(Translate(byRef.ElementType)),
 
         // modreq/modopt e pinned só importam para o emissor
         RequiredModifierType modifier => Translate(modifier.ElementType),
@@ -82,7 +82,7 @@ sealed internal class TqTypeTranslator(Func<TypeReference, TypeNode?> lookup)
 
         return node.Kind switch
         {
-            TypeKind.Class     => new ReferenceTypeRef(new StructTypeReference((IStruct)dotnetType)),
+            TypeKind.Class     => CompilerStd.Types.RefOf(new StructTypeReference((IStruct)dotnetType)),
             TypeKind.Struct    => new StructTypeReference((IStruct)dotnetType),
             TypeKind.Enum      => new StructTypeReference((IStruct)dotnetType),
             TypeKind.Interface => new ProtocolTypeReference((IProtocol)dotnetType),

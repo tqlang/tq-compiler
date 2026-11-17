@@ -136,8 +136,8 @@ internal static class ConversionRules
     /// </summary>
     private static ArgumentMatch ClassifyUpcast(ITypeRef argument, ITypeRef parameter)
     {
-        if (argument is not ReferenceTypeRef { Referred: StructTypeReference { Struct: IMemberContainer derived } }
-            || parameter is not ReferenceTypeRef { Referred: StructTypeReference { Struct: var target } })
+        if (!CompilerStd.Types.IsRef(argument, out var derivedType) || derivedType is not StructTypeReference { Struct: IMemberContainer derived }
+            || !CompilerStd.Types.IsRef(parameter, out var targetType) || targetType is not StructTypeReference { Struct: var target })
             return ArgumentMatch.None;
 
         HashSet<IMemberContainer> visited = [];

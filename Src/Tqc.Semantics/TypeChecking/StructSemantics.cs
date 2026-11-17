@@ -1,5 +1,6 @@
 using Tqc.Dotnet.ProgramMembers;
 using Tqc.IR.ProgramMembers;
+using Tqc.IR.ProgramMembers.Primitive;
 using Tqc.IR.ProgramMembers.Tq;
 using Tqc.IR.References;
 
@@ -30,6 +31,10 @@ internal static class StructSemantics
     public static ITypeRef TypeOf(IStruct structure)
     {
         var type = new StructTypeReference(structure);
-        return IsReference(structure) ? new ReferenceTypeRef(type) : type;
+        return IsReference(structure) ? CompilerStd.Types.RefOf(type) : type;
     }
+
+    /// <summary>The type of a value whose type is written as `written`: a struct that is by reference is `Ref(it)`.</summary>
+    public static ITypeRef ValueTypeOf(ITypeRef written) =>
+        written is StructTypeReference { Struct: var structure } ? TypeOf(structure) : written;
 }

@@ -25,10 +25,6 @@ internal sealed partial class TypeChecker
             case IrReference { Reference: ProtocolTypeReference protocol }:
                 return protocol;
 
-            case IrReferenceTypeModifier reference:
-                var referenced = TypeFromExpression(reference.ValueType);
-                return referenced != null ? new ReferenceTypeRef(referenced) : null;
-
             case IrSliceTypeModifier slice:
                 var element = TypeFromExpression(slice.subtype);
                 return element != null ? new SliceTypeRef(element) : null;
