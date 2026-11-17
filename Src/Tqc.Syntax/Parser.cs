@@ -152,7 +152,7 @@ public class Parser(DiagnosticBag diagnostics)
         ExpressionNode? returnType = null;
         if (PeekKind() != TokenKind.LeftBrace)
         {
-            returnType = ParseReturnType();
+            returnType = ParseExpression();
             AdvanceTrivia(_midDeclarationTrivia);
         }
 
@@ -373,7 +373,7 @@ public class Parser(DiagnosticBag diagnostics)
         ExpressionNode? returnType = null;
         if (PeekKind() != TokenKind.LeftBrace)
         {
-            returnType = ParseReturnType();
+            returnType = ParseExpression();
             AdvanceTrivia(_midDeclarationTrivia);
         }
 
@@ -399,7 +399,7 @@ public class Parser(DiagnosticBag diagnostics)
         ExpressionNode? returnType = null;
         if (PeekKind() != TokenKind.LeftBrace)
         {
-            returnType = ParseReturnType();
+            returnType = ParseExpression();
             AdvanceTrivia(_midDeclarationTrivia);
         }
 
@@ -691,15 +691,6 @@ public class Parser(DiagnosticBag diagnostics)
     private ExpressionNode ParseExpression() => ParseAssignment();
     private ExpressionNode ParseType() => ParseAdditive();
 
-    /// <summary>`!T` is a type that can fail; in an expression `!` is the logical not, so it is only a type here.</summary>
-    private ExpressionNode ParseReturnType()
-    {
-        if (PeekKind() != TokenKind.Bang) return ParseExpression();
-
-        var bang = AdvanceNode();
-        return new FailableTypeModifierNode(bang, ParsePrefix());
-    }
-
     private ExpressionNode ParseAssignment()
     {
         var left = ParseEquality();
@@ -830,7 +821,9 @@ public class Parser(DiagnosticBag diagnostics)
                 return new SliceTypeModifierNode(leftBracket, rightBracket, type);
             }
 
+            // `!` and `?` are also the types `Failable(T)` and `Nullable(T)`: the binder tells them apart by the operand.
             case TokenKind.Bang
+                or TokenKind.QuestionMark
                 or TokenKind.Minus
                 or TokenKind.Increment
                 or TokenKind.Decrement:

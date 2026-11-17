@@ -51,7 +51,7 @@ internal static partial class ReferenceBinder
                 return binary with { Left = BindExpression(ctx, binary.Left), Right = BindExpression(ctx, binary.Right) };
 
             case IrUnary unary:
-                return unary with { Operand = BindExpression(ctx, unary.Operand) };
+                return BindUnary(ctx, unary);
 
             case IrIndex index:
                 return index with
@@ -72,6 +72,20 @@ internal static partial class ReferenceBinder
             default:
                 return expression;
         }
+    }
+
+    /// <summary>
+    /// `!` and `?` before a type are `Failable(T)` and `Nullable(T)`; before a value they are the operators.
+    /// What the operand is only shows once it is bound, so this is decided here, as for a call.
+    /// </summary>
+    private static IrExpression BindUnary(BindingContext ctx, IrUnary unary)
+    {
+        var operand = BindExpression(ctx, unary.Operand);
+
+        if (!unary.IsPostfix && CompilerStd.Types.PseudotypeOf(unary.Operator) is { } definition && TypeExpressions.Raw(operand) != null)
+            return new IrReference(unary.Location, GenericInstanceTable.Shared.GetOrAdd(definition, [operand]).GetReference());
+
+        return unary with { Operand = operand };
     }
 
     /// <summary>

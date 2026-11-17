@@ -52,6 +52,9 @@ public sealed class StdTypes
     /// <summary>`Failable(T)`: a `T` or an error. `!T` is `Failable(T)`, and `!void` is a function that can fail without a result.</summary>
     public PrimitiveStruct Failable { get; }
 
+    /// <summary>`Nullable(T)`: a `T` or nothing. `?T` is `Nullable(T)`.</summary>
+    public PrimitiveStruct Nullable { get; }
+
     /// <summary>`int` and `uint`: the integer of the target's default size.</summary>
     public PrimitiveStruct NaturalInteger { get; }
 
@@ -69,6 +72,7 @@ public sealed class StdTypes
         Const = new PrimitiveStruct("Const", [Parameter("type", Type)]);
         Ref = new PrimitiveStruct("Ref", [Parameter("type", Type)]);
         Failable = new PrimitiveStruct("Failable", [Parameter("type", Type)]);
+        Nullable = new PrimitiveStruct("Nullable", [Parameter("type", Type)]);
         NaturalInteger = new PrimitiveStruct("NaturalInteger", [Parameter("signed", Bool)]);
         NativeInteger = new PrimitiveStruct("NativeInteger", [Parameter("signed", Bool)]);
 
@@ -80,7 +84,7 @@ public sealed class StdTypes
     public IEnumerable<IMember> All =>
     [
         Bool, Char, String, Void, Opaque, NoReturn, Label, Type, AnyType,
-        NaturalInteger, NativeInteger, Integer, Float, Const, Ref, Failable,
+        NaturalInteger, NativeInteger, Integer, Float, Const, Ref, Failable, Nullable,
     ];
 
     /// <summary>`definition(argument)` as an expression, for a pseudotype that modifies a type (`Const`, `Ref`, `Failable`).</summary>
@@ -101,6 +105,23 @@ public sealed class StdTypes
 
     /// <summary>The type `Failable(T)`.</summary>
     public ITypeRef FailableOf(ITypeRef result) => OfType(Failable, result);
+
+    /// <summary>The type `Nullable(T)`.</summary>
+    public ITypeRef NullableOf(ITypeRef value) => OfType(Nullable, value);
+
+    /// <summary>Whether a type is `Nullable(T)`; `value` is `T` as written.</summary>
+    public bool IsNullable(ITypeRef? type, out ITypeRef value) => TryUnary(type, Nullable, out value);
+
+    /// <summary>
+    /// The pseudotype a unary operator stands for when its operand is a type: `!T` is `Failable(T)` and `?T` is
+    /// `Nullable(T)`. Null for any other operator.
+    /// </summary>
+    public PrimitiveStruct? PseudotypeOf(UnaryOperator @operator) => @operator switch
+    {
+        UnaryOperator.Not => Failable,
+        UnaryOperator.Nullable => Nullable,
+        _ => null,
+    };
 
     /// <summary>Whether a type is `Ref(T)`; `referred` is `T` as written.</summary>
     public bool IsRef(ITypeRef? type, out ITypeRef referred) => TryUnary(type, Ref, out referred);

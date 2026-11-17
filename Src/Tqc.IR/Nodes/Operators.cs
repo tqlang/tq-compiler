@@ -11,4 +11,4 @@ public enum BinaryOperator
     Less, Greater, LessEqual, GreaterEqual,
 }
 
-public enum UnaryOperator { Not, Negate, Increment, Decrement }
+public enum UnaryOperator { Not, Negate, Increment, Decrement, Nullable }

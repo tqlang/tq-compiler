@@ -28,6 +28,9 @@ internal static class TypeFormatter
             case var _ when types.IsFailable(type, out var result):
                 return "!" + Format(result);
 
+            case var _ when types.IsNullable(type, out var value):
+                return "?" + Format(value);
+
             case SliceTypeRef slice:
                 return "[]" + Format(slice.Element);
 

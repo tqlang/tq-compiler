@@ -735,12 +735,9 @@ public static class TreeLower
             case ParenthesisExpressionNode parenthesis:
                 return LowerExpression(ctx, parenthesis.Expression);
 
-            // `*T` is `Ref(T)` and `!T` is `Failable(T)`.
+            // `*T` is `Ref(T)`. (`!T` and `?T` are unary operators until the binder knows that the operand is a type.)
             case ReferenceTypeModifierNode reference:
                 return CompilerStd.Types.Apply(CompilerStd.Types.Ref, reference.GetLoc(ctx.SrcFile), LowerExpression(ctx, reference.ValueType));
-
-            case FailableTypeModifierNode failable:
-                return CompilerStd.Types.Apply(CompilerStd.Types.Failable, failable.GetLoc(ctx.SrcFile), LowerExpression(ctx, failable.ValueType));
 
             case DecimalLiteralExpressionNode number:
                 return new IrComptimeDecimal(number.GetLoc(ctx.SrcFile), number.Value);
@@ -817,6 +814,7 @@ public static class TreeLower
     private static UnaryOperator UnaryOperatorOf(TokenKind kind) => kind switch
     {
         TokenKind.Bang => UnaryOperator.Not,
+        TokenKind.QuestionMark => UnaryOperator.Nullable,
         TokenKind.Minus => UnaryOperator.Negate,
         TokenKind.Increment => UnaryOperator.Increment,
         TokenKind.Decrement => UnaryOperator.Decrement,
