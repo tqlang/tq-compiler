@@ -24,12 +24,15 @@ sealed internal class TypeNode(string name, TypeKind kind, TypeReference referen
     public TypeDefinition Definition { get; } = definition;
 
     /// <summary>True quando o tipo não pertence aos assemblies do módulo e só foi descoberto por referência.</summary>
-    public bool IsExternal { get; } = isExternal;
+    public bool IsExternal { get; internal set; } = isExternal;
 
     /// <summary>Null para delegates (ainda não suportados).</summary>
     public IDotnetType? DotnetType { get; init; }
 
     public ITypeRef? BaseType { get; set; }
+
+    /// <summary>The interfaces an interface extends.</summary>
+    public List<ITypeRef> ParentInterfaces { get; } = [];
     public List<TypeNode> Nested { get; } = [];
 
     /// <summary>Campos, métodos, construtores e propriedades visíveis (public/protected). Vazio em tipos externos.</summary>

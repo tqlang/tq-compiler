@@ -63,15 +63,19 @@ sealed internal class DotnetModuleBuilder(AssemblyDefinition[] assemblies)
                     break;
 
                 case DotnetStruct dotnetStruct:
+                    dotnetStruct.ObjectType = node.BaseType;
                     dotnetStruct.Members = BuildMemberTable(node, includeNestedStaticClasses: true);
                     break;
 
                 // The values of an enum are static constant fields.
                 case DotnetEnum dotnetEnum:
+                    dotnetEnum.ObjectType = node.BaseType;
                     dotnetEnum.Members = BuildMemberTable(node, includeNestedStaticClasses: true);
                     break;
 
                 case DotnetInterface dotnetInterface:
+                    dotnetInterface.ObjectType = node.BaseType;
+                    dotnetInterface.ParentInterfaces = node.ParentInterfaces;
                     dotnetInterface.Members = BuildMemberTable(node, includeNestedStaticClasses: true);
                     break;
             }
@@ -257,16 +261,51 @@ sealed internal class DotnetModuleBuilder(AssemblyDefinition[] assemblies)
 
     // ───────────────────────── 2. Tipos base ─────────────────────────
 
+    /// <summary>
+    /// The base of each type and the interfaces of an interface. What a type inherits is looked up in them, so a base that
+    /// is not a type of the module (it was only found by reference) gets its members read too.
+    /// </summary>
     private void LinkBaseTypes()
     {
-        // Snapshot: resolver um base type pode criar nós externos em _nodes.
-        foreach (var node in _nodes.Values.Where(n => !n.IsExternal).ToArray())
-        {
-            if (node.Kind == TypeKind.Delegate) continue;
+        var pending = new Queue<TypeNode>(_nodes.Values.Where(n => !n.IsExternal && n.Kind != TypeKind.Delegate));
+        var done = new HashSet<TypeNode>(ReferenceEqualityComparer.Instance);
 
-            if (node.Definition.BaseType is { } baseType)
-                node.BaseType = ResolveBaseType(baseType);
+        while (pending.TryDequeue(out var node))
+        {
+            if (!done.Add(node)) continue;
+
+            // An interface has no base, but a value of it is an object: it has what `System.Object` has.
+            var baseReference = node.Kind == TypeKind.Interface ? node.Definition.Module.TypeSystem.Object : node.Definition.BaseType;
+            if (baseReference != null)
+            {
+                node.BaseType = ResolveBaseType(baseReference);
+                Promote(baseReference, pending);
+            }
+
+            if (node.Kind != TypeKind.Interface) continue;
+
+            foreach (var parent in node.Definition.Interfaces)
+            {
+                var element = parent.InterfaceType is GenericInstanceType generic ? generic.ElementType : parent.InterfaceType;
+                node.ParentInterfaces.Add(Translator.Translate(element));
+                Promote(parent.InterfaceType, pending);
+            }
         }
+    }
+
+    /// <summary>A type that was only found by reference, and is now needed for what it has.</summary>
+    private void Promote(TypeReference reference, Queue<TypeNode> pending)
+    {
+        var element = reference is GenericInstanceType generic ? generic.ElementType : reference;
+
+        TypeDefinition? definition;
+        try { definition = element.Resolve(); }
+        catch (AssemblyResolutionException) { return; }
+
+        if (definition == null || !_nodes.TryGetValue(TypeKey.Of(definition), out var node) || !node.IsExternal) return;
+
+        node.IsExternal = false;
+        pending.Enqueue(node);
     }
 
     private ITypeRef? ResolveBaseType(TypeReference baseType)
@@ -274,7 +313,14 @@ sealed internal class DotnetModuleBuilder(AssemblyDefinition[] assemblies)
         // Os argumentos genéricos do tipo base ainda não têm representação na IR: usa o tipo aberto.
         var element = baseType is GenericInstanceType generic ? generic.ElementType : baseType;
 
-        return TypeClassifier.IsImplicitBase(element.FullName) ? null : Translator.Translate(element);
+        // `ValueType` and `Enum` have nothing to call that `System.Object` has not: they are skipped.
+        if (TypeClassifier.IsImplicitBase(element.FullName))
+        {
+            try { return element.Resolve()?.BaseType is { } above ? ResolveBaseType(above) : null; }
+            catch (AssemblyResolutionException) { return null; }
+        }
+
+        return Translator.Translate(element);
     }
 
     // ───────────────────────── 3. Membros ─────────────────────────

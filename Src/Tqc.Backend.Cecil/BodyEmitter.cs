@@ -779,7 +779,9 @@ internal sealed class BodyEmitter
     {
         if (!declaring.IsValueType)
         {
-            EmitValue(receiver, null);
+            // A value that calls what it inherits from `System.Object` or `ValueType` is boxed first.
+            var received = EmitValue(receiver, null);
+            if (received.IsValueType || received is GenericParameter) _il.Emit(OpCodes.Box, received);
             return;
         }
 

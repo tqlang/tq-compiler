@@ -308,6 +308,11 @@ da struct; a derivada implementa o que herda repassando para o `__base`, ou cham
 referência chega na função mais derivada. Limites: a base precisa ser do mesmo módulo; uma referência é a struct *boxada*
 (passar um valor onde se espera `*S` copia); structs `@abstract` por valor e funções genéricas não entram na interface.
 
+**Membros herdados de tipos .NET:** classes herdam de `System.Object` (`ToString`, `Equals`, `GetHashCode`) e de toda a
+cadeia, inclusive de bases fora dos assemblies do módulo (seus membros também são lidos); structs e enums enxergam os de
+`Object`, interfaces os das interfaces que estendem e os de `Object`. As sobrecargas da classe se juntam às herdadas
+(a da base com os mesmos parâmetros some), construtores não são herdados, e um valor que chama algo de `Object` é boxado.
+
 **Funções genéricas** (`func copy(type T, []T a, []T b)`): os parâmetros do tipo `type` vêm primeiro na chamada
 (`copy(i8, a, b)`), valem como `T` no resto da assinatura (o type checker troca `T` pelo tipo dado em cada chamada, também
 no tipo de retorno) e viram **parâmetros genéricos do método .NET**; o `type` nunca vai para o runtime, e as chamadas

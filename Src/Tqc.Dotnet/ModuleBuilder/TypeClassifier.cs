@@ -18,7 +18,7 @@ internal static class TypeClassifier
     };
     
     public static bool IsImplicitBase(string fullName) => fullName is
-        "System.Object" or "System.Enum" or "System.ValueType" or "System.EventArgs";
+        "System.Enum" or "System.ValueType";
     
     public static string GetTypeName(TypeReference type)
     {

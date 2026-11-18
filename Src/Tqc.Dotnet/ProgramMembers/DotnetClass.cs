@@ -26,20 +26,7 @@ public class DotnetClass(TypeReference typeRef, string name) : IStruct, IDotnetT
         BaseType is StructTypeReference { Struct: IMemberContainer container } ? container : null;
 
     /// <summary>A member of the class or, failing that, of its base classes.</summary>
-    public IMember? TryGetMember(string memberName)
-    {
-        HashSet<IMemberContainer> visited = [];
+    public IMember? TryGetMember(string memberName) => DotnetInheritance.Find(this, Members, memberName);
 
-        for (IMemberContainer? current = this; current != null && visited.Add(current); current = current.Base)
-        {
-            var member = current is DotnetClass dotnet
-                ? dotnet.Members?.GetValueOrDefault(memberName)
-                : current.TryGetMember(memberName);
-            if (member != null) return member;
-        }
-
-        return null;
-    }
-    
     public override string ToString() => $"class {name}";
 }

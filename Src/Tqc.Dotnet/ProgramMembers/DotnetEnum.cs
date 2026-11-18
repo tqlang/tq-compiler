@@ -1,6 +1,7 @@
 using System.Collections.Immutable;
 using Mono.Cecil;
 using Tqc.IR.ProgramMembers;
+using Tqc.IR.References;
 
 namespace Tqc.Dotnet.ProgramMembers;
 
@@ -18,7 +19,13 @@ public class DotnetEnum(TypeReference typeRef, string name) : IStruct, IDotnetTy
     /// <summary>Set once every type exists, so that members can point to any type.</summary>
     public ImmutableDictionary<string, IMember>? Members { get; set; }
 
-    public IMember? TryGetMember(string memberName) => Members?.GetValueOrDefault(memberName);
+    /// <summary>
+    /// `System.Object`, only to find what every value has (`ToString`, `Equals`...). It is not `Base`: a struct of .NET
+    /// is by value, whatever `ValueType` and `Object` are.
+    /// </summary>
+    public ITypeRef? ObjectType { get; set; }
+
+    public IMember? TryGetMember(string memberName) => DotnetInheritance.Find(this, Members, memberName, DotnetInheritance.ObjectOf(ObjectType));
     public IEnumerable<IMember> OwnMembers => Members?.Values ?? [];
     
     public override string ToString() => $"enum {name}";
