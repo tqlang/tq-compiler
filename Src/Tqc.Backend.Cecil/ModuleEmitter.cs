@@ -7,6 +7,7 @@ using Tqc.IR.ProgramMembers;
 using Tqc.IR.ProgramMembers.Primitive;
 using Tqc.IR.ProgramMembers.Tq;
 using Tqc.IR.References;
+using FieldReference = Mono.Cecil.FieldReference;
 
 namespace Tqc.Backend.Cecil;
 

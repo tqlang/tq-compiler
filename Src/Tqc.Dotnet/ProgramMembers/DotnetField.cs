@@ -1,6 +1,7 @@
 using Mono.Cecil;
 using Tqc.IR.ProgramMembers;
 using Tqc.IR.References;
+using FieldReference = Mono.Cecil.FieldReference;
 
 namespace Tqc.Dotnet.ProgramMembers;
 

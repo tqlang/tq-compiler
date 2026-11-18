@@ -3,7 +3,7 @@ namespace Tqc.IR.ProgramMembers;
 /// <summary>
 /// A member that exposes children by name. Namespaces do not need it: INamespace has its own TryGetMember.
 /// </summary>
-public interface IMemberContainer
+public interface IMemberContainer : IMember
 {
     IMember? TryGetMember(string memberName);
 

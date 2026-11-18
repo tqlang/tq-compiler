@@ -140,7 +140,7 @@ internal static partial class ReferenceBinder
                     targets.Add(@namespace);
                     break;
 
-                case IrReference { Reference: TypeMetaReference { Type: IMemberContainer and var container } }:
+                case IrReference { Reference: TypeMetaReference { Type: IMemberContainer container } }:
                     targets.Add(container);
                     break;
 

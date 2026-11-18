@@ -10,6 +10,7 @@ using Tqc.IR.ProgramMembers.Tq;
 using Tqc.IR.References;
 using CecilField = Mono.Cecil.FieldReference;
 using IrField = Tqc.IR.References.FieldReference;
+using ParameterReference = Tqc.IR.References.ParameterReference;
 
 namespace Tqc.Backend.Cecil;
 
