@@ -19,6 +19,25 @@ public static class DotnetSemanticAnalyser
         return moduleBuilder.Build(moduleName);
     }
     
+    /// <summary>The runtime every .NET program has: `System.Runtime`, without being asked for by a module of the build.</summary>
+    public const string RuntimeAssemblyName = "System.Runtime";
+
+    private static AssemblyDefinition? _implicitRuntime;
+
+    /// <summary>
+    /// `System.Runtime` (its reference assembly, found as for any dotnet module), for what the compiler itself needs of it
+    /// (`Object`, `Int32`...). Loaded once.
+    /// </summary>
+    public static AssemblyDefinition LoadImplicitRuntime()
+    {
+        if (_implicitRuntime != null) return _implicitRuntime;
+
+        // Not disposed: the assembly reads from it as long as it is used.
+        var resolver = new DefaultAssemblyResolver();
+        ConfigureResolver(resolver);
+        return _implicitRuntime = FindAssembly(resolver, RuntimeAssemblyName, new Version(10, 0, 0, 0));
+    }
+
     private static void ConfigureResolver(DefaultAssemblyResolver resolver)
     {
         var trustedAssemblies = AppContext.GetData("TRUSTED_PLATFORM_ASSEMBLIES") as string;

@@ -23,11 +23,10 @@ internal sealed partial class ModuleEmitter
     private readonly AssemblyDefinition _assembly;
     private readonly ModuleDefinition _module;
 
-    /// <summary>The members of a type (or of the globals of a namespace) that are emitted into it.</summary>
+    /// <summary>The members of a type (or of the static class of a namespace) that are emitted into it.</summary>
     private sealed record Container(TypeDefinition Type, string Namespace, IReadOnlyList<IMember> Members, TqStruct? Struct);
 
     private readonly List<Container> _containers = [];
-    private readonly Dictionary<string, TypeDefinition> _globals = [];
     private readonly List<(MethodDefinition Method, Action<ILProcessor> Emit)> _bodies = [];
 
     public ModuleEmitter(CecilBackend backend, TqModule tq, string name, bool isEntry)
@@ -49,7 +48,7 @@ internal sealed partial class ModuleEmitter
         // Needed by everything below; fails with a message when the build has no dotnet runtime.
         _ = Core("System.Object");
 
-        DeclareNamespace(_tq.RootNamespace, _name);
+        DeclareNamespace(_tq.RootNamespace, _name, "", null);
         foreach (var container in _containers) DeclareBases(container);
         foreach (var container in _containers) DeclareFields(container);
         foreach (var container in _containers) DeclareFunctions(container);

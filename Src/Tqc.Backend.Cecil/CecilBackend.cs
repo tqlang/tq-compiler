@@ -10,8 +10,9 @@ namespace Tqc.Backend.Cecil;
 /// Compiles each Tq module to an assembly of its own, with Mono.Cecil. The modules are emitted in dependency order
 /// with one backend, because the assembly of a module refers to the definitions of the ones before it.
 ///
-/// What a module becomes: its namespaces are .NET namespaces; a struct is a class (`@class`) or a value type; a
-/// `typedef` is an enum; the functions and fields of a namespace are static members of a class `Globals` of it.
+/// What a module becomes: a namespace with members is a static class (child namespaces and the types in it are nested in
+/// it, its functions and fields are its static members); a struct is a class (`@class`) or a value type; a `typedef` is
+/// an enum.
 /// What is emitted is the structure: types, fields, properties and the signatures of the functions. The code of a
 /// function is not translated yet: its body throws `NotImplementedException` (automatic properties and default
 /// constructors are real).
@@ -37,7 +38,7 @@ public sealed class CecilBackend(DiagnosticBag diagnostics)
     internal Dictionary<TqStruct, MethodDefinition> DefaultConstructors { get; } = new(ReferenceEqualityComparer.Instance);
     internal Dictionary<TqProperty, FieldDefinition> BackingFields { get; } = new(ReferenceEqualityComparer.Instance);
 
-    /// <summary>The assemblies of a dotnet module are where the base types come from.</summary>
+    /// <summary>The assemblies of a dotnet module are searched for the base types before `System.Runtime`, which is implicit.</summary>
     public void AddDotnetModule(IModule module)
     {
         if (module is DotnetModule dotnet) _dotnetAssemblies.AddRange(dotnet.Assemblies);

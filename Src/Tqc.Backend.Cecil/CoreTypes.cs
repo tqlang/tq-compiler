@@ -1,15 +1,20 @@
 using Mono.Cecil;
+using Tqc.Dotnet;
 
 namespace Tqc.Backend.Cecil;
 
 /// <summary>
 /// The types of the base library (`System.Object`, `System.Int32`...) that the emitted code uses. They are found in the
 /// dotnet assemblies of the build (the reference assemblies of `System.Runtime`), so the emitted assembly refers to
-/// the same assemblies as any other program.
+/// the same assemblies as any other program. `System.Runtime` is implicit: it is used even if no module asks for it.
 /// </summary>
 internal sealed class CoreTypes(IReadOnlyList<AssemblyDefinition> assemblies)
 {
     private readonly Dictionary<string, TypeDefinition?> _cache = [];
+    private AssemblyDefinition? _runtime;
+
+    /// <summary>`System.Runtime` is always there: the dotnet modules of the build are only searched first.</summary>
+    private AssemblyDefinition Runtime => _runtime ??= DotnetSemanticAnalyser.LoadImplicitRuntime();
 
     public TypeDefinition? Find(string fullName)
     {
@@ -22,6 +27,12 @@ internal sealed class CoreTypes(IReadOnlyList<AssemblyDefinition> assemblies)
             if (result != null) break;
         }
 
+        try { result ??= Runtime.MainModule.GetType(fullName); }
+        catch (Exception exception) when (exception is FileNotFoundException or AssemblyResolutionException)
+        {
+            throw new BackendError($"The assembly 'System.Runtime' was not found, so the type '{fullName}' cannot be used");
+        }
+
         _cache[fullName] = result;
         return result;
     }
@@ -31,7 +42,7 @@ internal sealed class CoreTypes(IReadOnlyList<AssemblyDefinition> assemblies)
     {
         var type = Find(fullName)
                    ?? throw new BackendError(
-                       $"The type '{fullName}' was not found. The build needs a dotnet module with a dependency on 'System.Runtime'");
+                       $"The type '{fullName}' was not found in 'System.Runtime'");
         return module.ImportReference(type);
     }
 }

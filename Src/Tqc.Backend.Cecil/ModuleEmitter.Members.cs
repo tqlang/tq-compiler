@@ -360,7 +360,7 @@ internal sealed partial class ModuleEmitter
     // ---- Entry point
 
     /// <summary>
-    /// `main` of the root module is the entry point. It is called by `EntryPoint.Main(string[])`, which the runtime
+    /// `main` of the root module is the entry point. It is called by `EntryPoint.Main(string[])` (a class of its own at the top), which the runtime
     /// starts; what `main` returns (a `!void` is a `Tq.Failable`) is dropped until errors are handled.
     /// </summary>
     private void DeclareEntryPoint()
@@ -403,7 +403,7 @@ internal sealed partial class ModuleEmitter
         if (method.ReturnType.FullName != "System.Void") il.Emit(OpCodes.Pop);
         il.Emit(OpCodes.Ret);
 
-        var type = new TypeDefinition(_name, "EntryPoint",
+        var type = new TypeDefinition("", "EntryPoint",
             TypeAttributes.Public | TypeAttributes.Abstract | TypeAttributes.Sealed | TypeAttributes.BeforeFieldInit,
             Core("System.Object"));
         type.Methods.Add(entry);

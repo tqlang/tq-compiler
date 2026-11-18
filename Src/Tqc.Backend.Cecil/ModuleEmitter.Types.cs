@@ -11,27 +11,53 @@ namespace Tqc.Backend.Cecil;
 internal sealed partial class ModuleEmitter
 {
     /// <summary>
-    /// A namespace is a .NET namespace with the name of its path. The types in it are types; the functions and fields
-    /// (they belong to no type in Tq) are static members of a class `Globals` created for it.
+    /// A namespace that has members is a static class: its functions and fields are the static members of the class, its
+    /// structs and typedefs are types nested in it, and its child namespaces are static classes nested in it too. A
+    /// namespace with only child namespaces and nothing of its own, at the top, is no more than a .NET namespace in the
+    /// name of what it contains (`Std.Console` is the class `Console` in the .NET namespace `Std`, if `Std` has no members).
     /// </summary>
-    private void DeclareNamespace(TqNamespace node, string dotted)
+    /// <param name="node">The namespace.</param>
+    /// <param name="name">Its name: the module's, for the root namespace.</param>
+    /// <param name="path">The .NET namespace of the namespaces above it that are not classes ("" for the root).</param>
+    /// <param name="declaring">The class of the namespace above it, if that is a class.</param>
+    private void DeclareNamespace(TqNamespace node, string name, string path, TypeDefinition? declaring)
     {
-        List<IMember> globals = [];
+        var isClass = declaring != null ? HasContent(node) : node.Members.Count > 0;
+
+        if (!isClass)
+        {
+            // Nothing of its own: only the name is passed on.
+            if (declaring != null) return;
+
+            var inner = path.Length == 0 ? name : path + "." + name;
+            foreach (var child in node.Namespaces.OrderBy(pair => pair.Key, StringComparer.Ordinal))
+                DeclareNamespace(child.Value, child.Key, inner, null);
+            return;
+        }
+
+        var type = new TypeDefinition(declaring != null ? "" : path, name,
+            (declaring != null ? TypeAttributes.NestedPublic : TypeAttributes.Public)
+            | TypeAttributes.Abstract | TypeAttributes.Sealed | TypeAttributes.BeforeFieldInit,
+            Core("System.Object"));
+        Add(type, declaring);
+
+        var qualified = path.Length == 0 ? name : path + "." + name;
+        List<IMember> statics = [];
 
         foreach (var member in Ordered(node.Members.Values))
         {
             switch (member)
             {
                 case TqStruct structure:
-                    DeclareStruct(structure, dotted, null);
+                    DeclareStruct(structure, qualified, type);
                     break;
 
                 case TqTypedef typedef:
-                    DeclareTypedef(typedef, dotted, null);
+                    DeclareTypedef(typedef, qualified, type);
                     break;
 
                 case TqFunctionGroup or TqFunction or TqField:
-                    globals.Add(member);
+                    statics.Add(member);
                     break;
 
                 default:
@@ -40,19 +66,15 @@ internal sealed partial class ModuleEmitter
             }
         }
 
-        if (globals.Count > 0)
-        {
-            var type = new TypeDefinition(dotted, "Globals",
-                TypeAttributes.Public | TypeAttributes.Abstract | TypeAttributes.Sealed | TypeAttributes.BeforeFieldInit,
-                Core("System.Object"));
-            _module.Types.Add(type);
-            _globals[dotted] = type;
-            _containers.Add(new Container(type, dotted, globals, null));
-        }
+        _containers.Add(new Container(type, qualified, statics, null));
 
         foreach (var child in node.Namespaces.OrderBy(pair => pair.Key, StringComparer.Ordinal))
-            DeclareNamespace(child.Value, dotted + "." + child.Key);
+            DeclareNamespace(child.Value, child.Key, qualified, type);
     }
+
+    /// <summary>The namespace, or one inside it, has members.</summary>
+    private static bool HasContent(TqNamespace node) =>
+        node.Members.Count > 0 || node.Namespaces.Values.Any(HasContent);
 
     private static TypeAttributes TypeVisibility(MemberAccess access, bool nested) => (IsPublic(access), nested) switch
     {

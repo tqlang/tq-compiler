@@ -295,16 +295,17 @@ depois da checagem de tipos e mesmo quando há erros. É um formato de texto pr�
 
 Com `target = "dotnet"` em `[project]` do `build.toml`, depois de checar todos os módulos sem erros o compilador emite um
 assembly por módulo Tq (`<Módulo>.dll`) em `out-dir` (padrão `.tq-out`), com Mono.Cecil. O módulo raiz (`root`) vira um
-programa: `main()` ou `main([]string args)` é chamado por `<Módulo>.EntryPoint.Main(string[])`, e ele ganha um
+programa: `main()` ou `main([]string args)` é chamado por `EntryPoint.Main(string[])` (classe própria no topo), e ele ganha um
 `<Módulo>.runtimeconfig.json` para rodar com `dotnet <Módulo>.dll`. Os módulos saem em ordem de dependência, e um
 assembly referencia os definidos antes dele.
 
 **Esta versão emite a estrutura**, não o código: o corpo de cada função lança `NotImplementedException` (propriedades
-automáticas e construtores padrão são reais). O build precisa de um módulo `dotnet` com `System.Runtime`, de onde vêm
-`Object`, `Int32` etc.
+automáticas e construtores padrão são reais). `System.Runtime` (de onde vêm `Object`, `Int32` etc.) é implícito: é
+usado com ou sem um módulo `dotnet` que o liste.
 
-- Namespaces são namespaces .NET (`Modulo.Pasta`). Funções e campos de um namespace são membros estáticos de uma classe
-  `Globals` dele.
+- Um namespace que tem membros vira uma classe estática: suas funções e campos são membros estáticos dela, seus
+  structs e typedefs são tipos aninhados, e os namespaces filhos são classes estáticas aninhadas (`Std/Console/Foo`).
+  Um namespace sem membros próprios no topo é só um namespace .NET no nome do que contém.
 - `struct` é um value type, ou uma classe com `@class`; `@abstract`, `@final` e `@interface` viram os flags .NET.
   `extends` de uma struct-interface é `implements`, o resto é a classe base. `typedef` é um enum (os casos nomeados são
   as constantes; casos numéricos sem nome não aparecem). Structs genéricas ainda não.
