@@ -38,29 +38,69 @@ public static class DotnetSemanticAnalyser
         return _implicitRuntime = FindAssembly(resolver, RuntimeAssemblyName, new Version(10, 0, 0, 0));
     }
 
+    /// <summary>
+    /// The reference assemblies come first: they define the types (`System.Runtime.dll` of the runtime only forwards them
+    /// to `System.Private.CoreLib`). The assemblies of the running runtime are the last resort.
+    /// </summary>
     private static void ConfigureResolver(DefaultAssemblyResolver resolver)
     {
+        foreach (var directory in ReferenceAssemblyDirectories()) resolver.AddSearchDirectory(directory);
+
         var trustedAssemblies = AppContext.GetData("TRUSTED_PLATFORM_ASSEMBLIES") as string;
+        if (string.IsNullOrWhiteSpace(trustedAssemblies)) return;
 
-        if (!string.IsNullOrWhiteSpace(trustedAssemblies))
+        foreach (var path in trustedAssemblies.Split(Path.PathSeparator, StringSplitOptions.RemoveEmptyEntries))
         {
-            foreach (var path in trustedAssemblies.Split(Path.PathSeparator, StringSplitOptions.RemoveEmptyEntries))
-            {
-                var directory = Path.GetDirectoryName(path);
-                if (directory is not null) resolver.AddSearchDirectory(directory);
-            }
+            var directory = Path.GetDirectoryName(path);
+            if (directory is not null) resolver.AddSearchDirectory(directory);
         }
-        
-        var dotnetRoot = Environment.GetEnvironmentVariable("DOTNET_ROOT");
-        if (string.IsNullOrWhiteSpace(dotnetRoot)) dotnetRoot = "/usr/share/dotnet";
+    }
 
-        var packsDirectory = Path.Combine(dotnetRoot, "packs", "Microsoft.NETCore.App.Ref");
-        if (!Directory.Exists(packsDirectory)) return;
-
-        foreach (var versionDirectory in Directory.GetDirectories(packsDirectory))
+    /// <summary>
+    /// `packs/Microsoft.NETCore.App.Ref/&lt;version&gt;/ref/net&lt;x&gt;` of every .NET installation that can be found, newest first:
+    /// `DOTNET_ROOT`, the one the compiler is running on, and the usual places of each system.
+    /// </summary>
+    private static IEnumerable<string> ReferenceAssemblyDirectories()
+    {
+        var roots = new List<string?>
         {
-            var refDirectory = Path.Combine(versionDirectory, "ref", "net10.0");
-            if (Directory.Exists(refDirectory)) resolver.AddSearchDirectory(refDirectory);
+            Environment.GetEnvironmentVariable("DOTNET_ROOT"),
+            Environment.GetEnvironmentVariable("DOTNET_ROOT(x86)"),
+        };
+
+        // .../dotnet/shared/Microsoft.NETCore.App/<version>/ : three levels up is the installation.
+        try
+        {
+            var runtime = System.Runtime.InteropServices.RuntimeEnvironment.GetRuntimeDirectory()
+                .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+            roots.Add(Path.GetDirectoryName(Path.GetDirectoryName(Path.GetDirectoryName(runtime))));
+        }
+        catch (Exception exception) when (exception is ArgumentException or PathTooLongException) { }
+
+        roots.Add(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles) is { Length: > 0 } programFiles
+            ? Path.Combine(programFiles, "dotnet") : null);
+        roots.Add(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".dotnet"));
+        roots.AddRange(["/usr/share/dotnet", "/usr/lib/dotnet", "/usr/local/share/dotnet", "/opt/dotnet"]);
+
+        var seen = new HashSet<string>();
+        foreach (var root in roots)
+        {
+            if (string.IsNullOrWhiteSpace(root)) continue;
+
+            var packs = Path.Combine(root, "packs", "Microsoft.NETCore.App.Ref");
+            if (!seen.Add(packs) || !Directory.Exists(packs)) continue;
+
+            var versions = Directory.GetDirectories(packs)
+                .OrderByDescending(directory => Version.TryParse(Path.GetFileName(directory).Split('-')[0], out var v) ? v : new Version());
+
+            foreach (var version in versions)
+            {
+                var reference = Path.Combine(version, "ref");
+                if (!Directory.Exists(reference)) continue;
+
+                foreach (var framework in Directory.GetDirectories(reference).OrderByDescending(name => Path.GetFileName(name)))
+                    yield return framework;
+            }
         }
     }
 
