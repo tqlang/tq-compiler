@@ -1,0 +1,1257 @@
+using Mono.Cecil;
+using Mono.Cecil.Cil;
+using Tqc.Core;
+using Tqc.Dotnet.ProgramMembers;
+using Tqc.IR;
+using Tqc.IR.Nodes;
+using Tqc.IR.ProgramMembers;
+using Tqc.IR.ProgramMembers.Primitive;
+using Tqc.IR.ProgramMembers.Tq;
+using Tqc.IR.References;
+using CecilField = Mono.Cecil.FieldReference;
+using IrField = Tqc.IR.References.FieldReference;
+
+namespace Tqc.Backend.Cecil;
+
+/// <summary>
+/// The code of one function. The IR is already typed (<see cref="TypeTable"/>) and every name is bound, so each node
+/// is a short sequence of instructions; the type of a node says what is on the stack after it.
+///
+/// A literal has no type of its own: it takes the one that is expected where it is used. An operand is converted to
+/// the type of the operation. `a + b` is checked (it throws on overflow); `+%`, `-%` and `*%` wrap.
+/// </summary>
+internal sealed class BodyEmitter
+{
+    private readonly ModuleEmitter _owner;
+    private readonly TqFunction _function;
+    private readonly MethodDefinition _method;
+    private readonly ILProcessor _il;
+    private readonly TypeTable _types;
+
+    private readonly Dictionary<IrLocal, VariableDefinition> _locals = [];
+    private readonly Stack<Instruction> _breakTargets = new();
+
+    public BodyEmitter(ModuleEmitter owner, TqFunction function, MethodDefinition method, ILProcessor il)
+    {
+        _owner = owner;
+        _function = function;
+        _method = method;
+        _il = il;
+        _types = owner.Tq.Types;
+    }
+
+    public void Emit()
+    {
+        // A class starts by calling the constructor of what it extends.
+        if (_function is TqConstructor && _function.Owner is TqStruct { IsReference: true } structure
+            && _owner.FindBaseConstructor(structure) is { } baseConstructor)
+        {
+            _il.Emit(OpCodes.Ldarg_0);
+            _il.Emit(OpCodes.Call, baseConstructor);
+        }
+
+        if (_function.Body != null) EmitStatement(_function.Body);
+
+        // The end of the function: what a function without `return` at its end gives.
+        var returnType = _method.ReturnType;
+        if (IsVoid(returnType))
+            _il.Emit(OpCodes.Ret);
+        else if (IsFailable(returnType, out var result) && IsVoid(result))
+            EmitDefaultReturn();
+        else
+            _owner.EmitStub(_il, $"Tq: '{_function.Name}' reached its end without returning a value");
+    }
+
+    // ---- Helpers
+
+    private void Report(string message, SourceLocation? location) => _owner.Report(message, location);
+    private TypeReference Core(string name) => _owner.Core(name);
+
+    private static bool IsVoid(TypeReference? type) => type == null || type.FullName == "System.Void";
+
+    /// <summary>`Tq.Failable` (`!void`) and `Tq.Failable&lt;T&gt;` (`!T`); `result` is `T`, or void.</summary>
+    private bool IsFailable(TypeReference type, out TypeReference result)
+    {
+        result = Core("System.Void");
+
+        if (type.FullName == "Tq.Failable") return true;
+        if (type is GenericInstanceType generic && generic.ElementType.FullName == "Tq.Failable`1")
+        {
+            result = generic.GenericArguments[0];
+            return true;
+        }
+
+        return false;
+    }
+
+    private VariableDefinition NewTemp(TypeReference type)
+    {
+        var variable = new VariableDefinition(type);
+        _method.Body.Variables.Add(variable);
+        return variable;
+    }
+
+    private TypeReference? TypeOfNode(IrExpression expression) =>
+        _types.Get(expression) is { } type ? _owner.MapType(type, expression.Location) : null;
+
+    private ParameterDefinition ParameterOf(TqParameter parameter)
+    {
+        var index = Array.FindIndex(_function.Parameters ?? [], candidate => ReferenceEquals(candidate, parameter));
+        if (index < 0 || index >= _method.Parameters.Count)
+            throw new BackendError($"The parameter '{parameter.Name}' does not belong to '{_function.Name}'", _function.SourceLocation);
+        return _method.Parameters[index];
+    }
+
+    private VariableDefinition GetLocal(IrLocal local)
+    {
+        if (_locals.TryGetValue(local, out var known)) return known;
+
+        TypeReference type;
+        if (local.type != null && !IsUntypedConstant(local.type))
+        {
+            type = _owner.MapExpression(local.type);
+        }
+        else if (_types.Get(local) is { } inferred)
+        {
+            type = _owner.MapType(inferred, local.Location);
+        }
+        else
+        {
+            Report($"The type of the variable '{local.name}' is not known", local.Location);
+            type = Core("System.Object");
+        }
+
+        var variable = NewTemp(type);
+        _locals[local] = variable;
+        return variable;
+    }
+
+    /// <summary>`const x = 1`: the type is the one of the value.</summary>
+    private static bool IsUntypedConstant(IrExpression type) =>
+        type is IrReference { Reference: TypeMetaReference { Type: GenericInstance { Arguments: [var inner] } instance } }
+        && ReferenceEquals(instance.Definition, CompilerStd.Types.Const)
+        && ModuleEmitter.IsUntyped(inner);
+
+    private MethodReference Library(string typeName, string name, params string[] parameterTypes)
+    {
+        var type = _owner.Backend.Core.Find(typeName)
+                   ?? throw new BackendError($"The type '{typeName}' was not found in 'System.Runtime'");
+
+        var method = type.Methods.FirstOrDefault(candidate => candidate.Name == name
+                                                              && candidate.Parameters.Count == parameterTypes.Length
+                                                              && candidate.Parameters.Select(parameter => parameter.ParameterType.FullName)
+                                                                  .SequenceEqual(parameterTypes))
+                     ?? throw new BackendError($"The method '{typeName}.{name}' was not found in 'System.Runtime'");
+
+        return _owner.Module.ImportReference(method);
+    }
+
+    // ---- Numbers
+
+    private readonly record struct Num(bool Float, bool Signed, int Bits, bool Native);
+
+    private static bool TryNum(TypeReference? type, out Num num)
+    {
+        switch (type?.FullName)
+        {
+            case "System.SByte": num = new Num(false, true, 8, false); return true;
+            case "System.Byte": num = new Num(false, false, 8, false); return true;
+            case "System.Int16": num = new Num(false, true, 16, false); return true;
+            case "System.UInt16": num = new Num(false, false, 16, false); return true;
+            case "System.Char": num = new Num(false, false, 16, false); return true;
+            case "System.Int32": num = new Num(false, true, 32, false); return true;
+            case "System.UInt32": num = new Num(false, false, 32, false); return true;
+            case "System.Int64": num = new Num(false, true, 64, false); return true;
+            case "System.UInt64": num = new Num(false, false, 64, false); return true;
+            case "System.IntPtr": num = new Num(false, true, 0, true); return true;
+            case "System.UIntPtr": num = new Num(false, false, 0, true); return true;
+            case "System.Single": num = new Num(true, true, 32, false); return true;
+            case "System.Double": num = new Num(true, true, 64, false); return true;
+            default: num = default; return false;
+        }
+    }
+
+    private static int Rank(Num num) => num.Float ? 1000 + num.Bits : num.Native ? 64 : num.Bits;
+
+    /// <summary>An integer or decimal literal, as a value of the expected type (`i32` or `f64` when nothing is expected).</summary>
+    private TypeReference EmitNumber(decimal value, bool isDecimal, TypeReference? expected, SourceLocation location)
+    {
+        var target = expected != null && TryNum(expected, out var num) ? expected : Core(isDecimal ? "System.Double" : "System.Int32");
+        TryNum(target, out num);
+
+        try
+        {
+            if (num.Float)
+            {
+                if (num.Bits == 32) _il.Emit(OpCodes.Ldc_R4, (float)value);
+                else _il.Emit(OpCodes.Ldc_R8, (double)value);
+            }
+            else if (isDecimal)
+            {
+                Report($"The decimal literal {value} cannot be a '{target.FullName}'", location);
+                _il.Emit(OpCodes.Ldc_I4_0);
+            }
+            else if (num.Native)
+            {
+                _il.Emit(OpCodes.Ldc_I4, unchecked((int)(long)value));
+                _il.Emit(num.Signed ? OpCodes.Conv_I : OpCodes.Conv_U);
+            }
+            else if (num.Bits == 64)
+            {
+                _il.Emit(OpCodes.Ldc_I8, num.Signed ? (long)value : unchecked((long)(ulong)value));
+            }
+            else
+            {
+                _il.Emit(OpCodes.Ldc_I4, num.Signed ? (int)value : unchecked((int)(uint)value));
+            }
+        }
+        catch (OverflowException)
+        {
+            Report($"The literal {value} does not fit '{target.FullName}'", location);
+            _il.Emit(OpCodes.Ldc_I4_0);
+        }
+
+        return target;
+    }
+
+    /// <summary>The value of a constant of the metadata (a literal field of .NET, the case of an enum).</summary>
+    private void EmitConstant(object? constant, SourceLocation? location)
+    {
+        switch (constant)
+        {
+            case null: _il.Emit(OpCodes.Ldnull); break;
+            case bool boolean: _il.Emit(boolean ? OpCodes.Ldc_I4_1 : OpCodes.Ldc_I4_0); break;
+            case string text: _il.Emit(OpCodes.Ldstr, text); break;
+            case char character: _il.Emit(OpCodes.Ldc_I4, (int)character); break;
+            case sbyte or byte or short or ushort or int: _il.Emit(OpCodes.Ldc_I4, Convert.ToInt32(constant)); break;
+            case uint unsigned: _il.Emit(OpCodes.Ldc_I4, unchecked((int)unsigned)); break;
+            case long signed64: _il.Emit(OpCodes.Ldc_I8, signed64); break;
+            case ulong unsigned64: _il.Emit(OpCodes.Ldc_I8, unchecked((long)unsigned64)); break;
+            case float single: _il.Emit(OpCodes.Ldc_R4, single); break;
+            case double number: _il.Emit(OpCodes.Ldc_R8, number); break;
+            default: Report($"The constant '{constant}' cannot be emitted to .NET yet", location); _il.Emit(OpCodes.Ldnull); break;
+        }
+    }
+
+    private void ConvertNumber(Num from, Num to)
+    {
+        if (to.Float)
+        {
+            if (from.Float && from.Bits == to.Bits) return;
+            if (!from.Float && !from.Signed) _il.Emit(OpCodes.Conv_R_Un);
+            _il.Emit(to.Bits == 32 ? OpCodes.Conv_R4 : OpCodes.Conv_R8);
+            return;
+        }
+
+        if (to.Native)
+        {
+            if (from.Native) return;
+            _il.Emit(from.Float || from.Signed ? OpCodes.Conv_I : OpCodes.Conv_U);
+            return;
+        }
+
+        switch (to.Bits)
+        {
+            case 64:
+                if (from.Bits == 64 && !from.Native && !from.Float) return;
+                _il.Emit((from.Float ? to.Signed : from.Signed) ? OpCodes.Conv_I8 : OpCodes.Conv_U8);
+                return;
+
+            case 32:
+                if (from.Bits <= 32 && !from.Native && !from.Float) return;
+                _il.Emit(to.Signed ? OpCodes.Conv_I4 : OpCodes.Conv_U4);
+                return;
+
+            default:
+                // What is already in range of the smaller type needs nothing.
+                if (!from.Float && !from.Native && from.Bits == to.Bits && from.Signed == to.Signed) return;
+                if (!from.Float && !from.Native && from.Bits < to.Bits && (to.Signed || !from.Signed)) return;
+
+                if (to.Bits == 8) _il.Emit(to.Signed ? OpCodes.Conv_I1 : OpCodes.Conv_U1);
+                else _il.Emit(to.Signed ? OpCodes.Conv_I2 : OpCodes.Conv_U2);
+                return;
+        }
+    }
+
+    // ---- Statements
+
+    private void EmitStatement(IrNode node)
+    {
+        switch (node)
+        {
+            case IrBody body:
+                foreach (var child in body.Children) EmitStatement(child);
+                break;
+
+            case IrReturnStatement @return:
+                EmitReturn(@return);
+                break;
+
+            case IrExpressionStatement statement:
+                EmitDiscard(statement.Expression);
+                break;
+
+            case IrIf @if:
+                EmitIf(@if);
+                break;
+
+            case IrWhile @while:
+                EmitWhile(@while);
+                break;
+
+            case IrBreak @break:
+                if (_breakTargets.Count == 0) Report("'break' outside of a loop", @break.Location);
+                else _il.Emit(OpCodes.Br, _breakTargets.Peek());
+                break;
+
+            case IrExpression expression:
+                EmitDiscard(expression);
+                break;
+
+            default:
+                Report($"The node {node.GetType().Name} cannot be emitted to .NET yet", node.location);
+                break;
+        }
+    }
+
+    private void EmitDiscard(IrExpression expression)
+    {
+        if (Emit(expression, null, discard: true) != null) _il.Emit(OpCodes.Pop);
+    }
+
+    private void EmitIf(IrIf statement)
+    {
+        var otherwise = _il.Create(OpCodes.Nop);
+
+        EmitValue(statement.Condition, Core("System.Boolean"));
+        _il.Emit(OpCodes.Brfalse, otherwise);
+        EmitStatement(statement.Then);
+
+        if (statement.Else == null)
+        {
+            _il.Append(otherwise);
+            return;
+        }
+
+        var end = _il.Create(OpCodes.Nop);
+        _il.Emit(OpCodes.Br, end);
+        _il.Append(otherwise);
+        EmitStatement(statement.Else);
+        _il.Append(end);
+    }
+
+    /// <summary>The declaration runs once; the condition is tested before each turn and the step runs after it.</summary>
+    private void EmitWhile(IrWhile loop)
+    {
+        var start = _il.Create(OpCodes.Nop);
+        var end = _il.Create(OpCodes.Nop);
+
+        if (loop.Declaration != null) EmitDiscard(loop.Declaration);
+
+        _il.Append(start);
+        EmitValue(loop.Condition, Core("System.Boolean"));
+        _il.Emit(OpCodes.Brfalse, end);
+
+        _breakTargets.Push(end);
+        EmitStatement(loop.Body);
+        _breakTargets.Pop();
+
+        if (loop.Step != null) EmitDiscard(loop.Step);
+        _il.Emit(OpCodes.Br, start);
+        _il.Append(end);
+    }
+
+    private void EmitReturn(IrReturnStatement statement)
+    {
+        var returnType = _method.ReturnType;
+
+        if (statement.ReturnValue == null)
+        {
+            if (IsVoid(returnType)) _il.Emit(OpCodes.Ret);
+            else EmitDefaultReturn();
+            return;
+        }
+
+        // `return f()` where `f` gives nothing.
+        if (IsVoid(returnType))
+        {
+            EmitDiscard(statement.ReturnValue);
+            _il.Emit(OpCodes.Ret);
+            return;
+        }
+
+        // `!T` is returned as a `T` and wrapped: no error.
+        if (IsFailable(returnType, out var result))
+        {
+            if (IsVoid(result))
+            {
+                EmitDiscard(statement.ReturnValue);
+                EmitDefaultReturn();
+                return;
+            }
+
+            var wrapper = NewTemp(returnType);
+            var value = _owner.Backend.Runtime.FailableOf.Fields.First(field => field.Name == "Value");
+
+            _il.Emit(OpCodes.Ldloca, wrapper);
+            EmitValue(statement.ReturnValue, result);
+            _il.Emit(OpCodes.Stfld, new CecilField(value.Name, value.FieldType, returnType));
+            _il.Emit(OpCodes.Ldloc, wrapper);
+            _il.Emit(OpCodes.Ret);
+            return;
+        }
+
+        EmitValue(statement.ReturnValue, returnType);
+        _il.Emit(OpCodes.Ret);
+    }
+
+    /// <summary>The value of `return` with nothing to say: a `Tq.Failable` with no error.</summary>
+    private void EmitDefaultReturn()
+    {
+        var returnType = _method.ReturnType;
+        if (IsVoid(returnType))
+        {
+            _il.Emit(OpCodes.Ret);
+            return;
+        }
+
+        var empty = NewTemp(returnType);
+        _il.Emit(OpCodes.Ldloca, empty);
+        _il.Emit(OpCodes.Initobj, returnType);
+        _il.Emit(OpCodes.Ldloc, empty);
+        _il.Emit(OpCodes.Ret);
+    }
+
+    // ---- Expressions
+
+    /// <summary>Emits the expression; the type of what it left on the stack, or null if it left nothing.</summary>
+    private TypeReference? Emit(IrExpression expression, TypeReference? expected, bool discard = false)
+    {
+        switch (expression)
+        {
+            case IrComptimeInt integer:
+                return EmitNumber(integer.BigInteger, false, expected, integer.Location);
+
+            case IrComptimeDecimal number:
+                return EmitNumber(number.Value, true, expected, number.Location);
+
+            case IrComptimeBool boolean:
+                _il.Emit(boolean.Value ? OpCodes.Ldc_I4_1 : OpCodes.Ldc_I4_0);
+                return Core("System.Boolean");
+
+            case IrStringConstant text:
+                _il.Emit(OpCodes.Ldstr, text.Value);
+                return Core("System.String");
+
+            case IrStringConcat concat: return EmitConcat(concat);
+            case IrReference reference: return EmitReference(reference);
+            case IrAccess access: return EmitAccess(access);
+            case IrCall call: return EmitCall(call);
+            case IrNew creation: return EmitNew(creation);
+            case IrConvert conversion: return EmitConvert(conversion);
+            case IrAssign assign: return EmitAssign(assign, discard);
+            case IrBinary binary: return EmitBinary(binary);
+            case IrUnary unary: return EmitUnary(unary, expected, discard);
+            case IrIndex index: return EmitIndex(index);
+            case IrArray array: return EmitArray(array);
+
+            // `let T x`: the variable only exists.
+            case IrLocal local:
+                GetLocal(local);
+                return null;
+
+            default:
+                Report($"The expression {expression.GetType().Name} cannot be emitted to .NET yet", expression.Location);
+                return null;
+        }
+    }
+
+    /// <summary>The expression as a value of the expected type (converted if it takes a conversion).</summary>
+    private TypeReference EmitValue(IrExpression expression, TypeReference? expected)
+    {
+        var actual = Emit(expression, expected);
+        if (actual == null)
+        {
+            Report("This expression has no value", expression.Location);
+            return expected ?? Core("System.Object");
+        }
+
+        if (expected == null || actual.FullName == expected.FullName) return actual;
+
+        if (TryNum(actual, out var from) && TryNum(expected, out var to)) ConvertNumber(from, to);
+        else if (actual.IsValueType && !expected.IsValueType) _il.Emit(OpCodes.Box, actual);
+
+        return expected;
+    }
+
+    private TypeReference? EmitConvert(IrConvert conversion)
+    {
+        var target = _owner.MapExpression(conversion.toType);
+        EmitValue(conversion.Expression, target);
+        return target;
+    }
+
+    private TypeReference EmitConcat(IrStringConcat concat)
+    {
+        var @object = Core("System.Object");
+
+        _il.Emit(OpCodes.Ldc_I4, concat.Parts.Length);
+        _il.Emit(OpCodes.Newarr, @object);
+
+        for (var i = 0; i < concat.Parts.Length; i++)
+        {
+            _il.Emit(OpCodes.Dup);
+            _il.Emit(OpCodes.Ldc_I4, i);
+
+            var part = Emit(concat.Parts[i], null);
+            if (part == null) Report("This expression has no value", concat.Parts[i].Location);
+            else if (part.IsValueType) _il.Emit(OpCodes.Box, part);
+
+            _il.Emit(OpCodes.Stelem_Ref);
+        }
+
+        _il.Emit(OpCodes.Call, Library("System.String", "Concat", "System.Object[]"));
+        return Core("System.String");
+    }
+
+    private TypeReference? EmitArray(IrArray array)
+    {
+        if (_types.Get(array) is not SliceTypeRef slice)
+        {
+            Report("The type of the elements of this array is not known", array.Location);
+            return null;
+        }
+
+        var element = _owner.MapType(slice.Element, array.Location);
+
+        _il.Emit(OpCodes.Ldc_I4, array.Elements.Length);
+        _il.Emit(OpCodes.Newarr, element);
+
+        for (var i = 0; i < array.Elements.Length; i++)
+        {
+            _il.Emit(OpCodes.Dup);
+            _il.Emit(OpCodes.Ldc_I4, i);
+            EmitValue(array.Elements[i], element);
+            _il.Emit(OpCodes.Stelem_Any, element);
+        }
+
+        return new ArrayType(element);
+    }
+
+    private TypeReference? EmitIndex(IrIndex index)
+    {
+        if (index.Indices.Length != 1)
+        {
+            Report("Only one index is supported", index.Location);
+            return null;
+        }
+
+        var target = Emit(index.Target, null);
+
+        if (target is ArrayType array)
+        {
+            EmitValue(index.Indices[0], Core("System.Int32"));
+            _il.Emit(OpCodes.Ldelem_Any, array.ElementType);
+            return array.ElementType;
+        }
+
+        if (target?.FullName == "System.String")
+        {
+            EmitValue(index.Indices[0], Core("System.Int32"));
+            _il.Emit(OpCodes.Callvirt, Library("System.String", "get_Chars", "System.Int32"));
+            return Core("System.Char");
+        }
+
+        Report("This value cannot be indexed", index.Location);
+        return null;
+    }
+
+    // ---- Names
+
+    private TypeReference? EmitReference(IrReference reference)
+    {
+        switch (reference.Reference)
+        {
+            case LocalReference local:
+            {
+                var variable = GetLocal(local.Local);
+                _il.Emit(OpCodes.Ldloc, variable);
+                return variable.VariableType;
+            }
+
+            case ParameterReference parameter:
+            {
+                var definition = ParameterOf(parameter.Parameter);
+                _il.Emit(OpCodes.Ldarg, definition);
+
+                // `*T` of a value: the value itself is wanted.
+                if (definition.ParameterType is not ByReferenceType reference2) return definition.ParameterType;
+                _il.Emit(OpCodes.Ldobj, reference2.ElementType);
+                return reference2.ElementType;
+            }
+
+            case ThisReference:
+                _il.Emit(OpCodes.Ldarg_0);
+                if (_method.DeclaringType.IsValueType) _il.Emit(OpCodes.Ldobj, _method.DeclaringType);
+                return _method.DeclaringType;
+
+            case IrField field:
+                return LoadField(field.Field, null, reference.Location);
+
+            case BackingFieldReference backing:
+                return LoadField(backing.Property, null, reference.Location);
+
+            default:
+                Report($"'{reference.Reference}' cannot be used as a value in .NET yet", reference.Location);
+                return null;
+        }
+    }
+
+    private TypeReference? EmitAccess(IrAccess access)
+    {
+        switch (access.access.Reference)
+        {
+            case IrField field:
+                return LoadField(field.Field, access.baseExpr, access.Location);
+
+            case BackingFieldReference backing:
+                return LoadField(backing.Property, null, access.Location);
+
+            default:
+                Report($"'{access.access.Reference}' cannot be used as a value in .NET yet", access.Location);
+                return null;
+        }
+    }
+
+    /// <summary>
+    /// A field, a constant or a property of .NET. `baseExpr` is the value it is read from; without one it is a name
+    /// of the struct the code is in (or of the namespace), so an instance field is of `this`.
+    /// </summary>
+    private TypeReference? LoadField(object member, IrExpression? baseExpr, SourceLocation location)
+    {
+        switch (member)
+        {
+            case TqNamedCase named when _owner.Backend.Definitions.TryGetValue(named, out var caseDefinition) && caseDefinition is FieldDefinition caseField:
+                EmitConstant(caseField.Constant, location);
+                return caseField.DeclaringType;
+
+            case TqField field when _owner.Backend.Definitions.TryGetValue(field, out var definition) && definition is FieldDefinition fieldDefinition:
+                if (fieldDefinition.HasConstant)
+                {
+                    EmitConstant(fieldDefinition.Constant, location);
+                    return fieldDefinition.FieldType;
+                }
+
+                if (fieldDefinition.IsStatic)
+                {
+                    _il.Emit(OpCodes.Ldsfld, _owner.Use(fieldDefinition));
+                }
+                else
+                {
+                    EmitFieldReceiver(baseExpr, fieldDefinition.DeclaringType);
+                    _il.Emit(OpCodes.Ldfld, _owner.Use(fieldDefinition));
+                }
+
+                return fieldDefinition.FieldType;
+
+            case TqProperty property when _owner.Backend.BackingFields.TryGetValue(property, out var backing):
+                _il.Emit(OpCodes.Ldarg_0);
+                _il.Emit(OpCodes.Ldfld, _owner.Use(backing));
+                return backing.FieldType;
+
+            case DotnetField dotnetField:
+            {
+                var reference = _owner.Module.ImportReference(dotnetField.Reference);
+
+                if (dotnetField.IsConstant)
+                {
+                    EmitConstant(dotnetField.Constant, location);
+                }
+                else if (dotnetField.IsStatic)
+                {
+                    _il.Emit(OpCodes.Ldsfld, reference);
+                }
+                else
+                {
+                    EmitFieldReceiver(baseExpr, reference.DeclaringType);
+                    _il.Emit(OpCodes.Ldfld, reference);
+                }
+
+                return reference.FieldType;
+            }
+
+            case DotnetProperty { Getter: { } getter }:
+            {
+                var reference = _owner.Module.ImportReference(getter);
+                if (reference.HasThis) EmitFieldReceiver(baseExpr, reference.DeclaringType);
+                _il.Emit(reference.HasThis && !reference.DeclaringType.IsValueType ? OpCodes.Callvirt : OpCodes.Call, reference);
+                return reference.ReturnType;
+            }
+
+            default:
+                Report($"The member '{(member as IMember)?.Name ?? member.ToString()}' cannot be read in .NET yet", location);
+                return null;
+        }
+    }
+
+    /// <summary>What a member of an instance is read from: the value before the dot, or `this`.</summary>
+    private void EmitFieldReceiver(IrExpression? baseExpr, TypeReference declaring)
+    {
+        if (baseExpr == null) _il.Emit(OpCodes.Ldarg_0);
+        else EmitReceiver(baseExpr, declaring);
+    }
+
+    /// <summary>A value type is called and read through its address; a class through the reference.</summary>
+    private void EmitReceiver(IrExpression receiver, TypeReference declaring)
+    {
+        if (declaring.IsValueType) EmitAddress(receiver);
+        else EmitValue(receiver, null);
+    }
+
+    /// <summary>The address of a value, for what takes a `this` that is a struct. Whatever has none is copied first.</summary>
+    private void EmitAddress(IrExpression expression)
+    {
+        switch (expression)
+        {
+            case IrReference { Reference: LocalReference local }:
+                _il.Emit(OpCodes.Ldloca, GetLocal(local.Local));
+                return;
+
+            case IrReference { Reference: ParameterReference parameter }:
+            {
+                var definition = ParameterOf(parameter.Parameter);
+                _il.Emit(definition.ParameterType is ByReferenceType ? OpCodes.Ldarg : OpCodes.Ldarga, definition);
+                return;
+            }
+
+            // The `this` of a struct is already an address.
+            case IrReference { Reference: ThisReference }:
+                _il.Emit(OpCodes.Ldarg_0);
+                return;
+
+            case IrAccess { access.Reference: IrField { Field: TqField field } } access
+                when _owner.Backend.Definitions.TryGetValue(field, out var definition) && definition is FieldDefinition { HasConstant: false } fieldDefinition:
+                if (fieldDefinition.IsStatic)
+                {
+                    _il.Emit(OpCodes.Ldsflda, _owner.Use(fieldDefinition));
+                }
+                else
+                {
+                    EmitReceiver(access.baseExpr, fieldDefinition.DeclaringType);
+                    _il.Emit(OpCodes.Ldflda, _owner.Use(fieldDefinition));
+                }
+                return;
+        }
+
+        var type = EmitValue(expression, null);
+        var copy = NewTemp(type);
+        _il.Emit(OpCodes.Stloc, copy);
+        _il.Emit(OpCodes.Ldloca, copy);
+    }
+
+    // ---- Calls
+
+    private TypeReference? EmitCall(IrCall call)
+    {
+        var reference = call.callee switch
+        {
+            IrReference named => named.Reference,
+            IrAccess { access.Reference: var member } => member,
+            _ => null,
+        };
+        var receiver = (call.callee as IrAccess)?.baseExpr;
+
+        if (reference is not FunctionTypeReference { Function: var function })
+        {
+            Report("This call could not be resolved to a function", call.Location);
+            return null;
+        }
+
+        switch (function)
+        {
+            case TqFunction tq when _owner.Backend.Definitions.TryGetValue(tq, out var definition) && definition is MethodDefinition method:
+            {
+                if (!method.IsStatic) EmitFieldReceiver(receiver, method.DeclaringType);
+                EmitArguments(call.ArgumentsList.arguments, method.Parameters, tq.Parameters);
+
+                var instanceOfClass = !method.IsStatic && !method.DeclaringType.IsValueType;
+                _il.Emit(instanceOfClass ? OpCodes.Callvirt : OpCodes.Call, _owner.Use(method));
+                return IsVoid(method.ReturnType) ? null : method.ReturnType;
+            }
+
+            case DotnetMethod dotnet:
+            {
+                var method = _owner.Module.ImportReference(dotnet.Reference);
+                if (method.HasThis) EmitFieldReceiver(receiver, method.DeclaringType);
+                EmitArguments(call.ArgumentsList.arguments, method.Parameters, null);
+
+                _il.Emit(method.HasThis && !method.DeclaringType.IsValueType ? OpCodes.Callvirt : OpCodes.Call, method);
+                return IsVoid(method.ReturnType) ? null : method.ReturnType;
+            }
+
+            default:
+                Report($"The function '{function.Name}' is not emitted, so it cannot be called", call.Location);
+                return null;
+        }
+    }
+
+    /// <summary>
+    /// The arguments, each as its parameter wants it: a value converted to the type, or the address when it is a `*T` of a
+    /// value. What the call leaves out is the default of the parameter.
+    /// </summary>
+    private void EmitArguments(IrExpression[] arguments, IList<ParameterDefinition> parameters, TqParameter[]? declared)
+    {
+        for (var i = 0; i < parameters.Count; i++)
+        {
+            var type = parameters[i].ParameterType;
+            var argument = i < arguments.Length ? arguments[i] : declared?[i].DefaultValue;
+
+            if (argument == null)
+            {
+                Report($"The argument '{parameters[i].Name}' is missing", _function.SourceLocation);
+                continue;
+            }
+
+            if (type is ByReferenceType) EmitAddress(argument);
+            else EmitValue(argument, type);
+        }
+    }
+
+    private TypeReference? EmitNew(IrNew creation)
+    {
+        var type = _owner.MapExpression(creation.Type);
+        var arguments = creation.ArgumentsList.arguments;
+
+        switch (creation.Constructor)
+        {
+            case TqFunction tq when _owner.Backend.Definitions.TryGetValue(tq, out var definition) && definition is MethodDefinition constructor:
+                EmitArguments(arguments, constructor.Parameters, tq.Parameters);
+                _il.Emit(OpCodes.Newobj, _owner.Use(constructor));
+                return type;
+
+            case DotnetMethod dotnet:
+            {
+                var constructor = _owner.Module.ImportReference(dotnet.Reference);
+                EmitArguments(arguments, constructor.Parameters, null);
+                _il.Emit(OpCodes.Newobj, constructor);
+                return type;
+            }
+        }
+
+        // No constructor was chosen: a class without one has the one it was given, a struct is all zeros.
+        if (TypeExpressions.Raw(creation.Type) is StructTypeReference { Struct: TqStruct { IsReference: true } tqClass }
+            && _owner.Backend.DefaultConstructors.TryGetValue(tqClass, out var defaultConstructor))
+        {
+            _il.Emit(OpCodes.Newobj, _owner.Use(defaultConstructor));
+            return type;
+        }
+
+        if (type.IsValueType)
+        {
+            var value = NewTemp(type);
+            _il.Emit(OpCodes.Ldloca, value);
+            _il.Emit(OpCodes.Initobj, type);
+            _il.Emit(OpCodes.Ldloc, value);
+            return type;
+        }
+
+        Report($"There is no constructor to create '{type.Name}'", creation.Location);
+        return null;
+    }
+
+    // ---- Operators
+
+    private TypeReference? CommonType(IrExpression left, IrExpression right)
+    {
+        var leftType = _types.Get(left);
+        var rightType = _types.Get(right);
+
+        if (leftType == null || rightType == null)
+        {
+            Report("The type of an operand is not known", left.Location);
+            return null;
+        }
+
+        var leftLiteral = leftType is ComptimeIntegerTypeRef or ComptimeDecimalTypeRef;
+        var rightLiteral = rightType is ComptimeIntegerTypeRef or ComptimeDecimalTypeRef;
+
+        // A literal goes with the type of its partner; two literals are the default number.
+        if (leftLiteral && rightLiteral)
+            return Core(leftType is ComptimeDecimalTypeRef || rightType is ComptimeDecimalTypeRef ? "System.Double" : "System.Int32");
+        if (leftLiteral) return _owner.MapType(rightType, right.Location);
+        if (rightLiteral) return _owner.MapType(leftType, left.Location);
+
+        var a = _owner.MapType(leftType, left.Location);
+        var b = _owner.MapType(rightType, right.Location);
+        if (a.FullName == b.FullName) return a;
+
+        if (TryNum(a, out var numberA) && TryNum(b, out var numberB)) return Rank(numberA) >= Rank(numberB) ? a : b;
+        return a;
+    }
+
+    private TypeReference? EmitBinary(IrBinary binary)
+    {
+        var common = CommonType(binary.Left, binary.Right);
+        if (common == null) return null;
+
+        var isComparison = binary.Operator >= BinaryOperator.Equal;
+        var result = isComparison ? Core("System.Boolean") : common;
+
+        if (common.FullName == "System.String")
+        {
+            EmitStringOperator(binary, common);
+            return result;
+        }
+
+        EmitValue(binary.Left, common);
+        EmitValue(binary.Right, common);
+
+        var known = TryNum(common, out var number);
+
+        switch (binary.Operator)
+        {
+            case BinaryOperator.Add or BinaryOperator.AddWrap or BinaryOperator.Sub or BinaryOperator.SubWrap
+                or BinaryOperator.Mul or BinaryOperator.MulWrap or BinaryOperator.Div or BinaryOperator.Rest:
+                if (!known || common.FullName == "System.Char")
+                    Report($"The operator '{binary.Operator}' does not exist for '{common.Name}' in .NET", binary.Location);
+                else
+                    EmitArithmetic(binary.Operator, number, binary.Location);
+                break;
+
+            case BinaryOperator.Equal or BinaryOperator.ExactEqual:
+                _il.Emit(OpCodes.Ceq);
+                break;
+
+            case BinaryOperator.NotEqual or BinaryOperator.NotExactEqual:
+                _il.Emit(OpCodes.Ceq);
+                _il.Emit(OpCodes.Ldc_I4_0);
+                _il.Emit(OpCodes.Ceq);
+                break;
+
+            case BinaryOperator.Less:
+                _il.Emit(known && !number.Float && !number.Signed ? OpCodes.Clt_Un : OpCodes.Clt);
+                break;
+
+            case BinaryOperator.Greater:
+                _il.Emit(known && !number.Float && !number.Signed ? OpCodes.Cgt_Un : OpCodes.Cgt);
+                break;
+
+            // `a <= b` is not `a > b` (a number that is not a number is neither): unordered counts as greater.
+            case BinaryOperator.LessEqual:
+                _il.Emit(known && (number.Float || !number.Signed) ? OpCodes.Cgt_Un : OpCodes.Cgt);
+                _il.Emit(OpCodes.Ldc_I4_0);
+                _il.Emit(OpCodes.Ceq);
+                break;
+
+            case BinaryOperator.GreaterEqual:
+                _il.Emit(known && (number.Float || !number.Signed) ? OpCodes.Clt_Un : OpCodes.Clt);
+                _il.Emit(OpCodes.Ldc_I4_0);
+                _il.Emit(OpCodes.Ceq);
+                break;
+
+            default:
+                Report($"The operator '{binary.Operator}' cannot be emitted to .NET yet", binary.Location);
+                break;
+        }
+
+        return result;
+    }
+
+    /// <summary>
+    /// Checked arithmetic throws when the result does not fit; the `Wrap` operators and the floats do not. A type
+    /// smaller than 32 bits is computed as 32 and then cut to its size, checking it too.
+    /// </summary>
+    private void EmitArithmetic(BinaryOperator @operator, Num number, SourceLocation location)
+    {
+        var wraps = @operator is BinaryOperator.AddWrap or BinaryOperator.SubWrap or BinaryOperator.MulWrap;
+        var checkedOperation = !wraps && !number.Float;
+
+        switch (@operator)
+        {
+            case BinaryOperator.Add or BinaryOperator.AddWrap:
+                _il.Emit(!checkedOperation ? OpCodes.Add : number.Signed ? OpCodes.Add_Ovf : OpCodes.Add_Ovf_Un);
+                break;
+
+            case BinaryOperator.Sub or BinaryOperator.SubWrap:
+                _il.Emit(!checkedOperation ? OpCodes.Sub : number.Signed ? OpCodes.Sub_Ovf : OpCodes.Sub_Ovf_Un);
+                break;
+
+            case BinaryOperator.Mul or BinaryOperator.MulWrap:
+                _il.Emit(!checkedOperation ? OpCodes.Mul : number.Signed ? OpCodes.Mul_Ovf : OpCodes.Mul_Ovf_Un);
+                break;
+
+            case BinaryOperator.Div:
+                _il.Emit(number.Float || number.Signed ? OpCodes.Div : OpCodes.Div_Un);
+                return;
+
+            case BinaryOperator.Rest:
+                _il.Emit(number.Float || number.Signed ? OpCodes.Rem : OpCodes.Rem_Un);
+                return;
+
+            default:
+                Report($"The operator '{@operator}' cannot be emitted to .NET yet", location);
+                return;
+        }
+
+        if (number.Float || number.Native || number.Bits >= 32) return;
+
+        if (number.Bits == 8) _il.Emit(checkedOperation ? (number.Signed ? OpCodes.Conv_Ovf_I1 : OpCodes.Conv_Ovf_U1) : (number.Signed ? OpCodes.Conv_I1 : OpCodes.Conv_U1));
+        else _il.Emit(checkedOperation ? (number.Signed ? OpCodes.Conv_Ovf_I2 : OpCodes.Conv_Ovf_U2) : (number.Signed ? OpCodes.Conv_I2 : OpCodes.Conv_U2));
+    }
+
+    private void EmitStringOperator(IrBinary binary, TypeReference text)
+    {
+        EmitValue(binary.Left, text);
+        EmitValue(binary.Right, text);
+
+        switch (binary.Operator)
+        {
+            case BinaryOperator.Add:
+                _il.Emit(OpCodes.Call, Library("System.String", "Concat", "System.String", "System.String"));
+                break;
+
+            case BinaryOperator.Equal or BinaryOperator.ExactEqual:
+                _il.Emit(OpCodes.Call, Library("System.String", "op_Equality", "System.String", "System.String"));
+                break;
+
+            case BinaryOperator.NotEqual or BinaryOperator.NotExactEqual:
+                _il.Emit(OpCodes.Call, Library("System.String", "op_Inequality", "System.String", "System.String"));
+                break;
+
+            case BinaryOperator.Less or BinaryOperator.Greater or BinaryOperator.LessEqual or BinaryOperator.GreaterEqual:
+                _il.Emit(OpCodes.Call, Library("System.String", "CompareOrdinal", "System.String", "System.String"));
+                _il.Emit(OpCodes.Ldc_I4_0);
+
+                if (binary.Operator == BinaryOperator.Less)
+                {
+                    _il.Emit(OpCodes.Clt);
+                }
+                else if (binary.Operator == BinaryOperator.Greater)
+                {
+                    _il.Emit(OpCodes.Cgt);
+                }
+                else
+                {
+                    _il.Emit(binary.Operator == BinaryOperator.LessEqual ? OpCodes.Cgt : OpCodes.Clt);
+                    _il.Emit(OpCodes.Ldc_I4_0);
+                    _il.Emit(OpCodes.Ceq);
+                }
+                break;
+
+            default:
+                Report($"The operator '{binary.Operator}' does not exist for strings", binary.Location);
+                break;
+        }
+    }
+
+    private TypeReference? EmitUnary(IrUnary unary, TypeReference? expected, bool discard)
+    {
+        switch (unary.Operator)
+        {
+            case UnaryOperator.Not:
+                EmitValue(unary.Operand, Core("System.Boolean"));
+                _il.Emit(OpCodes.Ldc_I4_0);
+                _il.Emit(OpCodes.Ceq);
+                return Core("System.Boolean");
+
+            case UnaryOperator.Negate:
+            {
+                var type = Emit(unary.Operand, expected);
+                if (type == null) return null;
+                _il.Emit(OpCodes.Neg);
+                return type;
+            }
+
+            case UnaryOperator.Increment or UnaryOperator.Decrement:
+                return EmitIncrement(unary, discard);
+
+            default:
+                Report($"The operator '{unary.Operator}' cannot be emitted to .NET yet", unary.Location);
+                return null;
+        }
+    }
+
+    /// <summary>`++x`, `x++`, `--x` and `x--`. The value is only made when someone wants it.</summary>
+    private TypeReference? EmitIncrement(IrUnary unary, bool discard)
+    {
+        var target = ResolveTarget(unary.Operand);
+        if (target == null) return null;
+
+        if (target.Slots > 1 || !TryNum(target.Type, out var number))
+        {
+            Report("Only a number that is a variable, a parameter or a field can be incremented in .NET yet", unary.Location);
+            return null;
+        }
+
+        var step = unary.Operator == UnaryOperator.Increment ? BinaryOperator.Add : BinaryOperator.Sub;
+
+        target.Prefix();
+        if (target.Slots == 1) _il.Emit(OpCodes.Dup);
+        target.Load();
+
+        VariableDefinition? kept = null;
+        if (!discard && unary.IsPostfix)
+        {
+            kept = NewTemp(target.Type);
+            _il.Emit(OpCodes.Dup);
+            _il.Emit(OpCodes.Stloc, kept);
+        }
+
+        EmitNumber(1, false, target.Type, unary.Location);
+        EmitArithmetic(step, number, unary.Location);
+
+        if (!discard && !unary.IsPostfix)
+        {
+            kept = NewTemp(target.Type);
+            _il.Emit(OpCodes.Dup);
+            _il.Emit(OpCodes.Stloc, kept);
+        }
+
+        target.Store();
+
+        if (kept == null) return null;
+        _il.Emit(OpCodes.Ldloc, kept);
+        return target.Type;
+    }
+
+    // ---- Assignment
+
+    /// <summary>Something that can be written (and read): what comes before the value, and how it is stored and loaded.</summary>
+    private sealed record Target(TypeReference Type, int Slots, Action Prefix, Action Store, Action Load);
+
+    private TypeReference? EmitAssign(IrAssign assign, bool discard)
+    {
+        var target = ResolveTarget(assign.Target);
+        if (target == null) return null;
+
+        target.Prefix();
+        EmitValue(assign.Source, target.Type);
+
+        VariableDefinition? kept = null;
+        if (!discard)
+        {
+            kept = NewTemp(target.Type);
+            _il.Emit(OpCodes.Dup);
+            _il.Emit(OpCodes.Stloc, kept);
+        }
+
+        target.Store();
+
+        if (kept == null) return null;
+        _il.Emit(OpCodes.Ldloc, kept);
+        return target.Type;
+    }
+
+    private Target? ResolveTarget(IrExpression expression)
+    {
+        switch (expression)
+        {
+            case IrLocal local:
+                return LocalTarget(GetLocal(local));
+
+            case IrReference { Reference: LocalReference local }:
+                return LocalTarget(GetLocal(local.Local));
+
+            case IrReference { Reference: ParameterReference parameter }:
+            {
+                var definition = ParameterOf(parameter.Parameter);
+
+                // `*T` of a value: what it points to is written.
+                if (definition.ParameterType is ByReferenceType reference)
+                {
+                    return new Target(reference.ElementType, 1, () => _il.Emit(OpCodes.Ldarg, definition),
+                        () => _il.Emit(OpCodes.Stobj, reference.ElementType), () => _il.Emit(OpCodes.Ldobj, reference.ElementType));
+                }
+
+                return new Target(definition.ParameterType, 0, () => { },
+                    () => _il.Emit(OpCodes.Starg, definition), () => _il.Emit(OpCodes.Ldarg, definition));
+            }
+
+            case IrReference { Reference: IrField field }:
+                return MemberTarget(field.Field, null, expression.Location);
+
+            case IrReference { Reference: BackingFieldReference backing }:
+                return MemberTarget(backing.Property, null, expression.Location);
+
+            case IrAccess { access.Reference: IrField field } access:
+                return MemberTarget(field.Field, access.baseExpr, expression.Location);
+
+            case IrAccess { access.Reference: BackingFieldReference backing }:
+                return MemberTarget(backing.Property, null, expression.Location);
+
+            // An element of a slice.
+            case IrIndex { Indices.Length: 1 } index:
+            {
+                var arrayType = TypeOfNode(index.Target) as ArrayType;
+                if (arrayType == null && _types.Get(index.Target) is SliceTypeRef slice)
+                    arrayType = new ArrayType(_owner.MapType(slice.Element, index.Location));
+
+                if (arrayType == null)
+                {
+                    Report("Only an element of a slice can be assigned by index in .NET yet", index.Location);
+                    return null;
+                }
+
+                var element = arrayType.ElementType;
+                return new Target(element, 2,
+                    () =>
+                    {
+                        EmitValue(index.Target, null);
+                        EmitValue(index.Indices[0], Core("System.Int32"));
+                    },
+                    () => _il.Emit(OpCodes.Stelem_Any, element),
+                    () => _il.Emit(OpCodes.Ldelem_Any, element));
+            }
+
+            default:
+                Report("This cannot be assigned to in .NET yet", expression.Location);
+                return null;
+        }
+    }
+
+    private Target LocalTarget(VariableDefinition variable) => new(
+        variable.VariableType, 0, () => { }, () => _il.Emit(OpCodes.Stloc, variable), () => _il.Emit(OpCodes.Ldloc, variable));
+
+    private Target? MemberTarget(object member, IrExpression? baseExpr, SourceLocation location)
+    {
+        switch (member)
+        {
+            case TqField field when _owner.Backend.Definitions.TryGetValue(field, out var definition) && definition is FieldDefinition fieldDefinition:
+                return FieldTarget(_owner.Use(fieldDefinition), fieldDefinition.IsStatic, fieldDefinition.FieldType, fieldDefinition.DeclaringType, baseExpr);
+
+            case TqProperty property when _owner.Backend.BackingFields.TryGetValue(property, out var backing):
+                return FieldTarget(_owner.Use(backing), false, backing.FieldType, backing.DeclaringType, null);
+
+            case DotnetField dotnetField when !dotnetField.IsConstant:
+            {
+                var reference = _owner.Module.ImportReference(dotnetField.Reference);
+                return FieldTarget(reference, dotnetField.IsStatic, reference.FieldType, reference.DeclaringType, baseExpr);
+            }
+
+            case DotnetProperty { Getter: { } getter, Setter: { } setter }:
+            {
+                var get = _owner.Module.ImportReference(getter);
+                var set = _owner.Module.ImportReference(setter);
+                var isInstance = set.HasThis;
+
+                return new Target(get.ReturnType, isInstance ? 1 : 0,
+                    () => { if (isInstance) EmitFieldReceiver(baseExpr, set.DeclaringType); },
+                    () => _il.Emit(isInstance && !set.DeclaringType.IsValueType ? OpCodes.Callvirt : OpCodes.Call, set),
+                    () => _il.Emit(isInstance && !get.DeclaringType.IsValueType ? OpCodes.Callvirt : OpCodes.Call, get));
+            }
+
+            default:
+                Report($"The member '{(member as IMember)?.Name ?? member.ToString()}' cannot be assigned in .NET yet", location);
+                return null;
+        }
+    }
+
+    private Target FieldTarget(CecilField field, bool isStatic, TypeReference type, TypeReference declaring, IrExpression? baseExpr)
+    {
+        if (isStatic)
+            return new Target(type, 0, () => { }, () => _il.Emit(OpCodes.Stsfld, field), () => _il.Emit(OpCodes.Ldsfld, field));
+
+        return new Target(type, 1, () => EmitFieldReceiver(baseExpr, declaring),
+            () => _il.Emit(OpCodes.Stfld, field), () => _il.Emit(OpCodes.Ldfld, field));
+    }
+}

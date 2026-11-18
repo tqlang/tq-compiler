@@ -62,14 +62,18 @@ internal sealed partial class ModuleEmitter
 
     // ---- Helpers
 
-    private void Report(string message, SourceLocation? location = null) =>
+    internal CecilBackend Backend => _backend;
+    internal ModuleDefinition Module => _module;
+    internal TqModule Tq => _tq;
+
+    internal void Report(string message, SourceLocation? location = null) =>
         _backend.Diagnostics.ReportError(new BackendError(message, location));
 
-    private TypeReference Core(string fullName) => _backend.Core.Require(_module, fullName);
+    internal TypeReference Core(string fullName) => _backend.Core.Require(_module, fullName);
 
-    private TypeReference Use(TypeDefinition type) => type.Module == _module ? type : _module.ImportReference(type);
-    private MethodReference Use(MethodDefinition method) => method.Module == _module ? method : _module.ImportReference(method);
-    private FieldReference Use(FieldDefinition field) => field.Module == _module ? field : _module.ImportReference(field);
+    internal TypeReference Use(TypeDefinition type) => type.Module == _module ? type : _module.ImportReference(type);
+    internal MethodReference Use(MethodDefinition method) => method.Module == _module ? method : _module.ImportReference(method);
+    internal FieldReference Use(FieldDefinition field) => field.Module == _module ? field : _module.ImportReference(field);
 
     private static bool Has(IReadOnlyList<TqAttribute> attributes, BuiltinAttribute kind) =>
         attributes.OfType<TqBuiltinAttribute>().Any(attribute => attribute.Kind == kind);
@@ -95,7 +99,7 @@ internal sealed partial class ModuleEmitter
     // ---- Types
 
     /// <summary>The .NET type for a type written in the IR. Whatever cannot be one is reported, and `object` is used.</summary>
-    private TypeReference MapExpression(IrExpression expression)
+    internal TypeReference MapExpression(IrExpression expression)
     {
         var raw = TypeExpressions.Raw(expression);
         return raw != null ? MapType(raw, expression.location) : Unsupported("this type expression", expression.location);
@@ -107,7 +111,7 @@ internal sealed partial class ModuleEmitter
         return Core("System.Object");
     }
 
-    private TypeReference MapType(ITypeRef type, SourceLocation? location)
+    internal TypeReference MapType(ITypeRef type, SourceLocation? location)
     {
         switch (type)
         {

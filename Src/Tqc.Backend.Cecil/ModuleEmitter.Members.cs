@@ -58,7 +58,7 @@ internal sealed partial class ModuleEmitter
         return type;
     }
 
-    private static bool IsUntyped(IrExpression expression) =>
+    internal static bool IsUntyped(IrExpression expression) =>
         expression is IrReference { Reference: TypeMetaReference { Type: var type } } && ReferenceEquals(type, CompilerStd.Types.AnyType);
 
     private void DeclareField(Container container, TqField field)
@@ -216,8 +216,10 @@ internal sealed partial class ModuleEmitter
         var owner = $"{container.Type.Name}.{name}";
         if (accessorOf != null && function.Body == null && accessorOf.HasBackingField)
             _bodies.Add((method, il => EmitAutomaticAccessor(il, accessorOf!, isSetter)));
+        else if (function.Body != null || isConstructor)
+            _bodies.Add((method, il => new BodyEmitter(this, function, method, il).Emit()));
         else
-            _bodies.Add((method, il => EmitStub(il, $"Tq: the body of '{owner}' is not translated to .NET yet")));
+            _bodies.Add((method, il => EmitStub(il, $"Tq: '{owner}' has no body")));
     }
 
     private void DeclareDefaultConstructor(Container container, TqStruct structure)
@@ -260,7 +262,7 @@ internal sealed partial class ModuleEmitter
     }
 
     /// <summary>The constructor without arguments of what the struct extends; null if there is none to call.</summary>
-    private MethodReference? FindBaseConstructor(TqStruct structure)
+    internal MethodReference? FindBaseConstructor(TqStruct structure)
     {
         switch (structure.BaseStruct)
         {
@@ -326,7 +328,7 @@ internal sealed partial class ModuleEmitter
     // ---- Bodies
 
     /// <summary>The body of a function is not translated yet: it throws, so that running it is not mistaken for working.</summary>
-    private void EmitStub(ILProcessor il, string message)
+    internal void EmitStub(ILProcessor il, string message)
     {
         var exception = _backend.Core.Find("System.NotImplementedException")
                         ?? throw new BackendError("The type 'System.NotImplementedException' was not found");

@@ -299,8 +299,14 @@ programa: `main()` ou `main([]string args)` é chamado por `EntryPoint.Main(stri
 `<Módulo>.runtimeconfig.json` para rodar com `dotnet <Módulo>.dll`. Os módulos saem em ordem de dependência, e um
 assembly referencia os definidos antes dele.
 
-**Esta versão emite a estrutura**, não o código: o corpo de cada função lança `NotImplementedException` (propriedades
-automáticas e construtores padrão são reais). `System.Runtime` (de onde vêm `Object`, `Int32` etc.) é implícito: é
+**Os corpos são traduzidos para IL** (`BodyEmitter`): `return`, `if/elif/else`, `while` (com declaração e passo),
+`break`, variáveis locais, atribuições (a variáveis, parâmetros, campos, propriedades .NET e elementos de slice),
+chamadas (Tq e .NET, com valores padrão de parâmetros), `new`, conversões numéricas, strings (`+`, comparações,
+interpolação), `[a, b]`, `++`/`--`, `!`, `-`. Literais assumem o tipo esperado; `a + b` é checado (lança no overflow) e
+`+%`/`-%`/`*%` dão a volta. `return v` em função `!T` embrulha em `Tq.Failable<T>` sem erro. O que ainda não existe
+(`+|` e afins `OnBounds`, `DivFloor`/`DivCeil`, `?` nullable, propagação de falha, `lazy`, índice múltiplo) é
+**reportado como erro do backend**, nunca ignorado em silêncio. Propriedades automáticas e construtores padrão são reais;
+uma função sem corpo (`@abstract`) continua lançando `NotImplementedException`. `System.Runtime` (de onde vêm `Object`, `Int32` etc.) é implícito: é
 usado com ou sem um módulo `dotnet` que o liste.
 
 - Um namespace que tem membros vira uma classe estática: suas funções e campos são membros estáticos dela, seus
@@ -310,7 +316,7 @@ usado com ou sem um módulo `dotnet` que o liste.
   `extends` de uma struct-interface é `implements`, o resto é a classe base. `typedef` é um enum (os casos nomeados são
   as constantes; casos numéricos sem nome não aparecem). Structs genéricas ainda não.
 - Acesso: `@public` é público; o resto (namespace/módulo) é `internal`, o máximo que o .NET diz.
-- Funções: `@static`, `@virtual` e `@override` viram os flags; `lazy` e valores padrão de parâmetros ainda não.
+- Funções: `@static`, `@virtual` e `@override` viram os flags; `lazy` ainda não.
   Classes sem construtor ganham o construtor sem argumentos; o `destructor` é o `Finalize` (vazio por enquanto).
 - Propriedades são propriedades .NET; o campo de apoio (`<nome>k__BackingField`) é criado pelo backend quando
   `HasBackingField`. `get = f` precisa nomear uma função do mesmo tipo.
@@ -320,5 +326,5 @@ usado com ou sem um módulo `dotnet` que o liste.
   `?T` é `Nullable<T>` para valores e `T` para referências. `!T` é `Tq.Failable<T>` e `!void` é `Tq.Failable`, structs
   de um assembly `Tq.Runtime.dll` (campos `Value` e `Error`; `Error` é `object` até existir `Std.Types.Error`).
 - Ainda sem: valor inicial de campos (precisa de construtor), `@packed`/`@union`/layout, `f80`/`f128`/`i256`,
-  funções ou campos dentro de `typedef`, e tudo que um corpo precisaria.
+  funções ou campos dentro de `typedef`, `for`/`continue`.
 
