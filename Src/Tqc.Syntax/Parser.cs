@@ -712,82 +712,114 @@ public class Parser(DiagnosticBag diagnostics)
     private ExpressionNode ParseEquality()
     {
         var left = ParseRelational();
-        var cp = SaveCheckpoint();
-        AdvanceTrivia(_midExpressionTrivia);
-        
-        while (PeekKind()
+
+        // The checkpoint is taken before each operator: when there is none, the trivia read looking for it is given back.
+        while (true)
+        {
+            var cp = SaveCheckpoint();
+            AdvanceTrivia(_midExpressionTrivia);
+
+            if (!(PeekKind()
                is TokenKind.EqualsEquals or TokenKind.ExactEquals 
                or TokenKind.NotEqualsEquals or TokenKind.NotExactEquals)
-        {
+                  )
+            {
+                Rollback(cp);
+                break;
+            }
+
             var op = AdvanceNode();
             AdvanceTrivia(_midExpressionTrivia);
-            var right = ParseEquality();
+            var right = ParseRelational();
             left = new BinaryExpressionNode(left, op, right);
         }
-        
-        Rollback(cp);
+
         return left;
     }
 
     private ExpressionNode ParseRelational()
     {
         var left = ParseAdditive();
-        var cp = SaveCheckpoint();
-        AdvanceTrivia(_midExpressionTrivia);
-        
-        while (PeekKind()
+
+        // The checkpoint is taken before each operator: when there is none, the trivia read looking for it is given back.
+        while (true)
+        {
+            var cp = SaveCheckpoint();
+            AdvanceTrivia(_midExpressionTrivia);
+
+            if (!(PeekKind()
                is TokenKind.LeftAngle or TokenKind.RightAngle
                or TokenKind.LessEqual or TokenKind.GreaterEqual)
-        {
+                  )
+            {
+                Rollback(cp);
+                break;
+            }
+
             var op = AdvanceNode();
             AdvanceTrivia(_midExpressionTrivia);
             var right = ParseAdditive();
             left = new BinaryExpressionNode(left, op, right);
         }
-        
-        Rollback(cp);
+
         return left;
     }
 
     private ExpressionNode ParseAdditive()
     {
         var left = ParseMultiplicative();
-        var cp = SaveCheckpoint();
-        AdvanceTrivia(_midExpressionTrivia);
-        
-        while (PeekKind()
+
+        // The checkpoint is taken before each operator: when there is none, the trivia read looking for it is given back.
+        while (true)
+        {
+            var cp = SaveCheckpoint();
+            AdvanceTrivia(_midExpressionTrivia);
+
+            if (!(PeekKind()
                is TokenKind.Plus or TokenKind.Minus 
                or TokenKind.AddWrap or TokenKind.SubWrap 
                or TokenKind.AddOnBounds or TokenKind.SubOnBounds)
-        {
+                  )
+            {
+                Rollback(cp);
+                break;
+            }
+
             var op = AdvanceNode();
             AdvanceTrivia(_midExpressionTrivia);
             var right = ParseMultiplicative();
             left = new BinaryExpressionNode(left, op, right);
         }
-        
-        Rollback(cp);
+
         return left;
     }
 
     private ExpressionNode ParseMultiplicative()
     {
         var left = ParsePrefix();
-        var cp = SaveCheckpoint();
-        AdvanceTrivia(_midExpressionTrivia);
-        
-        while (PeekKind()
+
+        // The checkpoint is taken before each operator: when there is none, the trivia read looking for it is given back.
+        while (true)
+        {
+            var cp = SaveCheckpoint();
+            AdvanceTrivia(_midExpressionTrivia);
+
+            if (!(PeekKind()
                is TokenKind.Star or TokenKind.Slash or TokenKind.Rest
                or TokenKind.MulWrap or TokenKind.MulOnBounds
                or TokenKind.DivFloor or TokenKind.DivCeil)
-        {
+                  )
+            {
+                Rollback(cp);
+                break;
+            }
+
             var op = AdvanceNode();
             AdvanceTrivia(_midExpressionTrivia);
             var right = ParsePrefix();
             left = new BinaryExpressionNode(left, op, right);
         }
-        
-        Rollback(cp);
+
         return left;
     }
 
