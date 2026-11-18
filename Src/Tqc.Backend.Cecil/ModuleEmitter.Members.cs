@@ -161,7 +161,7 @@ internal sealed partial class ModuleEmitter
         foreach (var constructor in structure.Constructors) DeclareFunction(container, constructor, null);
 
         // A class that declares no constructor can be created without arguments.
-        if (structure.IsReference && structure.Constructors.Count == 0) DeclareDefaultConstructor(container, structure);
+        if (IsClass(structure) && structure.Constructors.Count == 0) DeclareDefaultConstructor(container, structure);
         if (structure.Destructor != null) DeclareDestructor(container, structure, structure.Destructor);
     }
 
@@ -181,7 +181,7 @@ internal sealed partial class ModuleEmitter
         {
             attributes |= MethodAttributes.Static;
         }
-        else if (!isConstructor && structure is { IsReference: true } or { IsInterface: true })
+        else if (!isConstructor && (IsClass(structure) || structure.IsInterface))
         {
             if (isAbstract) attributes |= MethodAttributes.Abstract | MethodAttributes.Virtual | MethodAttributes.NewSlot;
             else if (Has(function.Attributes, BuiltinAttribute.Virtual) || isInterface) attributes |= MethodAttributes.Virtual | MethodAttributes.NewSlot;
@@ -248,7 +248,7 @@ internal sealed partial class ModuleEmitter
     /// <summary>A destructor is the finalizer of a class. Its body is not translated yet, so it does nothing.</summary>
     private void DeclareDestructor(Container container, TqStruct structure, TqFunction destructor)
     {
-        if (!structure.IsReference)
+        if (!IsClass(structure))
         {
             Report($"The struct '{structure.Name}' is by value and cannot have a destructor in .NET; mark it '@class'", destructor.SourceLocation);
             return;

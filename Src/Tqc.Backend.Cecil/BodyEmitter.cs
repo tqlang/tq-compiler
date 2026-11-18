@@ -44,7 +44,7 @@ internal sealed class BodyEmitter
     public void Emit()
     {
         // A class starts by calling the constructor of what it extends.
-        if (_function is TqConstructor && _function.Owner is TqStruct { IsReference: true } structure
+        if (_function is TqConstructor && _function.Owner is TqStruct structure && ModuleEmitter.IsClass(structure)
             && _owner.FindBaseConstructor(structure) is { } baseConstructor)
         {
             _il.Emit(OpCodes.Ldarg_0);
@@ -840,7 +840,7 @@ internal sealed class BodyEmitter
         }
 
         // No constructor was chosen: a class without one has the one it was given, a struct is all zeros.
-        if (TypeExpressions.Raw(creation.Type) is StructTypeReference { Struct: TqStruct { IsReference: true } tqClass }
+        if (TypeExpressions.Raw(creation.Type) is StructTypeReference { Struct: TqStruct tqClass } && ModuleEmitter.IsClass(tqClass)
             && _owner.Backend.DefaultConstructors.TryGetValue(tqClass, out var defaultConstructor))
         {
             _il.Emit(OpCodes.Newobj, _owner.Use(defaultConstructor));

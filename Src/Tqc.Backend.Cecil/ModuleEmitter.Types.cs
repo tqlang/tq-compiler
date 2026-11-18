@@ -106,7 +106,7 @@ internal sealed partial class ModuleEmitter
             attributes |= TypeAttributes.Interface | TypeAttributes.Abstract;
             baseType = null;
         }
-        else if (structure.IsReference)
+        else if (IsClass(structure))
         {
             attributes |= TypeAttributes.Class;
             if (structure.IsAbstract) attributes |= TypeAttributes.Abstract;
@@ -171,8 +171,8 @@ internal sealed partial class ModuleEmitter
             decimal value = next;
             if (named.Value != null)
             {
-                if (named.Value is IrComptimeInt literal) value = literal.BigInteger;
-                else Report($"The value of the case '{named.Name}' must be a literal to be emitted", named.SourceLocation);
+                if (TryInteger(named.Value, out var evaluated)) value = evaluated;
+                else Report($"The value of the case '{named.Name}' must be a number or a constant of .NET to be emitted", named.SourceLocation);
             }
 
             var field = new FieldDefinition(named.Name,
@@ -205,7 +205,7 @@ internal sealed partial class ModuleEmitter
             return;
         }
 
-        if (!structure.IsReference && !structure.IsInterface)
+        if (!IsClass(structure) && !structure.IsInterface)
         {
             Report($"'{structure.Name}' is a struct by value and cannot extend anything in .NET; mark it '@class'", structure.SourceLocation);
             return;

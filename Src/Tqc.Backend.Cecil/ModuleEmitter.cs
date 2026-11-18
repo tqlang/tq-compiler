@@ -236,6 +236,44 @@ internal sealed partial class ModuleEmitter
     }
 
     /// <summary>The value of a literal as the constant of a field of this type; false if it is not one.</summary>
+    /// <summary>
+    /// A struct is a class when it is `@class` or extends one: what is by reference stays by reference below it
+    /// (the same rule the type checker uses). Extending an interface does not make it one.
+    /// </summary>
+    internal static bool IsClass(IStruct structure) => IsClass(structure, []);
+
+    private static bool IsClass(IStruct structure, HashSet<IStruct> visited)
+    {
+        if (!visited.Add(structure)) return false;
+
+        return structure is IObjectType type
+               && (type.IsReference || (type.Base is IStruct baseStruct && IsClass(baseStruct, visited)));
+    }
+
+    /// <summary>The integer value of a number, or of a constant of .NET (the value of a case of a .NET enum).</summary>
+    internal static bool TryInteger(IrExpression expression, out decimal value)
+    {
+        value = 0;
+
+        switch (expression)
+        {
+            case IrComptimeInt integer:
+                value = integer.BigInteger;
+                return true;
+
+            case IrConvert conversion:
+                return TryInteger(conversion.Expression, out value);
+
+            case IrReference { Reference: Tqc.IR.References.FieldReference { Field: DotnetField { IsConstant: true, Constant: { } constant } } }
+                when constant is not (string or bool or float or double):
+                try { value = Convert.ToDecimal(constant); return true; }
+                catch (Exception exception) when (exception is InvalidCastException or FormatException or OverflowException) { return false; }
+
+            default:
+                return false;
+        }
+    }
+
     private static bool TryConstant(IrExpression? value, TypeReference type, out object? constant)
     {
         constant = null;

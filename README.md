@@ -312,9 +312,9 @@ usado com ou sem um módulo `dotnet` que o liste.
 - Um namespace que tem membros vira uma classe estática: suas funções e campos são membros estáticos dela, seus
   structs e typedefs são tipos aninhados, e os namespaces filhos são classes estáticas aninhadas (`Std/Console/Foo`).
   Um namespace sem membros próprios no topo é só um namespace .NET no nome do que contém.
-- `struct` é um value type, ou uma classe com `@class`; `@abstract`, `@final` e `@interface` viram os flags .NET.
+- `struct` é um value type, ou uma classe com `@class` (ou que estende uma classe, Tq ou .NET); `@abstract`, `@final` e `@interface` viram os flags .NET.
   `extends` de uma struct-interface é `implements`, o resto é a classe base. `typedef` é um enum (os casos nomeados são
-  as constantes; casos numéricos sem nome não aparecem). Structs genéricas ainda não.
+  as constantes; casos numéricos sem nome não aparecem; o valor de um caso é um número ou uma constante .NET, como `CsSeekOrigin.Begin`). Structs genéricas ainda não.
 - Acesso: `@public` é público; o resto (namespace/módulo) é `internal`, o máximo que o .NET diz.
 - Funções: `@static`, `@virtual` e `@override` viram os flags; `lazy` ainda não.
   Classes sem construtor ganham o construtor sem argumentos; o `destructor` é o `Finalize` (vazio por enquanto).
