@@ -348,3 +348,7 @@ usado com ou sem um módulo `dotnet` que o liste.
 - Ainda sem: valor inicial de campos (precisa de construtor), `@packed`/`@union`/layout, `f80`/`f128`/`i256`,
   funções ou campos dentro de `typedef`, `for`/`continue`.
 
+**Tipos genéricos do .NET (etapa 1a):** o nome de um tipo genérico não leva a aridade, então `Span<T>` é `Span` e
+`from Dotnet.System import { Span }` funciona. Se um nome tem várias aridades (`Action`, `Action<T>`...), a de menos
+parâmetros fica com o nome e as outras viram `` Nome`N `` (N = número de parâmetros). Usar o tipo ainda dá erro claro
+no backend ("The generic type 'Span' of .NET..."): instanciar com `Span(i8)` é a etapa 1b.

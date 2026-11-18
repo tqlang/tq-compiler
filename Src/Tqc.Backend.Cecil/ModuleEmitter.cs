@@ -125,6 +125,21 @@ internal sealed partial class ModuleEmitter
         _ => $"the expression of the kind {expression.GetType().Name}",
     };
 
+    /// <summary>A .NET type. One with generic parameters (`Span<T>`) is a type constructor, not a type, until it has its arguments.</summary>
+    private TypeReference ImportDotnet(TypeReference reference, string name, SourceLocation? location)
+    {
+        var generic = reference.HasGenericParameters;
+        if (!generic)
+        {
+            try { generic = reference.Resolve()?.HasGenericParameters == true; }
+            catch (AssemblyResolutionException) { }
+        }
+
+        return generic
+            ? Unsupported($"The generic type '{name}' of .NET. Only its name is known so far: instantiating it with arguments, as in '{name}(i8)', is not supported yet", location)
+            : _module.ImportReference(reference);
+    }
+
     private TypeReference Unsupported(string what, SourceLocation? location)
     {
         Report($"{what} cannot be emitted to .NET yet", location);
@@ -163,9 +178,9 @@ internal sealed partial class ModuleEmitter
         switch (structure)
         {
             case TqStruct tq: return Defined(tq, tq.Name, location);
-            case DotnetClass dotnetClass: return _module.ImportReference(dotnetClass.TypeReference);
-            case DotnetStruct dotnetStruct: return _module.ImportReference(dotnetStruct.TypeReference);
-            case DotnetEnum dotnetEnum: return _module.ImportReference(dotnetEnum.TypeReference);
+            case DotnetClass dotnetClass: return ImportDotnet(dotnetClass.TypeReference, dotnetClass.Name, location);
+            case DotnetStruct dotnetStruct: return ImportDotnet(dotnetStruct.TypeReference, dotnetStruct.Name, location);
+            case DotnetEnum dotnetEnum: return ImportDotnet(dotnetEnum.TypeReference, dotnetEnum.Name, location);
             case GenericInstance instance: return MapInstance(instance, location);
         }
 

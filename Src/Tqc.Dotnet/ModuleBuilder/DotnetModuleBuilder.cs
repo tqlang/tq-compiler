@@ -158,14 +158,29 @@ sealed internal class DotnetModuleBuilder(AssemblyDefinition[] assemblies)
         var namespaces = ImmutableDictionary.CreateBuilder<string, INamespace>();
         var types = ImmutableDictionary.CreateBuilder<string, IDotnetType>();
 
-        foreach (var type in node.Types)
+        // `Span<T>` is `Span`. When a name has several arities (`Action`, `Action<T>`...) the one with fewer
+        // parameters keeps the name, and the others become `Name`N`, with N the number of generic parameters.
+        foreach (var type in node.Types.OrderBy(type => type.Definition.GenericParameters.Count))
         {
-            if (type.DotnetType is DotnetStaticClass staticClass) namespaces.Add(staticClass.Name, staticClass);
-            else if (type.DotnetType is { } dotnetType) types.Add(dotnetType.Name, dotnetType);
+            if (type.DotnetType is null) continue;
+
+            var name = type.DotnetType.Name;
+            var arity = type.Definition.GenericParameters.Count;
+
+            if (type.DotnetType is DotnetStaticClass staticClass)
+            {
+                if (!namespaces.ContainsKey(name)) namespaces.Add(name, staticClass);
+                continue;
+            }
+
+            if (!types.ContainsKey(name)) types.Add(name, type.DotnetType);
+            else types.TryAdd($"{name}`{arity}", type.DotnetType);
         }
 
         foreach (var child in node.Namespaces.Values)
-            namespaces.Add(child.Name, BuildNamespace(child));
+        {
+            if (!namespaces.ContainsKey(child.Name)) namespaces.Add(child.Name, BuildNamespace(child));
+        }
 
         return new DotnetNamespace(node.Name)
         {
@@ -249,11 +264,11 @@ sealed internal class DotnetModuleBuilder(AssemblyDefinition[] assemblies)
     // O Dotnet* guarda a Reference (como o tipo é endereçado), nunca a Definition.
     private static IDotnetType? CreateDotnetType(TypeKind kind, TypeReference reference) => kind switch
     {
-        TypeKind.StaticClass => new DotnetStaticClass(reference, reference.Name),
-        TypeKind.Class       => new DotnetClass(reference, reference.Name),
-        TypeKind.Struct      => new DotnetStruct(reference, reference.Name),
-        TypeKind.Enum        => new DotnetEnum(reference, reference.Name),
-        TypeKind.Interface   => new DotnetInterface(reference, reference.Name),
+        TypeKind.StaticClass => new DotnetStaticClass(reference, TypeClassifier.GetTypeName(reference)),
+        TypeKind.Class       => new DotnetClass(reference, TypeClassifier.GetTypeName(reference)),
+        TypeKind.Struct      => new DotnetStruct(reference, TypeClassifier.GetTypeName(reference)),
+        TypeKind.Enum        => new DotnetEnum(reference, TypeClassifier.GetTypeName(reference)),
+        TypeKind.Interface   => new DotnetInterface(reference, TypeClassifier.GetTypeName(reference)),
         TypeKind.Delegate    => null, // TODO: DotnetDelegate
 
         _ => throw new ArgumentOutOfRangeException(nameof(kind), kind, null),
