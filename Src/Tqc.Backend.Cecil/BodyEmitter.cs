@@ -97,10 +97,22 @@ internal sealed class BodyEmitter
 
     private ParameterDefinition ParameterOf(TqParameter parameter)
     {
-        var index = Array.FindIndex(_function.Parameters ?? [], candidate => ReferenceEquals(candidate, parameter));
-        if (index < 0 || index >= _method.Parameters.Count)
-            throw new BackendError($"The parameter '{parameter.Name}' does not belong to '{_function.Name}'", _function.SourceLocation);
-        return _method.Parameters[index];
+        // The parameters that are types are not parameters of the method: they are its generic parameters.
+        var index = 0;
+        foreach (var candidate in _function.Parameters ?? [])
+        {
+            if (GenericParameterTypeRef.IsTypeParameter(candidate))
+            {
+                if (ReferenceEquals(candidate, parameter))
+                    throw new BackendError($"'{parameter.Name}' is a type: it exists only while compiling and has no value in .NET", _function.SourceLocation);
+                continue;
+            }
+
+            if (ReferenceEquals(candidate, parameter) && index < _method.Parameters.Count) return _method.Parameters[index];
+            index++;
+        }
+
+        throw new BackendError($"The parameter '{parameter.Name}' does not belong to '{_function.Name}'", _function.SourceLocation);
     }
 
     private VariableDefinition GetLocal(IrLocal local)
@@ -479,8 +491,16 @@ internal sealed class BodyEmitter
 
         if (expected == null || actual.FullName == expected.FullName) return actual;
 
+        // `x as string`: whatever it is, its text (a null gives an empty one).
+        if (expected.FullName == "System.String")
+        {
+            if (actual.IsValueType || actual is GenericParameter) _il.Emit(OpCodes.Box, actual);
+            _il.Emit(OpCodes.Call, Library("System.Convert", "ToString", "System.Object"));
+            return expected;
+        }
+
         if (TryNum(actual, out var from) && TryNum(expected, out var to)) ConvertNumber(from, to);
-        else if (actual.IsValueType && !expected.IsValueType) _il.Emit(OpCodes.Box, actual);
+        else if ((actual.IsValueType || actual is GenericParameter) && !expected.IsValueType) _il.Emit(OpCodes.Box, actual);
 
         return expected;
     }
@@ -579,6 +599,10 @@ internal sealed class BodyEmitter
                 _il.Emit(OpCodes.Ldloc, variable);
                 return variable.VariableType;
             }
+
+            case ParameterReference { Parameter: var typeParameter } when GenericParameterTypeRef.IsTypeParameter(typeParameter):
+                Report($"'{typeParameter.Name}' is a type: it exists only while compiling, and as a value it has no .NET equivalent", reference.Location);
+                return null;
 
             case ParameterReference parameter:
             {
@@ -773,11 +797,22 @@ internal sealed class BodyEmitter
             case TqFunction tq when _owner.Backend.Definitions.TryGetValue(tq, out var definition) && definition is MethodDefinition method:
             {
                 if (!method.IsStatic) EmitFieldReceiver(receiver, method.DeclaringType);
-                EmitArguments(call.ArgumentsList.arguments, method.Parameters, tq.Parameters);
+                var typeArguments = EmitArguments(call.ArgumentsList.arguments, method.Parameters, tq.Parameters);
+
+                // The types a generic function is given are the type arguments of the method.
+                MethodReference target = _owner.Use(method);
+                var returned = method.ReturnType;
+                if (typeArguments.Count > 0)
+                {
+                    var instance = new GenericInstanceMethod(target);
+                    foreach (var typeArgument in typeArguments) instance.GenericArguments.Add(typeArgument);
+                    target = instance;
+                    returned = Instantiate(returned, typeArguments);
+                }
 
                 var instanceOfClass = !method.IsStatic && !method.DeclaringType.IsValueType;
-                _il.Emit(instanceOfClass ? OpCodes.Callvirt : OpCodes.Call, _owner.Use(method));
-                return IsVoid(method.ReturnType) ? null : method.ReturnType;
+                _il.Emit(instanceOfClass ? OpCodes.Callvirt : OpCodes.Call, target);
+                return IsVoid(returned) ? null : returned;
             }
 
             case DotnetMethod dotnet:
@@ -798,25 +833,52 @@ internal sealed class BodyEmitter
 
     /// <summary>
     /// The arguments, each as its parameter wants it: a value converted to the type, or the address when it is a `*T` of a
-    /// value. What the call leaves out is the default of the parameter.
+    /// value. What the call leaves out is the default of the parameter. The arguments that are for `type` parameters
+    /// emit nothing: they are the types the method is instantiated with, which are returned.
     /// </summary>
-    private void EmitArguments(IrExpression[] arguments, IList<ParameterDefinition> parameters, TqParameter[]? declared)
+    private List<TypeReference> EmitArguments(IrExpression[] arguments, IList<ParameterDefinition> parameters, TqParameter[]? declared)
     {
-        for (var i = 0; i < parameters.Count; i++)
+        var types = new List<TypeReference>();
+
+        // A Tq function lists the parameters of the type `type` too; .NET lists only the values.
+        var count = declared?.Length ?? parameters.Count;
+        var runtime = 0;
+
+        for (var i = 0; i < count; i++)
         {
-            var type = parameters[i].ParameterType;
             var argument = i < arguments.Length ? arguments[i] : declared?[i].DefaultValue;
+
+            if (declared != null && GenericParameterTypeRef.IsTypeParameter(declared[i]))
+            {
+                if (argument == null) Report($"The type '{declared[i].Name}' is missing", _function.SourceLocation);
+                else types.Add(_owner.MapExpression(argument));
+                continue;
+            }
+
+            var type = parameters[runtime].ParameterType;
+            var name = parameters[runtime].Name;
+            runtime++;
 
             if (argument == null)
             {
-                Report($"The argument '{parameters[i].Name}' is missing", _function.SourceLocation);
+                Report($"The argument '{name}' is missing", _function.SourceLocation);
                 continue;
             }
 
             if (type is ByReferenceType) EmitAddress(argument);
             else EmitValue(argument, type);
         }
+
+        return types;
     }
+
+    /// <summary>A type of the signature of a generic method, with the generic parameters replaced by the type arguments.</summary>
+    private static TypeReference Instantiate(TypeReference type, IReadOnlyList<TypeReference> typeArguments) => type switch
+    {
+        GenericParameter { Type: GenericParameterType.Method } generic when generic.Position < typeArguments.Count => typeArguments[generic.Position],
+        ArrayType array => new ArrayType(Instantiate(array.ElementType, typeArguments)),
+        _ => type,
+    };
 
     private TypeReference? EmitNew(IrNew creation)
     {
@@ -901,6 +963,25 @@ internal sealed class BodyEmitter
         if (common.FullName == "System.String")
         {
             EmitStringOperator(binary, common);
+            return result;
+        }
+
+        // Of a type that is not known until it is used (`T`, `anytype`), the values are compared as objects.
+        if ((common is GenericParameter || common.FullName == "System.Object")
+            && binary.Operator is BinaryOperator.Equal or BinaryOperator.ExactEqual or BinaryOperator.NotEqual or BinaryOperator.NotExactEqual)
+        {
+            EmitValue(binary.Left, common);
+            if (common is GenericParameter) _il.Emit(OpCodes.Box, common);
+            EmitValue(binary.Right, common);
+            if (common is GenericParameter) _il.Emit(OpCodes.Box, common);
+
+            _il.Emit(OpCodes.Call, Library("System.Object", "Equals", "System.Object", "System.Object"));
+            if (binary.Operator is BinaryOperator.NotEqual or BinaryOperator.NotExactEqual)
+            {
+                _il.Emit(OpCodes.Ldc_I4_0);
+                _il.Emit(OpCodes.Ceq);
+            }
+
             return result;
         }
 

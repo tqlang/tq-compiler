@@ -14,6 +14,7 @@ public static class TypeExpressions
         StructTypeReference structure => new IrReference(location, new TypeMetaReference(structure.Struct)),
         TypedefTypeReference typedef => new IrReference(location, new TypeMetaReference(typedef.Typedef)),
         ProtocolTypeReference protocol => new IrReference(location, protocol),
+        GenericParameterTypeRef generic => new IrReference(location, new ParameterReference(generic.Parameter)),
         SliceTypeRef slice => Of(slice.Element, location) is { } element ? new IrSliceTypeModifier(location, element) : null,
         _ => null,
     };
@@ -27,6 +28,7 @@ public static class TypeExpressions
         IrReference { Reference: TypeMetaReference { Type: IStruct structure } } => new StructTypeReference(structure),
         IrReference { Reference: TypeMetaReference { Type: TqTypedef typedef } } => new TypedefTypeReference(typedef),
         IrReference { Reference: ProtocolTypeReference protocol } => protocol,
+        IrReference when GenericParameterTypeRef.Of(expression) is { } generic => generic,
         IrSliceTypeModifier slice => Raw(slice.subtype) is { } element ? new SliceTypeRef(element) : null,
         _ => null,
     };

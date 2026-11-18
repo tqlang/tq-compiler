@@ -237,7 +237,7 @@ internal sealed partial class TypeChecker
                 break;
         }
 
-        return (visited, ReturnTypeOf(visited.callee));
+        return (visited, ReturnTypeOf(visited.callee, visited.ArgumentsList.arguments));
     }
 
     /// <summary>What a callee refers to: a name, or a member reached through a value.</summary>

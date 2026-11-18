@@ -104,16 +104,20 @@ internal sealed partial class TypeChecker
         string name, string noun, List<Overload> overloads, IrExpression[] arguments, SourceLocation location)
     {
         var argumentTypes = arguments.Select(TypeOf).ToArray();
+        var allOverloads = overloads;
         if (overloads.Count == 0)
         {
             Error($"'{name}' has no {noun} that the namespace '{_accessor.Namespace}' can reach", location);
             return null;
         }
 
+        // A generic function takes its signature from the types the call gives.
+        overloads = [..overloads.Select(overload => Specialize(overload, arguments, location))];
+
         var byArity = overloads.Where(overload => overload.Accepts(arguments.Length)).ToList();
         if (byArity.Count == 0)
         {
-            Error($"No {noun} of '{name}' takes {arguments.Length} argument(s). {Candidates(name, overloads)}", location);
+            Error($"No {noun} of '{name}' takes {arguments.Length} argument(s). {Candidates(name, allOverloads)}", location);
             return null;
         }
 
@@ -131,7 +135,7 @@ internal sealed partial class TypeChecker
         if (candidates.Count == 0)
         {
             var given = string.Join(", ", argumentTypes.Select(TypeFormatter.Format));
-            Error($"No {noun} of '{name}' accepts ({given}). {Candidates(name, overloads)}", location);
+            Error($"No {noun} of '{name}' accepts ({given}). {Candidates(name, allOverloads)}", location);
             return null;
         }
 

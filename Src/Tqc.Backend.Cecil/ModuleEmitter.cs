@@ -27,6 +27,12 @@ internal sealed partial class ModuleEmitter
     /// <summary>The members of a type (or of the static class of a namespace) that are emitted into it.</summary>
     private sealed record Container(TypeDefinition Type, string Namespace, IReadOnlyList<IMember> Members, TqStruct? Struct);
 
+    /// <summary>
+    /// The `T` of `func f(type T, ...)`: a generic parameter of the .NET method. The types are not parameters at run
+    /// time; the call gives them as the type arguments of the method.
+    /// </summary>
+    internal readonly Dictionary<TqParameter, GenericParameter> GenericParameters = new(ReferenceEqualityComparer.Instance);
+
     private readonly List<Container> _containers = [];
     private readonly List<(MethodDefinition Method, Action<ILProcessor> Emit)> _bodies = [];
 
@@ -103,8 +109,16 @@ internal sealed partial class ModuleEmitter
     internal TypeReference MapExpression(IrExpression expression)
     {
         var raw = TypeExpressions.Raw(expression);
-        return raw != null ? MapType(raw, expression.location) : Unsupported("this type expression", expression.location);
+        return raw != null ? MapType(raw, expression.location) : Unsupported($"As a type, {Describe(expression)}", expression.location);
     }
+
+    /// <summary>What an expression is, for the messages: the kind of node and what it refers to.</summary>
+    internal static string Describe(IrExpression expression) => expression switch
+    {
+        IrReference { Reference: var reference } => $"the reference '{reference}' ({reference.GetType().Name})",
+        IrSliceTypeModifier slice => $"the slice of {Describe(slice.subtype)}",
+        _ => $"the expression of the kind {expression.GetType().Name}",
+    };
 
     private TypeReference Unsupported(string what, SourceLocation? location)
     {
@@ -119,11 +133,15 @@ internal sealed partial class ModuleEmitter
             case ComptimeIntegerTypeRef: return Core("System.Int32");
             case ComptimeDecimalTypeRef: return Core("System.Double");
             case SliceTypeRef slice: return new ArrayType(MapType(slice.Element, location));
+            case GenericParameterTypeRef generic:
+                return GenericParameters.TryGetValue(generic.Parameter, out var parameter)
+                    ? parameter
+                    : Unsupported($"The type parameter '{generic.Parameter.Name}' (it is only a type inside the function that declares it)", location);
             case TypedefTypeReference typedef: return Defined(typedef.Typedef, typedef.Typedef.Name, location);
             case ProtocolTypeReference { Protocol: DotnetInterface dotnetInterface }:
                 return _module.ImportReference(dotnetInterface.TypeReference);
             case StructTypeReference { Struct: var structure }: return MapStruct(structure, location);
-            default: return Unsupported($"The type '{type}'", location);
+            default: return Unsupported($"The type '{type}' ({type.GetType().Name})", location);
         }
     }
 
@@ -149,6 +167,13 @@ internal sealed partial class ModuleEmitter
         if (ReferenceEquals(structure, std.Bool)) return Core("System.Boolean");
         if (ReferenceEquals(structure, std.Char)) return Core("System.Char");
         if (ReferenceEquals(structure, std.String)) return Core("System.String");
+
+        // `anytype` takes anything: in .NET, an object.
+        if (ReferenceEquals(structure, std.AnyType)) return Core("System.Object");
+
+        // `type` is what a generic function is given first; it is a generic argument of the method, not a value.
+        if (ReferenceEquals(structure, std.Type))
+            return Unsupported("The type 'type' (it exists only while compiling: a parameter of it makes the function generic, and anything else of it is a value that .NET does not have)", location);
         if (ReferenceEquals(structure, std.Void) || ReferenceEquals(structure, std.NoReturn)) return Core("System.Void");
 
         return Unsupported($"The type '{structure.Name}'", location);

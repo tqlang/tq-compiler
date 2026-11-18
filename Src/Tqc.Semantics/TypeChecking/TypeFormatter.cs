@@ -31,6 +31,9 @@ internal static class TypeFormatter
             case var _ when types.IsNullable(type, out var value):
                 return "?" + Format(value);
 
+            case GenericParameterTypeRef generic:
+                return generic.Parameter.Name;
+
             case SliceTypeRef slice:
                 return "[]" + Format(slice.Element);
 

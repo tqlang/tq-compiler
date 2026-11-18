@@ -192,12 +192,23 @@ internal sealed partial class ModuleEmitter
         var isSetter = accessorOf != null && ReferenceEquals(function, accessorOf.SetterFunction);
 
         // The accessors of a property have the signature of the property: `() -> T` and `(T) -> void`.
+        var method = new MethodDefinition(name, attributes, Core("System.Void"));
+
+        // The parameters of the type `type` are the generic parameters of the method; the rest of the signature may use them.
+        foreach (var parameter in function.Parameters ?? [])
+        {
+            if (accessorOf != null || !GenericParameterTypeRef.IsTypeParameter(parameter)) continue;
+
+            var generic = new GenericParameter(parameter.Name, method);
+            method.GenericParameters.Add(generic);
+            GenericParameters[parameter] = generic;
+        }
+
         TypeReference returnType;
         if (accessorOf != null) returnType = isSetter ? Core("System.Void") : PropertyTypeOf(accessorOf)!;
         else if (isConstructor || function.ReturnType == null) returnType = Core("System.Void");
         else returnType = MapExpression(function.ReturnType);
-
-        var method = new MethodDefinition(name, attributes, returnType);
+        method.ReturnType = returnType;
 
         if (accessorOf != null)
         {
@@ -206,7 +217,10 @@ internal sealed partial class ModuleEmitter
         else
         {
             foreach (var parameter in function.Parameters ?? [])
+            {
+                if (GenericParameterTypeRef.IsTypeParameter(parameter)) continue;
                 method.Parameters.Add(new ParameterDefinition(parameter.Name, ParameterAttributes.None, MapExpression(parameter.Type)));
+            }
         }
 
         container.Type.Methods.Add(method);

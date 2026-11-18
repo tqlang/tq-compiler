@@ -25,6 +25,10 @@ internal sealed partial class TypeChecker
             case IrReference { Reference: ProtocolTypeReference protocol }:
                 return protocol;
 
+            // `T` of `func f(type T, T value)`.
+            case IrReference when GenericParameterTypeRef.Of(expression) is { } generic:
+                return generic;
+
             case IrSliceTypeModifier slice:
                 var element = TypeFromExpression(slice.subtype);
                 return element != null ? new SliceTypeRef(element) : null;

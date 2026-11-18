@@ -40,7 +40,16 @@ internal sealed class FunctionSignature(IReadOnlyList<ITypeRef?> parameters, ITy
     /// <summary>Same parameters and the same return type: one can replace the other.</summary>
     public bool IsSameAs(FunctionSignature other) => HasSameParametersAs(other) && Compatible(Return, other.Return);
 
-    private static bool Compatible(ITypeRef? a, ITypeRef? b) => a == null || b == null || a.Equals(b);
+    private static bool Compatible(ITypeRef? a, ITypeRef? b) =>
+        a == null || b == null || DependsOnTypeParameter(a) || DependsOnTypeParameter(b) || a.Equals(b);
+
+    /// <summary>`T`, `[]T`: what the call decides, so it matches anything here.</summary>
+    private static bool DependsOnTypeParameter(ITypeRef type) => type switch
+    {
+        GenericParameterTypeRef => true,
+        SliceTypeRef slice => DependsOnTypeParameter(slice.Element),
+        _ => false,
+    };
 
     private static StructTypeReference Void() => new(CompilerStd.Types.Void);
 

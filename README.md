@@ -299,6 +299,12 @@ programa: `main()` ou `main([]string args)` é chamado por `EntryPoint.Main(stri
 `<Módulo>.runtimeconfig.json` para rodar com `dotnet <Módulo>.dll`. Os módulos saem em ordem de dependência, e um
 assembly referencia os definidos antes dele.
 
+**Funções genéricas** (`func copy(type T, []T a, []T b)`): os parâmetros do tipo `type` vêm primeiro na chamada
+(`copy(i8, a, b)`), valem como `T` no resto da assinatura (o type checker troca `T` pelo tipo dado em cada chamada, também
+no tipo de retorno) e viram **parâmetros genéricos do método .NET**; o `type` nunca vai para o runtime, e as chamadas
+instanciam o método com os tipos dados. `anytype` vira `Object`. Dentro do corpo, `T == T` compara como objeto e `x as string`
+usa `Convert.ToString`.
+
 **Os corpos são traduzidos para IL** (`BodyEmitter`): `return`, `if/elif/else`, `while` (com declaração e passo),
 `break`, variáveis locais, atribuições (a variáveis, parâmetros, campos, propriedades .NET e elementos de slice),
 chamadas (Tq e .NET, com valores padrão de parâmetros), `new`, conversões numéricas, strings (`+`, comparações,
