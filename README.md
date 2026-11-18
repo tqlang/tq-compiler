@@ -299,6 +299,15 @@ programa: `main()` ou `main([]string args)` é chamado por `EntryPoint.Main(stri
 `<Módulo>.runtimeconfig.json` para rodar com `dotnet <Módulo>.dll`. Os módulos saem em ordem de dependência, e um
 assembly referencia os definidos antes dele.
 
+**Herança de struct por valor** (`struct FileReader extends Reader`, nenhuma das duas `@class`): .NET não tem herança de
+value type, então ela é montada com o que existe. A struct que estende guarda a base num campo `__base`; por valor, o código
+percorre o caminho (`d.__base.x`). Cada struct da hierarquia (as que estendem ou são estendidas por outra do mesmo módulo)
+ganha uma **interface aninhada `Ref`**, que é o tipo de `*S`. A interface de `D` estende a de `B`, então `*D` serve onde se
+espera `*B`. A interface tem `ref S get_Value()` (os campos são lidos e escritos por ela, sem cópia) e um método por função
+da struct; a derivada implementa o que herda repassando para o `__base`, ou chamando o `@override`, então a chamada por
+referência chega na função mais derivada. Limites: a base precisa ser do mesmo módulo; uma referência é a struct *boxada*
+(passar um valor onde se espera `*S` copia); structs `@abstract` por valor e funções genéricas não entram na interface.
+
 **Funções genéricas** (`func copy(type T, []T a, []T b)`): os parâmetros do tipo `type` vêm primeiro na chamada
 (`copy(i8, a, b)`), valem como `T` no resto da assinatura (o type checker troca `T` pelo tipo dado em cada chamada, também
 no tipo de retorno) e viram **parâmetros genéricos do método .NET**; o `type` nunca vai para o runtime, e as chamadas

@@ -51,6 +51,16 @@ internal sealed class BodyEmitter
             _il.Emit(OpCodes.Call, baseConstructor);
         }
 
+        // A struct by value that extends another one starts its `__base` with the constructor of that one, if it has one.
+        else if (_function is TqConstructor && _function.Owner is TqStruct derived
+                 && _owner.Backend.BaseFields.TryGetValue(_method.DeclaringType.FullName, out var baseField)
+                 && _owner.FindBaseConstructor(derived) is { } valueBaseConstructor)
+        {
+            _il.Emit(OpCodes.Ldarg_0);
+            _il.Emit(OpCodes.Ldflda, _owner.Use(baseField));
+            _il.Emit(OpCodes.Call, valueBaseConstructor);
+        }
+
         if (_function.Body != null) EmitStatement(_function.Body);
 
         // The end of the function: what a function without `return` at its end gives.
@@ -491,6 +501,18 @@ internal sealed class BodyEmitter
 
         if (expected == null || actual.FullName == expected.FullName) return actual;
 
+        // A struct of a hierarchy as the one it extends: a copy of the part that is the base.
+        if (actual.IsValueType && expected.IsValueType && actual.FullName != expected.FullName
+            && _owner.Backend.BaseFields.ContainsKey(actual.FullName))
+        {
+            var copy = NewTemp(actual);
+            _il.Emit(OpCodes.Stloc, copy);
+            _il.Emit(OpCodes.Ldloca, copy);
+            EmitBasePath(actual, expected);
+            _il.Emit(OpCodes.Ldobj, expected);
+            return expected;
+        }
+
         // `x as string`: whatever it is, its text (a null gives an empty one).
         if (expected.FullName == "System.String")
         {
@@ -722,15 +744,57 @@ internal sealed class BodyEmitter
     /// <summary>What a member of an instance is read from: the value before the dot, or `this`.</summary>
     private void EmitFieldReceiver(IrExpression? baseExpr, TypeReference declaring)
     {
-        if (baseExpr == null) _il.Emit(OpCodes.Ldarg_0);
-        else EmitReceiver(baseExpr, declaring);
+        if (baseExpr == null)
+        {
+            // `this`; what a struct inherits is reached through its `__base`.
+            _il.Emit(OpCodes.Ldarg_0);
+            if (declaring.IsValueType) EmitBasePath(_method.DeclaringType, declaring);
+        }
+        else
+        {
+            EmitReceiver(baseExpr, declaring);
+        }
     }
+
+    /// <summary>
+    /// With the address of a struct on the stack, the address of the struct it extends that is `to`: through `__base`,
+    /// as many times as it takes. Nothing if `to` is not above it.
+    /// </summary>
+    private void EmitBasePath(TypeReference from, TypeReference to)
+    {
+        if (from is ByReferenceType reference) from = reference.ElementType;
+
+        var current = from.FullName;
+        while (current != to.FullName && _owner.Backend.BaseFields.TryGetValue(current, out var field))
+        {
+            _il.Emit(OpCodes.Ldflda, _owner.Use(field));
+            current = field.FieldType.FullName;
+        }
+    }
+
+    private bool IsRefInterface(TypeReference? type) => type != null && _owner.Backend.RefInterfaceNames.Contains(type.FullName);
 
     /// <summary>A value type is called and read through its address; a class through the reference.</summary>
     private void EmitReceiver(IrExpression receiver, TypeReference declaring)
     {
-        if (declaring.IsValueType) EmitAddress(receiver);
-        else EmitValue(receiver, null);
+        if (!declaring.IsValueType)
+        {
+            EmitValue(receiver, null);
+            return;
+        }
+
+        var actual = TypeOfNode(receiver);
+
+        // A reference to a struct of a hierarchy: its value is read through the interface, which has it.
+        if (IsRefInterface(actual) && _owner.Backend.RefGetters.TryGetValue(declaring.FullName, out var getter))
+        {
+            EmitValue(receiver, null);
+            _il.Emit(OpCodes.Callvirt, _owner.Use(getter));
+            return;
+        }
+
+        EmitAddress(receiver);
+        if (actual != null) EmitBasePath(actual, declaring);
     }
 
     /// <summary>The address of a value, for what takes a `this` that is a struct. Whatever has none is copied first.</summary>
@@ -796,6 +860,16 @@ internal sealed class BodyEmitter
         {
             case TqFunction tq when _owner.Backend.Definitions.TryGetValue(tq, out var definition) && definition is MethodDefinition method:
             {
+                // Through a reference to a struct of a hierarchy the call goes to the interface, so that the most derived function runs.
+                if (!method.IsStatic && receiver != null && method.DeclaringType.IsValueType && IsRefInterface(TypeOfNode(receiver))
+                    && _owner.Backend.RefMethods.TryGetValue(tq, out var interfaceMethod))
+                {
+                    EmitValue(receiver, null);
+                    EmitArguments(call.ArgumentsList.arguments, method.Parameters, tq.Parameters);
+                    _il.Emit(OpCodes.Callvirt, _owner.Use(interfaceMethod));
+                    return IsVoid(method.ReturnType) ? null : method.ReturnType;
+                }
+
                 if (!method.IsStatic) EmitFieldReceiver(receiver, method.DeclaringType);
                 var typeArguments = EmitArguments(call.ArgumentsList.arguments, method.Parameters, tq.Parameters);
 

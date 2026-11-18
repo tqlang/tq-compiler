@@ -205,9 +205,12 @@ internal sealed partial class ModuleEmitter
             return;
         }
 
+        // A struct by value extends another one of this module by keeping it in a field (see ModuleEmitter.Hierarchy).
+        if (!IsClass(structure) && !structure.IsInterface && BaseOf(structure) != null) return;
+
         if (!IsClass(structure) && !structure.IsInterface)
         {
-            Report($"'{structure.Name}' is a struct by value and cannot extend anything in .NET; mark it '@class'", structure.SourceLocation);
+            Report($"'{structure.Name}' is a struct by value and cannot extend '{structure.BaseStruct?.Name ?? "that"}' in .NET: only a struct by value of the same module can be extended; otherwise mark it '@class'", structure.SourceLocation);
             return;
         }
 

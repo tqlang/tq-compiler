@@ -56,10 +56,15 @@ internal sealed partial class ModuleEmitter
         _ = Core("System.Object");
 
         DeclareNamespace(_tq.RootNamespace, _name, "", null);
+        FindHierarchy();
+        DeclareRefInterfaces();
         foreach (var container in _containers) DeclareBases(container);
         foreach (var container in _containers) DeclareFields(container);
+        foreach (var container in _containers) DeclareBaseField(container);
         foreach (var container in _containers) DeclareFunctions(container);
         foreach (var container in _containers) DeclareProperties(container);
+        DeclareRefMembers();
+        DeclareRefBridges();
 
         foreach (var (method, emit) in _bodies) emit(method.Body.GetILProcessor());
 
@@ -232,6 +237,9 @@ internal sealed partial class ModuleEmitter
         if (ReferenceEquals(definition, std.Ref))
         {
             var referred = MapExpression(only);
+
+            // A struct of a hierarchy is referred to through its interface, which a derived struct also implements.
+            if (_backend.RefInterfaces.TryGetValue(referred.FullName, out var reference)) return Use(reference);
             return referred.IsValueType ? new ByReferenceType(referred) : referred;
         }
 
