@@ -7,7 +7,11 @@ from Dotnet.System.IO import {
 }
 
 @public func open(string path) File {
-	let filestream = new CsFStream(path, FileMode.openOrCreate, FileAccess.RO)
+	let filestream = new CsFStream(
+	    path,
+	    FileMode.openOrCreate as CsFileMode,
+	    FileAccess.RO as CsFileAccess
+	)
 	return new File(filestream)
 }
 

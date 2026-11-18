@@ -1,5 +1,5 @@
 ###    TQ STANDARD LIBRARY SCRIPT    ###
-from Std import { Mem, Console }
+from Std import { Memory, Console }
 
 let uint testCount = 0
 
@@ -24,7 +24,7 @@ let uint testCount = 0
 @public func assert(string value, string reference) { __assert__impl__(value == reference, value as string) }
 
 # slice misc testing
-@public func assert(type T, []T value, []T reference) { __assert__impl__(Mem.compare(value, reference), value as string) }
+@public func assert(type T, []T value, []T reference) { __assert__impl__(Memory.compare(value, reference), value as string) }
 
 
 @public func newTestUnit(string title) {

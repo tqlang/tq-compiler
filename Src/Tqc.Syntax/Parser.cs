@@ -595,8 +595,8 @@ public class Parser(DiagnosticBag diagnostics)
         var condition = ParseExpression();
         AdvanceTrivia(_midDeclarationTrivia);
         var thenBranch = ParseStatement();
-        
-        return new IfStatementNode(ifKeyword, condition, thenBranch, ConsumeStatementLeadingTrivia());
+
+        return new IfStatementNode(ifKeyword, condition, thenBranch, []); //ConsumeStatementLeadingTrivia());
     }
     private ElifStatementNode ParseElifStatement()
     {
@@ -628,6 +628,15 @@ public class Parser(DiagnosticBag diagnostics)
         var whileKeyword = ExpectNode("while", "'while' keyword");
         AdvanceTrivia(TokenKind.Whitespace);
 
+        TokenNode? OpenParenthesis = null;
+        TokenNode? ClosingParenthesis = null;
+        
+        if (Check(TokenKind.LeftParenthesis))
+        {
+            OpenParenthesis = AdvanceNode();
+            AdvanceTrivia(TokenKind.Whitespace);
+        }
+
         List<ExpressionNode> parts = [ParseExpression()];
         List<TokenNode> colons = [];
 
@@ -645,15 +654,21 @@ public class Parser(DiagnosticBag diagnostics)
             AdvanceTrivia(TokenKind.Whitespace);
             parts.Add(ParseExpression());
         }
+        
+        if (OpenParenthesis != null && Check(TokenKind.RightParenthesis))
+        {
+            ClosingParenthesis = AdvanceNode();
+            AdvanceTrivia(TokenKind.Whitespace);
+        }
 
         AdvanceTrivia(_midDeclarationTrivia);
         var body = ParseStatement();
 
         return parts.Count switch
         {
-            1 => new WhileStatementNode(whileKeyword, null, null, parts[0], null, null, body, ConsumeStatementLeadingTrivia()),
-            2 => new WhileStatementNode(whileKeyword, null, null, parts[0], colons[0], parts[1], body, ConsumeStatementLeadingTrivia()),
-            _ => new WhileStatementNode(whileKeyword, parts[0], colons[0], parts[1], colons[1], parts[2], body, ConsumeStatementLeadingTrivia()),
+            1 => new WhileStatementNode(whileKeyword, OpenParenthesis, null, null, parts[0], null, null, ClosingParenthesis, body, []), //ConsumeStatementLeadingTrivia()),
+            2 => new WhileStatementNode(whileKeyword, OpenParenthesis, null, null, parts[0], colons[0], parts[1], ClosingParenthesis, body, []), //ConsumeStatementLeadingTrivia()),
+            _ => new WhileStatementNode(whileKeyword, OpenParenthesis, parts[0], colons[0], parts[1], colons[1], parts[2], ClosingParenthesis, body, []), //ConsumeStatementLeadingTrivia()),
         };
     }
     private BreakStatementNode ParseBreakStatement()

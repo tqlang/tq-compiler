@@ -13,8 +13,8 @@ from Dotnet.System.IO import {
 
 	constructor(*CsFileInfo fInfo) {
 		_fileInfo = fInfo
-		name      = fInfo.get_Name()
-		directory = fInfo.get_DirectoryName()
-		length    = fInfo.get_Length()
+		name      = fInfo.Name
+		directory = fInfo.DirectoryName
+		length    = fInfo.Length as uint
 	}
 }

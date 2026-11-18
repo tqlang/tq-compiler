@@ -1,4 +1,4 @@
-from Dotnet.System import { Span }
+# from Dotnet.System import { Span }
 
 @public func copy([]i8 source, []i8 target) { __copy_impl__(i8, source, target) }
 @public func copy([]u8 source, []u8 target) { __copy_impl__(u8, source, target) }
@@ -15,7 +15,7 @@ from Dotnet.System import { Span }
 
 func __copy_impl__(type T, []T source, []T target) {
     if (source.len != target.len) return
-    while let i = 0 : i < source.len : i++ do target[i] = source[i]
+    while (let i = 0 : i < source.len : i++) target[i] = source[i]
 }
 
 
@@ -34,11 +34,12 @@ func __copy_impl__(type T, []T source, []T target) {
 
 func __compare_impl__(type T, []T a, []T b) bool {
     if (a.len != b.len) return false
-	while let i = 0 : i < a.len : i++ do
-        if (a[i] != b[i]) return false
+    
+	while (let i = 0 : i < a.len : i++)
+	    if (a[i] != b[i]) return false
+	
     return true
 }
-
 
 @public func fill([]i8 slice, i8 value) { __fill_impl__(i8, slice, value) }
 @public func fill([]u8 slice, u8 value) { __fill_impl__(u8, slice, value) }
@@ -54,6 +55,5 @@ func __compare_impl__(type T, []T a, []T b) bool {
 @public func fill([]anytype slice, anytype value) { __fill_impl__(anytype, slice, value) }
 
 func __fill_impl__(type T, []T slice, T value) {
-	while let i = 0 : i < slice.len : i++ do
-        slice[i] = value
+	while (let i = 0 : i < slice.len : i++) slice[i] = value
 }
