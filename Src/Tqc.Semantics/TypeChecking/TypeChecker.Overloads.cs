@@ -78,11 +78,11 @@ internal sealed partial class TypeChecker
                 break;
 
             case DotnetClass { Members: { } members } when members.GetValueOrDefault(".ctor") is DotnetMethodGroup group:
-                constructors = [..group.Methods.Where(method => method.IsConstructor).Select(ToOverload)];
+                constructors = [..group.Methods.Where(method => method.IsConstructor && IsCallable(method)).Select(ToOverload)];
                 break;
 
             case DotnetStruct { Members: { } members } when members.GetValueOrDefault(".ctor") is DotnetMethodGroup group:
-                constructors = [..group.Methods.Where(method => method.IsConstructor).Select(ToOverload)];
+                constructors = [..group.Methods.Where(method => method.IsConstructor && IsCallable(method)).Select(ToOverload)];
                 break;
 
             default:
@@ -258,7 +258,7 @@ internal sealed partial class TypeChecker
 
             case DotnetMethodGroup dotnetGroup:
                 // Through a type only static methods apply; through a value, only those of instances.
-                foreach (var method in dotnetGroup.Methods.Where(method => method.IsStatic != viaValue && !method.IsConstructor))
+                foreach (var method in dotnetGroup.Methods.Where(method => method.IsStatic != viaValue && !method.IsConstructor && IsCallable(method)))
                     overloads.Add(ToOverload(method));
                 break;
         }
@@ -283,6 +283,13 @@ internal sealed partial class TypeChecker
             [..parameters.Select(parameter => (IrExpression?)parameter.Type)],
             parameters.Count(parameter => parameter.DefaultValue == null));
     }
+
+    /// <summary>
+    /// Whether Tq can call a method of .NET. One that takes a type with no equivalent in Tq (`char[]`, `Span<T>`...)
+    /// cannot be given any argument, so it is not a candidate: left in, its unknown parameter would match everything
+    /// and make a call with several overloads impossible to decide.
+    /// </summary>
+    private static bool IsCallable(DotnetMethod method) => !method.ParameterTypes.Any(type => type is UnsupportedTypeRef);
 
     private static Overload ToOverload(DotnetMethod method)
     {

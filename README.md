@@ -363,3 +363,7 @@ usado com ou sem um módulo `dotnet` que o liste.
 `from Dotnet.System import { Span }` funciona. Se um nome tem várias aridades (`Action`, `Action<T>`...), a de menos
 parâmetros fica com o nome e as outras viram `` Nome`N `` (N = número de parâmetros). Usar o tipo ainda dá erro claro
 no backend ("The generic type 'Span' of .NET..."): instanciar com `Span(i8)` é a etapa 1b.
+
+**Métodos .NET que o Tq não consegue chamar:** um método (ou construtor) com um parâmetro de tipo sem equivalente em Tq
+(`char[]`, `Span<T>`, genéricos...) não é candidato a sobrecarga. Antes o parâmetro desconhecido aceitava qualquer
+argumento e a chamada ficava sem decidir em silêncio (`Console.Write(string)` competia com `Write(char[])`).
