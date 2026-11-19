@@ -219,7 +219,8 @@ internal sealed partial class TypeChecker
         };
 
         // `a.f()` keeps `a` as the receiver; a function reached through a value is not static.
-        var viaValue = visited.callee is IrAccess;
+        // `Console.f()` and `Foo.f()` go through a namespace or a type, not a value: there the static ones apply.
+        var viaValue = visited.callee is IrAccess { baseExpr: var receiver } && !IsTypeOrNamespace(receiver);
 
         switch (CalleeReference(visited.callee))
         {
@@ -239,6 +240,15 @@ internal sealed partial class TypeChecker
 
         return (visited, ReturnTypeOf(visited.callee, visited.ArgumentsList.arguments));
     }
+
+    /// <summary>Whether an expression names a namespace (a static class of .NET is one) or a type, rather than being a value.</summary>
+    private static bool IsTypeOrNamespace(IrExpression expression) =>
+        (expression switch
+        {
+            IrReference reference => reference.Reference,
+            IrAccess access => access.access.Reference,
+            _ => null,
+        }) is NamespaceReference or TypeMetaReference or StructTypeReference or ProtocolTypeReference or TypedefTypeReference;
 
     /// <summary>What a callee refers to: a name, or a member reached through a value.</summary>
     private static Ref? CalleeReference(IrExpression callee) => callee switch

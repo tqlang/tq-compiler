@@ -102,6 +102,28 @@ internal sealed class BodyEmitter
         return variable;
     }
 
+    /// <summary>An expression for the messages: what it is and the type the type checker gave it (`?` if none).</summary>
+    private string Shape(IrExpression expression)
+    {
+        var text = expression switch
+        {
+            IrReference reference => NameOf(reference.Reference),
+            IrAccess access => $"{Shape(access.baseExpr)}.{NameOf(access.access.Reference)}",
+            IrCall call => $"a call of {Shape(call.callee)}",
+            _ => $"a {expression.GetType().Name}",
+        };
+
+        return $"'{text}' : {_types.Get(expression)?.ToString() ?? "?"}";
+    }
+
+    private static string NameOf(Ref reference) => reference switch
+    {
+        UnsolvedRef unsolved => $"{unsolved.Value} (unresolved name)",
+        FunctionGroupTypeReference group => $"{group.FunctionGroup.Name} (group of overloads)",
+        FunctionTypeReference function => function.Function.Name,
+        _ => reference.ToString() ?? reference.GetType().Name,
+    };
+
     private TypeReference? TypeOfNode(IrExpression expression) =>
         _types.Get(expression) is { } type ? _owner.MapType(type, expression.Location) : null;
 
@@ -854,7 +876,9 @@ internal sealed class BodyEmitter
 
         if (reference is not FunctionTypeReference { Function: var function })
         {
-            Report("This call could not be resolved to a function", call.Location);
+            var arguments = string.Join(", ", call.ArgumentsList.arguments.Select(Shape));
+            Report($"This call could not be resolved to a function: the callee is {Shape(call.callee)}, with the arguments ({arguments}). "
+                   + "The type checker did not choose an overload for it (see --dump-ir)", call.Location);
             return null;
         }
 
@@ -1007,7 +1031,7 @@ internal sealed class BodyEmitter
 
         if (leftType == null || rightType == null)
         {
-            Report("The type of an operand is not known", left.Location);
+            Report($"The type of an operand is not known: the left one is {Shape(left)} and the right one is {Shape(right)}", left.Location);
             return null;
         }
 
