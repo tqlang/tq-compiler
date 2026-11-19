@@ -1203,6 +1203,10 @@ internal sealed class BodyEmitter
                     EmitArithmetic(binary.Operator, number, binary.Location);
                 break;
 
+            case BinaryOperator.Pow:
+                Report("The power ('**') is only evaluated at compile time for now: both operands must be constants", binary.Location);
+                break;
+
             case BinaryOperator.Equal or BinaryOperator.ExactEqual:
                 _il.Emit(OpCodes.Ceq);
                 break;

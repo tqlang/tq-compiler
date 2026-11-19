@@ -811,7 +811,7 @@ public class Parser(DiagnosticBag diagnostics)
 
     private ExpressionNode ParseMultiplicative()
     {
-        var left = ParsePrefix();
+        var left = ParsePower();
 
         // The checkpoint is taken before each operator: when there is none, the trivia read looking for it is given back.
         while (true)
@@ -831,10 +831,40 @@ public class Parser(DiagnosticBag diagnostics)
 
             var op = AdvanceNode();
             AdvanceTrivia(_midExpressionTrivia);
-            var right = ParsePrefix();
+            var right = ParsePower();
             left = new BinaryExpressionNode(left, op, right);
         }
 
+        return left;
+    }
+
+    /// <summary>
+    /// `a ** b`: power, above `*`, and `a ** b ** c` is `a ** (b ** c)`. It is two adjacent stars, because the lexer cannot
+    /// tell it from `**T` (a reference to a reference) and the parser can: after an operand it is an operator.
+    /// </summary>
+    private ExpressionNode ParsePower()
+    {
+        var left = ParsePrefix();
+
+        var cp = SaveCheckpoint();
+        AdvanceTrivia(_midExpressionTrivia);
+
+        if (Check(TokenKind.Star))
+        {
+            var first = AdvanceNode();
+
+            // Adjacent, with nothing between: `a * *b` is not a power.
+            if (Check(TokenKind.Star))
+            {
+                var second = AdvanceNode();
+                var op = new TokenNode(first.Trivia, "**", TokenKind.Power, first.Line, first.Column);
+                AdvanceTrivia(_midExpressionTrivia);
+                var right = ParsePower();
+                return new BinaryExpressionNode(left, op, right);
+            }
+        }
+
+        Rollback(cp);
         return left;
     }
 

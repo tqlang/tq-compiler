@@ -388,3 +388,9 @@ delegates genéricos ainda não). Os argumentos são tipos explícitos, sem infe
   então esses membros passam a poder ser chamados.
 - No backend vira um `GenericInstanceType`, e os métodos, campos, propriedades e construtores são referenciados através dele.
   Chamar métodos estáticos através de um tipo genérico (`List(i8).Foo()`) ainda não.
+
+**Potência `**`:** `a ** b` tem precedência acima de `*` e associa à direita (`2 ** 3 ** 2` é `2 ** 9`); o operando é um prefixo, então
+`-2 ** 2` é `(-2) ** 2` (use `-(2 ** 2)`). O lexer não distingue `**` de `**T` (referência a referência), então são duas estrelas coladas e
+quem decide é o parser: depois de um operando é potência. `a * *b` (com espaço) continua sendo `a * (*b)`. Por enquanto só em tempo de compilação
+(os dois lados constantes): o expoente inteiro não pode ser negativo e o resultado precisa caber no `decimal` dos números de compilação
+(~7,9e28, ou seja, `2 ** 96` passa e `2 ** 97` dá erro), o que ainda não cobre os limites de `i128`/`u128`.

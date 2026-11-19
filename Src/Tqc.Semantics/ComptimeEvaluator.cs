@@ -112,6 +112,15 @@ internal static class ComptimeEvaluator
             case BinaryOperator.Sub: return new IrComptimeInt(location, a - b);
             case BinaryOperator.Mul: return new IrComptimeInt(location, a * b);
 
+            case BinaryOperator.Pow:
+                if (b < 0 || b != decimal.Truncate(b))
+                {
+                    error = "The exponent of an integer power must be a whole number that is not negative";
+                    return null;
+                }
+
+                return Power(a, b, ref error) is { } power ? new IrComptimeInt(location, power) : null;
+
             case BinaryOperator.Div or BinaryOperator.DivFloor or BinaryOperator.DivCeil or BinaryOperator.Rest:
                 if (b == 0)
                 {
@@ -132,6 +141,29 @@ internal static class ComptimeEvaluator
         }
     }
 
+    /// <summary>A whole power. Compile-time integers are `decimal`, so one past about 7.9e28 is an error, not a wrong value.</summary>
+    private static decimal? Power(decimal value, decimal exponent, ref string? error)
+    {
+        if (exponent == 0) return 1;
+        if (value is 0 or 1) return value;
+        if (value == -1) return exponent % 2 == 0 ? 1 : -1;
+
+        // 2 ** 97 is already past the range, so a larger exponent cannot fit.
+        if (exponent <= 200)
+        {
+            try
+            {
+                decimal result = 1;
+                for (var i = 0; i < exponent; i++) result *= value;
+                return result;
+            }
+            catch (OverflowException) { }
+        }
+
+        error = "The result of the power does not fit in the numbers of compile time (up to about 7.9e28)";
+        return null;
+    }
+
     private static IrExpression? CombineDecimals(IrBinary binary, decimal a, decimal b, ref string? error)
     {
         var location = binary.Location;
@@ -141,6 +173,18 @@ internal static class ComptimeEvaluator
             case BinaryOperator.Add: return new IrComptimeDecimal(location, a + b);
             case BinaryOperator.Sub: return new IrComptimeDecimal(location, a - b);
             case BinaryOperator.Mul: return new IrComptimeDecimal(location, a * b);
+
+            case BinaryOperator.Pow:
+            {
+                var result = Math.Pow((double)a, (double)b);
+                if (double.IsNaN(result) || Math.Abs(result) > (double)decimal.MaxValue)
+                {
+                    error = "The result of the power does not fit in the numbers of compile time";
+                    return null;
+                }
+
+                return new IrComptimeDecimal(location, (decimal)result);
+            }
 
             case BinaryOperator.Div:
                 if (b == 0)

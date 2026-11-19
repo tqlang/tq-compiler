@@ -797,6 +797,7 @@ public static class TreeLower
         TokenKind.DivFloor => BinaryOperator.DivFloor,
         TokenKind.DivCeil => BinaryOperator.DivCeil,
         TokenKind.Rest => BinaryOperator.Rest,
+        TokenKind.Power => BinaryOperator.Pow,
         TokenKind.EqualsEquals => BinaryOperator.Equal,
         TokenKind.ExactEquals => BinaryOperator.ExactEqual,
         TokenKind.NotEqualsEquals => BinaryOperator.NotEqual,

@@ -60,6 +60,7 @@ public enum TokenKind
     SubOnBounds,       // -|
     SubAssign,         // -=
     
+    Power,             // ** (two adjacent stars; the parser joins them, so that `**T` is still a reference to a reference)
     Star,              // *
     MulWrap,           // *%
     MulOnBounds,       // *|
