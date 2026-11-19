@@ -367,3 +367,6 @@ no backend ("The generic type 'Span' of .NET..."): instanciar com `Span(i8)` é 
 **Métodos .NET que o Tq não consegue chamar:** um método (ou construtor) com um parâmetro de tipo sem equivalente em Tq
 (`char[]`, `Span<T>`, genéricos...) não é candidato a sobrecarga. Antes o parâmetro desconhecido aceitava qualquer
 argumento e a chamada ficava sem decidir em silêncio (`Console.Write(string)` competia com `Write(char[])`).
+
+**`len` de slices:** `slice.len` é um `int` (o mesmo tipo de `let i = 0`, então `i < slice.len` não pede `as`); não dá para
+atribuir. No .NET é `ldlen` + `conv.i4`.

@@ -686,6 +686,13 @@ internal sealed class BodyEmitter
             case BackingFieldReference backing:
                 return LoadField(backing.Property, null, access.Location);
 
+            // `slice.len`: the length of the array, as an `int`.
+            case UnsolvedRef { Value: "len" } when _types.Get(access.baseExpr) is SliceTypeRef:
+                EmitValue(access.baseExpr, null);
+                _il.Emit(OpCodes.Ldlen);
+                _il.Emit(OpCodes.Conv_I4);
+                return Core("System.Int32");
+
             default:
                 Report($"'{access.access.Reference}' cannot be used as a value in .NET yet", access.Location);
                 return null;

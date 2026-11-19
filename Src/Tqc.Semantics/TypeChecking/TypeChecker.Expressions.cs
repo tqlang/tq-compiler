@@ -126,6 +126,14 @@ internal sealed partial class TypeChecker
                 : (visited, TypeOfReference(access.access.Reference));
         }
 
+        // The length of a slice is an `int`; it is not a member of any struct, so it stays an unresolved name
+        // and the backend knows it by the type of the value.
+        if (TypeOf(baseExpr) is SliceTypeRef && name.Value == "len")
+        {
+            if (asTarget) Error("The length of a slice cannot be assigned", access.access.Location);
+            return (visited, new StructTypeReference(CompilerStd.Types.Natural(true)));
+        }
+
         var container = ContainerOf(TypeOf(baseExpr));
         if (container == null) return (visited, null);
 
