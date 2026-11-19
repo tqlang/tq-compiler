@@ -1,6 +1,7 @@
 using Mono.Cecil;
 using Mono.Cecil.Cil;
 using Tqc.Core;
+using Tqc.Dotnet.ModuleBuilder;
 using Tqc.Dotnet.ProgramMembers;
 using Tqc.IR.Nodes;
 using Tqc.IR.ProgramMembers;
@@ -150,6 +151,7 @@ internal sealed partial class ModuleEmitter
     {
         switch (type)
         {
+            case DotnetCharacterTypeRef: return Core("System.Char");
             case ComptimeIntegerTypeRef: return Core("System.Int32");
             case ComptimeDecimalTypeRef: return Core("System.Double");
             case SliceTypeRef slice: return new ArrayType(MapType(slice.Element, location));

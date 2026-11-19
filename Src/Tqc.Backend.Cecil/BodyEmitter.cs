@@ -926,10 +926,32 @@ internal sealed class BodyEmitter
             {
                 var method = _owner.Module.ImportReference(dotnet.Reference);
                 if (method.HasThis) EmitFieldReceiver(receiver, method.DeclaringType);
-                EmitArguments(call.ArgumentsList.arguments, method.Parameters, null);
 
-                _il.Emit(method.HasThis && !method.DeclaringType.IsValueType ? OpCodes.Callvirt : OpCodes.Call, method);
-                return IsVoid(method.ReturnType) ? null : method.ReturnType;
+                // The generic parameters of the method come first in the call, then its own parameters.
+                TqParameter[]? declared = null;
+                if (dotnet.TypeParameters.Count > 0)
+                {
+                    declared =
+                    [
+                        ..dotnet.TypeParameters,
+                        ..method.Parameters.Select(parameter => new TqParameter(
+                            new IrReference(default, new TypeMetaReference(CompilerStd.Types.AnyType)), parameter.Name)),
+                    ];
+                }
+                var dotnetTypeArguments = EmitArguments(call.ArgumentsList.arguments, method.Parameters, declared);
+
+                MethodReference dotnetTarget = method;
+                var dotnetReturned = method.ReturnType;
+                if (dotnetTypeArguments.Count > 0)
+                {
+                    var instance = new GenericInstanceMethod(method);
+                    foreach (var typeArgument in dotnetTypeArguments) instance.GenericArguments.Add(typeArgument);
+                    dotnetTarget = instance;
+                    dotnetReturned = Instantiate(dotnetReturned, dotnetTypeArguments);
+                }
+
+                _il.Emit(method.HasThis && !method.DeclaringType.IsValueType ? OpCodes.Callvirt : OpCodes.Call, dotnetTarget);
+                return IsVoid(dotnetReturned) ? null : dotnetReturned;
             }
 
             default:
@@ -962,7 +984,8 @@ internal sealed class BodyEmitter
                 continue;
             }
 
-            var type = parameters[runtime].ParameterType;
+            // The types come first, so what the parameter says in terms of them is known here.
+            var type = Instantiate(parameters[runtime].ParameterType, types);
             var name = parameters[runtime].Name;
             runtime++;
 

@@ -1,4 +1,5 @@
 using Tqc.Core;
+using Tqc.Dotnet.ProgramMembers;
 using Tqc.IR.Nodes;
 using Tqc.IR.ProgramMembers;
 using Tqc.IR.ProgramMembers.Tq;
@@ -16,12 +17,19 @@ internal sealed partial class TypeChecker
     private static Dictionary<TqParameter, ITypeRef> TypeArguments(IFunction function, IReadOnlyList<IrExpression> arguments)
     {
         var bound = new Dictionary<TqParameter, ITypeRef>(ReferenceEqualityComparer.Instance);
-        if (function is not TqFunction tq) return bound;
 
-        for (var i = 0; i < tq.Parameters.Count && i < arguments.Count; i++)
+        // The types of a .NET method are all of its first parameters; those of a Tq function are the ones of the type `type`.
+        IReadOnlyList<TqParameter> parameters = function switch
         {
-            if (GenericParameterTypeRef.IsTypeParameter(tq.Parameters[i]) && TypeFromExpression(arguments[i]) is { } type)
-                bound[tq.Parameters[i]] = type;
+            TqFunction tq => tq.Parameters,
+            DotnetMethod dotnet => dotnet.TypeParameters,
+            _ => [],
+        };
+
+        for (var i = 0; i < parameters.Count && i < arguments.Count; i++)
+        {
+            if (GenericParameterTypeRef.IsTypeParameter(parameters[i]) && TypeFromExpression(arguments[i]) is { } type)
+                bound[parameters[i]] = type;
         }
 
         return bound;
@@ -48,9 +56,15 @@ internal sealed partial class TypeChecker
     /// <summary>The overload with the types of its signature as this call gives them; the same one if it is not generic.</summary>
     private static Overload Specialize(Overload overload, IrExpression[] arguments, SourceLocation location)
     {
-        if (overload.Function is not TqFunction tq || !tq.Parameters.Any(GenericParameterTypeRef.IsTypeParameter)) return overload;
+        var generic = overload.Function switch
+        {
+            TqFunction tq => tq.Parameters.Any(GenericParameterTypeRef.IsTypeParameter),
+            DotnetMethod dotnet => dotnet.TypeParameters.Count > 0,
+            _ => false,
+        };
+        if (!generic) return overload;
 
-        var bound = TypeArguments(tq, arguments);
+        var bound = TypeArguments(overload.Function, arguments);
         var types = new ITypeRef?[overload.ParameterTypes.Count];
         var expressions = new IrExpression?[types.Length];
 

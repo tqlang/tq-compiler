@@ -1,10 +1,13 @@
 using Mono.Cecil;
 using Tqc.IR.ProgramMembers;
+using Tqc.IR.ProgramMembers.Tq;
 using Tqc.IR.References;
 
 namespace Tqc.Dotnet.ProgramMembers;
 
-public class DotnetMethod(string name, ITypeRef? returnType, IReadOnlyList<ITypeRef> parameterTypes, MethodReference reference)
+public class DotnetMethod(
+    string name, ITypeRef? returnType, IReadOnlyList<ITypeRef> parameterTypes, MethodReference reference,
+    IReadOnlyList<TqParameter>? typeParameters = null)
     : IMethod, IDotnetMember
 {
     public string Name => name;
@@ -13,6 +16,12 @@ public class DotnetMethod(string name, ITypeRef? returnType, IReadOnlyList<IType
     public ITypeRef? ReturnType => returnType;
     public IReadOnlyList<ITypeRef> ParameterTypes => parameterTypes;
  
+    /// <summary>
+    /// The generic parameters of the method (`T` of `AllocateArray&lt;T&gt;`). In Tq they are the first parameters of the call,
+    /// of the type `type`: `GC.AllocateArray(i8, 10)`. They are not in <see cref="ParameterTypes"/>.
+    /// </summary>
+    public IReadOnlyList<TqParameter> TypeParameters => typeParameters ?? [];
+
     public MethodReference Reference => reference;
     public bool IsStatic => !reference.HasThis;
     public bool IsConstructor => name == ".ctor";

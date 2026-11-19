@@ -25,8 +25,12 @@ internal sealed class FunctionSignature(IReadOnlyList<ITypeRef?> parameters, ITy
             [..tq.Parameters.Select(parameter => TypeChecker.TypeFromExpression(parameter.Type))],
             tq.ReturnType == null ? Void() : TypeChecker.TypeFromExpression(tq.ReturnType)),
 
+        // The generic parameters of a .NET method come first, as in a Tq function: `GC.AllocateArray(type T, int length)`.
         DotnetMethod method => new FunctionSignature(
-            [..method.ParameterTypes.Select(type => type is UnsupportedTypeRef ? null : type)],
+            [
+                ..method.TypeParameters.Select(_ => (ITypeRef?)new StructTypeReference(CompilerStd.Types.Type)),
+                ..method.ParameterTypes.Select(type => type is UnsupportedTypeRef ? null : type),
+            ],
             method.ReturnType == null ? Void() : method.ReturnType is UnsupportedTypeRef ? null : method.ReturnType),
 
         _ => null,

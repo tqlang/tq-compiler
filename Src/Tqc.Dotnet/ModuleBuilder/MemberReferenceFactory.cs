@@ -1,6 +1,12 @@
 using Mono.Cecil;
 using Tqc.Dotnet.ModuleBuilder;
 using Tqc.Dotnet.ProgramMembers;
+using Tqc.IR.Nodes;
+using Tqc.IR.ProgramMembers.Primitive;
+using Tqc.IR.ProgramMembers.Tq;
+using GenericParameterTypeRef = Tqc.IR.References.GenericParameterTypeRef;
+using ITypeRef = Tqc.IR.References.ITypeRef;
+using TypeMetaReference = Tqc.IR.References.TypeMetaReference;
 
 namespace Tqc.Dotnet;
 
@@ -39,11 +45,23 @@ sealed internal class MemberReferenceFactory(SignatureRemapper remapper, TqTypeT
     {
         var reference = MethodReference(method, declaring);
 
+        // `T` of a generic method is a parameter of the type `type`, given first in the call.
+        var typeParameters = reference.GenericParameters
+            .Select(parameter => new TqParameter(
+                new IrReference(default, new TypeMetaReference(CompilerStd.Types.Type)), parameter.Name))
+            .ToArray();
+
+        ITypeRef? Generic(GenericParameter parameter) =>
+            parameter.Type == GenericParameterType.Method && parameter.Position < typeParameters.Length
+                ? new GenericParameterTypeRef(typeParameters[parameter.Position])
+                : null;
+
         return new DotnetMethod(
             method.Name,
-            translator.TranslateReturn(reference.ReturnType),
-            reference.Parameters.Select(p => translator.Translate(p.ParameterType)).ToArray(),
-            reference);
+            translator.TranslateReturn(reference.ReturnType, Generic),
+            reference.Parameters.Select(p => translator.Translate(p.ParameterType, Generic)).ToArray(),
+            reference,
+            typeParameters);
     }
 
     public DotnetProperty Property(PropertyDefinition property, TypeReference declaring) => new(

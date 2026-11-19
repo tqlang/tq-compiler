@@ -131,8 +131,9 @@ public sealed class ModuleDumper
         if (method.IsAbstract) flags.Add("abstract");
         else if (method.IsVirtual) flags.Add("virtual");
 
-        var parameters = method.ParameterTypes.Select((type, i) =>
-            $"{(i < method.Reference.Parameters.Count ? method.Reference.Parameters[i].Name : "_")}: {Format(type)}");
+        var parameters = method.TypeParameters.Select(parameter => $"type {parameter.Name}").Concat(
+            method.ParameterTypes.Select((type, i) =>
+                $"{(i < method.Reference.Parameters.Count ? method.Reference.Parameters[i].Name : "_")}: {Format(type)}"));
 
         Line($"{(method.IsConstructor ? "constructor" : "func")} {method.Name}({string.Join(", ", parameters)}) -> "
              + $"{(method.ReturnType == null ? "void" : Format(method.ReturnType))}"

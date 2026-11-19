@@ -370,3 +370,10 @@ argumento e a chamada ficava sem decidir em silêncio (`Console.Write(string)` c
 
 **`len` de slices:** `slice.len` é um `int` (o mesmo tipo de `let i = 0`, então `i < slice.len` não pede `as`); não dá para
 atribuir. No .NET é `ldlen` + `conv.i4`.
+
+**Métodos genéricos e arrays do .NET (etapa 1b, parte 1):** os parâmetros genéricos de um método .NET são os primeiros
+argumentos da chamada, como numa função genérica de Tq: `GC.AllocateArray(T, length as int, false)` chama
+`GC.AllocateArray<T>(int, bool)` (`DotnetMethod.TypeParameters`; no dump aparece `func AllocateArray(type T, ...)`). O checker troca
+o `T` pelo tipo dado no retorno e nos parâmetros, e o backend monta um `GenericInstanceMethod`. Não há inferência: o tipo
+é sempre escrito. Um array `T[]` é um slice `[]T` (só de uma dimensão), então os métodos com `char[]`, `byte[]` etc. voltam a ser
+chamáveis; `char` do .NET sai como `System.Char`. Tipos genéricos (`Span<T>`, `List<T>`) ainda não: parte 2.

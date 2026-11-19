@@ -52,26 +52,41 @@ sealed internal class TqTypeTranslator(Func<TypeReference, TypeNode?> lookup)
     };
 
     /// <summary>Tipo de retorno: null significa void (a IR não tem referência para void).</summary>
-    public ITypeRef? TranslateReturn(TypeReference type) =>
-        type.FullName == "System.Void" ? null : Translate(type);
+    public ITypeRef? TranslateReturn(TypeReference type, Func<GenericParameter, ITypeRef?>? generics = null) =>
+        type.FullName == "System.Void" ? null : Translate(type, generics);
 
     /// <summary>Tipo de valor (campo, parâmetro, propriedade). Nunca devolve null.</summary>
-    public ITypeRef Translate(TypeReference type) => type switch
+    /// <param name="generics">
+    /// What a generic parameter of the member is (the method's own `T`): null when it is not one it knows,
+    /// which makes the type unsupported.
+    /// </param>
+    public ITypeRef Translate(TypeReference type, Func<GenericParameter, ITypeRef?>? generics = null) => type switch
     {
         // ref/out: uma referência ao tipo
-        ByReferenceType byRef => CompilerStd.Types.RefOf(Translate(byRef.ElementType)),
+        ByReferenceType byRef => CompilerStd.Types.RefOf(Translate(byRef.ElementType, generics)),
 
         // modreq/modopt e pinned só importam para o emissor
-        RequiredModifierType modifier => Translate(modifier.ElementType),
-        OptionalModifierType modifier => Translate(modifier.ElementType),
-        PinnedType pinned             => Translate(pinned.ElementType),
+        RequiredModifierType modifier => Translate(modifier.ElementType, generics),
+        OptionalModifierType modifier => Translate(modifier.ElementType, generics),
+        PinnedType pinned             => Translate(pinned.ElementType, generics),
+
+        // `T[]` is a slice `[]T`; an array with more dimensions has no equivalent.
+        ArrayType { Rank: 1 } array => TranslateArray(array, generics),
+
+        GenericParameter parameter => generics?.Invoke(parameter) ?? Unsupported(type),
 
         // Sem representação na IR por enquanto
-        GenericParameter or ArrayType or PointerType or GenericInstanceType or FunctionPointerType or SentinelType
+        ArrayType or PointerType or GenericInstanceType or FunctionPointerType or SentinelType
             => Unsupported(type),
 
         _ => TranslateNamed(type),
     };
+
+    private ITypeRef TranslateArray(ArrayType array, Func<GenericParameter, ITypeRef?>? generics)
+    {
+        var element = Translate(array.ElementType, generics);
+        return element is UnsupportedTypeRef ? Unsupported(array) : new SliceTypeRef(element);
+    }
 
     private ITypeRef TranslateNamed(TypeReference type)
     {
