@@ -56,6 +56,9 @@ static class Program
                 + $"Default BuildManifest not implemented.");
         }
         
+        // What the compiler creates for Std (the primitive types), next to the dumps of the modules.
+        if (dumpDirectory != null) DumpMembers(CompilerStd.Module, CompilerStd.ModuleName, dumpDirectory, "compiler");
+
         var manifest = ParseManifest(manifestFile);
         var modulesDictionary = manifest.Modules.ToDictionary(e => e.Name);
 
@@ -85,6 +88,7 @@ static class Program
                     var dotnetModule = BuildDotnetModule(moduleDescriptor);
                     map.Add(moduleDescriptor, dotnetModule);
                     dotnetModules.Add(dotnetModule);
+                    if (dumpDirectory != null) DumpMembers(dotnetModule, moduleDescriptor.Name, dumpDirectory);
                 break;
 
                 case "tq":
@@ -136,6 +140,15 @@ static class Program
 
         backend.Write(outDirectory);
         Console.WriteLine($"EMITTED {modules.Count} module(s) to {outDirectory}");
+    }
+
+    /// <summary>Members of a module that is not Tq: `Name.tqir` is the one of the Tq module, so these are `Name.dotnet.tqir`.</summary>
+    static void DumpMembers(IModule module, string name, string directory, string suffix = "dotnet")
+    {
+        Directory.CreateDirectory(directory);
+        var file = Path.Combine(directory, $"{name}.{suffix}.tqir");
+        File.WriteAllText(file, SemanticAnalyser.DumpMembers(module, name));
+        Console.WriteLine($"DUMPED {name} members to {Path.GetFullPath(file)}");
     }
 
     static void DumpIr(IModule module, string name, string directory)

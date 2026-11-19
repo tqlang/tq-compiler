@@ -291,6 +291,17 @@ depois da checagem de tipos e mesmo quando há erros. É um formato de texto pr�
 - Também aparecem imports e declarações por arquivo, `extends`, construtores, `typedef`s (tipo base, casos),
   propriedades (acessores, fonte, `backing=yes/no`).
 
+Os módulos que não são Tq também saem, na mesma pasta (`SemanticAnalyser.DumpMembers` / `ModuleDumper`), com os
+membros como o type checker os enxerga, para comparar com uma chamada que "could not be resolved":
+
+- `Std.compiler.tqir`: o que o compilador cria para o `Std` (os structs primitivos com seus parâmetros e o
+  `Std.Math.Operator` com os casos).
+- `<Módulo>.dotnet.tqir`: cada módulo `dotnet`, com namespaces, `class`/`struct`/`enum`/`interface` (e `extends`),
+  métodos (`func nome(p: tipo) -> retorno <static virtual abstract>`, construtores, propriedades, campos e constantes).
+  Cada tipo e método traz o nome .NET em comentário (`// [System.Runtime]System.Console::WriteLine`). Um tipo que o
+  tradutor ainda não suporta aparece como `UNSUPPORTED(nome)`, e é ele que deixa uma sobrecarga sem resolver.
+  Só os membros próprios de cada tipo são listados, não os herdados.
+
 ## Backend .NET (`Tqc.Backend.Cecil`)
 
 Com `target = "dotnet"` em `[project]` do `build.toml`, depois de checar todos os módulos sem erros o compilador emite um

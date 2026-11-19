@@ -34,6 +34,9 @@ public static class SemanticAnalyser
         return IrDumper.Dump(tqModule, name);
     }
 
+    /// <summary>The members of a module of the compiler or of .NET as text (see <see cref="ModuleDumper"/>). For debugging.</summary>
+    public static string DumpMembers(IModule module, string name) => ModuleDumper.Dump(module, name);
+
     /// <summary>
     /// The `Std` module of the project merged with the one the compiler creates.
     /// Conflicting names are reported to `diagnostics`.
