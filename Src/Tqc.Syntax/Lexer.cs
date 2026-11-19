@@ -85,7 +85,7 @@ internal class Lexer(string Source)
                     : NextRuneIf('-') ? TokenKind.Decrement
                     : NextRuneIf('%') ? TokenKind.SubWrap
                     : NextRuneIf('|') ? TokenKind.SubOnBounds
-                    : TokenKind.Plus
+                    : TokenKind.Minus
                 );
             case '*':
                 return GetTokenValue(
