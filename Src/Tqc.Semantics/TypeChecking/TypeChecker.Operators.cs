@@ -187,7 +187,8 @@ internal sealed partial class TypeChecker
         }
 
         var winner = ChooseOverload(
-            $"indexer of {TypeFormatter.Format(targetType)}", "overload", [..getters.Select(ToOverloadOf)], indices, index.Location);
+            $"indexer of {TypeFormatter.Format(targetType)}", "overload", [..getters.Select(ToOverloadOf)], indices, index.Location,
+            BindingsOf(TypeOf(target)));
         if (winner == null) return (visited, null);
 
         var callee = IndexerCallee(index, target, winner);
@@ -235,7 +236,8 @@ internal sealed partial class TypeChecker
 
         IrExpression[] arguments = [..indices, source];
         var winner = ChooseOverload(
-            $"indexer of {TypeFormatter.Format(targetType)}", "overload", [..setters.Select(ToOverloadOf)], arguments, index.Location);
+            $"indexer of {TypeFormatter.Format(targetType)}", "overload", [..setters.Select(ToOverloadOf)], arguments, index.Location,
+            BindingsOf(TypeOf(target)));
         if (winner == null) return (assign with { Target = visitedIndex, Source = source }, null);
 
         var callee = IndexerCallee(index, target, winner);

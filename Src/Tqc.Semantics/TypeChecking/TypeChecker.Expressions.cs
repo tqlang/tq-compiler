@@ -154,7 +154,16 @@ internal sealed partial class TypeChecker
         var reference = member.GetReference();
         var resolved = visited with { access = new IrReference(access.access.Location, reference) };
         if (member is TqProperty property) return PropertyAccess(resolved, property, asTarget);
-        return (resolved, TypeOfReference(reference));
+
+        // A field or property of `List(i8)` is typed in terms of `i8`, not of the `T` it was declared with.
+        var memberType = TypeOfReference(reference);
+        if (DependsOnTypeParameter(memberType))
+        {
+            var receiver = BindingsOf(TypeOf(baseExpr));
+            if (receiver.Count > 0) memberType = Substitute(memberType, receiver);
+        }
+
+        return (resolved, memberType);
     }
 
     /// <summary>What has the members of a value of this type; null if the type has none known.</summary>
@@ -274,7 +283,12 @@ internal sealed partial class TypeChecker
     {
         if (CalleeReference(callee) is not FunctionTypeReference { Function: var function }) return null;
 
-        return FunctionSignature.Of(function)?.Return;
+        // What it returns in terms of the type arguments of the value it is called on (`T` of `List(i8)` is `i8`).
+        var returned = FunctionSignature.Of(function)?.Return;
+        if (!DependsOnTypeParameter(returned)) return returned;
+
+        var receiver = ReceiverBindings(callee);
+        return receiver.Count > 0 ? Substitute(returned, receiver) : returned;
     }
 
     private ITypeRef? TypeOfReference(Ref reference) => reference switch

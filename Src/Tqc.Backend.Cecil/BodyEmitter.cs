@@ -739,6 +739,10 @@ internal sealed class BodyEmitter
             {
                 var reference = _owner.Module.ImportReference(dotnetField.Reference);
 
+                // A field of `List(i8)` is read through that type, with its own type in terms of `i8`.
+                var host = dotnetField.IsStatic ? null : HostOf(baseExpr);
+                if (host != null) reference = OnHost(reference, host);
+
                 if (dotnetField.IsConstant)
                 {
                     EmitConstant(dotnetField.Constant, location);
@@ -753,15 +757,18 @@ internal sealed class BodyEmitter
                     _il.Emit(OpCodes.Ldfld, reference);
                 }
 
-                return reference.FieldType;
+                return Instantiate(reference.FieldType, [], host?.GenericArguments);
             }
 
             case DotnetProperty { Getter: { } getter }:
             {
                 var reference = _owner.Module.ImportReference(getter);
+                var host = reference.HasThis ? HostOf(baseExpr) : null;
+                if (host != null) reference = OnHost(reference, host);
+
                 if (reference.HasThis) EmitFieldReceiver(baseExpr, reference.DeclaringType);
                 _il.Emit(reference.HasThis && !reference.DeclaringType.IsValueType ? OpCodes.Callvirt : OpCodes.Call, reference);
-                return reference.ReturnType;
+                return Instantiate(reference.ReturnType, [], host?.GenericArguments);
             }
 
             default:
@@ -925,6 +932,12 @@ internal sealed class BodyEmitter
             case DotnetMethod dotnet:
             {
                 var method = _owner.Module.ImportReference(dotnet.Reference);
+
+                // A method of `List(i8)` is called through that type: its signature says `T`, the type says `i8`.
+                var host = method.HasThis ? HostOf(receiver) : null;
+                if (host != null) method = OnHost(method, host);
+                var hostArguments = host?.GenericArguments;
+
                 if (method.HasThis) EmitFieldReceiver(receiver, method.DeclaringType);
 
                 // The generic parameters of the method come first in the call, then its own parameters.
@@ -938,16 +951,16 @@ internal sealed class BodyEmitter
                             new IrReference(default, new TypeMetaReference(CompilerStd.Types.AnyType)), parameter.Name)),
                     ];
                 }
-                var dotnetTypeArguments = EmitArguments(call.ArgumentsList.arguments, method.Parameters, declared);
+                var dotnetTypeArguments = EmitArguments(call.ArgumentsList.arguments, method.Parameters, declared, hostArguments);
 
                 MethodReference dotnetTarget = method;
-                var dotnetReturned = method.ReturnType;
+                var dotnetReturned = Instantiate(method.ReturnType, [], hostArguments);
                 if (dotnetTypeArguments.Count > 0)
                 {
                     var instance = new GenericInstanceMethod(method);
                     foreach (var typeArgument in dotnetTypeArguments) instance.GenericArguments.Add(typeArgument);
                     dotnetTarget = instance;
-                    dotnetReturned = Instantiate(dotnetReturned, dotnetTypeArguments);
+                    dotnetReturned = Instantiate(method.ReturnType, dotnetTypeArguments, hostArguments);
                 }
 
                 _il.Emit(method.HasThis && !method.DeclaringType.IsValueType ? OpCodes.Callvirt : OpCodes.Call, dotnetTarget);
@@ -965,7 +978,9 @@ internal sealed class BodyEmitter
     /// value. What the call leaves out is the default of the parameter. The arguments that are for `type` parameters
     /// emit nothing: they are the types the method is instantiated with, which are returned.
     /// </summary>
-    private List<TypeReference> EmitArguments(IrExpression[] arguments, IList<ParameterDefinition> parameters, TqParameter[]? declared)
+    private List<TypeReference> EmitArguments(
+        IrExpression[] arguments, IList<ParameterDefinition> parameters, TqParameter[]? declared,
+        IList<TypeReference>? hostArguments = null)
     {
         var types = new List<TypeReference>();
 
@@ -985,7 +1000,7 @@ internal sealed class BodyEmitter
             }
 
             // The types come first, so what the parameter says in terms of them is known here.
-            var type = Instantiate(parameters[runtime].ParameterType, types);
+            var type = Instantiate(parameters[runtime].ParameterType, types, hostArguments);
             var name = parameters[runtime].Name;
             runtime++;
 
@@ -1003,12 +1018,67 @@ internal sealed class BodyEmitter
     }
 
     /// <summary>A type of the signature of a generic method, with the generic parameters replaced by the type arguments.</summary>
-    private static TypeReference Instantiate(TypeReference type, IReadOnlyList<TypeReference> typeArguments) => type switch
+    /// <param name="typeArguments">The ones of the method (`!!0`).</param>
+    /// <param name="hostArguments">The ones of the generic type the member is of (`!0`): `i8` in `List(i8)`.</param>
+    private static TypeReference Instantiate(
+        TypeReference type, IList<TypeReference> typeArguments, IList<TypeReference>? hostArguments = null)
     {
-        GenericParameter { Type: GenericParameterType.Method } generic when generic.Position < typeArguments.Count => typeArguments[generic.Position],
-        ArrayType array => new ArrayType(Instantiate(array.ElementType, typeArguments)),
-        _ => type,
-    };
+        switch (type)
+        {
+            case GenericParameter { Type: GenericParameterType.Method } generic when generic.Position < typeArguments.Count:
+                return typeArguments[generic.Position];
+
+            case GenericParameter { Type: GenericParameterType.Type } generic when hostArguments != null && generic.Position < hostArguments.Count:
+                return hostArguments[generic.Position];
+
+            case ArrayType array:
+                return new ArrayType(Instantiate(array.ElementType, typeArguments, hostArguments));
+
+            case ByReferenceType byRef:
+                return new ByReferenceType(Instantiate(byRef.ElementType, typeArguments, hostArguments));
+
+            case GenericInstanceType instance when instance.GenericArguments.Any(argument => argument.ContainsGenericParameter):
+                var result = new GenericInstanceType(instance.ElementType);
+                foreach (var argument in instance.GenericArguments)
+                    result.GenericArguments.Add(Instantiate(argument, typeArguments, hostArguments));
+                return result;
+
+            default:
+                return type;
+        }
+    }
+
+    /// <summary>
+    /// The generic type that a value is of, when it is one of .NET (`List(i8)`): what a member of it is called through.
+    /// Null for anything else, and for no value.
+    /// </summary>
+    private GenericInstanceType? HostOf(IrExpression? value)
+    {
+        if (value == null || _types.Get(value) is not { } type) return null;
+        if (CompilerStd.Types.IsRef(type, out var referred)) type = referred;
+
+        return type is StructTypeReference { Struct: GenericInstance { Definition: DotnetClass or DotnetStruct } }
+            && _owner.MapType(type, value.Location) is GenericInstanceType host
+            ? host
+            : null;
+    }
+
+    /// <summary>The same method as a member of this instance of its generic type; the signature stays in terms of `!0`.</summary>
+    private static MethodReference OnHost(MethodReference method, GenericInstanceType host)
+    {
+        var rebased = new MethodReference(method.Name, method.ReturnType, host)
+        {
+            HasThis = method.HasThis,
+            ExplicitThis = method.ExplicitThis,
+            CallingConvention = method.CallingConvention,
+        };
+
+        foreach (var parameter in method.Parameters) rebased.Parameters.Add(new ParameterDefinition(parameter.ParameterType));
+        foreach (var parameter in method.GenericParameters) rebased.GenericParameters.Add(new GenericParameter(parameter.Name, rebased));
+        return rebased;
+    }
+
+    private static CecilField OnHost(CecilField field, GenericInstanceType host) => new(field.Name, field.FieldType, host);
 
     private TypeReference? EmitNew(IrNew creation)
     {
@@ -1025,7 +1095,10 @@ internal sealed class BodyEmitter
             case DotnetMethod dotnet:
             {
                 var constructor = _owner.Module.ImportReference(dotnet.Reference);
-                EmitArguments(arguments, constructor.Parameters, null);
+                var hostArguments = (type as GenericInstanceType)?.GenericArguments;
+                if (type is GenericInstanceType host) constructor = OnHost(constructor, host);
+
+                EmitArguments(arguments, constructor.Parameters, null, hostArguments);
                 _il.Emit(OpCodes.Newobj, constructor);
                 return type;
             }
@@ -1437,7 +1510,10 @@ internal sealed class BodyEmitter
             case DotnetField dotnetField when !dotnetField.IsConstant:
             {
                 var reference = _owner.Module.ImportReference(dotnetField.Reference);
-                return FieldTarget(reference, dotnetField.IsStatic, reference.FieldType, reference.DeclaringType, baseExpr);
+                var host = dotnetField.IsStatic ? null : HostOf(baseExpr);
+                if (host != null) reference = OnHost(reference, host);
+                return FieldTarget(reference, dotnetField.IsStatic, Instantiate(reference.FieldType, [], host?.GenericArguments),
+                    reference.DeclaringType, baseExpr);
             }
 
             case DotnetProperty { Getter: { } getter, Setter: { } setter }:
@@ -1446,7 +1522,14 @@ internal sealed class BodyEmitter
                 var set = _owner.Module.ImportReference(setter);
                 var isInstance = set.HasThis;
 
-                return new Target(get.ReturnType, isInstance ? 1 : 0,
+                var host = isInstance ? HostOf(baseExpr) : null;
+                if (host != null)
+                {
+                    get = OnHost(get, host);
+                    set = OnHost(set, host);
+                }
+
+                return new Target(Instantiate(get.ReturnType, [], host?.GenericArguments), isInstance ? 1 : 0,
                     () => { if (isInstance) EmitFieldReceiver(baseExpr, set.DeclaringType); },
                     () => _il.Emit(isInstance && !set.DeclaringType.IsValueType ? OpCodes.Callvirt : OpCodes.Call, set),
                     () => _il.Emit(isInstance && !get.DeclaringType.IsValueType ? OpCodes.Callvirt : OpCodes.Call, get));

@@ -30,7 +30,7 @@ internal sealed partial class TypeChecker
     private IrCall? ResolveOverload(IrCall call, string name, List<Overload> overloads)
     {
         var arguments = call.ArgumentsList.arguments;
-        var winner = ChooseOverload(name, "overload", overloads, arguments, call.Location);
+        var winner = ChooseOverload(name, "overload", overloads, arguments, call.Location, ReceiverBindings(call.callee));
         if (winner == null) return null;
 
         var function = new FunctionTypeReference(winner.Overload.Function);
@@ -57,14 +57,17 @@ internal sealed partial class TypeChecker
         var arguments = creation.ArgumentsList.arguments;
         List<Overload> constructors;
 
-        if (structure is IObjectType { IsAbstract: true } abstractType)
+        // `List(i8)` is created with the constructors of `List`, whose `T` is `i8`.
+        var definition = structure is GenericInstance instance ? instance.Definition : structure;
+
+        if (definition is IObjectType { IsAbstract: true } abstractType)
         {
             Error($"'{structure.Name}' is {(abstractType.IsInterface ? "an interface" : "abstract")} and cannot be created",
                 creation.Location);
             return null;
         }
 
-        switch (structure)
+        switch (definition)
         {
             case TqStruct { Constructors.Count: 0 } tq:
                 if (arguments.Length > 0)
@@ -89,7 +92,8 @@ internal sealed partial class TypeChecker
                 return null;
         }
 
-        var winner = ChooseOverload(structure.Name, "constructor", constructors, arguments, creation.Location);
+        var winner = ChooseOverload(structure.Name, "constructor", constructors, arguments, creation.Location,
+            BindingsOf(new StructTypeReference(structure)));
         if (winner == null) return null;
 
         return creation with
@@ -101,7 +105,8 @@ internal sealed partial class TypeChecker
 
     /// <summary>The best of the overloads for these arguments; null if none, or if it cannot be told yet.</summary>
     private Candidate? ChooseOverload(
-        string name, string noun, List<Overload> overloads, IrExpression[] arguments, SourceLocation location)
+        string name, string noun, List<Overload> overloads, IrExpression[] arguments, SourceLocation location,
+        Dictionary<TqParameter, ITypeRef>? receiver = null)
     {
         var argumentTypes = arguments.Select(TypeOf).ToArray();
         var allOverloads = overloads;
@@ -112,7 +117,7 @@ internal sealed partial class TypeChecker
         }
 
         // A generic function takes its signature from the types the call gives.
-        overloads = [..overloads.Select(overload => Specialize(overload, arguments, location))];
+        overloads = [..overloads.Select(overload => Specialize(overload, arguments, location, receiver))];
 
         var byArity = overloads.Where(overload => overload.Accepts(arguments.Length)).ToList();
         if (byArity.Count == 0)

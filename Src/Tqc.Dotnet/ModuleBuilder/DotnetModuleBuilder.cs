@@ -2,6 +2,7 @@ using System.Collections.Immutable;
 using Mono.Cecil;
 using Tqc.Dotnet.ProgramMembers;
 using Tqc.IR.ProgramMembers;
+using Tqc.IR.ProgramMembers.Tq;
 using Tqc.IR.References;
 
 namespace Tqc.Dotnet.ModuleBuilder;
@@ -238,9 +239,13 @@ sealed internal class DotnetModuleBuilder(AssemblyDefinition[] assemblies)
     private TypeNode CreateNode(TypeDefinition definition, TypeReference reference, bool isExternal)
     {
         var kind = TypeClassifier.Classify(definition);
+        var typeParameters = kind is TypeKind.Class or TypeKind.Struct
+            ? MemberReferenceFactory.TypeParametersOf(definition.GenericParameters)
+            : Array.Empty<TqParameter>();
         var node = new TypeNode(TypeClassifier.GetTypeName(definition), kind, reference, definition, isExternal)
         {
-            DotnetType = CreateDotnetType(kind, reference),
+            DotnetType = CreateDotnetType(kind, reference, typeParameters),
+            TypeParameters = typeParameters,
         };
         _nodes.Add(TypeKey.Of(definition), node);
 
@@ -262,11 +267,11 @@ sealed internal class DotnetModuleBuilder(AssemblyDefinition[] assemblies)
         type.IsNestedPublic || type.IsNestedFamily || type.IsNestedFamilyOrAssembly;
 
     // O Dotnet* guarda a Reference (como o tipo é endereçado), nunca a Definition.
-    private static IDotnetType? CreateDotnetType(TypeKind kind, TypeReference reference) => kind switch
+    private static IDotnetType? CreateDotnetType(TypeKind kind, TypeReference reference, IReadOnlyList<TqParameter> typeParameters) => kind switch
     {
         TypeKind.StaticClass => new DotnetStaticClass(reference, TypeClassifier.GetTypeName(reference)),
-        TypeKind.Class       => new DotnetClass(reference, TypeClassifier.GetTypeName(reference)),
-        TypeKind.Struct      => new DotnetStruct(reference, TypeClassifier.GetTypeName(reference)),
+        TypeKind.Class       => new DotnetClass(reference, TypeClassifier.GetTypeName(reference)) { Parameters = typeParameters },
+        TypeKind.Struct      => new DotnetStruct(reference, TypeClassifier.GetTypeName(reference)) { Parameters = typeParameters },
         TypeKind.Enum        => new DotnetEnum(reference, TypeClassifier.GetTypeName(reference)),
         TypeKind.Interface   => new DotnetInterface(reference, TypeClassifier.GetTypeName(reference)),
         TypeKind.Delegate    => null, // TODO: DotnetDelegate
@@ -356,7 +361,7 @@ sealed internal class DotnetModuleBuilder(AssemblyDefinition[] assemblies)
         foreach (var field in definition.Fields)
         {
             if (field.IsRuntimeSpecialName || !MemberVisibility.IsVisible(field)) continue;
-            node.Members.Add(Members.Field(field, declaring));
+            node.Members.Add(Members.Field(field, declaring, node.TypeParameters));
         }
 
         // Acessores pertencem à propriedade, não entram de novo como métodos.
@@ -367,13 +372,13 @@ sealed internal class DotnetModuleBuilder(AssemblyDefinition[] assemblies)
             if (property.SetMethod is { } set) accessors.Add(set);
 
             if (MemberVisibility.IsVisible(property))
-                node.Members.Add(Members.Property(property, declaring));
+                node.Members.Add(Members.Property(property, declaring, node.TypeParameters));
         }
 
         foreach (var method in definition.Methods)
         {
             if (!MemberVisibility.IsVisible(method) || accessors.Contains(method) || method.Name == ".cctor") continue;
-            node.Members.Add(Members.Method(method, declaring));
+            node.Members.Add(Members.Method(method, declaring, node.TypeParameters));
         }
     }
 

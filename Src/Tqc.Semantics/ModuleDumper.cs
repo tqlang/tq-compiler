@@ -76,8 +76,8 @@ public sealed class ModuleDumper
                 Namespace(@namespace);
                 break;
 
-            case DotnetClass type: Type("class", type.Name, type.OwnMembers, type.BaseType, type); break;
-            case DotnetStruct type: Type("struct", type.Name, type.OwnMembers, null, type); break;
+            case DotnetClass type: Type("class", WithParameters(type.Name, type.Parameters), type.OwnMembers, type.BaseType, type); break;
+            case DotnetStruct type: Type("struct", WithParameters(type.Name, type.Parameters), type.OwnMembers, null, type); break;
             case DotnetEnum type: Type("enum", type.Name, type.OwnMembers, null, type); break;
             case DotnetInterface type: Type("interface", type.Name, type.OwnMembers, null, type, type.ParentInterfaces); break;
 
@@ -107,6 +107,10 @@ public sealed class ModuleDumper
             default: Line($"{member.GetType().Name} {member.Name}"); break;
         }
     }
+
+    /// <summary>`List(T)`: a generic type is written as it is used in Tq.</summary>
+    private static string WithParameters(string name, IReadOnlyList<TqParameter> parameters) =>
+        parameters.Count == 0 ? name : $"{name}({string.Join(", ", parameters.Select(parameter => parameter.Name))})";
 
     private void Type(
         string keyword, string name, IEnumerable<IMember> members, ITypeRef? baseType, IDotnetType type,

@@ -1,6 +1,7 @@
 using System.Collections.Immutable;
 using Mono.Cecil;
 using Tqc.IR.ProgramMembers;
+using Tqc.IR.ProgramMembers.Tq;
 using Tqc.IR.References;
 
 namespace Tqc.Dotnet.ProgramMembers;
@@ -9,6 +10,9 @@ public class DotnetStruct(TypeReference typeRef, string name) : IStruct, IDotnet
 {
     public TypeReference TypeReference => typeRef;
     public string Name => name;
+
+    /// <summary>Generic parameters (`T` of `List&lt;T&gt;`): the type is a constructor of types, used as `List(i8)`.</summary>
+    public IReadOnlyList<TqParameter> Parameters { get; init; } = [];
 
     // What the metadata says; a type whose assembly cannot be loaded is taken as having no restrictions.
     public bool IsAbstract => DotnetMetadata.Definition(typeRef) is { IsAbstract: true };

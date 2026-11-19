@@ -1,4 +1,6 @@
 using Mono.Cecil;
+using Tqc.IR;
+using Tqc.IR.Nodes;
 using Tqc.IR.ProgramMembers;
 using Tqc.IR.ProgramMembers.Primitive;
 using Tqc.IR.References;
@@ -76,11 +78,38 @@ sealed internal class TqTypeTranslator(Func<TypeReference, TypeNode?> lookup)
         GenericParameter parameter => generics?.Invoke(parameter) ?? Unsupported(type),
 
         // Sem representação na IR por enquanto
-        ArrayType or PointerType or GenericInstanceType or FunctionPointerType or SentinelType
+        GenericInstanceType instance => TranslateInstance(instance, generics),
+
+        PointerType or FunctionPointerType or ArrayType or SentinelType
             => Unsupported(type),
 
         _ => TranslateNamed(type),
     };
+
+    /// <summary>
+    /// `List&lt;T&gt;` with its arguments: an application of the generic struct, as `List(T)` is in Tq. A class is
+    /// by reference. Interfaces and delegates that are generic are not supported yet.
+    /// </summary>
+    private ITypeRef TranslateInstance(GenericInstanceType instance, Func<GenericParameter, ITypeRef?>? generics)
+    {
+        var node = lookup(instance.ElementType);
+        if (node is not { Kind: TypeKind.Class or TypeKind.Struct, DotnetType: IStruct definition }
+            || definition.Parameters.Count != instance.GenericArguments.Count)
+            return Unsupported(instance);
+
+        var arguments = new List<IrExpression>();
+        foreach (var argument in instance.GenericArguments)
+        {
+            var translated = Translate(argument, generics);
+            if (translated is UnsupportedTypeRef || TypeExpressions.Of(translated, default) is not { } expression)
+                return Unsupported(instance);
+
+            arguments.Add(expression);
+        }
+
+        var applied = new StructTypeReference(GenericInstanceTable.Shared.GetOrAdd(definition, [..arguments]));
+        return node.Kind == TypeKind.Class ? CompilerStd.Types.RefOf(applied) : applied;
+    }
 
     private ITypeRef TranslateArray(ArrayType array, Func<GenericParameter, ITypeRef?>? generics)
     {

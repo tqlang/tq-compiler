@@ -377,3 +377,14 @@ argumentos da chamada, como numa função genérica de Tq: `GC.AllocateArray(T, 
 o `T` pelo tipo dado no retorno e nos parâmetros, e o backend monta um `GenericInstanceMethod`. Não há inferência: o tipo
 é sempre escrito. Um array `T[]` é um slice `[]T` (só de uma dimensão), então os métodos com `char[]`, `byte[]` etc. voltam a ser
 chamáveis; `char` do .NET sai como `System.Char`. Tipos genéricos (`Span<T>`, `List<T>`) ainda não: parte 2.
+
+**Tipos genéricos do .NET (etapa 1b, parte 2):** um tipo genérico (`List<T>`, `Span<T>`, `Dictionary<K, V>`) é um construtor de
+tipos e se usa como uma struct genérica de Tq: `List(i8)`, `Dictionary(string, i32)`. Só classes e structs (interfaces e
+delegates genéricos ainda não). Os argumentos são tipos explícitos, sem inferência, e `new List(i8)()` usa os construtores de `List`.
+- Os `T` do tipo são parâmetros do tipo `type` (`DotnetClass.Parameters`, no dump `class List(T)`). Os membros do tipo usam esses `T`,
+  e o checker os troca pelos argumentos do valor em que o membro é usado: o campo, a propriedade, o indexador e o retorno de
+  `list.add(x)` de um `List(i8)` saem em termos de `i8`, e `x` é verificado como `i8`.
+- Um tipo genérico de .NET que aparece na assinatura de um membro (`IEnumerable<T>` não, mas `List<T>` e `Span<byte>` sim) vira essa aplicação,
+  então esses membros passam a poder ser chamados.
+- No backend vira um `GenericInstanceType`, e os métodos, campos, propriedades e construtores são referenciados através dele.
+  Chamar métodos estáticos através de um tipo genérico (`List(i8).Foo()`) ainda não.

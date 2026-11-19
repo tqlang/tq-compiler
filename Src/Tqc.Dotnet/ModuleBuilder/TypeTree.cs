@@ -2,6 +2,7 @@ using System.Diagnostics;
 using Mono.Cecil;
 using Tqc.Dotnet.ModuleBuilder;
 using Tqc.Dotnet.ProgramMembers;
+using Tqc.IR.ProgramMembers.Tq;
 using Tqc.IR.References;
 
 namespace Tqc.Dotnet;
@@ -25,6 +26,12 @@ sealed internal class TypeNode(string name, TypeKind kind, TypeReference referen
 
     /// <summary>True quando o tipo não pertence aos assemblies do módulo e só foi descoberto por referência.</summary>
     public bool IsExternal { get; internal set; } = isExternal;
+
+    /// <summary>
+    /// The generic parameters of the type (`T` of `List&lt;T&gt;`), of the type `type`. The type and its members share
+    /// these objects: that is how a `T` in a member is told from the `T` of another type.
+    /// </summary>
+    public IReadOnlyList<TqParameter> TypeParameters { get; init; } = [];
 
     /// <summary>Null para delegates (ainda não suportados).</summary>
     public IDotnetType? DotnetType { get; init; }

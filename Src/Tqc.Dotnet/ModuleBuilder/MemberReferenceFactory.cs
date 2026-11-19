@@ -27,51 +27,59 @@ internal static class MemberVisibility
 /// </summary>
 sealed internal class MemberReferenceFactory(SignatureRemapper remapper, TqTypeTranslator translator)
 {
-    public DotnetField Field(FieldDefinition field, TypeReference declaring)
+    /// <summary>The generic parameters as parameters of the type `type`, which is what they are in Tq.</summary>
+    public static TqParameter[] TypeParametersOf(IEnumerable<GenericParameter> parameters) => [..parameters.Select(parameter =>
+        new TqParameter(new IrReference(default, new TypeMetaReference(CompilerStd.Types.Type)), parameter.Name))];
+
+    /// <summary>What a generic parameter of a type is, for the types of its members; null if it is not one of the type.</summary>
+    private static Func<GenericParameter, ITypeRef?> TypeGenerics(IReadOnlyList<TqParameter>? typeParameters) => parameter =>
+        parameter.Type == GenericParameterType.Type && typeParameters != null && parameter.Position < typeParameters.Count
+            ? new GenericParameterTypeRef(typeParameters[parameter.Position])
+            : null;
+
+    public DotnetField Field(FieldDefinition field, TypeReference declaring, IReadOnlyList<TqParameter>? typeParameters = null)
     {
         var type = remapper.Map(field.FieldType, declaring, null);
         var reference = new FieldReference(field.Name, type, declaring);
 
         return new DotnetField(
             field.Name,
-            translator.Translate(type),
+            translator.Translate(type, TypeGenerics(typeParameters)),
             reference,
             isStatic: field.IsStatic,
             isConstant: field.IsLiteral,
             constant: field.HasConstant ? field.Constant : null);
     }
 
-    public DotnetMethod Method(MethodDefinition method, TypeReference declaring)
+    public DotnetMethod Method(MethodDefinition method, TypeReference declaring, IReadOnlyList<TqParameter>? typeParameters = null)
     {
         var reference = MethodReference(method, declaring);
 
         // `T` of a generic method is a parameter of the type `type`, given first in the call.
-        var typeParameters = reference.GenericParameters
-            .Select(parameter => new TqParameter(
-                new IrReference(default, new TypeMetaReference(CompilerStd.Types.Type)), parameter.Name))
-            .ToArray();
+        var methodParameters = TypeParametersOf(reference.GenericParameters);
+        var ofType = TypeGenerics(typeParameters);
 
         ITypeRef? Generic(GenericParameter parameter) =>
-            parameter.Type == GenericParameterType.Method && parameter.Position < typeParameters.Length
-                ? new GenericParameterTypeRef(typeParameters[parameter.Position])
-                : null;
+            parameter.Type == GenericParameterType.Method
+                ? parameter.Position < methodParameters.Length ? new GenericParameterTypeRef(methodParameters[parameter.Position]) : null
+                : ofType(parameter);
 
         return new DotnetMethod(
             method.Name,
             translator.TranslateReturn(reference.ReturnType, Generic),
             reference.Parameters.Select(p => translator.Translate(p.ParameterType, Generic)).ToArray(),
             reference,
-            typeParameters);
+            methodParameters);
     }
 
-    public DotnetProperty Property(PropertyDefinition property, TypeReference declaring) => new(
+    public DotnetProperty Property(PropertyDefinition property, TypeReference declaring, IReadOnlyList<TqParameter>? typeParameters = null) => new(
         property.Name,
-        translator.Translate(remapper.Map(property.PropertyType, declaring, null)),
-        property.Parameters.Select(p => translator.Translate(remapper.Map(p.ParameterType, declaring, null))).ToArray(),
+        translator.Translate(remapper.Map(property.PropertyType, declaring, null), TypeGenerics(typeParameters)),
+        property.Parameters.Select(p => translator.Translate(remapper.Map(p.ParameterType, declaring, null), TypeGenerics(typeParameters))).ToArray(),
         property.GetMethod is { } get && MemberVisibility.IsVisible(get) ? MethodReference(get, declaring) : null,
         property.SetMethod is { } set && MemberVisibility.IsVisible(set) ? MethodReference(set, declaring) : null,
-        property.GetMethod is { } getDefinition && MemberVisibility.IsVisible(getDefinition) ? Method(getDefinition, declaring) : null,
-        property.SetMethod is { } setDefinition && MemberVisibility.IsVisible(setDefinition) ? Method(setDefinition, declaring) : null);
+        property.GetMethod is { } getDefinition && MemberVisibility.IsVisible(getDefinition) ? Method(getDefinition, declaring, typeParameters) : null,
+        property.SetMethod is { } setDefinition && MemberVisibility.IsVisible(setDefinition) ? Method(setDefinition, declaring, typeParameters) : null);
 
     public MethodReference MethodReference(MethodDefinition method, TypeReference declaring)
     {

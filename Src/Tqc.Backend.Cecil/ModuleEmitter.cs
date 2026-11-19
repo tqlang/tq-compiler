@@ -137,7 +137,7 @@ internal sealed partial class ModuleEmitter
         }
 
         return generic
-            ? Unsupported($"The generic type '{name}' of .NET. Only its name is known so far: instantiating it with arguments, as in '{name}(i8)', is not supported yet", location)
+            ? Unsupported($"The generic type '{name}' of .NET. It is a type constructor: give it its arguments, as in '{name}(i8)'", location)
             : _module.ImportReference(reference);
     }
 
@@ -207,6 +207,20 @@ internal sealed partial class ModuleEmitter
         var std = CompilerStd.Types;
         var definition = instance.Definition;
         var arguments = instance.Arguments;
+
+        // `List(i8)`: a generic type of .NET with its arguments.
+        var dotnetDefinition = definition switch
+        {
+            DotnetClass dotnetClass => dotnetClass.TypeReference,
+            DotnetStruct dotnetStruct => dotnetStruct.TypeReference,
+            _ => null,
+        };
+        if (dotnetDefinition != null)
+        {
+            var applied = new GenericInstanceType(_module.ImportReference(dotnetDefinition));
+            foreach (var argument in arguments) applied.GenericArguments.Add(MapExpression(argument));
+            return applied;
+        }
 
         if (ReferenceEquals(definition, std.Integer) && arguments is [IrComptimeBool signed, IrComptimeInt bits])
         {
