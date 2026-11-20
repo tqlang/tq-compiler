@@ -259,9 +259,10 @@ public class Parser(DiagnosticBag diagnostics)
             AdvanceTrivia(_midDeclarationTrivia);
             var value = ParseExpression();
             
-            if (secondExpression != null && firstExpression is not IdentifierExpressionNode)
-                throw new NotImplementedException();
-            
+            // `let T name = value`: the type is any expression (`*List(T)`, `?i32`, `[]u8`); without it, `name` is the first one.
+            if (secondExpression == null && firstExpression is not IdentifierExpressionNode)
+                throw Error(Peek()!.Value, "Expected the name of the field");
+
             if (secondExpression == null) {
                 secondExpression = (IdentifierExpressionNode)firstExpression;
                 firstExpression  = null!;
@@ -290,9 +291,9 @@ public class Parser(DiagnosticBag diagnostics)
             return ParsePropertyBody(letKeyword, firstExpression, secondExpression);
         }
         
-        if (secondExpression == null && firstExpression is not IdentifierExpressionNode name)
-            throw new NotImplementedException();
-            
+        if (secondExpression == null && firstExpression is not IdentifierExpressionNode)
+            throw Error(Peek()!.Value, "Expected the name of the field");
+
         if (secondExpression == null) {
             secondExpression = (IdentifierExpressionNode)firstExpression;
             firstExpression  = null!;
