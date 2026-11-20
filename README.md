@@ -315,16 +315,17 @@ namespace Std.Console {
 |---|---|---|
 | `+ - *` | checados (lançam `OverflowException`) | `add.ovf`, `sub.ovf`, `mul.ovf` |
 | `+% -% *%` | dão a volta (wrap) | `add`, `sub`, `mul` + corte para o tamanho |
-| `+\| -\| *\|` | saturados nos limites do tipo | `BigInteger` + `Max`/`Min` com os limites |
+| `+\| -\| *\|` | saturados nos limites do tipo | helper `__TqOps.AddOnBounds_Byte(a, b)` etc. |
 | `/` `%` | divisão truncada, resto | `div`, `rem` |
-| `/_` `/^` | divisão para baixo / para cima | `BigInteger` (quociente corrigido pelo resto) |
-| `**` | potência, checada | `BigInteger.Pow` + conversão checada (floats: `Math.Pow`) |
-| `**%` `**\|` | potência com wrap / saturada | `BigInteger.Pow` + corte / limites |
+| `/_` `/^` | divisão para baixo / para cima | helper `__TqOps.DivFloor_Int32(a, b)` |
+| `**` | potência, checada (floats: `Math.Pow`) | helper `__TqOps.Pow_Byte(a, b)` |
+| `**%` `**\|` | potência com wrap / saturada | helpers `PowWrap_*` e `PowOnBounds_*` |
 
-`+| -| *| /_ /^ **` precisam de `System.Numerics.BigInteger`: o módulo dotnet do `build.toml` precisa de
-`"dotnet : System.Runtime.Numerics : <versão>"` (sem isso o erro diz exatamente isso). `**%` e `**|` são lidos pelo parser como
-`*` seguido de `*%`/`*|`, como o `**`. Floats têm `**`, `/_` e `/^` (`Math.Pow`, `Math.Floor`, `Math.Ceiling`); saturar ou dar a volta num
-float é erro. Inteiros de 128 bits (`i128`/`u128`) têm literais, comparações e esses operadores; `+ - * / %` deles ainda não.
+Os helpers são métodos estáticos da classe `__TqOps` do próprio módulo, criados na primeira vez que o operador é usado com aquele
+tipo, e chamados com `a`, `b`, `call`. Até 32 bits a conta é feita em 64 (onde não estoura) e cortada/estreitada; `i64` satura com
+`Int128`, `u64` com comparações e `UInt128`. A potência é por quadrados sucessivos (sem alocação e exata: `Math.Pow` é `double`, só
+tem 53 bits). `i128`/`u128` têm literais e comparações, mas ainda não esses operadores nem `+ - * / %`. Floats têm `**`, `/_` e `/^`
+(`Math.Pow`, `Math.Floor`, `Math.Ceiling`); saturar ou dar a volta num float é erro.
 
 **Constantes:** os inteiros de compile time são `System.Numerics.BigInteger` (antes `decimal`, limite de ~7,9e28). Duas constantes
 numéricas viram uma constante só no type checker (`2 ** 128 - 1`, `-(2 ** 127)`), sem tamanho, então não estouram: só precisam
