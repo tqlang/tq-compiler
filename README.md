@@ -400,7 +400,7 @@ usado com ou sem um módulo `dotnet` que o liste.
   Um namespace sem membros próprios no topo é só um namespace .NET no nome do que contém.
 - `struct` é um value type, ou uma classe com `@class` (ou que estende uma classe, Tq ou .NET); `@abstract`, `@final` e `@interface` viram os flags .NET.
   `extends` de uma struct-interface é `implements`, o resto é a classe base. `typedef` é um enum (os casos nomeados são
-  as constantes; casos numéricos sem nome não aparecem; o valor de um caso é um número ou uma constante .NET, como `CsSeekOrigin.Begin`). Structs genéricas ainda não.
+  as constantes; casos numéricos sem nome não aparecem; o valor de um caso é um número ou uma constante .NET, como `CsSeekOrigin.Begin`). Structs genéricas: ver "Structs genéricas de Tq em .NET".
 - Acesso: `@public` é público; o resto (namespace/módulo) é `internal`, o máximo que o .NET diz.
 - Funções: `@static`, `@virtual` e `@override` viram os flags; `lazy` ainda não.
   Classes sem construtor ganham o construtor sem argumentos; o `destructor` é o `Finalize` (vazio por enquanto).
@@ -449,3 +449,15 @@ delegates genéricos ainda não). Os argumentos são tipos explícitos, sem infe
 quem decide é o parser: depois de um operando é potência. `a * *b` (com espaço) continua sendo `a * (*b)`. Por enquanto só em tempo de compilação
 (os dois lados constantes): o expoente inteiro não pode ser negativo e o resultado precisa caber no `decimal` dos números de compilação
 (~7,9e28, ou seja, `2 ** 96` passa e `2 ** 97` dá erro), o que ainda não cobre os limites de `i128`/`u128`.
+
+## Structs genéricas de Tq em .NET
+
+`struct DynamicArray(type T) { ... }` vira um tipo .NET com o parâmetro genérico `T` (os parâmetros do tipo `type` da struct, na ordem).
+Outro tipo de parâmetro numa struct genérica dá erro. `DynamicArray(u32)` é o `GenericInstanceType` com `uint`, e `T` dentro dos membros é o
+parâmetro do tipo. Campos, funções e construtores são referenciados através do tipo instanciado: o de fora (`DynamicArray<uint>`) ou, dentro da
+própria struct, ela com os seus parâmetros (`DynamicArray<!0>`). Funções `@static` de struct genérica ainda não.
+
+**Valores iniciais de campos** (`let _list = new List(T)()`): são código, então entram no início de cada construtor, na ordem em que foram
+escritos, antes do corpo. Uma classe sem construtor declarado já tinha o construtor sem argumentos; agora uma struct por valor sem construtor
+declarado, mas com valores iniciais, também ganha um (`new X()` chama ele). Sem valores iniciais, `new X()` continua sendo tudo zero
+(`initobj`), e `default`/arrays de structs não passam por construtor (regra do .NET). Campos estáticos com valor inicial ainda não.

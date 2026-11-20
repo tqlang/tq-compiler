@@ -64,6 +64,7 @@ internal sealed class BodyEmitter
             _il.Emit(OpCodes.Call, valueBaseConstructor);
         }
 
+        if (_function is TqConstructor) EmitInitializers();
         if (_function.Body != null) EmitStatement(_function.Body);
 
         // The end of the function: what a function without `return` at its end gives.
@@ -96,6 +97,22 @@ internal sealed class BodyEmitter
         }
 
         return false;
+    }
+
+    /// <summary>The initial values of the fields of the struct, which a constructor gives before its own code.</summary>
+    internal void EmitInitializers()
+    {
+        if (_function.Owner is not TqStruct structure) return;
+
+        foreach (var (field, definition) in _owner.InstanceInitializers(structure))
+        {
+            _il.Emit(OpCodes.Ldarg_0);
+            if (definition.DeclaringType.IsValueType) EmitBasePath(_method.DeclaringType, definition.DeclaringType);
+
+            var host = TqHost(null, definition.DeclaringType);
+            EmitValue(field.Value!, host != null ? Instantiate(definition.FieldType, [], host.GenericArguments) : definition.FieldType);
+            _il.Emit(OpCodes.Stfld, host != null ? OnHost(_owner.Use(definition), host) : _owner.Use(definition));
+        }
     }
 
     private VariableDefinition NewTemp(TypeReference type)
@@ -754,7 +771,11 @@ internal sealed class BodyEmitter
                 else
                 {
                     EmitFieldReceiver(baseExpr, fieldDefinition.DeclaringType);
-                    _il.Emit(OpCodes.Ldfld, _owner.Use(fieldDefinition));
+
+                    // A field of a generic struct is read through the type with its arguments.
+                    var tqHost = TqHost(baseExpr, fieldDefinition.DeclaringType);
+                    _il.Emit(OpCodes.Ldfld, tqHost != null ? OnHost(_owner.Use(fieldDefinition), tqHost) : _owner.Use(fieldDefinition));
+                    return tqHost != null ? Instantiate(fieldDefinition.FieldType, [], tqHost.GenericArguments) : fieldDefinition.FieldType;
                 }
 
                 return fieldDefinition.FieldType;
@@ -894,7 +915,8 @@ internal sealed class BodyEmitter
                 else
                 {
                     EmitReceiver(access.baseExpr, fieldDefinition.DeclaringType);
-                    _il.Emit(OpCodes.Ldflda, _owner.Use(fieldDefinition));
+                    var addressHost = TqHost(access.baseExpr, fieldDefinition.DeclaringType);
+                    _il.Emit(OpCodes.Ldflda, addressHost != null ? OnHost(_owner.Use(fieldDefinition), addressHost) : _owner.Use(fieldDefinition));
                 }
                 return;
         }
@@ -940,17 +962,20 @@ internal sealed class BodyEmitter
                 }
 
                 if (!method.IsStatic) EmitFieldReceiver(receiver, method.DeclaringType);
-                var typeArguments = EmitArguments(call.ArgumentsList.arguments, method.Parameters, tq.Parameters);
+
+                // A function of a generic struct is called through the type with its arguments: its signature says `T`, the type says `u32`.
+                var tqHost = method.IsStatic ? null : TqHost(receiver, method.DeclaringType);
+                var typeArguments = EmitArguments(call.ArgumentsList.arguments, method.Parameters, tq.Parameters, tqHost?.GenericArguments);
 
                 // The types a generic function is given are the type arguments of the method.
-                MethodReference target = _owner.Use(method);
-                var returned = method.ReturnType;
+                MethodReference target = tqHost != null ? OnHost(_owner.Use(method), tqHost) : _owner.Use(method);
+                var returned = Instantiate(method.ReturnType, [], tqHost?.GenericArguments);
                 if (typeArguments.Count > 0)
                 {
                     var instance = new GenericInstanceMethod(target);
                     foreach (var typeArgument in typeArguments) instance.GenericArguments.Add(typeArgument);
                     target = instance;
-                    returned = Instantiate(returned, typeArguments);
+                    returned = Instantiate(returned, typeArguments, tqHost?.GenericArguments);
                 }
 
                 var instanceOfClass = !method.IsStatic && !method.DeclaringType.IsValueType;
@@ -1092,6 +1117,27 @@ internal sealed class BodyEmitter
             : null;
     }
 
+    /// <summary>
+    /// The generic type of Tq that a member is of, with its arguments: the type of the value it is read from
+    /// (`DynamicArray(u32)`), or, in the code of the struct itself (`this`), the struct with its own parameters. Null if the
+    /// struct is not generic.
+    /// </summary>
+    private GenericInstanceType? TqHost(IrExpression? receiver, TypeReference declaring)
+    {
+        if (!declaring.HasGenericParameters) return null;
+
+        if (receiver != null && _types.Get(receiver) is { } type)
+        {
+            if (CompilerStd.Types.IsRef(type, out var referred)) type = referred;
+            if (_owner.MapType(type, receiver.Location) is GenericInstanceType host && host.ElementType.FullName == declaring.FullName)
+                return host;
+        }
+
+        var self = new GenericInstanceType(declaring);
+        foreach (var parameter in declaring.GenericParameters) self.GenericArguments.Add(parameter);
+        return self;
+    }
+
     /// <summary>The same method as a member of this instance of its generic type; the signature stays in terms of `!0`.</summary>
     private static MethodReference OnHost(MethodReference method, GenericInstanceType host)
     {
@@ -1117,8 +1163,9 @@ internal sealed class BodyEmitter
         switch (creation.Constructor)
         {
             case TqFunction tq when _owner.Backend.Definitions.TryGetValue(tq, out var definition) && definition is MethodDefinition constructor:
-                EmitArguments(arguments, constructor.Parameters, tq.Parameters);
-                _il.Emit(OpCodes.Newobj, _owner.Use(constructor));
+                var createdHost = type as GenericInstanceType;
+                EmitArguments(arguments, constructor.Parameters, tq.Parameters, createdHost?.GenericArguments);
+                _il.Emit(OpCodes.Newobj, createdHost != null ? OnHost(_owner.Use(constructor), createdHost) : _owner.Use(constructor));
                 return type;
 
             case DotnetMethod dotnet:
@@ -1134,10 +1181,17 @@ internal sealed class BodyEmitter
         }
 
         // No constructor was chosen: a class without one has the one it was given, a struct is all zeros.
-        if (TypeExpressions.Raw(creation.Type) is StructTypeReference { Struct: TqStruct tqClass } && ModuleEmitter.IsClass(tqClass)
-            && _owner.Backend.DefaultConstructors.TryGetValue(tqClass, out var defaultConstructor))
+        var tqStruct = TypeExpressions.Raw(creation.Type) switch
         {
-            _il.Emit(OpCodes.Newobj, _owner.Use(defaultConstructor));
+            StructTypeReference { Struct: TqStruct direct } => direct,
+            StructTypeReference { Struct: GenericInstance { Definition: TqStruct generic } } => generic,
+            _ => null,
+        };
+
+        // A class has the constructor it was given; so has a struct by value that has initial values for its fields.
+        if (tqStruct != null && _owner.Backend.DefaultConstructors.TryGetValue(tqStruct, out var defaultConstructor))
+        {
+            _il.Emit(OpCodes.Newobj, type is GenericInstanceType defaultHost ? OnHost(_owner.Use(defaultConstructor), defaultHost) : _owner.Use(defaultConstructor));
             return type;
         }
 
@@ -2044,7 +2098,13 @@ internal sealed class BodyEmitter
         switch (member)
         {
             case TqField field when _owner.Backend.Definitions.TryGetValue(field, out var definition) && definition is FieldDefinition fieldDefinition:
-                return FieldTarget(_owner.Use(fieldDefinition), fieldDefinition.IsStatic, fieldDefinition.FieldType, fieldDefinition.DeclaringType, baseExpr);
+            {
+                var tqHost = fieldDefinition.IsStatic ? null : TqHost(baseExpr, fieldDefinition.DeclaringType);
+                return tqHost != null
+                    ? FieldTarget(OnHost(_owner.Use(fieldDefinition), tqHost), false,
+                        Instantiate(fieldDefinition.FieldType, [], tqHost.GenericArguments), fieldDefinition.DeclaringType, baseExpr)
+                    : FieldTarget(_owner.Use(fieldDefinition), fieldDefinition.IsStatic, fieldDefinition.FieldType, fieldDefinition.DeclaringType, baseExpr);
+            }
 
             case TqProperty property when _owner.Backend.BackingFields.TryGetValue(property, out var backing):
                 return FieldTarget(_owner.Use(backing), false, backing.FieldType, backing.DeclaringType, null);

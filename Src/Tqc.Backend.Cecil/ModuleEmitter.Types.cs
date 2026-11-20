@@ -93,9 +93,12 @@ internal sealed partial class ModuleEmitter
 
     private void DeclareStruct(TqStruct structure, string dotted, TypeDefinition? declaring)
     {
-        if (structure.Parameters.Count > 0)
+        // The parameters of the type `type` are the generic parameters of the .NET type; any other kind of parameter has no equivalent.
+        foreach (var parameter in structure.Parameters)
         {
-            Report($"The generic struct '{structure.Name}' cannot be emitted to .NET yet", structure.SourceLocation);
+            if (GenericParameterTypeRef.IsTypeParameter(parameter)) continue;
+
+            Report($"The struct '{structure.Name}' has the parameter '{parameter.Name}', which is not of the type 'type': only types can be the parameters of a generic struct in .NET", structure.SourceLocation);
             return;
         }
 
@@ -122,6 +125,13 @@ internal sealed partial class ModuleEmitter
         }
 
         var type = new TypeDefinition(declaring != null ? "" : dotted, structure.Name, attributes, baseType);
+        foreach (var parameter in structure.Parameters)
+        {
+            var generic = new GenericParameter(parameter.Name, type);
+            type.GenericParameters.Add(generic);
+            GenericParameters[parameter] = generic;
+        }
+
         Add(type, declaring);
         _backend.Definitions[structure] = type;
         _containers.Add(new Container(type, dotted, [..structure.Members.Values], structure));

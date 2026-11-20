@@ -182,7 +182,20 @@ internal sealed partial class ModuleEmitter
 
         switch (structure)
         {
-            case TqStruct tq: return Defined(tq, tq.Name, location);
+            case TqStruct tq:
+            {
+                var defined = Defined(tq, tq.Name, location);
+
+                // A generic struct written without arguments is the one the code of the struct itself is in: its own parameters are the arguments.
+                if (defined is TypeDefinition { HasGenericParameters: true } open)
+                {
+                    var self = new GenericInstanceType(open);
+                    foreach (var parameter in open.GenericParameters) self.GenericArguments.Add(parameter);
+                    return self;
+                }
+
+                return defined;
+            }
             case DotnetClass dotnetClass: return ImportDotnet(dotnetClass.TypeReference, dotnetClass.Name, location);
             case DotnetStruct dotnetStruct: return ImportDotnet(dotnetStruct.TypeReference, dotnetStruct.Name, location);
             case DotnetEnum dotnetEnum: return ImportDotnet(dotnetEnum.TypeReference, dotnetEnum.Name, location);
@@ -221,6 +234,17 @@ internal sealed partial class ModuleEmitter
         if (dotnetDefinition != null)
         {
             var applied = new GenericInstanceType(_module.ImportReference(dotnetDefinition));
+            foreach (var argument in arguments) applied.GenericArguments.Add(MapExpression(argument));
+            return applied;
+        }
+
+        // `DynamicArray(u32)`: a generic struct of Tq with its arguments.
+        if (definition is TqStruct tqDefinition)
+        {
+            if (!_backend.Definitions.TryGetValue(tqDefinition, out var emitted) || emitted is not TypeDefinition emittedType)
+                return Unsupported($"The type '{tqDefinition.Name}'", location);
+
+            var applied = new GenericInstanceType(Use(emittedType));
             foreach (var argument in arguments) applied.GenericArguments.Add(MapExpression(argument));
             return applied;
         }

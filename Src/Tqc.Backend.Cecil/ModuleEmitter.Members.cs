@@ -160,8 +160,10 @@ internal sealed partial class ModuleEmitter
 
         foreach (var constructor in structure.Constructors) DeclareFunction(container, constructor, null);
 
-        // A class that declares no constructor can be created without arguments.
-        if (IsClass(structure) && structure.Constructors.Count == 0) DeclareDefaultConstructor(container, structure);
+        // A class that declares no constructor can be created without arguments; so can a struct by value whose fields
+        // have initial values, because those take code.
+        if (structure.Constructors.Count == 0 && (IsClass(structure) || InstanceInitializers(structure).Count > 0))
+            DeclareDefaultConstructor(container, structure);
         if (structure.Destructor != null) DeclareDestructor(container, structure, structure.Destructor);
     }
 
@@ -172,6 +174,13 @@ internal sealed partial class ModuleEmitter
         var isStatic = !isConstructor && (structure == null || function.IsStatic);
         var isInterface = structure is { IsInterface: true };
         var isAbstract = !isStatic && !isConstructor && function.IsAbstract;
+
+        // A static member of a generic type would be called through the type with its arguments, which a call of the namespace form does not give.
+        if (isStatic && structure != null && container.Type.HasGenericParameters)
+        {
+            Report($"The function '{function.Name}' is static in the generic struct '{structure.Name}', which cannot be emitted to .NET yet", function.SourceLocation);
+            return;
+        }
 
         var attributes = MethodAttributes.HideBySig | (IsPublic(function.Access) || isInterface ? MethodAttributes.Public : MethodAttributes.Assembly);
         if (isConstructor) attributes |= MethodAttributes.SpecialName | MethodAttributes.RTSpecialName;
@@ -244,6 +253,14 @@ internal sealed partial class ModuleEmitter
         container.Type.Methods.Add(method);
         _backend.DefaultConstructors[structure] = method;
 
+        // A struct by value has nothing to call first: it is only the initial values.
+        if (!IsClass(structure))
+        {
+            var constructor = new TqConstructor(structure.SourceLocation) { Parameters = [], Owner = structure };
+            _bodies.Add((method, il => new BodyEmitter(this, constructor, method, il).Emit()));
+            return;
+        }
+
         _bodies.Add((method, il =>
         {
             var baseConstructor = FindBaseConstructor(structure);
@@ -255,8 +272,25 @@ internal sealed partial class ModuleEmitter
 
             il.Emit(OpCodes.Ldarg_0);
             il.Emit(OpCodes.Call, baseConstructor);
+            new BodyEmitter(this, new TqConstructor(structure.SourceLocation) { Parameters = [], Owner = structure }, method, il).EmitInitializers();
             il.Emit(OpCodes.Ret);
         }));
+    }
+
+    /// <summary>The instance fields that have an initial value (`let _list = new List(T)()`), in the order they are written.</summary>
+    internal List<(TqField Field, FieldDefinition Definition)> InstanceInitializers(TqStruct structure)
+    {
+        List<(TqField, FieldDefinition)> result = [];
+        foreach (var member in structure.Members.Values.OrderBy(member => LocationOf(member)?.span.LineStart ?? 0)
+                     .ThenBy(member => LocationOf(member)?.span.ColStart ?? 0))
+        {
+            if (member is TqField { Value: not null } field
+                && _backend.Definitions.TryGetValue(field, out var definition)
+                && definition is FieldDefinition { IsStatic: false, HasConstant: false } fieldDefinition)
+                result.Add((field, fieldDefinition));
+        }
+
+        return result;
     }
 
     /// <summary>A destructor is the finalizer of a class. Its body is not translated yet, so it does nothing.</summary>
