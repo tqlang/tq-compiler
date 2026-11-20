@@ -70,6 +70,9 @@ public record IrComptimeInt(SourceLocation Location, BigInteger BigInteger) : Ir
 public record IrComptimeDecimal(SourceLocation Location, decimal Value) : IrValue(Location);
 public record IrComptimeBool(SourceLocation Location, bool Value) : IrValue(Location);
 
+/// <summary>`null`: nothing, for a `?T`.</summary>
+public record IrNull(SourceLocation Location) : IrValue(Location);
+
 public record IrLocal(SourceLocation Location, IrExpression? type, string name) : IrValue(Location); 
 
 public sealed record IrStringConstant(SourceLocation Location, string Value) : IrExpression(Location);

@@ -156,6 +156,7 @@ internal sealed partial class ModuleEmitter
             case DotnetCharacterTypeRef: return Core("System.Char");
             case ComptimeIntegerTypeRef: return Core("System.Int32");
             case ComptimeDecimalTypeRef: return Core("System.Double");
+            case NullTypeRef: return Core("System.Object");
             case SliceTypeRef slice: return new ArrayType(MapType(slice.Element, location));
             case GenericParameterTypeRef generic:
                 return GenericParameters.TryGetValue(generic.Parameter, out var parameter)

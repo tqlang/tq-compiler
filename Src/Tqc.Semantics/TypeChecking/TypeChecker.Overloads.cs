@@ -197,6 +197,14 @@ internal sealed partial class TypeChecker
 
         var location = value.Location;
 
+        // `null` is not converted: it is the `null` of that `?T`.
+        if (value is IrNull)
+        {
+            var typed = new IrNull(location);
+            types.Set(typed, type);
+            return typed;
+        }
+
         if (match.Via is { } conversion)
         {
             var conversionCall = new IrCall(
@@ -227,7 +235,9 @@ internal sealed partial class TypeChecker
         var match = ConversionRules.Classify(valueType, value, target, conversions, _accessor);
         if (match.Kind == MatchKind.None)
         {
-            var hint = valueType is ComptimeIntegerTypeRef ? "; the literal does not fit or is not an integer type" : "; use `as` to convert it";
+            var hint = valueType is ComptimeIntegerTypeRef ? "; the literal does not fit or is not an integer type"
+                : valueType is NullTypeRef ? "; only a nullable type ('?T') can be null"
+                : "; use `as` to convert it";
             Error($"Cannot convert '{TypeFormatter.Format(valueType)}' to '{TypeFormatter.Format(target)}' in {where}{hint}",
                 value.Location);
             return value;

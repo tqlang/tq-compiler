@@ -309,6 +309,13 @@ namespace Std.Console {
   construtores, `typedef`s (tipo base, casos), propriedades (`get`/`set`, o que o checker resolveu, `backing field`), e operadores
   na escrita da linguagem (`+%`, `**`, `as`).
 
+## `null`
+
+`null` é um literal de tipo `null`, que só se converte para um `?T` (parâmetro, atribuição, retorno, campo: `let ?i32 x = null`).
+Para `T` de referência (`?string`) sai `ldnull`; para `T` de valor, `?T` é `System.Nullable<T>` e `null` é o valor vazio
+(`initobj`). `let x = null` é erro (não há tipo a inferir), e `null` onde não cabe diz que só um tipo `?T` pode ser `null`.
+Ainda não existem: `x == null`, `T` → `?T` implícito, `??` e `.unwrap()`.
+
 ## Operadores de inteiros em .NET
 
 | Operador | Significado | Como sai em .NET |

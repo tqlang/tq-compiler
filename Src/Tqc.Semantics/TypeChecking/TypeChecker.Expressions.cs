@@ -36,6 +36,9 @@ internal sealed partial class TypeChecker
             case IrComptimeBool:
                 return (expression, BoolType());
 
+            case IrNull:
+                return (expression, new NullTypeRef());
+
             case IrStringConstant:
                 return (expression, StringType());
 
@@ -197,7 +200,12 @@ internal sealed partial class TypeChecker
         // `let a = 1`: a local without a declared type takes the type of its value.
         // A literal has no size, so the variable gets the default integer.
         if (assign.Target is IrLocal local && NeedsInferredType(local) && sourceType != null)
-            types.Set(local, DefaultTypeOf(sourceType));
+        {
+            if (sourceType is NullTypeRef)
+                Error($"Cannot infer the type of '{local.name}' from null; declare it, as in `let ?i32 {local.name} = null`", source.Location);
+            else
+                types.Set(local, DefaultTypeOf(sourceType));
+        }
 
         _targetNext = assign.Target is IrAccess or IrReference;
         var target = Visit(assign.Target);

@@ -472,6 +472,28 @@ internal sealed class BodyEmitter
 
     // ---- Expressions
 
+    /// <summary>
+    /// `null` of a `?T`: a reference is `ldnull`; for a value, `?T` is a `Nullable<T>`, which is empty when it is all zeros.
+    /// The type is the one that is expected, or the one the type checker gave this `null`.
+    /// </summary>
+    private TypeReference EmitNull(IrNull nothing, TypeReference? expected)
+    {
+        var type = expected;
+        if (type == null && _types.Get(nothing) is { } given and not NullTypeRef) type = _owner.MapType(given, nothing.Location);
+
+        if (type is { IsValueType: true })
+        {
+            var empty = NewTemp(type);
+            _il.Emit(OpCodes.Ldloca, empty);
+            _il.Emit(OpCodes.Initobj, type);
+            _il.Emit(OpCodes.Ldloc, empty);
+            return type;
+        }
+
+        _il.Emit(OpCodes.Ldnull);
+        return type ?? Core("System.Object");
+    }
+
     /// <summary>Emits the expression; the type of what it left on the stack, or null if it left nothing.</summary>
     private TypeReference? Emit(IrExpression expression, TypeReference? expected, bool discard = false)
     {
@@ -490,6 +512,8 @@ internal sealed class BodyEmitter
             case IrStringConstant text:
                 _il.Emit(OpCodes.Ldstr, text.Value);
                 return Core("System.String");
+
+            case IrNull nothing: return EmitNull(nothing, expected);
 
             case IrStringConcat concat: return EmitConcat(concat);
             case IrReference reference: return EmitReference(reference);

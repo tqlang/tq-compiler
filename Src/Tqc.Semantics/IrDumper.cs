@@ -529,6 +529,9 @@ public sealed class IrDumper
             case IrComptimeDecimal number:
                 return Typed(number.Value.ToString(CultureInfo.InvariantCulture), number, "decimal constant");
 
+            case IrNull nothing:
+                return Typed("null", nothing, "null constant");
+
             case IrComptimeBool boolean:
                 return Typed(boolean.Value ? "true" : "false", boolean, "bool constant");
 

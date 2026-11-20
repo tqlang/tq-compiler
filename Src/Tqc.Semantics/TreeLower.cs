@@ -617,6 +617,9 @@ public static class TreeLower
             case IdentifierExpressionNode { Value: "true" or "false" } boolean:
                 return new IrComptimeBool(boolean.GetLoc(ctx.SrcFile), boolean.Value == "true");
 
+            case IdentifierExpressionNode { Value: "null" } nothing:
+                return new IrNull(nothing.GetLoc(ctx.SrcFile));
+
             case IdentifierExpressionNode identifier:
                 return new IrReference(
                     identifier.GetLoc(ctx.SrcFile),

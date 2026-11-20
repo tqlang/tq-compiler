@@ -55,6 +55,7 @@ internal static class ConversionRules
     private const int Upcast = 10;
     private const int UserConversion = 100;
     private const int GenericParameter = 1000;
+    private const int NullToNullable = 1;
 
     public static ArgumentMatch Classify(
         ITypeRef? argument, IrExpression argumentNode, ITypeRef? parameter,
@@ -68,6 +69,9 @@ internal static class ConversionRules
         if (IsStruct(parameter, types.Type)) return IsStruct(argument, types.Type) ? ArgumentMatch.Exact : ArgumentMatch.None;
 
         if (argument.Equals(parameter)) return ArgumentMatch.Exact;
+
+        // `null` is the empty `?T`.
+        if (argument is NullTypeRef) return types.IsNullable(parameter, out _) ? Convert(NullToNullable) : ArgumentMatch.None;
 
         if (argument is ComptimeIntegerTypeRef) return ClassifyLiteral(argumentNode, parameter);
         if (argument is ComptimeDecimalTypeRef)
