@@ -1414,6 +1414,12 @@ internal sealed class BodyEmitter
             return common;
         }
 
+        if (@operator is BinaryOperator.AddOnBounds or BinaryOperator.SubOnBounds or BinaryOperator.MulOnBounds && bits <= 32)
+        {
+            EmitSmallSaturated(binary, common, signed, bits);
+            return common;
+        }
+
         EmitValue(binary.Left, common);
         _il.Emit(OpCodes.Call, BigConversion(true, common.FullName));
         EmitValue(binary.Right, common);
@@ -1486,6 +1492,58 @@ internal sealed class BodyEmitter
         }
 
         return common;
+    }
+
+    /// <summary>
+    /// `+|`, `-|` and `*|` of up to 32 bits, with plain instructions: both sides are widened to 64 bits, where the
+    /// operation cannot overflow, the result is cut at the bounds of the type and then narrowed back.
+    /// (`u32 * u32` does not fit a signed 64 bits, so it is computed and cut as unsigned.)
+    /// </summary>
+    private void EmitSmallSaturated(IrBinary binary, TypeReference common, bool signed, int bits)
+    {
+        var widen = signed ? OpCodes.Conv_I8 : OpCodes.Conv_U8;
+        EmitValue(binary.Left, common);
+        _il.Emit(widen);
+        EmitValue(binary.Right, common);
+        _il.Emit(widen);
+
+        var @operator = binary.Operator;
+        _il.Emit(@operator switch
+        {
+            BinaryOperator.AddOnBounds => OpCodes.Add,
+            BinaryOperator.SubOnBounds => OpCodes.Sub,
+            _ => OpCodes.Mul,
+        });
+
+        var maximum = signed ? (1L << (bits - 1)) - 1 : (1L << bits) - 1;
+        var minimum = signed ? -(1L << (bits - 1)) : 0L;
+
+        if (signed)
+        {
+            _il.Emit(OpCodes.Ldc_I8, minimum);
+            _il.Emit(OpCodes.Call, Library("System.Math", "Max", "System.Int64", "System.Int64"));
+            _il.Emit(OpCodes.Ldc_I8, maximum);
+            _il.Emit(OpCodes.Call, Library("System.Math", "Min", "System.Int64", "System.Int64"));
+        }
+        else if (@operator == BinaryOperator.MulOnBounds)
+        {
+            _il.Emit(OpCodes.Ldc_I8, maximum);
+            _il.Emit(OpCodes.Call, Library("System.Math", "Min", "System.UInt64", "System.UInt64"));
+        }
+        else if (@operator == BinaryOperator.AddOnBounds)
+        {
+            _il.Emit(OpCodes.Ldc_I8, maximum);
+            _il.Emit(OpCodes.Call, Library("System.Math", "Min", "System.Int64", "System.Int64"));
+        }
+        else
+        {
+            _il.Emit(OpCodes.Ldc_I8, 0L);
+            _il.Emit(OpCodes.Call, Library("System.Math", "Max", "System.Int64", "System.Int64"));
+        }
+
+        if (bits == 8) _il.Emit(signed ? OpCodes.Conv_I1 : OpCodes.Conv_U1);
+        else if (bits == 16) _il.Emit(signed ? OpCodes.Conv_I2 : OpCodes.Conv_U2);
+        else _il.Emit(signed ? OpCodes.Conv_I4 : OpCodes.Conv_U4);
     }
 
     /// <summary>
