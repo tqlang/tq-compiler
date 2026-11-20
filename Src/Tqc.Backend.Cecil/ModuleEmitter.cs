@@ -78,21 +78,6 @@ internal sealed partial class ModuleEmitter
 
     internal CecilBackend Backend => _backend;
 
-    /// <summary>The helpers of `__TqOps` (saturated arithmetic, rounded division, powers), by operator and type.</summary>
-    internal Dictionary<string, MethodDefinition> Helpers { get; } = [];
-
-    private TypeDefinition? _opsType;
-
-    /// <summary>`__TqOps`: a static class of the module that holds its helpers; made when the first one is needed.</summary>
-    internal TypeDefinition OpsType => _opsType ??= CreateOpsType();
-
-    private TypeDefinition CreateOpsType()
-    {
-        var type = new TypeDefinition("", "__TqOps",
-            TypeAttributes.NotPublic | TypeAttributes.Abstract | TypeAttributes.Sealed | TypeAttributes.BeforeFieldInit, Core("System.Object"));
-        _module.Types.Add(type);
-        return type;
-    }
     internal ModuleDefinition Module => _module;
     internal TqModule Tq => _tq;
 

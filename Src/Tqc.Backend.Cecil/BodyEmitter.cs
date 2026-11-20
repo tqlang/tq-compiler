@@ -28,6 +28,7 @@ internal sealed class BodyEmitter
     private readonly TqFunction _function;
     private MethodDefinition _method;
     private ILProcessor _il;
+    private ModuleDefinition _target; // where the instructions go: the module, or `Tq.Runtime` while a helper is made
     private readonly TypeTable _types;
 
     private readonly Dictionary<IrLocal, VariableDefinition> _locals = [];
@@ -39,6 +40,7 @@ internal sealed class BodyEmitter
         _function = function;
         _method = method;
         _il = il;
+        _target = owner.Module;
         _types = owner.Tq.Types;
     }
 
@@ -77,7 +79,7 @@ internal sealed class BodyEmitter
     // ---- Helpers
 
     private void Report(string message, SourceLocation? location) => _owner.Report(message, location);
-    private TypeReference Core(string name) => _owner.Core(name);
+    private TypeReference Core(string name) => _owner.Backend.Core.Require(_target, name);
 
     private static bool IsVoid(TypeReference? type) => type == null || type.FullName == "System.Void";
 
@@ -189,7 +191,7 @@ internal sealed class BodyEmitter
                                                                   .SequenceEqual(parameterTypes))
                      ?? throw new BackendError($"The method '{typeName}.{name}' was not found in 'System.Runtime'");
 
-        return _owner.Module.ImportReference(method);
+        return _target.ImportReference(method);
     }
 
     // ---- Numbers
@@ -1189,7 +1191,7 @@ internal sealed class BodyEmitter
             return result;
         }
 
-        // Saturating arithmetic, rounded division and powers have no instruction: they are helpers of the module.
+        // Saturating arithmetic, rounded division and powers have no instruction: they are helpers of `Tq.Ops`.
         if (UsesHelper(binary.Operator) && common.FullName != "System.Char") return EmitHelperOperator(binary, common);
 
         EmitValue(binary.Left, common);
@@ -1297,7 +1299,7 @@ internal sealed class BodyEmitter
         return Core("System.Int32");
     }
 
-    // ---- Operators with no instruction: small static methods of the module (`__TqOps`)
+    // ---- Operators with no instruction: small static methods of `Tq.Ops`, in `Tq.Runtime`
 
     private static bool UsesHelper(BinaryOperator @operator) => @operator is
         BinaryOperator.AddOnBounds or BinaryOperator.SubOnBounds or BinaryOperator.MulOnBounds
@@ -1325,31 +1327,36 @@ internal sealed class BodyEmitter
     }
 
     /// <summary>
-    /// A static method `Name_Type(Type a, Type b)` of `__TqOps`, made the first time it is needed (the body is emitted with
-    /// this emitter pointed at the new method). The call site is then `a`, `b` and a `call`.
+    /// A static method `Name_Type(Type a, Type b)` of `Tq.Ops`, in `Tq.Runtime`: one copy for the whole build, made by
+    /// the first module that needs it (the body is emitted with this emitter pointed at the new method and at that
+    /// assembly). The call site is then `a`, `b` and a `call`.
     /// </summary>
     private MethodReference OpsHelper(string name, TypeReference type, Action emitBody)
     {
+        var runtime = _owner.Backend.Runtime;
         var key = $"{name}|{type.FullName}";
-        if (_owner.Helpers.TryGetValue(key, out var existing)) return existing;
+        if (runtime.OpsHelpers.TryGetValue(key, out var existing)) return _target.ImportReference(existing);
+
+        var module = runtime.Assembly.MainModule;
+        var parameterType = _owner.Backend.Core.Require(module, type.FullName);
 
         var helper = new MethodDefinition($"{name}_{type.Name}",
-            MethodAttributes.Public | MethodAttributes.Static | MethodAttributes.HideBySig, type);
-        helper.Parameters.Add(new ParameterDefinition("a", ParameterAttributes.None, type));
-        helper.Parameters.Add(new ParameterDefinition("b", ParameterAttributes.None, type));
-        _owner.OpsType.Methods.Add(helper);
-        _owner.Helpers[key] = helper; // before the body: a helper can call another one
+            MethodAttributes.Public | MethodAttributes.Static | MethodAttributes.HideBySig, parameterType);
+        helper.Parameters.Add(new ParameterDefinition("a", ParameterAttributes.None, parameterType));
+        helper.Parameters.Add(new ParameterDefinition("b", ParameterAttributes.None, parameterType));
+        runtime.Ops.Methods.Add(helper);
+        runtime.OpsHelpers[key] = helper; // before the body: a helper can call another one
 
-        var (il, method) = (_il, _method);
-        (_il, _method) = (helper.Body.GetILProcessor(), helper);
+        var (il, method, target) = (_il, _method, _target);
+        (_il, _method, _target) = (helper.Body.GetILProcessor(), helper, module);
         try { emitBody(); }
-        finally { (_il, _method) = (il, method); }
+        finally { (_il, _method, _target) = (il, method, target); }
 
-        return helper;
+        return _target.ImportReference(helper);
     }
 
     /// <summary>
-    /// `+|`, `-|`, `*|`, `/_`, `/^`, `**`, `**%` and `**|` of integers are calls to a helper of the module. Floats have
+    /// `+|`, `-|`, `*|`, `/_`, `/^`, `**`, `**%` and `**|` of integers are calls to a helper of `Tq.Ops` (`Tq.Runtime`). Floats have
     /// `**`, `/_` and `/^` with `Math`. The 128 bits integers have none of them yet.
     /// </summary>
     private TypeReference? EmitHelperOperator(IrBinary binary, TypeReference common)
@@ -1505,7 +1512,7 @@ internal sealed class BodyEmitter
                                                               && candidate.ReturnType.FullName == to)
                      ?? throw new BackendError($"'{typeName}' has no conversion from '{from}' to '{to}'");
 
-        return _owner.Module.ImportReference(method);
+        return _target.ImportReference(method);
     }
 
     /// <summary>`+|`, `-|` and `*|` of 64 bits: `Int128` and `UInt128` hold the exact result (and `u64` `+`/`-` are only compared).</summary>
@@ -1659,7 +1666,7 @@ internal sealed class BodyEmitter
     /// <summary>
     /// `**`, `**%` and `**|` by squaring: no allocation, and exact (`Math.Pow` is a `double`, which holds 53 bits).
     /// It is done in the 64 bits domain: checked (`**`) uses `mul.ovf`, wrapped (`**%`) uses `mul` and cuts the result,
-    /// saturated (`**|`) cuts at the bounds after each product (with 64 bits, with the saturated `*|` of the module).
+    /// saturated (`**|`) cuts at the bounds after each product (with 64 bits, with the saturated `*|` of `Tq.Ops`).
     /// </summary>
     private void EmitPower(BinaryOperator @operator, TypeReference type, bool signed, int bits)
     {
@@ -1682,7 +1689,7 @@ internal sealed class BodyEmitter
             _il.Emit(OpCodes.Ldc_I8, 0L);
             _il.Emit(OpCodes.Bge, valid);
             _il.Emit(OpCodes.Ldstr, "The exponent of an integer power must not be negative");
-            _il.Emit(OpCodes.Newobj, _owner.Module.ImportReference(_owner.Backend.Core.Find("System.OverflowException")!.Methods.First(
+            _il.Emit(OpCodes.Newobj, _target.ImportReference(_owner.Backend.Core.Find("System.OverflowException")!.Methods.First(
                 candidate => candidate.IsConstructor && candidate.Parameters.Count == 1 && candidate.Parameters[0].ParameterType.FullName == "System.String")));
             _il.Emit(OpCodes.Throw);
             _il.Append(valid);

@@ -8,6 +8,8 @@ namespace Tqc.Backend.Cecil;
 ///
 ///   struct Tq.Failable        { object Error }               `!void`
 ///   struct Tq.Failable&lt;T&gt;     { T Value; object Error }  `!T`
+///   static class Tq.Ops       the operators that have no instruction: `Tq.Ops.AddOnBounds_Byte(a, b)`, `Tq.Ops.Pow_Int32(a, b)`...
+///                             (made by the first module that needs each one, so there is one copy for the whole build)
 ///
 /// `Error` stands for `Std.Types.Error`, which does not exist yet: it is null when the call worked.
 /// </summary>
@@ -19,6 +21,10 @@ internal sealed class TqRuntimeAssembly
     public AssemblyDefinition Assembly { get; }
     public TypeDefinition Failable { get; }
     public TypeDefinition FailableOf { get; }
+
+    /// <summary>`Tq.Ops`, with the helpers of the operators; by operator and type.</summary>
+    public TypeDefinition Ops { get; }
+    public Dictionary<string, MethodDefinition> OpsHelpers { get; } = [];
 
     public TqRuntimeAssembly(CoreTypes core)
     {
@@ -44,5 +50,9 @@ internal sealed class TqRuntimeAssembly
         FailableOf.Fields.Add(new FieldDefinition("Value", FieldAttributes.Public, parameter));
         FailableOf.Fields.Add(new FieldDefinition("Error", FieldAttributes.Public, @object));
         module.Types.Add(FailableOf);
+
+        Ops = new TypeDefinition(Namespace, "Ops",
+            TypeAttributes.Public | TypeAttributes.Abstract | TypeAttributes.Sealed | TypeAttributes.BeforeFieldInit, @object);
+        module.Types.Add(Ops);
     }
 }
