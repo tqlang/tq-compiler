@@ -316,15 +316,14 @@ internal sealed partial class ModuleEmitter
     }
 
     /// <summary>The integer value of a number, or of a constant of .NET (the value of a case of a .NET enum).</summary>
-    internal static bool TryInteger(IrExpression expression, out decimal value)
+    internal static bool TryInteger(IrExpression expression, out BigInteger value)
     {
         value = 0;
 
         switch (expression)
         {
             case IrComptimeInt integer:
-                if (integer.BigInteger < decimal.MinValue || integer.BigInteger > decimal.MaxValue) return false;
-                value = (decimal)integer.BigInteger;
+                value = integer.BigInteger;
                 return true;
 
             case IrConvert conversion:
@@ -332,7 +331,7 @@ internal sealed partial class ModuleEmitter
 
             case IrReference { Reference: Tqc.IR.References.FieldReference { Field: DotnetField { IsConstant: true, Constant: { } constant } } }
                 when constant is not (string or bool or float or double):
-                try { value = Convert.ToDecimal(constant); return true; }
+                try { value = BigInteger.Parse(Convert.ToString(constant, System.Globalization.CultureInfo.InvariantCulture)!); return true; }
                 catch (Exception exception) when (exception is InvalidCastException or FormatException or OverflowException) { return false; }
 
             default:
@@ -361,7 +360,7 @@ internal sealed partial class ModuleEmitter
                     return constant != null;
 
                 case IrComptimeDecimal number:
-                    constant = ConvertNumber(number.Value, type.FullName);
+                    constant = ConvertDecimal(number.Value, type.FullName);
                     return constant != null && type.FullName is "System.Single" or "System.Double";
 
                 default:
@@ -374,26 +373,26 @@ internal sealed partial class ModuleEmitter
         }
     }
 
+    /// <summary>The integer as the .NET type; an `OverflowException` (the callers catch it) when it does not fit.</summary>
     private static object? ConvertInteger(BigInteger value, string typeName) => typeName switch
     {
-        "System.UInt64" => (ulong)value,
+        "System.SByte" => (sbyte)value,
+        "System.Byte" => (byte)value,
+        "System.Int16" => (short)value,
+        "System.UInt16" => (ushort)value,
+        "System.Int32" => (int)value,
+        "System.UInt32" => (uint)value,
         "System.Int64" => (long)value,
-        "System.Single" or "System.Double" => ConvertNumber((decimal)value, typeName),
-        _ => value >= decimal.MinValue && value <= decimal.MaxValue ? ConvertNumber((decimal)value, typeName) : null,
+        "System.UInt64" => (ulong)value,
+        "System.Single" => (float)value,
+        "System.Double" => (double)value,
+        _ => null,
     };
 
-    private static object? ConvertNumber(decimal value, string typeName) => typeName switch
+    private static object? ConvertDecimal(decimal value, string typeName) => typeName switch
     {
-        "System.SByte" => Convert.ToSByte(value),
-        "System.Byte" => Convert.ToByte(value),
-        "System.Int16" => Convert.ToInt16(value),
-        "System.UInt16" => Convert.ToUInt16(value),
-        "System.Int32" => Convert.ToInt32(value),
-        "System.UInt32" => Convert.ToUInt32(value),
-        "System.Int64" => Convert.ToInt64(value),
-        "System.UInt64" => Convert.ToUInt64(value),
-        "System.Single" => Convert.ToSingle(value),
-        "System.Double" => Convert.ToDouble(value),
+        "System.Single" => (float)value,
+        "System.Double" => (double)value,
         _ => null,
     };
 }

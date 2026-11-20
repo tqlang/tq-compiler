@@ -1,3 +1,4 @@
+using System.Numerics;
 using Mono.Cecil;
 using Tqc.Core;
 using Tqc.Dotnet.ProgramMembers;
@@ -148,7 +149,7 @@ internal sealed partial class ModuleEmitter
         _backend.Definitions[typedef] = type;
 
         var underlying = typedef.UnderlyingType != null ? MapExpression(typedef.UnderlyingType) : Core("System.Int32");
-        if (ConvertNumber(0, underlying.FullName) == null)
+        if (ConvertInteger(0, underlying.FullName) == null)
         {
             Report($"The typedef '{typedef.Name}' is stored as '{underlying.FullName}', which cannot be the type of an enum",
                 typedef.SourceLocation);
@@ -158,7 +159,7 @@ internal sealed partial class ModuleEmitter
         type.Fields.Add(new FieldDefinition("value__",
             FieldAttributes.Public | FieldAttributes.SpecialName | FieldAttributes.RTSpecialName, underlying));
 
-        decimal next = 0;
+        BigInteger next = 0;
         foreach (var member in typedef.Members.Values.OrderBy(member => LocationOf(member)?.span.LineStart ?? 0)
                      .ThenBy(member => LocationOf(member)?.span.ColStart ?? 0).ThenBy(member => member.Name, StringComparer.Ordinal))
         {
@@ -168,7 +169,7 @@ internal sealed partial class ModuleEmitter
                 continue;
             }
 
-            decimal value = next;
+            BigInteger value = next;
             if (named.Value != null)
             {
                 if (TryInteger(named.Value, out var evaluated)) value = evaluated;
@@ -178,7 +179,7 @@ internal sealed partial class ModuleEmitter
             var field = new FieldDefinition(named.Name,
                 FieldAttributes.Public | FieldAttributes.Static | FieldAttributes.Literal | FieldAttributes.HasDefault, type);
 
-            if (TryConstant(new IrComptimeInt(named.SourceLocation, (System.Numerics.BigInteger)value), underlying, out var constant))
+            if (TryConstant(new IrComptimeInt(named.SourceLocation, value), underlying, out var constant))
                 field.Constant = constant;
             else
                 Report($"The value {value} of the case '{named.Name}' does not fit '{underlying.FullName}'", named.SourceLocation);
