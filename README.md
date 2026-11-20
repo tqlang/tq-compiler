@@ -285,19 +285,24 @@ namespace Std.Console {
     public struct Health : Base {    // class · ns=Game · /caminho/health.tq(3,1)
         public value: i32;    // ns=Game · /caminho/health.tq(4,5)
         public func change(new: i32) -> void {    // ns=Game · /caminho/health.tq(6,5)
-            this.value = (new + 1) /* i32 */;    // @7:9
-            Console.Write(s) /* -> Write(string) */ /* void */;    // @8:9
+            this.value = (new + 1) /* binary Add: i32 */ /* assign: i32 */;    // @7:9
+            Console.Write(s /* param: string */) /* call -> Write(string): void */;    // @8:9
         }
     }
 }
 ```
 
-- `/* T */` depois de uma expressão que calcula algo (chamada, operador, conversão, índice) é o tipo que o type checker deu
-  a ela, escrito como nas mensagens de erro (`i32`, `ref Foo`, `!i32`, `?T`, `[]string`); `?` se não tem tipo. Um local diz seu tipo
-  onde é declarado (`let x /* i32 */`).
-- Uma chamada diz a sobrecarga escolhida, `/* -> Write(string) */`. Se ainda é um grupo de sobrecargas, diz
-  `/* UNRESOLVED call: Write is still a group of overloads */`; um `new` sem construtor diz `/* UNRESOLVED constructor */`.
+- **Toda** expressão leva `/* o que é: tipo */`. O tipo é o do type checker, escrito como nas mensagens de erro (`i32`, `ref Foo`,
+  `!i32`, `?T`, `[]string`); `?` se não tem tipo.
+- O "o que é" de um nome é a ligação do binder: `local`, `param`, `field`, `property`, `this of Tipo`, `backing field of prop`,
+  `func Nome(tipos)`, `group of overloads`, `namespace`, `type`, `struct type`, `typedef`, `protocol`, `slice type`, `UNSOLVED`.
+  Outros nós dizem `binary Add`, `unary Neg`, `convert`, `assign`, `index`, `array`, `int constant`, `decimal constant`,
+  `bool constant`, `string constant`, `string concat`, `local declaration`.
+- Uma chamada diz a sobrecarga escolhida (`call -> Write(string)`); se ainda é um grupo: `call, UNRESOLVED: Write is still a
+  group of overloads`. Um `new` diz `new -> construtor` ou `new, UNRESOLVED constructor`.
 - Um nome que o binder não conseguiu ligar sai como `?nome`.
+- Flags nos comentários dos membros: propriedades mostram `getter/setter`, `accessors resolved`, `uses field`; funções mostram
+  `owner=`, `overridable`; structs mostram `class`, `abstract`, `final`, etc.
 - Cada instrução termina em `// @linha:coluna`; membros trazem acesso (`public`, `private`...), o namespace (`ns=`), `allow=`/`deny=`
   e a posição `arquivo(linha,coluna)` no comentário.
 - Também saem imports e declarações por arquivo, atributos (`@onset`, e `UNKNOWN attribute` para os que não existem), `extends`,

@@ -226,7 +226,9 @@ public sealed class IrDumper
         var (modifier, access) = AccessOf(property);
         var type = property.Type != null ? $": {Expr(property.Type)}" : "";
         var comment = $"{access} · backing field: {(property.HasBackingField ? "yes" : "no")}"
-                      + $"{(property.UsesFieldKeyword ? " · uses `field`" : "")} · {WhereFile(property.SourceLocation)}";
+                      + $"{(property.UsesFieldKeyword ? " · uses `field`" : "")}"
+                      + $" · getter: {(property.HasGetter ? "yes" : "no")} · setter: {(property.HasSetter ? "yes" : "no")}"
+                      + $" · accessors resolved: {(property.AccessorsResolved ? "yes" : "no")} · {WhereFile(property.SourceLocation)}";
 
         Attributes(property.Attributes);
         Block($"{modifier} property {property.Name}{type}", () =>
@@ -254,7 +256,8 @@ public sealed class IrDumper
         var returns = function.ReturnType != null ? $" -> {Expr(function.ReturnType)}" : "";
         var header = $"{modifier} {string.Join(" ", flags.Where(flag => flag != "overridable"))} {keyword}{name}({parameters}){returns}"
             .Replace("  ", " ").Trim();
-        var comment = $"{(function.CanBeOverridden && !function.IsAbstract ? "overridable · " : "")}{access} · {WhereFile(function.SourceLocation)}";
+        var comment = $"{(function.CanBeOverridden && !function.IsAbstract ? "overridable · " : "")}"
+                      + $"{(function.Owner != null ? $"owner={function.Owner.Name} · " : "")}{access} · {WhereFile(function.SourceLocation)}";
 
         Attributes(function.Attributes);
 
@@ -425,8 +428,33 @@ public sealed class IrDumper
         [BinaryOperator.LessEqual] = "<=", [BinaryOperator.GreaterEqual] = ">=",
     };
 
-    /// <summary>`/* T */`: the type the checker gave an expression that computes something.</summary>
-    private string Typed(string text, IrNode node) => $"{text} /* {TypeText(node)} */";
+    /// <summary>
+    /// `/* what: T */`: what the expression is for the compiler (what a name was bound to, the overload a call chose, the
+    /// kind of a literal) and the type the checker gave it; `?` when it has none. Every expression has one.
+    /// </summary>
+    private string Typed(string text, IrNode node, string? what = null) =>
+        $"{text} /* {(what == null ? "" : what + ": ")}{TypeText(node)} */";
+
+    /// <summary>What a name was bound to: `local`, `param`, `field`, `func Owner.name(types)`, `UNSOLVED`...</summary>
+    private static string Kind(Ref reference) => reference switch
+    {
+        UnsolvedRef => "UNSOLVED",
+        LocalReference => "local",
+        ParameterReference => "param",
+        ThisReference self => $"this of {self.Owner.Name}",
+        BackingFieldReference backing => $"backing field of {backing.Property.Name}",
+        PropertyReference => "property",
+        FieldReference => "field",
+        FunctionTypeReference function => $"func {Signature(function.Function)}",
+        FunctionGroupTypeReference => "group of overloads",
+        NamespaceReference => "namespace",
+        ProtocolTypeReference => "protocol",
+        TypeMetaReference => "type",
+        StructTypeReference => "struct type",
+        TypedefTypeReference => "typedef",
+        SliceTypeRef => "slice type",
+        _ => reference.GetType().Name,
+    };
 
     /// <summary>An operand of an operator: parenthesized when it is one itself.</summary>
     private string Operand(IrExpression expression) => expression is IrBinary or IrConvert or IrAssign or IrUnary
@@ -441,36 +469,36 @@ public sealed class IrDumper
                 return "<none>";
 
             case IrReference reference:
-                return Name(reference.Reference);
+                return Typed(Name(reference.Reference), reference, Kind(reference.Reference));
 
             case IrIdentifier identifier:
-                return $"?{identifier.identifier}";
+                return Typed($"?{identifier.identifier}", identifier, "UNBOUND identifier");
 
             case IrAccess access:
-                return $"{Operand(access.baseExpr)}.{Name(access.access.Reference)}";
+                return Typed($"{Operand(access.baseExpr)}.{Name(access.access.Reference)}", access, Kind(access.access.Reference));
 
             case IrCall call:
-                return Typed($"{Operand(call.callee)}({Arguments(call.ArgumentsList)}){Resolution(call)}", call);
+                return Typed($"{Operand(call.callee)}({Arguments(call.ArgumentsList)})", call, Resolution(call));
 
             case IrNew creation:
             {
                 var constructor = creation.Constructor == null
-                    ? " /* UNRESOLVED constructor */"
-                    : $" /* -> {Signature(creation.Constructor)} */";
-                return Typed($"new {Expr(creation.Type)}({Arguments(creation.ArgumentsList)}){constructor}", creation);
+                    ? "new, UNRESOLVED constructor"
+                    : $"new -> {Signature(creation.Constructor)}";
+                return Typed($"new {Expr(creation.Type)}({Arguments(creation.ArgumentsList)})", creation, constructor);
             }
 
             case IrConvert convert:
-                return Typed($"{Operand(convert.Expression)} as {Expr(convert.toType)}", convert);
+                return Typed($"{Operand(convert.Expression)} as {Expr(convert.toType)}", convert, "convert");
 
             case IrAssign assign:
-                return $"{Expr(assign.Target)} = {Expr(assign.Source)}";
+                return Typed($"{Expr(assign.Target)} = {Expr(assign.Source)}", assign, "assign");
 
             case IrSliceTypeModifier slice:
-                return $"[]{Expr(slice.subtype)}";
+                return Typed($"[]{Expr(slice.subtype)}", slice, "slice type");
 
             case IrBinary binary:
-                return Typed($"{Operand(binary.Left)} {Operators.GetValueOrDefault(binary.Operator, binary.Operator.ToString())} {Operand(binary.Right)}", binary);
+                return Typed($"{Operand(binary.Left)} {Operators.GetValueOrDefault(binary.Operator, binary.Operator.ToString())} {Operand(binary.Right)}", binary, $"binary {binary.Operator}");
 
             case IrUnary unary:
             {
@@ -484,35 +512,36 @@ public sealed class IrDumper
                     _ => unary.Operator.ToString(),
                 };
                 var operand = Operand(unary.Operand);
-                return Typed(unary.IsPostfix ? $"{operand}{symbol}" : $"{symbol}{operand}", unary);
+                return Typed(unary.IsPostfix ? $"{operand}{symbol}" : $"{symbol}{operand}", unary,
+                    $"unary {unary.Operator}{(unary.IsPostfix ? " postfix" : "")}");
             }
 
             case IrIndex index:
-                return Typed($"{Operand(index.Target)}[{string.Join(", ", index.Indices.Select(Expr))}]", index);
+                return Typed($"{Operand(index.Target)}[{string.Join(", ", index.Indices.Select(Expr))}]", index, "index");
 
             case IrArray array:
-                return $"[{string.Join(", ", array.Elements.Select(Expr))}]";
+                return Typed($"[{string.Join(", ", array.Elements.Select(Expr))}]", array, "array");
 
             case IrComptimeInt integer:
-                return integer.BigInteger.ToString(CultureInfo.InvariantCulture);
+                return Typed(integer.BigInteger.ToString(CultureInfo.InvariantCulture), integer, "int constant");
 
             case IrComptimeDecimal number:
-                return number.Value.ToString(CultureInfo.InvariantCulture);
+                return Typed(number.Value.ToString(CultureInfo.InvariantCulture), number, "decimal constant");
 
             case IrComptimeBool boolean:
-                return boolean.Value ? "true" : "false";
+                return Typed(boolean.Value ? "true" : "false", boolean, "bool constant");
 
             case IrLocal local:
             {
                 var declared = local.type != null ? $": {Expr(local.type)}" : "";
-                return $"let {local.name}{declared} /* {TypeText(local)} */";
+                return Typed($"let {local.name}{declared}", local, "local declaration");
             }
 
             case IrStringConstant text:
-                return $"\"{Escape(text.Value)}\"";
+                return Typed($"\"{Escape(text.Value)}\"", text, "string constant");
 
             case IrStringConcat concat:
-                return $"concat({string.Join(", ", concat.Parts.Select(Expr))})";
+                return Typed($"concat({string.Join(", ", concat.Parts.Select(Expr))})", concat, "string concat");
 
             case IrArgumentsList list:
                 return Arguments(list);
@@ -527,9 +556,10 @@ public sealed class IrDumper
     /// <summary>The overload the checker chose for a call, or that it did not.</summary>
     private string Resolution(IrCall call) => ReferenceOf(call.callee) switch
     {
-        FunctionTypeReference function => $" /* -> {Signature(function.Function)} */",
-        FunctionGroupTypeReference group => $" /* UNRESOLVED call: {group.FunctionGroup.Name} is still a group of overloads */",
-        _ => "",
+        FunctionTypeReference function => $"call -> {Signature(function.Function)}",
+        FunctionGroupTypeReference group => $"call, UNRESOLVED: {group.FunctionGroup.Name} is still a group of overloads",
+        { } other => $"call of {Kind(other)}",
+        _ => "call",
     };
 
     private static string Escape(string text) => text
