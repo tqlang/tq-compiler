@@ -28,7 +28,8 @@ internal sealed partial class TypeChecker
 
         // Two number literals are one literal: `2 ** 128 - 1` is a value of compile time (they have no size, so it
         // does not overflow), and it only has to fit the type it meets.
-        if (left is IrComptimeInt or IrComptimeDecimal && right is IrComptimeInt or IrComptimeDecimal)
+        if (left is IrComptimeInt or IrComptimeDecimal && right is IrComptimeInt or IrComptimeDecimal
+            && TypeOf(left) is ComptimeIntegerTypeRef or ComptimeDecimalTypeRef && TypeOf(right) is ComptimeIntegerTypeRef or ComptimeDecimalTypeRef)
         {
             var folded = ComptimeEvaluator.TryEvaluate(visited, out var failure);
             if (failure != null)
@@ -102,6 +103,7 @@ internal sealed partial class TypeChecker
         var visited = unary with { Operand = operand };
 
         if (unary is { IsPostfix: false, Operator: UnaryOperator.Negate } && operand is IrComptimeInt or IrComptimeDecimal
+            && TypeOf(operand) is ComptimeIntegerTypeRef or ComptimeDecimalTypeRef
             && ComptimeEvaluator.TryEvaluate(visited, out _) is { } negated)
             return Compute(negated);
 

@@ -500,6 +500,8 @@ internal sealed class BodyEmitter
         switch (expression)
         {
             case IrComptimeInt integer:
+                // `u8.max` is an integer constant that already has its type; a literal takes the one it is expected to be.
+                if (_types.Get(integer) is { } sized and not ComptimeIntegerTypeRef) expected = _owner.MapType(sized, integer.Location);
                 return EmitInteger(integer.BigInteger, expected, integer.Location);
 
             case IrComptimeDecimal number:

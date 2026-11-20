@@ -1,3 +1,4 @@
+using System.Numerics;
 using Tqc.Dotnet.ProgramMembers;
 using Tqc.IR.ProgramMembers;
 using Tqc.IR.Nodes;
@@ -137,6 +138,23 @@ internal sealed partial class TypeChecker
             return (visited, new StructTypeReference(CompilerStd.Types.Natural(true)));
         }
 
+        // `u8.max` and `i32.min`: the bounds of an integer type. They are constants of that type (not literals: they
+        // have a size), so `u8.max + 1` is a `u8` and overflows.
+        if (name.Value is "min" or "max" && IsTypeOrNamespace(baseExpr) && TypeFromExpression(baseExpr) is { } denoted
+            && (ConversionRules.IsInteger(denoted)))
+        {
+            if (asTarget) Error($"'{name.Value}' of '{TypeFormatter.Format(denoted)}' is a constant and cannot be assigned", access.access.Location);
+
+            if (!IntegerBounds(denoted, out var minimum, out var maximum))
+            {
+                Error($"The bounds of '{TypeFormatter.Format(denoted)}' depend on the platform, so they have no value when compiling",
+                    access.access.Location);
+                return (visited, denoted);
+            }
+
+            return (new IrComptimeInt(access.Location, name.Value == "min" ? minimum : maximum), denoted);
+        }
+
         var container = ContainerOf(TypeOf(baseExpr));
         if (container == null) return (visited, null);
 
@@ -167,6 +185,20 @@ internal sealed partial class TypeChecker
         }
 
         return (resolved, memberType);
+    }
+
+    /// <summary>The smallest and the largest value of a sized integer type (`int` and `uint` are 32 bits); false for `iptr` and `uptr`.</summary>
+    private static bool IntegerBounds(ITypeRef type, out BigInteger minimum, out BigInteger maximum)
+    {
+        minimum = maximum = 0;
+
+        if (ConversionRules.TryInteger(type, out var signed, out var bits)) { }
+        else if (ConversionRules.TryNatural(type, out signed)) bits = 32;
+        else return false;
+
+        minimum = signed ? -(BigInteger.One << (bits - 1)) : BigInteger.Zero;
+        maximum = signed ? (BigInteger.One << (bits - 1)) - 1 : (BigInteger.One << bits) - 1;
+        return true;
     }
 
     /// <summary>What has the members of a value of this type; null if the type has none known.</summary>

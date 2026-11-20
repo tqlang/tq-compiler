@@ -309,6 +309,13 @@ namespace Std.Console {
   construtores, `typedef`s (tipo base, casos), propriedades (`get`/`set`, o que o checker resolveu, `backing field`), e operadores
   na escrita da linguagem (`+%`, `**`, `as`).
 
+## `<inteiro>.min` e `<inteiro>.max`
+
+`u8.max`, `i32.min`, `i128.max`... são os limites dos tipos inteiros (`int`/`uint` têm 32 bits). São constantes **com o tipo** (`u8.max` é
+um `u8`, não um literal sem tamanho), então `Test.assert(u8.max, 255)` escolhe a sobrecarga de `u8` e `u8.max + 1` estoura em `u8`. Em
+`iptr`/`uptr` os limites dependem da plataforma, e pedi-los é erro. Duas constantes literais continuam dobrando em uma só
+(`2 ** 8 - 1`); uma constante com tipo, não.
+
 ## `null`
 
 `null` é um literal de tipo `null`, que só se converte para um `?T` (parâmetro, atribuição, retorno, campo: `let ?i32 x = null`).
