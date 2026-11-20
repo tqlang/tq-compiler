@@ -115,7 +115,7 @@ internal static class ConversionRules
     /// <summary>How an integer literal fits a type; None if the type is not an integer or the value does not fit.</summary>
     public static ArgumentMatch ClassifyLiteral(IrExpression literal, ITypeRef parameter)
     {
-        if (literal is not IrComptimeInt { BigInteger: var value } || value != decimal.Truncate(value))
+        if (literal is not IrComptimeInt { BigInteger: var value })
             return ArgumentMatch.None;
 
         if (TryInteger(parameter, out var signed, out var bits))
@@ -168,9 +168,8 @@ internal static class ConversionRules
 
     private static ArgumentMatch Convert(int cost) => new(MatchKind.Convert, cost);
 
-    private static bool Fits(decimal value, bool signed, int bits)
+    private static bool Fits(BigInteger integer, bool signed, int bits)
     {
-        var integer = new BigInteger(value);
         return signed
             ? integer >= -(BigInteger.One << (bits - 1)) && integer < BigInteger.One << (bits - 1)
             : integer >= 0 && integer < BigInteger.One << bits;

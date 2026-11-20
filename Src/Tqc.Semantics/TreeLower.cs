@@ -673,7 +673,7 @@ public static class TreeLower
                 return new IrArray(array.GetLoc(ctx.SrcFile), [..array.Select(element => LowerExpression(ctx, element))]);
 
             case IntegerLiteralExpressionNode integer:
-                return new IrComptimeInt(integer.GetLoc(ctx.SrcFile), (decimal)integer.Value);
+                return new IrComptimeInt(integer.GetLoc(ctx.SrcFile), integer.Value);
 
             case SliceTypeModifierNode sliceTypeModifier:
                 return new IrSliceTypeModifier(
@@ -798,6 +798,8 @@ public static class TreeLower
         TokenKind.DivCeil => BinaryOperator.DivCeil,
         TokenKind.Rest => BinaryOperator.Rest,
         TokenKind.Power => BinaryOperator.Pow,
+        TokenKind.PowerWrap => BinaryOperator.PowWrap,
+        TokenKind.PowerOnBounds => BinaryOperator.PowOnBounds,
         TokenKind.EqualsEquals => BinaryOperator.Equal,
         TokenKind.ExactEquals => BinaryOperator.ExactEqual,
         TokenKind.NotEqualsEquals => BinaryOperator.NotEqual,

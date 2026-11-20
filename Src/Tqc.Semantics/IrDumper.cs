@@ -422,6 +422,7 @@ public sealed class IrDumper
         [BinaryOperator.Mul] = "*", [BinaryOperator.MulWrap] = "*%", [BinaryOperator.MulOnBounds] = "*|",
         [BinaryOperator.Div] = "/", [BinaryOperator.DivFloor] = "/_", [BinaryOperator.DivCeil] = "/^",
         [BinaryOperator.Rest] = "%", [BinaryOperator.Pow] = "**",
+        [BinaryOperator.PowWrap] = "**%", [BinaryOperator.PowOnBounds] = "**|",
         [BinaryOperator.Equal] = "==", [BinaryOperator.ExactEqual] = "===",
         [BinaryOperator.NotEqual] = "!=", [BinaryOperator.NotExactEqual] = "!==",
         [BinaryOperator.Less] = "<", [BinaryOperator.Greater] = ">",

@@ -309,6 +309,27 @@ namespace Std.Console {
   construtores, `typedef`s (tipo base, casos), propriedades (`get`/`set`, o que o checker resolveu, `backing field`), e operadores
   na escrita da linguagem (`+%`, `**`, `as`).
 
+## Operadores de inteiros em .NET
+
+| Operador | Significado | Como sai em .NET |
+|---|---|---|
+| `+ - *` | checados (lançam `OverflowException`) | `add.ovf`, `sub.ovf`, `mul.ovf` |
+| `+% -% *%` | dão a volta (wrap) | `add`, `sub`, `mul` + corte para o tamanho |
+| `+\| -\| *\|` | saturados nos limites do tipo | `BigInteger` + `Max`/`Min` com os limites |
+| `/` `%` | divisão truncada, resto | `div`, `rem` |
+| `/_` `/^` | divisão para baixo / para cima | `BigInteger` (quociente corrigido pelo resto) |
+| `**` | potência, checada | `BigInteger.Pow` + conversão checada (floats: `Math.Pow`) |
+| `**%` `**\|` | potência com wrap / saturada | `BigInteger.Pow` + corte / limites |
+
+`+| -| *| /_ /^ **` precisam de `System.Numerics.BigInteger`: o módulo dotnet do `build.toml` precisa de
+`"dotnet : System.Runtime.Numerics : <versão>"` (sem isso o erro diz exatamente isso). `**%` e `**|` são lidos pelo parser como
+`*` seguido de `*%`/`*|`, como o `**`. Floats têm `**`, `/_` e `/^` (`Math.Pow`, `Math.Floor`, `Math.Ceiling`); saturar ou dar a volta num
+float é erro. Inteiros de 128 bits (`i128`/`u128`) têm literais, comparações e esses operadores; `+ - * / %` deles ainda não.
+
+**Constantes:** os inteiros de compile time são `System.Numerics.BigInteger` (antes `decimal`, limite de ~7,9e28). Duas constantes
+numéricas viram uma constante só no type checker (`2 ** 128 - 1`, `-(2 ** 127)`), sem tamanho, então não estouram: só precisam
+caber no tipo que as recebe. `+% +| ...` entre constantes é a operação comum (não há tamanho para dar a volta).
+
 Os módulos que não são Tq também saem, na mesma pasta (`SemanticAnalyser.DumpMembers` / `ModuleDumper`), com os
 membros como o type checker os enxerga, para comparar com uma chamada que "could not be resolved":
 

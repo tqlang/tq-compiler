@@ -1,3 +1,4 @@
+using System.Numerics;
 using Tqc.IR.Nodes;
 
 namespace Tqc.Semantics;
@@ -97,71 +98,73 @@ internal static class ComptimeEvaluator
 
     private static decimal NumberOf(IrExpression value) => value switch
     {
-        IrComptimeInt integer => integer.BigInteger,
+        IrComptimeInt integer => (decimal)integer.BigInteger,
         IrComptimeDecimal number => number.Value,
         _ => throw new InvalidOperationException("Not a number"),
     };
 
-    private static IrExpression? CombineIntegers(IrBinary binary, decimal a, decimal b, ref string? error)
+    /// <summary>
+    /// Integers have no size while compiling, so nothing can overflow: `+%` and `+|` are a plain `+` (the size comes
+    /// when the value meets a type, and then it must fit).
+    /// </summary>
+    private static IrExpression? CombineIntegers(IrBinary binary, BigInteger a, BigInteger b, ref string? error)
     {
         var location = binary.Location;
 
         switch (binary.Operator)
         {
-            case BinaryOperator.Add: return new IrComptimeInt(location, a + b);
-            case BinaryOperator.Sub: return new IrComptimeInt(location, a - b);
-            case BinaryOperator.Mul: return new IrComptimeInt(location, a * b);
+            case BinaryOperator.Add or BinaryOperator.AddWrap or BinaryOperator.AddOnBounds: return new IrComptimeInt(location, a + b);
+            case BinaryOperator.Sub or BinaryOperator.SubWrap or BinaryOperator.SubOnBounds: return new IrComptimeInt(location, a - b);
+            case BinaryOperator.Mul or BinaryOperator.MulWrap or BinaryOperator.MulOnBounds: return new IrComptimeInt(location, a * b);
 
-            case BinaryOperator.Pow:
-                if (b < 0 || b != decimal.Truncate(b))
+            case BinaryOperator.Pow or BinaryOperator.PowWrap or BinaryOperator.PowOnBounds:
+                if (b < 0)
                 {
-                    error = "The exponent of an integer power must be a whole number that is not negative";
+                    error = "The exponent of an integer power must not be negative";
                     return null;
                 }
 
                 return Power(a, b, ref error) is { } power ? new IrComptimeInt(location, power) : null;
 
             case BinaryOperator.Div or BinaryOperator.DivFloor or BinaryOperator.DivCeil or BinaryOperator.Rest:
-                if (b == 0)
+            {
+                if (b.IsZero)
                 {
                     error = "Division by zero while compiling";
                     return null;
                 }
 
+                var quotient = BigInteger.DivRem(a, b, out var rest);
+                var differentSigns = rest.Sign != 0 && (rest.Sign < 0) != (b.Sign < 0);
+
                 return new IrComptimeInt(location, binary.Operator switch
                 {
-                    BinaryOperator.Div => decimal.Truncate(a / b),
-                    BinaryOperator.DivFloor => decimal.Floor(a / b),
-                    BinaryOperator.DivCeil => decimal.Ceiling(a / b),
-                    _ => a % b,
+                    BinaryOperator.Div => quotient,
+                    BinaryOperator.DivFloor => differentSigns ? quotient - 1 : quotient,
+                    BinaryOperator.DivCeil => rest.Sign != 0 && !differentSigns ? quotient + 1 : quotient,
+                    _ => rest,
                 });
+            }
 
             default:
                 return Compare(binary, a, b);
         }
     }
 
-    /// <summary>A whole power. Compile-time integers are `decimal`, so one past about 7.9e28 is an error, not a wrong value.</summary>
-    private static decimal? Power(decimal value, decimal exponent, ref string? error)
+    /// <summary>A whole power. The exponent is limited so that a mistake does not eat all the memory.</summary>
+    private static BigInteger? Power(BigInteger value, BigInteger exponent, ref string? error)
     {
-        if (exponent == 0) return 1;
-        if (value is 0 or 1) return value;
-        if (value == -1) return exponent % 2 == 0 ? 1 : -1;
+        if (exponent.IsZero) return 1;
+        if (value == 0 || value == 1) return value;
+        if (value == -1) return exponent.IsEven ? 1 : -1;
 
-        // 2 ** 97 is already past the range, so a larger exponent cannot fit.
-        if (exponent <= 200)
+        if (exponent > 100_000)
         {
-            try
-            {
-                decimal result = 1;
-                for (var i = 0; i < exponent; i++) result *= value;
-                return result;
-            }
-            catch (OverflowException) { }
+            error = "The exponent of the power is too large to be evaluated while compiling";
+            return null;
         }
 
-        error = "The result of the power does not fit in the numbers of compile time (up to about 7.9e28)";
-        return null;
+        return BigInteger.Pow(value, (int)exponent);
     }
 
     private static IrExpression? CombineDecimals(IrBinary binary, decimal a, decimal b, ref string? error)
@@ -200,7 +203,7 @@ internal static class ComptimeEvaluator
         }
     }
 
-    private static IrExpression? Compare(IrBinary binary, decimal a, decimal b) => binary.Operator switch
+    private static IrExpression? Compare<T>(IrBinary binary, T a, T b) where T : IComparisonOperators<T, T, bool> => binary.Operator switch
     {
         BinaryOperator.Equal or BinaryOperator.ExactEqual => new IrComptimeBool(binary.Location, a == b),
         BinaryOperator.NotEqual or BinaryOperator.NotExactEqual => new IrComptimeBool(binary.Location, a != b),

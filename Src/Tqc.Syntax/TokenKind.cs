@@ -61,6 +61,8 @@ public enum TokenKind
     SubAssign,         // -=
     
     Power,             // ** (two adjacent stars; the parser joins them, so that `**T` is still a reference to a reference)
+    PowerWrap,         // **% (`*` and `*%`, joined by the parser)
+    PowerOnBounds,     // **| (`*` and `*|`, joined by the parser)
     Star,              // *
     MulWrap,           // *%
     MulOnBounds,       // *|

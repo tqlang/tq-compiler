@@ -855,11 +855,18 @@ public class Parser(DiagnosticBag diagnostics)
         {
             var first = AdvanceNode();
 
-            // Adjacent, with nothing between: `a * *b` is not a power.
-            if (Check(TokenKind.Star))
+            // Adjacent, with nothing between: `a * *b` is not a power. `**%` and `**|` are `*` followed by `*%` and `*|`.
+            if (Check(TokenKind.Star) || Check(TokenKind.MulWrap) || Check(TokenKind.MulOnBounds))
             {
+                var (text, kind) = PeekKind() switch
+                {
+                    TokenKind.MulWrap => ("**%", TokenKind.PowerWrap),
+                    TokenKind.MulOnBounds => ("**|", TokenKind.PowerOnBounds),
+                    _ => ("**", TokenKind.Power),
+                };
+
                 var second = AdvanceNode();
-                var op = new TokenNode(first.Trivia, "**", TokenKind.Power, first.Line, first.Column);
+                var op = new TokenNode(first.Trivia, text, kind, first.Line, first.Column);
                 AdvanceTrivia(_midExpressionTrivia);
                 var right = ParsePower();
                 return new BinaryExpressionNode(left, op, right);

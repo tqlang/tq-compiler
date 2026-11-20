@@ -66,7 +66,7 @@ public record IrArray(SourceLocation Location, IrExpression[] Elements) : IrExpr
 public abstract record IrValue(SourceLocation Location) : IrExpression(Location);
 public record IrReference(SourceLocation Location, Ref Reference) : IrValue(Location);
 public record IrIdentifier(SourceLocation location, string identifier) : IrValue(location);
-public record IrComptimeInt(SourceLocation Location, decimal BigInteger) : IrValue(Location);
+public record IrComptimeInt(SourceLocation Location, BigInteger BigInteger) : IrValue(Location);
 public record IrComptimeDecimal(SourceLocation Location, decimal Value) : IrValue(Location);
 public record IrComptimeBool(SourceLocation Location, bool Value) : IrValue(Location);
 

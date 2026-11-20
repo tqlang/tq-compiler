@@ -1,3 +1,4 @@
+using System.Numerics;
 using Mono.Cecil;
 using Mono.Cecil.Cil;
 using Tqc.Core;
@@ -475,7 +476,7 @@ internal sealed class BodyEmitter
         switch (expression)
         {
             case IrComptimeInt integer:
-                return EmitNumber(integer.BigInteger, false, expected, integer.Location);
+                return EmitInteger(integer.BigInteger, expected, integer.Location);
 
             case IrComptimeDecimal number:
                 return EmitNumber(number.Value, true, expected, number.Location);
@@ -1188,8 +1189,28 @@ internal sealed class BodyEmitter
             return result;
         }
 
+        // Saturating arithmetic, rounded division and powers have no instruction: they are made with `BigInteger`.
+        if (UsesBigInteger(binary.Operator) && common.FullName != "System.Char") return EmitBigOperator(binary, common);
+
         EmitValue(binary.Left, common);
         EmitValue(binary.Right, common);
+
+        // The 128 bits integers are structs: they are compared with their own operators, not with `ceq`.
+        if (isComparison && common.FullName is "System.Int128" or "System.UInt128")
+        {
+            var name = binary.Operator switch
+            {
+                BinaryOperator.Equal or BinaryOperator.ExactEqual => "op_Equality",
+                BinaryOperator.NotEqual or BinaryOperator.NotExactEqual => "op_Inequality",
+                BinaryOperator.Less => "op_LessThan",
+                BinaryOperator.Greater => "op_GreaterThan",
+                BinaryOperator.LessEqual => "op_LessThanOrEqual",
+                _ => "op_GreaterThanOrEqual",
+            };
+
+            _il.Emit(OpCodes.Call, Library(common.FullName, name, common.FullName, common.FullName));
+            return result;
+        }
 
         var known = TryNum(common, out var number);
 
@@ -1201,10 +1222,6 @@ internal sealed class BodyEmitter
                     Report($"The operator '{binary.Operator}' does not exist for '{common.Name}' in .NET", binary.Location);
                 else
                     EmitArithmetic(binary.Operator, number, binary.Location);
-                break;
-
-            case BinaryOperator.Pow:
-                Report("The power ('**') is only evaluated at compile time for now: both operands must be constants", binary.Location);
                 break;
 
             case BinaryOperator.Equal or BinaryOperator.ExactEqual:
@@ -1244,6 +1261,279 @@ internal sealed class BodyEmitter
         }
 
         return result;
+    }
+
+    /// <summary>An integer constant, as a value of the expected type; the 128 bits ones are built with their constructor.</summary>
+    private TypeReference EmitInteger(BigInteger value, TypeReference? expected, SourceLocation location)
+    {
+        if (expected?.FullName is "System.Int128" or "System.UInt128")
+        {
+            var signed = expected.FullName == "System.Int128";
+            var fits = signed
+                ? value >= -(BigInteger.One << 127) && value < BigInteger.One << 127
+                : value >= 0 && value < BigInteger.One << 128;
+
+            if (!fits)
+            {
+                Report($"The literal {value} does not fit '{expected.FullName}'", location);
+                value = 0;
+            }
+
+            var bits = value & ((BigInteger.One << 128) - 1);
+            var constructor = _owner.Backend.Core.Find(expected.FullName)!.Methods.First(candidate =>
+                candidate.IsConstructor && candidate.Parameters.Count == 2
+                && candidate.Parameters.All(parameter => parameter.ParameterType.FullName == "System.UInt64"));
+
+            _il.Emit(OpCodes.Ldc_I8, unchecked((long)(ulong)(bits >> 64)));
+            _il.Emit(OpCodes.Ldc_I8, unchecked((long)(ulong)(bits & ulong.MaxValue)));
+            _il.Emit(OpCodes.Newobj, _owner.Module.ImportReference(constructor));
+            return Core(expected.FullName);
+        }
+
+        if (value >= decimal.MinValue && value <= decimal.MaxValue) return EmitNumber((decimal)value, false, expected, location);
+
+        Report($"The literal {value} is too large for a number of .NET that is not 128 bits wide", location);
+        _il.Emit(OpCodes.Ldc_I4_0);
+        return Core("System.Int32");
+    }
+
+    // ---- Operators made with System.Numerics.BigInteger
+
+    private const string BigName = "System.Numerics.BigInteger";
+
+    private static bool UsesBigInteger(BinaryOperator @operator) => @operator is
+        BinaryOperator.AddOnBounds or BinaryOperator.SubOnBounds or BinaryOperator.MulOnBounds
+        or BinaryOperator.DivFloor or BinaryOperator.DivCeil
+        or BinaryOperator.Pow or BinaryOperator.PowWrap or BinaryOperator.PowOnBounds;
+
+    private TypeReference BigType()
+    {
+        if (_owner.Backend.Core.Find(BigName) == null)
+            throw new BackendError(
+                $"The type '{BigName}' was not found. The operators `+|`, `-|`, `*|`, `/_`, `/^` and `**` of integers use it: " +
+                "add \"dotnet : System.Runtime.Numerics : <version>\" to the dependencies of the dotnet module in build.toml");
+
+        return Core(BigName);
+    }
+
+    /// <summary>A method of `BigInteger` by name and the types of its parameters.</summary>
+    private MethodReference BigMethod(string name, params string[] parameters)
+    {
+        BigType();
+        var type = _owner.Backend.Core.Find(BigName)!;
+        var method = type.Methods.FirstOrDefault(candidate => candidate.Name == name
+                                                              && candidate.Parameters.Count == parameters.Length
+                                                              && candidate.Parameters.Select(parameter => parameter.ParameterType.FullName)
+                                                                  .SequenceEqual(parameters))
+                     ?? throw new BackendError($"The method '{BigName}.{name}' was not found");
+
+        return _owner.Module.ImportReference(method);
+    }
+
+    /// <summary>`op_Implicit` from a number to `BigInteger`, or `op_Explicit` (that throws if it does not fit) back to it.</summary>
+    private MethodReference BigConversion(bool toBig, string numberType)
+    {
+        BigType();
+        var type = _owner.Backend.Core.Find(BigName)!;
+        var method = type.Methods.FirstOrDefault(candidate => toBig
+                         ? candidate.Name == "op_Implicit" && candidate.Parameters.Count == 1
+                                                           && candidate.Parameters[0].ParameterType.FullName == numberType
+                                                           && candidate.ReturnType.FullName == BigName
+                         : candidate.Name == "op_Explicit" && candidate.Parameters.Count == 1
+                                                           && candidate.Parameters[0].ParameterType.FullName == BigName
+                                                           && candidate.ReturnType.FullName == numberType)
+                     ?? throw new BackendError($"'{BigName}' has no conversion {(toBig ? "from" : "to")} '{numberType}'");
+
+        return _owner.Module.ImportReference(method);
+    }
+
+    private static bool TryBigRange(string typeName, out bool signed, out int bits)
+    {
+        (var known, signed, bits) = typeName switch
+        {
+            "System.SByte" => (true, true, 8),
+            "System.Byte" => (true, false, 8),
+            "System.Int16" => (true, true, 16),
+            "System.UInt16" => (true, false, 16),
+            "System.Int32" => (true, true, 32),
+            "System.UInt32" => (true, false, 32),
+            "System.Int64" => (true, true, 64),
+            "System.UInt64" => (true, false, 64),
+            "System.Int128" => (true, true, 128),
+            "System.UInt128" => (true, false, 128),
+            _ => (false, false, 0),
+        };
+
+        return known;
+    }
+
+    /// <summary>
+    /// `+|`, `-|`, `*|`, `/_`, `/^`, `**`, `**%` and `**|`. An integer is widened to a `BigInteger`, which cannot overflow,
+    /// and the result is brought back: cut at the bounds (saturated), cut to the size (wrapped) or checked (`**`, the
+    /// divisions), which throws an `OverflowException` when it does not fit, as `+` does.
+    /// </summary>
+    private TypeReference? EmitBigOperator(IrBinary binary, TypeReference common)
+    {
+        var @operator = binary.Operator;
+
+        if (TryNum(common, out var number) && number.Float)
+        {
+            switch (@operator)
+            {
+                case BinaryOperator.Pow:
+                {
+                    EmitValue(binary.Left, common);
+                    if (number.Bits == 32) _il.Emit(OpCodes.Conv_R8);
+                    EmitValue(binary.Right, common);
+                    if (number.Bits == 32) _il.Emit(OpCodes.Conv_R8);
+                    _il.Emit(OpCodes.Call, Library("System.Math", "Pow", "System.Double", "System.Double"));
+                    if (number.Bits == 32) _il.Emit(OpCodes.Conv_R4);
+                    return common;
+                }
+
+                case BinaryOperator.DivFloor or BinaryOperator.DivCeil:
+                {
+                    EmitValue(binary.Left, common);
+                    EmitValue(binary.Right, common);
+                    _il.Emit(OpCodes.Div);
+                    if (number.Bits == 32) _il.Emit(OpCodes.Conv_R8);
+                    _il.Emit(OpCodes.Call, Library("System.Math", @operator == BinaryOperator.DivFloor ? "Floor" : "Ceiling", "System.Double"));
+                    if (number.Bits == 32) _il.Emit(OpCodes.Conv_R4);
+                    return common;
+                }
+
+                default:
+                    Report($"The operator '{@operator}' does not exist for '{common.Name}': a float has no bounds to saturate at or to wrap around", binary.Location);
+                    return common;
+            }
+        }
+
+        if (!TryBigRange(common.FullName, out var signed, out var bits))
+        {
+            Report($"The operator '{@operator}' does not exist for '{common.Name}' in .NET", binary.Location);
+            return common;
+        }
+
+        EmitValue(binary.Left, common);
+        _il.Emit(OpCodes.Call, BigConversion(true, common.FullName));
+        EmitValue(binary.Right, common);
+        _il.Emit(OpCodes.Call, BigConversion(true, common.FullName));
+
+        switch (@operator)
+        {
+            case BinaryOperator.AddOnBounds:
+                _il.Emit(OpCodes.Call, BigMethod("op_Addition", BigName, BigName));
+                break;
+
+            case BinaryOperator.SubOnBounds:
+                _il.Emit(OpCodes.Call, BigMethod("op_Subtraction", BigName, BigName));
+                break;
+
+            case BinaryOperator.MulOnBounds:
+                _il.Emit(OpCodes.Call, BigMethod("op_Multiplication", BigName, BigName));
+                break;
+
+            case BinaryOperator.DivFloor or BinaryOperator.DivCeil:
+                EmitRoundedDivision(@operator == BinaryOperator.DivCeil);
+                break;
+
+            default: // the powers: the exponent is the second operand, as an `int`
+                _il.Emit(OpCodes.Call, BigConversion(false, "System.Int32"));
+                _il.Emit(OpCodes.Call, BigMethod("Pow", BigName, "System.Int32"));
+                break;
+        }
+
+        switch (@operator)
+        {
+            case BinaryOperator.AddOnBounds or BinaryOperator.SubOnBounds or BinaryOperator.MulOnBounds or BinaryOperator.PowOnBounds:
+            {
+                var minimum = signed ? -(BigInteger.One << (bits - 1)) : BigInteger.Zero;
+                var maximum = signed ? (BigInteger.One << (bits - 1)) - 1 : (BigInteger.One << bits) - 1;
+
+                _il.Emit(OpCodes.Ldstr, minimum.ToString(System.Globalization.CultureInfo.InvariantCulture));
+                _il.Emit(OpCodes.Call, BigMethod("Parse", "System.String"));
+                _il.Emit(OpCodes.Call, BigMethod("Max", BigName, BigName));
+
+                _il.Emit(OpCodes.Ldstr, maximum.ToString(System.Globalization.CultureInfo.InvariantCulture));
+                _il.Emit(OpCodes.Call, BigMethod("Parse", "System.String"));
+                _il.Emit(OpCodes.Call, BigMethod("Min", BigName, BigName));
+
+                _il.Emit(OpCodes.Call, BigConversion(false, common.FullName));
+                break;
+            }
+
+            case BinaryOperator.PowWrap when bits == 128:
+                _il.Emit(OpCodes.Pop);
+                _il.Emit(OpCodes.Ldc_I4_0);
+                Report("`**%` is not available for 128 bits integers in .NET yet", binary.Location);
+                break;
+
+            // The low 64 bits (two's complement, so a negative number works too), cut to the size.
+            case BinaryOperator.PowWrap:
+                _il.Emit(OpCodes.Ldstr, ulong.MaxValue.ToString(System.Globalization.CultureInfo.InvariantCulture));
+                _il.Emit(OpCodes.Call, BigMethod("Parse", "System.String"));
+                _il.Emit(OpCodes.Call, BigMethod("op_BitwiseAnd", BigName, BigName));
+                _il.Emit(OpCodes.Call, BigConversion(false, "System.UInt64"));
+
+                if (bits == 8) _il.Emit(signed ? OpCodes.Conv_I1 : OpCodes.Conv_U1);
+                else if (bits == 16) _il.Emit(signed ? OpCodes.Conv_I2 : OpCodes.Conv_U2);
+                else if (bits == 32) _il.Emit(signed ? OpCodes.Conv_I4 : OpCodes.Conv_U4);
+                break;
+
+            default:
+                _il.Emit(OpCodes.Call, BigConversion(false, common.FullName));
+                break;
+        }
+
+        return common;
+    }
+
+    /// <summary>
+    /// `a /_ b` and `a /^ b` with `a` and `b` (BigInteger) on the stack: the division truncates toward zero, so when
+    /// something is left over and the quotient was cut the wrong way it is moved one step (down for floor, up for ceil).
+    /// </summary>
+    private void EmitRoundedDivision(bool ceiling)
+    {
+        var big = BigType();
+        var divisor = NewTemp(big);
+        var dividend = NewTemp(big);
+        var quotient = NewTemp(big);
+        var rest = NewTemp(big);
+
+        _il.Emit(OpCodes.Stloc, divisor);
+        _il.Emit(OpCodes.Stloc, dividend);
+
+        _il.Emit(OpCodes.Ldloc, dividend);
+        _il.Emit(OpCodes.Ldloc, divisor);
+        _il.Emit(OpCodes.Call, BigMethod("Divide", BigName, BigName));
+        _il.Emit(OpCodes.Stloc, quotient);
+
+        _il.Emit(OpCodes.Ldloc, dividend);
+        _il.Emit(OpCodes.Ldloc, divisor);
+        _il.Emit(OpCodes.Call, BigMethod("Remainder", BigName, BigName));
+        _il.Emit(OpCodes.Stloc, rest);
+
+        var done = _il.Create(OpCodes.Nop);
+
+        _il.Emit(OpCodes.Ldloc, rest);
+        _il.Emit(OpCodes.Call, BigMethod("IsZero", BigName));
+        _il.Emit(OpCodes.Brtrue, done);
+
+        // 1 when the rest and the divisor have the same sign: then the true quotient is above the truncated one.
+        _il.Emit(OpCodes.Ldloc, rest);
+        _il.Emit(OpCodes.Call, BigMethod("IsNegative", BigName));
+        _il.Emit(OpCodes.Ldloc, divisor);
+        _il.Emit(OpCodes.Call, BigMethod("IsNegative", BigName));
+        _il.Emit(OpCodes.Ceq);
+        _il.Emit(ceiling ? OpCodes.Brfalse : OpCodes.Brtrue, done);
+
+        _il.Emit(OpCodes.Ldloc, quotient);
+        _il.Emit(OpCodes.Call, BigMethod("get_One"));
+        _il.Emit(OpCodes.Call, BigMethod(ceiling ? "op_Addition" : "op_Subtraction", BigName, BigName));
+        _il.Emit(OpCodes.Stloc, quotient);
+
+        _il.Append(done);
+        _il.Emit(OpCodes.Ldloc, quotient);
     }
 
     /// <summary>

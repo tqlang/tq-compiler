@@ -6,7 +6,7 @@ public enum BinaryOperator
     Add, AddWrap, AddOnBounds,
     Sub, SubWrap, SubOnBounds,
     Mul, MulWrap, MulOnBounds,
-    Div, DivFloor, DivCeil, Rest, Pow,
+    Div, DivFloor, DivCeil, Rest, Pow, PowWrap, PowOnBounds,
     Equal, ExactEqual, NotEqual, NotExactEqual,
     Less, Greater, LessEqual, GreaterEqual,
 }

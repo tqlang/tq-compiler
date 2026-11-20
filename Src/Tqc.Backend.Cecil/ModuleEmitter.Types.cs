@@ -178,7 +178,7 @@ internal sealed partial class ModuleEmitter
             var field = new FieldDefinition(named.Name,
                 FieldAttributes.Public | FieldAttributes.Static | FieldAttributes.Literal | FieldAttributes.HasDefault, type);
 
-            if (TryConstant(new IrComptimeInt(named.SourceLocation, value), underlying, out var constant))
+            if (TryConstant(new IrComptimeInt(named.SourceLocation, (System.Numerics.BigInteger)value), underlying, out var constant))
                 field.Constant = constant;
             else
                 Report($"The value {value} of the case '{named.Name}' does not fit '{underlying.FullName}'", named.SourceLocation);

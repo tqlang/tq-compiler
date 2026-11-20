@@ -1,3 +1,4 @@
+using System.Numerics;
 using Mono.Cecil;
 using Mono.Cecil.Cil;
 using Tqc.Core;
@@ -322,7 +323,8 @@ internal sealed partial class ModuleEmitter
         switch (expression)
         {
             case IrComptimeInt integer:
-                value = integer.BigInteger;
+                if (integer.BigInteger < decimal.MinValue || integer.BigInteger > decimal.MaxValue) return false;
+                value = (decimal)integer.BigInteger;
                 return true;
 
             case IrConvert conversion:
@@ -355,7 +357,7 @@ internal sealed partial class ModuleEmitter
                     return true;
 
                 case IrComptimeInt integer:
-                    constant = ConvertNumber(integer.BigInteger, type.FullName);
+                    constant = ConvertInteger(integer.BigInteger, type.FullName);
                     return constant != null;
 
                 case IrComptimeDecimal number:
@@ -371,6 +373,14 @@ internal sealed partial class ModuleEmitter
             return false;
         }
     }
+
+    private static object? ConvertInteger(BigInteger value, string typeName) => typeName switch
+    {
+        "System.UInt64" => (ulong)value,
+        "System.Int64" => (long)value,
+        "System.Single" or "System.Double" => ConvertNumber((decimal)value, typeName),
+        _ => value >= decimal.MinValue && value <= decimal.MaxValue ? ConvertNumber((decimal)value, typeName) : null,
+    };
 
     private static object? ConvertNumber(decimal value, string typeName) => typeName switch
     {

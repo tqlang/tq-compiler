@@ -26,6 +26,20 @@ internal sealed partial class TypeChecker
         var isComparison = binary.Operator >= BinaryOperator.Equal;
         ITypeRef? resultOf(ITypeRef common) => isComparison ? BoolType() : common;
 
+        // Two number literals are one literal: `2 ** 128 - 1` is a value of compile time (they have no size, so it
+        // does not overflow), and it only has to fit the type it meets.
+        if (left is IrComptimeInt or IrComptimeDecimal && right is IrComptimeInt or IrComptimeDecimal)
+        {
+            var folded = ComptimeEvaluator.TryEvaluate(visited, out var failure);
+            if (failure != null)
+            {
+                Error(failure, binary.Location);
+                return (visited, isComparison ? BoolType() : null);
+            }
+
+            if (folded is IrComptimeInt or IrComptimeDecimal) return Compute(folded);
+        }
+
         var leftType = TypeOf(left);
         var rightType = TypeOf(right);
         if (leftType == null || rightType == null) return (visited, isComparison ? BoolType() : null);
@@ -86,6 +100,11 @@ internal sealed partial class TypeChecker
     {
         var operand = Visit(unary.Operand);
         var visited = unary with { Operand = operand };
+
+        if (unary is { IsPostfix: false, Operator: UnaryOperator.Negate } && operand is IrComptimeInt or IrComptimeDecimal
+            && ComptimeEvaluator.TryEvaluate(visited, out _) is { } negated)
+            return Compute(negated);
+
         var type = TypeOf(operand);
 
         if (unary.Operator is UnaryOperator.Increment or UnaryOperator.Decrement && ConstantNameOf(operand) is { } constant)
