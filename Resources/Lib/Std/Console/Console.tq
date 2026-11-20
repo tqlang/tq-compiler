@@ -17,3 +17,5 @@ from Dotnet.System import { Console }
 @public func writeln(u128 value) { Console.WriteLine(value as string) }
 @public func writeln([]anytype value) { Console.WriteLine(value as string) }
 @public func writeln(string value) { Console.WriteLine(value) }
+@public func writeln() { Console.WriteLine() }
+

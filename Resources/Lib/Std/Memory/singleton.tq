@@ -3,7 +3,7 @@ from Dotnet.System.Runtime.CompilerServices import { RuntimeHelpers }
 
 # Allocates a slice in heap memory
 @public func alloc(type T, uint length, Alignment alignment) []T {
-    return GC.AllocateArray(length as int, false)
+    return GC.AllocateArray(T, length as int, false)
 }
 
 # Allocates an object in heap memory

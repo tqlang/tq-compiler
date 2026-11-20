@@ -23,9 +23,9 @@ internal sealed partial class TypeChecker
         // The types of a .NET method are all of its first parameters; those of a Tq function are the ones of the type `type`.
         IReadOnlyList<TqParameter> parameters = function switch
         {
-            TqFunction tq => tq.Parameters,
+            TqFunction tq       => tq.Parameters,
             DotnetMethod dotnet => dotnet.TypeParameters,
-            _ => [],
+            _                   => [],
         };
 
         for (var i = 0; i < parameters.Count && i < arguments.Count; i++)
@@ -33,7 +33,6 @@ internal sealed partial class TypeChecker
             if (GenericParameterTypeRef.IsTypeParameter(parameters[i]) && TypeFromExpression(arguments[i]) is { } type)
                 bound[parameters[i]] = type;
         }
-
         return bound;
     }
 

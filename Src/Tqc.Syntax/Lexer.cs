@@ -59,18 +59,20 @@ internal class Lexer(string Source)
             case ',': return GetTokenValue(TokenKind.Comma);
             
             case '<':
-            {
-                if (NextRuneIf('=')) return GetTokenValue(TokenKind.LessEqual);
-                if (NextRuneIf('<')) return GetTokenValue(TokenKind.BitShiftLeft);
-                return GetTokenValue(TokenKind.LeftAngle);
-            }
+                return GetTokenValue(
+                    NextRuneIf('=') ? TokenKind.LessEqual
+                    : NextRuneIf('<') ? TokenKind.BitShiftLeft
+                    : TokenKind.LeftAngle
+                );
             case '>':
             {
-                if (NextRuneIf('=')) return GetTokenValue(TokenKind.GreaterEqual);
-                if (NextRuneIf('>')) return GetTokenValue(TokenKind.BitShiftRight);
-                return GetTokenValue(TokenKind.RightAngle);
+                return GetTokenValue(
+                    NextRuneIf('=') ? TokenKind.GreaterEqual
+                    : NextRuneIf('<') ? TokenKind.BitShiftRight
+                    : TokenKind.RightAngle
+                );
             }
-
+            
             case '+':
                 return GetTokenValue(
                     NextRuneIf('=') ? TokenKind.AddAssign 
@@ -243,7 +245,7 @@ internal class Lexer(string Source)
             {
                 var c2 = NextRune();
                 return GetTokenValue(c2.Value == '{'
-                    ? TokenKind.EscapedLeftBracket
+                    ? TokenKind.EscapedLeftBrace
                     : TokenKind.EscapedCharacter);
             }
 

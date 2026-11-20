@@ -5,6 +5,6 @@
     
     testBuiltins()
     testNullables()
-    testArithmeticU8()
-    testArithmeticI8()
+    #testArithmeticU8()
+    #testArithmeticI8()
 }

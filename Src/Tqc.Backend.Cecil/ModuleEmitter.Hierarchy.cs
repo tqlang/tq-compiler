@@ -1,3 +1,4 @@
+using System.Runtime.CompilerServices;
 using Mono.Cecil;
 using Mono.Cecil.Cil;
 using Tqc.IR.ProgramMembers;
@@ -147,8 +148,15 @@ internal sealed partial class ModuleEmitter
     /// </summary>
     private void DeclareRefBridges()
     {
-        var containers = _containers.Where(container => container.Struct != null && InHierarchy(container.Struct))
-            .ToDictionary(container => container.Struct!, ReferenceEqualityComparer.Instance);
+        var containers = _containers
+            .Where(container =>
+                container.Struct != null &&
+                InHierarchy(container.Struct))
+            .ToDictionary(
+                container => container.Struct!,
+                container => container,
+                ReferenceComparer<TqStruct>.Instance
+            );
 
         foreach (var container in containers.Values)
         {
@@ -223,5 +231,13 @@ internal sealed partial class ModuleEmitter
         }
 
         return (function, level);
+    }
+    
+    private sealed class ReferenceComparer<T> : IEqualityComparer<T> where T : class
+    {
+        public static readonly ReferenceComparer<T> Instance = new();
+
+        public bool Equals(T? x, T? y) => ReferenceEquals(x, y);
+        public int GetHashCode(T obj) => RuntimeHelpers.GetHashCode(obj);
     }
 }

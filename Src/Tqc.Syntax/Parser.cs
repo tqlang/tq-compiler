@@ -605,16 +605,16 @@ public class Parser(DiagnosticBag diagnostics)
         var condition = ParseExpression();
         AdvanceTrivia(_midDeclarationTrivia);
         var thenBranch = ParseStatement();
-        
-        return new ElifStatementNode(ifKeyword, condition, thenBranch, ConsumeStatementLeadingTrivia());
+
+        return new ElifStatementNode(ifKeyword, condition, thenBranch, []);  //ConsumeStatementLeadingTrivia());
     }
     private ElseStatementNode ParseElseStatement()
     {
         var ifKeyword = ExpectNode("else", "'else' keyword");
         AdvanceTrivia(_midDeclarationTrivia);
         var thenBranch = ParseStatement();
-        
-        return new ElseStatementNode(ifKeyword, thenBranch, ConsumeStatementLeadingTrivia());
+
+        return new ElseStatementNode(ifKeyword, thenBranch, []);  //ConsumeStatementLeadingTrivia());
     }
     #endregion
 
@@ -699,7 +699,9 @@ public class Parser(DiagnosticBag diagnostics)
     }
     private ExpressionStatementNode ParseExpressionStatement()
     {
-        return new ExpressionStatementNode(ParseExpression(), ConsumeStatementLeadingTrivia());
+        var exp = ParseExpression();
+        var trivia = ConsumeStatementLeadingTrivia();
+        return new ExpressionStatementNode(exp, trivia);
     }
     #endregion
     
@@ -986,7 +988,9 @@ public class Parser(DiagnosticBag diagnostics)
             ExpressionNode? firstExpression;
             IdentifierExpressionNode? secondExpression = null;
         
-            letKeyword = CheckKeyword("const") ? ExpectNode("const", "'const' keyword") : ExpectNode("let", "'let' keyword");
+            letKeyword = CheckKeyword("const")
+                ? ExpectNode("const", "'const' keyword")
+                : ExpectNode("let", "'let' keyword");
             AdvanceTrivia(TokenKind.Whitespace);
         
             firstExpression = ParseType();
@@ -1062,10 +1066,21 @@ public class Parser(DiagnosticBag diagnostics)
         List<StringContentNode> content = [];
         
         var open = ExpectNode(TokenKind.DoubleQuote, "double quotes ('\"')");
-        while (!AtEnd() && !Check(TokenKind.DoubleQuote))
+        while (!AtEnd() && !Check(TokenKind.DoubleQuote) && !Check(TokenKind.LineFeed))
         {
             if (Check(TokenKind.StringLiteral)) content.Add(new StringLiteralNode(AdvanceNode()));
-            if (Check(TokenKind.EscapedCharacter)) content.Add(new StringCharacterLiteralNode(AdvanceNode()));
+            else if (Check(TokenKind.EscapedCharacter)) content.Add(new StringCharacterLiteralNode(AdvanceNode()));
+            
+            else if (Check(TokenKind.EscapedLeftBrace))
+            {
+                var leftBrace = AdvanceNode();
+                var exp = ParseExpression();
+                var rightBrace = ExpectNode(TokenKind.RightBrace, "Expected right brace");
+                
+                content.Add(new InterpolatedExpressionNode(leftBrace, exp, rightBrace));
+            }
+            
+            else throw Error(Peek()!.Value, $"Unexpected token inside string {Peek()!.Value}");
         }
         var close = ExpectNode(TokenKind.DoubleQuote, "double quotes ('\"')");
 
@@ -1130,7 +1145,7 @@ public class Parser(DiagnosticBag diagnostics)
 
     private TriviaNode[] ConsumeStatementLeadingTrivia()
     {
-        AdvanceTrivia(TokenKind.Whitespace);
+        AdvanceTrivia(TokenKind.Whitespace, TokenKind.Comment);
         if (Check(TokenKind.Semicolon) || Check(TokenKind.LineFeed)) AdvanceTrivia();
         else if (!Check(TokenKind.RightBrace)) Expect(TokenKind.LineFeed, "Line feed after statement");
         
@@ -1138,7 +1153,7 @@ public class Parser(DiagnosticBag diagnostics)
     }
     private TriviaNode[] ConsumeDeclarationsLeadingTrivia()
     {
-        AdvanceTrivia(TokenKind.Whitespace);
+        AdvanceTrivia(TokenKind.Whitespace, TokenKind.Comment);
         if (Check(TokenKind.Semicolon) || Check(TokenKind.LineFeed)) AdvanceTrivia();
         
         return _trivia.Dump();

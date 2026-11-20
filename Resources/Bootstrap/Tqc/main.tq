@@ -1,6 +1,18 @@
 from Std.Console import
-
+from Std.Process import
+from Tests import { runTests }
 
 @public func main() {
     writeln("Hello, World!")
+
+    if (true) {
+        writeln("It looks like the compiler is working!")
+    }
+
+    let args = getProgramArguments()
+    writeln("Program arguments:")
+    while (let i = 0 : i < args.len : i++) writeln(" - " + args[i])
+
+    writeln()
+    runTests()
 }

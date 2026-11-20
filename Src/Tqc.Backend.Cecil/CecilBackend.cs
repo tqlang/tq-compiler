@@ -95,7 +95,7 @@ public sealed class CecilBackend(DiagnosticBag diagnostics)
             "tfm": "net10.0",
             "framework": {
               "name": "Microsoft.NETCore.App",
-              "version": "10.0.0"
+              "version": "11.0.0-rc.3.26522.148"
             }
           }
         }

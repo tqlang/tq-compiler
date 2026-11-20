@@ -12,7 +12,7 @@ public enum TokenKind
     StringLiteral,
     Identifier,
     
-    EscapedLeftBracket, // \{
+    EscapedLeftBrace, // \{
     EscapedCharacter,
     
     LeftParenthesis, RightParenthesis, // ( )

@@ -48,7 +48,7 @@ static class Program
             else args.Add(argument);
         }
 
-        var manifestFile = Path.GetFullPath(args.Count > 0 ? args[0] : "./build.toml");
+        var manifestFile = Path.GetFullPath("./build.toml"); //args.Count > 0 ? args[0] : "./build.toml");
         if (!File.Exists(manifestFile))
         {
             throw new NotImplementedException(
@@ -105,9 +105,10 @@ static class Program
                             .OfType<ModuleReference>()
                             .Select(reference => reference.Definition)
                             .Select(definition => map[definition]);
-                    
-                    SemanticAnalyser.BindReferences(module, view, [..dependencies], diagnostics);
-                    SemanticAnalyser.TypeCheck(module, [..dependencies], diagnostics);
+
+                    var dependenciesArray = dependencies as IModule[] ?? dependencies.ToArray();
+                    SemanticAnalyser.BindReferences(module, view, dependenciesArray, diagnostics);
+                    SemanticAnalyser.TypeCheck(module, dependenciesArray, diagnostics);
                     tqModules.Add((module, moduleDescriptor.Name));
 
                     // Written even when there are errors: that is when it is most useful.
@@ -130,7 +131,12 @@ static class Program
     }
 
     static void EmitDotnet(
-        List<(IModule Module, string Name)> modules, List<IModule> dotnetModules, string root, string outDirectory, DiagnosticBag diagnostics)
+        List<(IModule Module, string Name)> modules,
+        List<IModule> dotnetModules,
+        string root,
+        string outDirectory,
+        DiagnosticBag diagnostics
+    )
     {
         var backend = new CecilBackend(diagnostics);
         foreach (var dotnetModule in dotnetModules) backend.AddDotnetModule(dotnetModule);
@@ -213,7 +219,7 @@ static class Program
         private const string Extension = "*.tq"; 
         
         // Entries that do not match are ignored (see "Naming Limitations" in the language reference).
-        private static readonly Regex ValidDirectoryName = new(@"^[a-zA-Z_][a-zA-Z0-9_]*$", RegexOptions.Compiled);
+        private static readonly Regex ValidDirectoryName = new("^[a-zA-Z_][a-zA-Z0-9_]*$", RegexOptions.Compiled);
         private static readonly Regex ValidFileName = new(@"^[a-zA-Z_][a-zA-Z0-9_]*\.tq$", RegexOptions.Compiled);
         
         public static NamespaceNode BuildTree(string rootPath, string moduleName)
