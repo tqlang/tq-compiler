@@ -277,19 +277,32 @@ cada aplicação é uma `GenericInstance` da tabela compartilhada; não há nó 
 ## Dump da IR (`--dump-ir`)
 
 `tqc build_toml [build.toml] --dump-ir[=pasta]` escreve a IR de cada módulo Tq em `pasta/<Módulo>.tqir` (padrão `./tqir`),
-depois da checagem de tipos e mesmo quando há erros. É um formato de texto próprio, só para depuração
-(`SemanticAnalyser.DumpIr` / `IrDumper`):
+depois da checagem de tipos e mesmo quando há erros. É escrita como a própria linguagem (`SemanticAnalyser.DumpIr` / `IrDumper`):
+o que foi escrito em Tq sai como Tq, e os comentários dizem o que o compilador sabe.
 
-- Um nó por linha, filhos indentados; os rótulos (`target:`, `source:`, `callee:`, `body:` ...) dizem o papel do filho.
-- Toda expressão termina em `: tipo`, o tipo que o type checker deu a ela (`?` se não tem), escrito como nas
-  mensagens de erro (`i32`, `ref Foo`, `!i32`, `?T`, `[]string`).
-- Nomes mostram a que foram ligados (`Ref local x`, `Ref param y`, `Ref field f`, `Ref func Health.change`,
-  `Ref UNSOLVED 'x'`) e o que o type checker resolveu (`New ... constructor=...`, `Convert`, chamadas de `@onset`
-  e de indexadores já reescritas como `Call`).
-- Membros trazem acesso (`[public ns=Std.Console allow=[...] deny=[...]]`), atributos com argumentos, parâmetros
-  (tipo e valor padrão), retorno, corpo, e a posição no arquivo `arquivo(linha,coluna)`; nós levam `@linha:coluna`.
-- Também aparecem imports e declarações por arquivo, `extends`, construtores, `typedef`s (tipo base, casos),
-  propriedades (acessores, fonte, `backing=yes/no`).
+```
+namespace Std.Console {
+    public struct Health : Base {    // class · ns=Game · /caminho/health.tq(3,1)
+        public value: i32;    // ns=Game · /caminho/health.tq(4,5)
+        public func change(new: i32) -> void {    // ns=Game · /caminho/health.tq(6,5)
+            this.value = (new + 1) /* i32 */;    // @7:9
+            Console.Write(s) /* -> Write(string) */ /* void */;    // @8:9
+        }
+    }
+}
+```
+
+- `/* T */` depois de uma expressão que calcula algo (chamada, operador, conversão, índice) é o tipo que o type checker deu
+  a ela, escrito como nas mensagens de erro (`i32`, `ref Foo`, `!i32`, `?T`, `[]string`); `?` se não tem tipo. Um local diz seu tipo
+  onde é declarado (`let x /* i32 */`).
+- Uma chamada diz a sobrecarga escolhida, `/* -> Write(string) */`. Se ainda é um grupo de sobrecargas, diz
+  `/* UNRESOLVED call: Write is still a group of overloads */`; um `new` sem construtor diz `/* UNRESOLVED constructor */`.
+- Um nome que o binder não conseguiu ligar sai como `?nome`.
+- Cada instrução termina em `// @linha:coluna`; membros trazem acesso (`public`, `private`...), o namespace (`ns=`), `allow=`/`deny=`
+  e a posição `arquivo(linha,coluna)` no comentário.
+- Também saem imports e declarações por arquivo, atributos (`@onset`, e `UNKNOWN attribute` para os que não existem), `extends`,
+  construtores, `typedef`s (tipo base, casos), propriedades (`get`/`set`, o que o checker resolveu, `backing field`), e operadores
+  na escrita da linguagem (`+%`, `**`, `as`).
 
 Os módulos que não são Tq também saem, na mesma pasta (`SemanticAnalyser.DumpMembers` / `ModuleDumper`), com os
 membros como o type checker os enxerga, para comparar com uma chamada que "could not be resolved":

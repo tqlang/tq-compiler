@@ -11,22 +11,26 @@ using Tqc.IR.References;
 namespace Tqc.Semantics;
 
 /// <summary>
-/// The IR of a module as text, for debugging. It is a format of its own (not a language): one node per line, the
-/// children indented under it, and every expression ends in `: type`, the type the type checker gave it (`?` when
-/// it has none). It holds what the IR holds: members, their attributes and access, the bodies, what each name was
-/// bound to, and what the type checker resolved (overloads, constructors, conversions).
+/// The IR of a module as text, for debugging, written like the language: what was written in Tq reads as Tq, and the
+/// comments say what the compiler knows about it.
 ///
-///   module Name
-///     namespace Std.Console
-///       struct Health [public ns=Game] @3:1
-///         attr @onset
-///         field value : i32
-///         func change(new: i32) -> void
-///           body
-///             Assign @6:9 : i32
-///               target:
-///                 Access @6:9 : i32
-///                 ...
+///   namespace Std.Console {
+///       public struct Health : Base {            // class · file.tq(3,1)
+///           public value: i32;
+///           public func change(new: i32) -> void {
+///               this.value = (new + 1);          // @6:9
+///               write(x /* string */)            // @7:9
+///               Console.Write(s) /* -> Write(string) : void */
+///           }
+///       }
+///   }
+///
+/// - `/* T */` after an expression is the type the type checker gave it (`?` when it has none) and is written on
+///   what computes something (calls, operators, conversions, indexing); a local says its type where it is declared.
+/// - A call says the overload it chose, `/* -> name(types) : result */`; one that is still a group of overloads says
+///   `/* UNRESOLVED call */`.
+/// - A name the binder could not bind is written `?name`.
+/// - A statement ends with `// @line:column`.
 /// </summary>
 public sealed class IrDumper
 {
@@ -39,27 +43,22 @@ public sealed class IrDumper
     public static string Dump(TqModule module, string name)
     {
         var dumper = new IrDumper(module.Types);
-        dumper.Line($"module {name}");
-        dumper._depth++;
+        dumper.Line($"// module {name}");
         dumper.Namespace(module.RootNamespace);
         return dumper._out.ToString();
     }
 
     // ---- Output
 
-    private void Line(string text) => _out.Append(' ', _depth * 2).AppendLine(text);
+    private void Line(string text = "") => _out.Append(' ', _depth * 4).AppendLine(text);
 
-    private void Nested(Action body)
+    private void Block(string header, Action body, string? comment = null)
     {
+        Line($"{header} {{{(comment == null ? "" : $"    // {comment}")}");
         _depth++;
         body();
         _depth--;
-    }
-
-    private void Labeled(string label, Action body)
-    {
-        Line(label + ":");
-        Nested(body);
+        Line("}");
     }
 
     private static string Where(SourceLocation location) => $"@{location.span.LineStart}:{location.span.ColStart}";
@@ -67,14 +66,13 @@ public sealed class IrDumper
     private static string WhereFile(SourceLocation location) =>
         $"{location.filePath}({location.span.LineStart},{location.span.ColStart})";
 
-    private string TypeOfNode(IrNode node) => _types.Get(node) is { } type ? TypeFormatter.Format(type) : "?";
+    private string TypeText(IrNode node) => _types.Get(node) is { } type ? TypeFormatter.Format(type) : "?";
 
     // ---- Members
 
     private void Namespace(TqNamespace node)
     {
-        Line($"namespace {node.Name}");
-        Nested(() =>
+        Block($"namespace {node.Name}", () =>
         {
             if (!node.FileScopes.IsDefault) foreach (var scope in node.FileScopes) FileScope(scope);
             foreach (var member in Ordered(node.Members.Values)) Member(member);
@@ -84,22 +82,21 @@ public sealed class IrDumper
 
     private void FileScope(TqFileScope scope)
     {
-        Line($"file {scope.FilePath}");
-        Nested(() =>
-        {
-            foreach (var import in scope.Imports)
-            {
-                var names = import.Imports == null
-                    ? ""
-                    : " { " + string.Join(", ", import.Imports.Select(pair => pair.Key == pair.Value.Item2
-                        ? pair.Key
-                        : $"{pair.Key} = {pair.Value.Item2}")) + " }";
-                Line($"import {string.Join(".", import.NamespaceReference)}{names} {Where(import.Location)}");
-            }
+        Line($"// file {scope.FilePath}");
 
-            if (scope.Members.Count > 0)
-                Line($"declares {string.Join(", ", scope.Members.Keys.Order(StringComparer.Ordinal))}");
-        });
+        foreach (var import in scope.Imports)
+        {
+            var names = import.Imports == null
+                ? ""
+                : " { " + string.Join(", ", import.Imports.Select(pair => pair.Key == pair.Value.Item2
+                    ? pair.Key
+                    : $"{pair.Key} = {pair.Value.Item2}")) + " }";
+            Line($"import {string.Join(".", import.NamespaceReference)}{names};    // {Where(import.Location)}");
+        }
+
+        if (scope.Members.Count > 0)
+            Line($"// declares {string.Join(", ", scope.Members.Keys.Order(StringComparer.Ordinal))}");
+        Line();
     }
 
     /// <summary>Members in the order they were written, so that the dump does not depend on hashing.</summary>
@@ -134,33 +131,33 @@ public sealed class IrDumper
                 foreach (var function in group) Function(function, "func");
                 break;
             case TqFunction function: Function(function, "func"); break;
-            default: Line($"{member.GetType().Name} {member.Name}"); break;
+            default: Line($"// {member.GetType().Name} {member.Name}"); break;
         }
     }
 
-    private static string AccessOf(ITqMember member)
+    /// <summary>`public`, `private`...; the namespace and the allowed and denied members go in the comment.</summary>
+    private static (string Modifier, string Comment) AccessOf(ITqMember member)
     {
         var access = member.Access;
-        var text = $"{access.Visibility.ToString().ToLowerInvariant()} ns={access.Namespace}";
-        if (access.Allowed.Length > 0) text += $" allow=[{string.Join(", ", access.Allowed.Select(m => m.Name))}]";
-        if (access.Denied.Length > 0) text += $" deny=[{string.Join(", ", access.Denied.Select(m => m.Name))}]";
-        return $"[{text}]";
+        var comment = $"ns={access.Namespace}";
+        if (access.Allowed.Length > 0) comment += $" allow=[{string.Join(", ", access.Allowed.Select(m => m.Name))}]";
+        if (access.Denied.Length > 0) comment += $" deny=[{string.Join(", ", access.Denied.Select(m => m.Name))}]";
+        return (access.Visibility.ToString().ToLowerInvariant(), comment);
     }
 
     private void Attributes(IReadOnlyList<TqAttribute> attributes)
     {
         foreach (var attribute in attributes)
         {
-            var (name, arguments, kind) = attribute switch
+            var (name, arguments, unknown) = attribute switch
             {
-                TqBuiltinAttribute builtin => (builtin.Name, builtin.Arguments, "attr"),
-                TqUnknownAttribute unknown => (unknown.Name, unknown.Arguments, "attr?"),
-                _ => (attribute.GetType().Name, ImmutableArray<IrExpression>.Empty, "attr"),
+                TqBuiltinAttribute builtin => (builtin.Name, builtin.Arguments, false),
+                TqUnknownAttribute other => (other.Name, other.Arguments, true),
+                _ => (attribute.GetType().Name, ImmutableArray<IrExpression>.Empty, false),
             };
 
-            Line($"{kind} @{name}{(arguments.IsDefaultOrEmpty ? "" : $"({arguments.Length})")} {Where(attribute.Location)}");
-            if (!arguments.IsDefaultOrEmpty)
-                Nested(() => { foreach (var argument in arguments) Node(argument); });
+            var list = arguments.IsDefaultOrEmpty ? "" : $"({string.Join(", ", arguments.Select(Expr))})";
+            Line($"@{name}{list}{(unknown ? "    // UNKNOWN attribute" : "")}");
         }
     }
 
@@ -175,74 +172,73 @@ public sealed class IrDumper
         var parameters = structure.Parameters.Count == 0
             ? ""
             : "(" + string.Join(", ", structure.Parameters.Select(p => p.Name)) + ")";
+        var extends = structure.Extends != null ? $" : {Expr(structure.Extends)}" : "";
+        var (modifier, access) = AccessOf(structure);
 
-        Line($"struct {structure.Name}{parameters} {AccessOf(structure)}{(flags.Count > 0 ? $" <{string.Join(" ", flags)}>" : "")} {WhereFile(structure.SourceLocation)}");
-        Nested(() =>
+        Attributes(structure.Attributes);
+        Block($"{modifier} struct {structure.Name}{parameters}{extends}", () =>
         {
-            Attributes(structure.Attributes);
-            Parameters(structure.Parameters, "type parameter");
-
-            if (structure.Extends != null) Labeled("extends", () => Node(structure.Extends));
+            foreach (var parameter in structure.Parameters)
+                Line($"// type parameter {parameter.Name}: {Expr(parameter.Type)}");
 
             foreach (var constructor in structure.Constructors) Function(constructor, "constructor");
             if (structure.Destructor != null) Function(structure.Destructor, "destructor");
             foreach (var member in Ordered(structure.Members.Values)) Member(member);
-        });
+        }, $"{string.Join(" ", flags)}{(flags.Count > 0 ? " · " : "")}{access} · {WhereFile(structure.SourceLocation)}");
+        Line();
     }
 
     private void Typedef(TqTypedef typedef)
     {
-        Line($"typedef {typedef.Name} {AccessOf(typedef)} {WhereFile(typedef.SourceLocation)}");
-        Nested(() =>
-        {
-            Attributes(typedef.Attributes);
-            if (typedef.UnderlyingType != null) Labeled("underlying", () => Node(typedef.UnderlyingType));
+        var (modifier, access) = AccessOf(typedef);
+        var underlying = typedef.UnderlyingType != null ? $" : {Expr(typedef.UnderlyingType)}" : "";
 
+        Attributes(typedef.Attributes);
+        Block($"{modifier} typedef {typedef.Name}{underlying}", () =>
+        {
             foreach (var numeric in typedef.NumericCases)
-                Line($"case {string.Join(", ", numeric.Values.Select(v => v.BigInteger.ToString(CultureInfo.InvariantCulture)))} {Where(numeric.Location)}");
+                Line($"case {string.Join(", ", numeric.Values.Select(v => v.BigInteger.ToString(CultureInfo.InvariantCulture)))};    // {Where(numeric.Location)}");
 
             foreach (var member in Ordered(typedef.Members.Values)) Member(member);
-        });
+        }, $"{access} · {WhereFile(typedef.SourceLocation)}");
+        Line();
     }
 
     private void NamedCase(TqNamedCase named)
     {
-        Line($"case {named.Name} {AccessOf(named)} {Where(named.SourceLocation)}");
-        Nested(() =>
-        {
-            Attributes(named.Attributes);
-            if (named.Value != null) Labeled("value", () => Node(named.Value));
-        });
+        Attributes(named.Attributes);
+        var value = named.Value != null ? $" = {Expr(named.Value)}" : "";
+        Line($"case {named.Name}{value};    // {AccessOf(named).Comment} · {Where(named.SourceLocation)}");
     }
 
     private void Field(TqField field)
     {
-        Line($"field {field.Name} {AccessOf(field)} {WhereFile(field.SourceLocation)}");
-        Nested(() =>
-        {
-            Attributes(field.Attributes);
-            if (field.Type != null) Labeled("type", () => Node(field.Type));
-            if (field.Value != null) Labeled("value", () => Node(field.Value));
-        });
+        var (modifier, access) = AccessOf(field);
+        var type = field.Type != null ? $": {Expr(field.Type)}" : "";
+        var value = field.Value != null ? $" = {Expr(field.Value)}" : "";
+
+        Attributes(field.Attributes);
+        Line($"{modifier} {field.Name}{type}{value};    // {access} · {WhereFile(field.SourceLocation)}");
     }
 
     private void Property(TqProperty property)
     {
-        Line($"property {property.Name} {AccessOf(property)} {WhereFile(property.SourceLocation)}"
-             + $" backing={(property.HasBackingField ? "yes" : "no")}{(property.UsesFieldKeyword ? " uses-field" : "")}");
-        Nested(() =>
+        var (modifier, access) = AccessOf(property);
+        var type = property.Type != null ? $": {Expr(property.Type)}" : "";
+        var comment = $"{access} · backing field: {(property.HasBackingField ? "yes" : "no")}"
+                      + $"{(property.UsesFieldKeyword ? " · uses `field`" : "")} · {WhereFile(property.SourceLocation)}";
+
+        Attributes(property.Attributes);
+        Block($"{modifier} property {property.Name}{type}", () =>
         {
-            Attributes(property.Attributes);
-            if (property.Type != null) Labeled("type", () => Node(property.Type));
+            if (property.GetterFunction != null) Function(property.GetterFunction, "get");
+            if (property.GetterSource != null) Line($"get => {Expr(property.GetterSource)};");
+            if (property.Getter != null) Line($"// get resolved to {Callable(property.Getter)}");
 
-            if (property.GetterFunction != null) Function(property.GetterFunction, "getter");
-            if (property.GetterSource != null) Labeled("getter source", () => Node(property.GetterSource));
-            if (property.Getter != null) Line($"getter resolved: {Callable(property.Getter)}");
-
-            if (property.SetterFunction != null) Function(property.SetterFunction, "setter");
-            if (property.SetterSource != null) Labeled("setter source", () => Node(property.SetterSource));
-            if (property.Setter != null) Line($"setter resolved: {Callable(property.Setter)}");
-        });
+            if (property.SetterFunction != null) Function(property.SetterFunction, "set");
+            if (property.SetterSource != null) Line($"set => {Expr(property.SetterSource)};");
+            if (property.Setter != null) Line($"// set resolved to {Callable(property.Setter)}");
+        }, comment);
     }
 
     private void Function(TqFunction function, string keyword)
@@ -252,27 +248,34 @@ public sealed class IrDumper
         if (function.IsAbstract) flags.Add("abstract");
         if (function.CanBeOverridden && !function.IsAbstract) flags.Add("overridable");
 
-        Line($"{keyword} {function.Name} {AccessOf(function)}{(flags.Count > 0 ? $" <{string.Join(" ", flags)}>" : "")} {WhereFile(function.SourceLocation)}");
-        Nested(() =>
+        var (modifier, access) = AccessOf(function);
+        var name = keyword is "get" or "set" or "constructor" or "destructor" ? "" : $" {function.Name}";
+        var parameters = string.Join(", ", (function.Parameters ?? []).Select(Parameter));
+        var returns = function.ReturnType != null ? $" -> {Expr(function.ReturnType)}" : "";
+        var header = $"{modifier} {string.Join(" ", flags.Where(flag => flag != "overridable"))} {keyword}{name}({parameters}){returns}"
+            .Replace("  ", " ").Trim();
+        var comment = $"{(function.CanBeOverridden && !function.IsAbstract ? "overridable · " : "")}{access} · {WhereFile(function.SourceLocation)}";
+
+        Attributes(function.Attributes);
+
+        if (function.Body == null)
         {
-            Attributes(function.Attributes);
-            Parameters(function.Parameters ?? [], "param");
-            if (function.ReturnType != null) Labeled("returns", () => Node(function.ReturnType));
-            if (function.Body != null) Labeled("body", () => Node(function.Body));
-        });
+            Line($"{header};    // {comment}");
+            return;
+        }
+
+        Line($"{header} {{    // {comment}");
+        _depth++;
+        Statements(function.Body);
+        _depth--;
+        Line("}");
     }
 
-    private void Parameters(IEnumerable<TqParameter> parameters, string keyword)
+    private string Parameter(TqParameter parameter)
     {
-        foreach (var parameter in parameters)
-        {
-            Line($"{keyword} {parameter.Name}{(parameter.Lazy ? " <lazy>" : "")}");
-            Nested(() =>
-            {
-                Labeled("type", () => Node(parameter.Type));
-                if (parameter.DefaultValue != null) Labeled("default", () => Node(parameter.DefaultValue));
-            });
-        }
+        var lazy = parameter.Lazy ? "lazy " : "";
+        var value = parameter.DefaultValue != null ? $" = {Expr(parameter.DefaultValue)}" : "";
+        return $"{lazy}{parameter.Name}: {Expr(parameter.Type)}{value}";
     }
 
     // ---- References
@@ -280,203 +283,254 @@ public sealed class IrDumper
     private static string Callable(IFunction function) =>
         function is TqFunction { Owner: { } owner } ? $"{owner.Name}.{function.Name}" : function.Name;
 
-    private static string Describe(Ref reference) => reference switch
+    /// <summary>The overload a call chose: `Write(string)`, written the way the checker saw its parameters.</summary>
+    private static string Signature(IFunction function)
     {
-        UnsolvedRef unsolved => $"UNSOLVED '{unsolved.Value}'",
-        LocalReference local => $"local {local.Local.name}",
-        ParameterReference parameter => $"param {parameter.Parameter.Name}",
-        ThisReference self => $"this ({self.Owner.Name})",
-        BackingFieldReference backing => $"backing-field ({backing.Property.Name})",
-        PropertyReference property => $"property {property.Property.Name}",
-        FieldReference field => $"field {field.Field.Name}",
-        FunctionTypeReference function => $"func {Callable(function.Function)}",
-        FunctionGroupTypeReference group => $"funcgroup {group.FunctionGroup.Name}",
-        NamespaceReference @namespace => $"namespace {@namespace.Namespace.Name}",
-        ProtocolTypeReference protocol => $"protocol {protocol.Protocol.Name}",
-        TypeMetaReference meta => $"type {meta.Type.Name}",
-        StructTypeReference structure => $"struct {TypeFormatter.Format(structure)}",
-        TypedefTypeReference typedef => $"typedef {typedef.Typedef.Name}",
-        SliceTypeRef slice => $"slice {TypeFormatter.Format(slice)}",
+        var signature = FunctionSignature.Of(function);
+        var parameters = signature == null
+            ? "?"
+            : string.Join(", ", signature.Parameters.Select(type => type == null ? "?" : TypeFormatter.Format(type)));
+        return $"{Callable(function)}({parameters})";
+    }
+
+    /// <summary>A name as it is written; the binder's answer for it is in the comments of the call that uses it.</summary>
+    private static string Name(Ref reference) => reference switch
+    {
+        UnsolvedRef unsolved => $"?{unsolved.Value}",
+        LocalReference local => local.Local.name,
+        ParameterReference parameter => parameter.Parameter.Name,
+        ThisReference => "this",
+        BackingFieldReference => "field",
+        PropertyReference property => property.Property.Name,
+        FieldReference field => field.Field.Name,
+        FunctionTypeReference function => function.Function.Name,
+        FunctionGroupTypeReference group => group.FunctionGroup.Name,
+        NamespaceReference @namespace => @namespace.Namespace.Name,
+        ProtocolTypeReference protocol => protocol.Protocol.Name,
+        TypeMetaReference meta => meta.Type.Name,
+        StructTypeReference structure => TypeFormatter.Format(structure),
+        TypedefTypeReference typedef => typedef.Typedef.Name,
+        SliceTypeRef slice => TypeFormatter.Format(slice),
         _ => reference.GetType().Name + " " + reference,
     };
 
-    // ---- Statements and expressions
-
-    private void Node(IrNode? node)
+    private static Ref? ReferenceOf(IrExpression expression) => expression switch
     {
-        if (node == null)
-        {
-            Line("<none>");
-            return;
-        }
+        IrReference reference => reference.Reference,
+        IrAccess access => access.access.Reference,
+        _ => null,
+    };
 
-        var at = Where(node.location);
-        var type = node is IrExpression ? $" : {TypeOfNode(node)}" : "";
+    // ---- Statements
+
+    private void Statements(IrNode? node)
+    {
+        switch (node)
+        {
+            case null:
+                break;
+
+            case IrBody body:
+                foreach (var child in body.Children) Statement(child);
+                break;
+
+            default:
+                Statement(node);
+                break;
+        }
+    }
+
+    private void Statement(IrNode node)
+    {
+        var at = $"    // {Where(node.location)}";
 
         switch (node)
         {
             case IrBody body:
-                Line($"Body {at}");
-                Nested(() => { foreach (var child in body.Children) Node(child); });
+                Line($"{{{at}");
+                _depth++;
+                Statements(body);
+                _depth--;
+                Line("}");
                 break;
 
             case IrReturnStatement @return:
-                Line($"Return {at}");
-                if (@return.ReturnValue != null) Nested(() => Node(@return.ReturnValue));
+                Line(@return.ReturnValue == null ? $"return;{at}" : $"return {Expr(@return.ReturnValue)};{at}");
                 break;
 
             case IrExpressionStatement statement:
-                Line($"ExpressionStatement {at}");
-                Nested(() => Node(statement.Expression));
+                Line($"{Expr(statement.Expression)};{at}");
                 break;
 
             case IrIf @if:
-                Line($"If {at}");
-                Nested(() =>
+                Line($"if {Expr(@if.Condition)} {{{at}");
+                Nested(@if.Then);
+                if (@if.Else == null)
                 {
-                    Labeled("condition", () => Node(@if.Condition));
-                    Labeled("then", () => Node(@if.Then));
-                    if (@if.Else != null) Labeled("else", () => Node(@if.Else));
-                });
+                    Line("}");
+                    break;
+                }
+
+                Line("} else {");
+                Nested(@if.Else);
+                Line("}");
                 break;
 
             case IrWhile @while:
-                Line($"While {at}");
-                Nested(() =>
-                {
-                    if (@while.Declaration != null) Labeled("declaration", () => Node(@while.Declaration));
-                    Labeled("condition", () => Node(@while.Condition));
-                    if (@while.Step != null) Labeled("step", () => Node(@while.Step));
-                    Labeled("body", () => Node(@while.Body));
-                });
+            {
+                var parts = new List<string>();
+                if (@while.Declaration != null) parts.Add(Expr(@while.Declaration));
+                parts.Add(Expr(@while.Condition));
+                if (@while.Step != null) parts.Add(Expr(@while.Step));
+
+                Line($"while ({string.Join(" : ", parts)}) {{{at}");
+                Nested(@while.Body);
+                Line("}");
                 break;
+            }
 
             case IrBreak:
-                Line($"Break {at}");
+                Line($"break;{at}");
                 break;
 
-            case IrArgumentsList list:
-                Line($"Arguments {at}");
-                Nested(() => { foreach (var argument in list.arguments) Node(argument); });
-                break;
-
-            case IrAccess access:
-                Line($"Access {at}{type}");
-                Nested(() =>
-                {
-                    Labeled("base", () => Node(access.baseExpr));
-                    Labeled("member", () => Node(access.access));
-                });
-                break;
-
-            case IrCall call:
-                Line($"Call {at}{type}");
-                Nested(() =>
-                {
-                    Labeled("callee", () => Node(call.callee));
-                    Node(call.ArgumentsList);
-                });
-                break;
-
-            case IrNew creation:
-                Line($"New {at}{type} constructor={(creation.Constructor == null ? "-" : Callable(creation.Constructor))}");
-                Nested(() =>
-                {
-                    Labeled("type", () => Node(creation.Type));
-                    Node(creation.ArgumentsList);
-                });
-                break;
-
-            case IrConvert convert:
-                Line($"Convert {at}{type}");
-                Nested(() =>
-                {
-                    Labeled("value", () => Node(convert.Expression));
-                    Labeled("to", () => Node(convert.toType));
-                });
-                break;
-
-            case IrAssign assign:
-                Line($"Assign {at}{type}");
-                Nested(() =>
-                {
-                    Labeled("target", () => Node(assign.Target));
-                    Labeled("source", () => Node(assign.Source));
-                });
-                break;
-
-            case IrSliceTypeModifier slice:
-                Line($"SliceType {at}{type}");
-                Nested(() => Node(slice.subtype));
-                break;
-
-            case IrBinary binary:
-                Line($"Binary {binary.Operator} {at}{type}");
-                Nested(() =>
-                {
-                    Node(binary.Left);
-                    Node(binary.Right);
-                });
-                break;
-
-            case IrUnary unary:
-                Line($"Unary {unary.Operator}{(unary.IsPostfix ? " postfix" : "")} {at}{type}");
-                Nested(() => Node(unary.Operand));
-                break;
-
-            case IrIndex index:
-                Line($"Index {at}{type}");
-                Nested(() =>
-                {
-                    Labeled("target", () => Node(index.Target));
-                    Labeled("indices", () => { foreach (var i in index.Indices) Node(i); });
-                });
-                break;
-
-            case IrArray array:
-                Line($"Array {at}{type}");
-                Nested(() => { foreach (var element in array.Elements) Node(element); });
-                break;
-
-            case IrReference reference:
-                Line($"Ref {Describe(reference.Reference)} {at}{type}");
-                break;
-
-            case IrIdentifier identifier:
-                Line($"Identifier '{identifier.identifier}' {at}{type}");
-                break;
-
-            case IrComptimeInt integer:
-                Line($"Int {integer.BigInteger.ToString(CultureInfo.InvariantCulture)} {at}{type}");
-                break;
-
-            case IrComptimeDecimal number:
-                Line($"Decimal {number.Value.ToString(CultureInfo.InvariantCulture)} {at}{type}");
-                break;
-
-            case IrComptimeBool boolean:
-                Line($"Bool {(boolean.Value ? "true" : "false")} {at}{type}");
-                break;
-
-            case IrLocal local:
-                Line($"Local {local.name} {at}{type}");
-                if (local.type != null) Nested(() => Labeled("declared type", () => Node(local.type)));
-                break;
-
-            case IrStringConstant text:
-                Line($"String \"{Escape(text.Value)}\" {at}{type}");
-                break;
-
-            case IrStringConcat concat:
-                Line($"StringConcat {at}{type}");
-                Nested(() => { foreach (var part in concat.Parts) Node(part); });
+            case IrExpression expression:
+                Line($"{Expr(expression)};{at}");
                 break;
 
             default:
-                Line($"{node.GetType().Name} {at}{type}");
+                Line($"// {node.GetType().Name} {Where(node.location)}");
                 break;
         }
     }
+
+    private void Nested(IrNode? node)
+    {
+        _depth++;
+        Statements(node);
+        _depth--;
+    }
+
+    // ---- Expressions
+
+    private static readonly Dictionary<BinaryOperator, string> Operators = new()
+    {
+        [BinaryOperator.Add] = "+", [BinaryOperator.AddWrap] = "+%", [BinaryOperator.AddOnBounds] = "+|",
+        [BinaryOperator.Sub] = "-", [BinaryOperator.SubWrap] = "-%", [BinaryOperator.SubOnBounds] = "-|",
+        [BinaryOperator.Mul] = "*", [BinaryOperator.MulWrap] = "*%", [BinaryOperator.MulOnBounds] = "*|",
+        [BinaryOperator.Div] = "/", [BinaryOperator.DivFloor] = "/_", [BinaryOperator.DivCeil] = "/^",
+        [BinaryOperator.Rest] = "%", [BinaryOperator.Pow] = "**",
+        [BinaryOperator.Equal] = "==", [BinaryOperator.ExactEqual] = "===",
+        [BinaryOperator.NotEqual] = "!=", [BinaryOperator.NotExactEqual] = "!==",
+        [BinaryOperator.Less] = "<", [BinaryOperator.Greater] = ">",
+        [BinaryOperator.LessEqual] = "<=", [BinaryOperator.GreaterEqual] = ">=",
+    };
+
+    /// <summary>`/* T */`: the type the checker gave an expression that computes something.</summary>
+    private string Typed(string text, IrNode node) => $"{text} /* {TypeText(node)} */";
+
+    /// <summary>An operand of an operator: parenthesized when it is one itself.</summary>
+    private string Operand(IrExpression expression) => expression is IrBinary or IrConvert or IrAssign or IrUnary
+        ? $"({Expr(expression)})"
+        : Expr(expression);
+
+    private string Expr(IrNode? node)
+    {
+        switch (node)
+        {
+            case null:
+                return "<none>";
+
+            case IrReference reference:
+                return Name(reference.Reference);
+
+            case IrIdentifier identifier:
+                return $"?{identifier.identifier}";
+
+            case IrAccess access:
+                return $"{Operand(access.baseExpr)}.{Name(access.access.Reference)}";
+
+            case IrCall call:
+                return Typed($"{Operand(call.callee)}({Arguments(call.ArgumentsList)}){Resolution(call)}", call);
+
+            case IrNew creation:
+            {
+                var constructor = creation.Constructor == null
+                    ? " /* UNRESOLVED constructor */"
+                    : $" /* -> {Signature(creation.Constructor)} */";
+                return Typed($"new {Expr(creation.Type)}({Arguments(creation.ArgumentsList)}){constructor}", creation);
+            }
+
+            case IrConvert convert:
+                return Typed($"{Operand(convert.Expression)} as {Expr(convert.toType)}", convert);
+
+            case IrAssign assign:
+                return $"{Expr(assign.Target)} = {Expr(assign.Source)}";
+
+            case IrSliceTypeModifier slice:
+                return $"[]{Expr(slice.subtype)}";
+
+            case IrBinary binary:
+                return Typed($"{Operand(binary.Left)} {Operators.GetValueOrDefault(binary.Operator, binary.Operator.ToString())} {Operand(binary.Right)}", binary);
+
+            case IrUnary unary:
+            {
+                var symbol = unary.Operator switch
+                {
+                    UnaryOperator.Not => "!",
+                    UnaryOperator.Negate => "-",
+                    UnaryOperator.Increment => "++",
+                    UnaryOperator.Decrement => "--",
+                    UnaryOperator.Nullable => "?",
+                    _ => unary.Operator.ToString(),
+                };
+                var operand = Operand(unary.Operand);
+                return Typed(unary.IsPostfix ? $"{operand}{symbol}" : $"{symbol}{operand}", unary);
+            }
+
+            case IrIndex index:
+                return Typed($"{Operand(index.Target)}[{string.Join(", ", index.Indices.Select(Expr))}]", index);
+
+            case IrArray array:
+                return $"[{string.Join(", ", array.Elements.Select(Expr))}]";
+
+            case IrComptimeInt integer:
+                return integer.BigInteger.ToString(CultureInfo.InvariantCulture);
+
+            case IrComptimeDecimal number:
+                return number.Value.ToString(CultureInfo.InvariantCulture);
+
+            case IrComptimeBool boolean:
+                return boolean.Value ? "true" : "false";
+
+            case IrLocal local:
+            {
+                var declared = local.type != null ? $": {Expr(local.type)}" : "";
+                return $"let {local.name}{declared} /* {TypeText(local)} */";
+            }
+
+            case IrStringConstant text:
+                return $"\"{Escape(text.Value)}\"";
+
+            case IrStringConcat concat:
+                return $"concat({string.Join(", ", concat.Parts.Select(Expr))})";
+
+            case IrArgumentsList list:
+                return Arguments(list);
+
+            default:
+                return $"<{node.GetType().Name}>";
+        }
+    }
+
+    private string Arguments(IrArgumentsList list) => string.Join(", ", list.arguments.Select(Expr));
+
+    /// <summary>The overload the checker chose for a call, or that it did not.</summary>
+    private string Resolution(IrCall call) => ReferenceOf(call.callee) switch
+    {
+        FunctionTypeReference function => $" /* -> {Signature(function.Function)} */",
+        FunctionGroupTypeReference group => $" /* UNRESOLVED call: {group.FunctionGroup.Name} is still a group of overloads */",
+        _ => "",
+    };
 
     private static string Escape(string text) => text
         .Replace("\\", "\\\\").Replace("\"", "\\\"").Replace("\n", "\\n").Replace("\r", "\\r").Replace("\t", "\\t");
