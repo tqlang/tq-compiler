@@ -26,8 +26,7 @@ public class DotnetClass(TypeReference typeRef, string name) : IStruct, IDotnetT
 
     public IEnumerable<IMember> OwnMembers => Members?.Values ?? [];
 
-    public IMemberContainer? Base =>
-        BaseType is StructTypeReference { Struct: IMemberContainer container } ? container : null;
+    public IMemberContainer? Base => DotnetInheritance.ObjectOf(BaseType);
 
     /// <summary>A member of the class or, failing that, of its base classes.</summary>
     public IMember? TryGetMember(string memberName) => DotnetInheritance.Find(this, Members, memberName);

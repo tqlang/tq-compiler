@@ -1,5 +1,6 @@
 using System.Collections.Immutable;
 using Tqc.IR.ProgramMembers;
+using Tqc.IR.ProgramMembers.Primitive;
 using Tqc.IR.References;
 
 namespace Tqc.Dotnet.ProgramMembers;
@@ -25,8 +26,12 @@ internal static class DotnetInheritance
     }
 
     /// <summary>`System.Object` as the container of what every value has, for the types that do not extend it in the IR.</summary>
-    public static IMemberContainer? ObjectOf(ITypeRef? type) =>
-        type is StructTypeReference { Struct: IMemberContainer container } ? container : null;
+    public static IMemberContainer? ObjectOf(ITypeRef? type)
+    {
+        // The type of a class is `Ref(Class)`: what it has is what the class has.
+        if (CompilerStd.Types.IsRef(type, out var referred)) type = referred;
+        return type is StructTypeReference { Struct: IMemberContainer container } ? container : null;
+    }
 
     private static DotnetMethodGroup Merge(DotnetMethodGroup own, DotnetMethodGroup inherited)
     {
