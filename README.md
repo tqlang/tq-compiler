@@ -366,22 +366,13 @@ programa: `main()` ou `main([]string args)` é chamado por `EntryPoint.Main(stri
 assembly referencia os definidos antes dele.
 
 **Herança de struct por valor** (`struct FileReader extends Reader`, nenhuma das duas `@class`): .NET não tem herança de
-value type, então ela é montada com o que existe, sem alocar. A struct que estende guarda a base num campo `__base`; por valor, o
-código percorre o caminho (`d.__base.x`). Cada struct da hierarquia (as que estendem ou são estendidas por outra do mesmo módulo):
-
-- `*S` é um **`Tq.Ref`**, um `ref struct` de `Tq.Runtime` que só vive na pilha: `ref byte View` (a parte da struct que `S` é) e o
-  `Tq.TypeInfo` da struct que ela realmente é. `*D` vira `*B` mexendo só no `View` (`ldflda __base`); o tipo real continua o mesmo.
-- Cada struct tem um `__type` estático (seu `TypeInfo`), feito no construtor estático: o `TypeInfo` da base, a distância até a base
-  dentro dela (o layout é decidido pelo runtime, então é medida pela diferença de endereços) e a tabela de ponteiros das funções virtuais.
-- Função `@virtual`, `@abstract` ou `@override` tem um **slot** da tabela (o `@override` usa o da função que sobrescreve). Chamada por
-  `*S`, vira `calli` no ponteiro do slot do tipo real; o ponteiro é um *thunk* que leva a referência da parte que declara a função até a
-  que a implementa e chama a função. Função sem corpo numa struct por valor também tem slot; o corpo do .NET é um stub.
-- `x as *D` (de `*B`) acha, pelo tipo real, a distância até `D` e move o `View`; se o valor não é um `D`, lança `InvalidCastException`.
-  Um valor (`S`) passado onde se espera `*S` vira referência ao próprio valor, sem cópia.
-
-Limites: a base precisa ser do mesmo módulo; `*S` de uma hierarquia não pode ser campo (é um `ref struct`: use o valor) nem argumento
-genérico (`List(*S)`, `!*S`); `this` dentro de uma função não conhece o tipo real, então chamar função virtual por `this`, ou por um
-valor, chama a função daquela struct (sem despacho); funções genéricas não entram na tabela; ainda não existe `is`.
+value type, então ela é montada com o que existe. A struct que estende guarda a base num campo `__base`; por valor, o código
+percorre o caminho (`d.__base.x`). Cada struct da hierarquia (as que estendem ou são estendidas por outra do mesmo módulo)
+ganha uma **interface aninhada `Ref`**, que é o tipo de `*S`. A interface de `D` estende a de `B`, então `*D` serve onde se
+espera `*B`. A interface tem `ref S get_Value()` (os campos são lidos e escritos por ela, sem cópia) e um método por função
+da struct; a derivada implementa o que herda repassando para o `__base`, ou chamando o `@override`, então a chamada por
+referência chega na função mais derivada. Limites: a base precisa ser do mesmo módulo; uma referência é a struct *boxada*
+(passar um valor onde se espera `*S` copia); structs `@abstract` por valor e funções genéricas não entram na interface.
 
 **Membros herdados de tipos .NET:** classes herdam de `System.Object` (`ToString`, `Equals`, `GetHashCode`) e de toda a
 cadeia, inclusive de bases fora dos assemblies do módulo (seus membros também são lidos); structs e enums enxergam os de
