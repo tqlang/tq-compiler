@@ -157,21 +157,23 @@ Acesso (`Semantics/Access/`), verificado ao resolver nomes e `a.b`, e ao escolhe
 - Uma referência a uma struct `@class` (ou classe .NET) vai onde se espera uma referência a algo que ela estende;
   quanto mais degraus, maior o custo no overload. Struct por valor nunca é "cortada" para a base.
 
-## Herança, interfaces e `@virtual`/`@override`
+## Herança, protocols e `@virtual`/`@override`
 
 `Semantics/Inheritance/InheritanceChecker.cs`, depois que `extends` está resolvido:
 
-- `@final`: não pode ser estendida. `@final`, `@abstract` e `@interface` se contradizem.
-- `@interface`: sem construtor nem destrutor; só estende interfaces. Uma struct implementa uma interface estendendo-a
-  (só há um `extends` por struct); os campos vêm pela extensão e as funções sem corpo precisam ser implementadas.
-- `@abstract` e `@interface` não podem ser criadas com `new`. Função sem corpo nelas é abstrata.
+- `@final`: não pode ser estendida. `@final` e `@abstract` se contradizem.
+- `protocol Nome { ... }` (funções sem corpo, como `func g() T`) (as interfaces de Tq; antes `@interface struct`, que agora é erro): sem campos,
+  construtor nem destrutor; só estende protocols (ou interfaces .NET), e não aceita `@final`/`@abstract`/`@class`. Uma struct
+  implementa um protocol estendendo-o (só há um `extends` por struct); as funções sem corpo precisam ser implementadas.
+  Internamente um protocol é um `TqStruct` com o atributo `Interface` posto pelo `TreeLower` (`StructDeclarationNode.IsProtocol`).
+- Struct `@abstract` e protocol não podem ser criados com `new`. Função sem corpo nelas é abstrata.
 - `@virtual`/`@override`: só em função de struct e nunca com `@static`. `@override` troca uma função de mesmo nome e
   mesmos parâmetros/retorno que seja `@virtual`, `@override` ou abstrata, e precisa de corpo. Uma função com a
   assinatura de uma sobrescrevível, sem `@override`, é erro. Em base .NET a assinatura também é comparada, e só métodos virtuais, abstratos ou de interface podem ser sobrescritos.
-- Uma struct que não é `@abstract`/`@interface` precisa implementar toda função sem corpo que herda, inclusive os
+- Uma struct que não é `@abstract` nem protocol precisa implementar toda função sem corpo que herda, inclusive os
   métodos abstratos de classes e interfaces .NET.
 - Um só mecanismo para Tq e .NET: `IObjectType` (`IsAbstract`, `IsInterface`, `IsFinal`, `IsReference`; structs, interfaces e typedefs) e `IMethod`
-  (`IsStatic`, `IsAbstract`, `CanBeOverridden`). Em Tq vêm dos atributos (`@abstract`, `@interface`, `@final`, `@class`,
+  (`IsStatic`, `IsAbstract`, `CanBeOverridden`). Em Tq vêm dos atributos (`@abstract`, `protocol`, `@final`, `@class`,
   `@virtual`, `@override`); em .NET, dos metadados. O verificador de herança, o `new` em tipo abstrato, a conversão
   para a base e o "por referência" só usam essas interfaces.
 - Assinaturas: `FunctionSignature.Of(função)` serve para Tq e .NET e dá os tipos dos parâmetros e do retorno; um tipo
@@ -239,7 +241,7 @@ struct Pessoa {
 - A IR **não declara** esse armazenamento nem gera corpo para o acessor vazio: `TqProperty.HasBackingField` diz que o
   backend precisa criar o campo (true se um acessor usa `field` ou se há acessor vazio numa struct que pode ser criada), e
   o acessor vazio sem corpo (`Body == null`) é implementado por ele.
-- Uma propriedade vazia numa struct `@abstract` ou `@interface` é abstrata: quem estende a struct declara uma
+- Uma propriedade vazia numa struct `@abstract` ou num protocol é abstrata: quem estende a struct declara uma
   propriedade de mesmo nome com o acessor (não precisa de `@override`).
 - Ainda não: propriedades estáticas, `@virtual`/`@override` em propriedades, `++`/`--` sobre propriedades.
 
@@ -406,8 +408,8 @@ usado com ou sem um módulo `dotnet` que o liste.
 - Um namespace que tem membros vira uma classe estática: suas funções e campos são membros estáticos dela, seus
   structs e typedefs são tipos aninhados, e os namespaces filhos são classes estáticas aninhadas (`Std/Console/Foo`).
   Um namespace sem membros próprios no topo é só um namespace .NET no nome do que contém.
-- `struct` é um value type, ou uma classe com `@class` (ou que estende uma classe, Tq ou .NET); `@abstract`, `@final` e `@interface` viram os flags .NET.
-  `extends` de uma struct-interface é `implements`, o resto é a classe base. `typedef` é um enum (os casos nomeados são
+- `struct` é um value type, ou uma classe com `@class` (ou que estende uma classe, Tq ou .NET); `@abstract`, `@final` e `protocol` viram os flags .NET.
+  `extends` de um protocol é `implements`, o resto é a classe base. `typedef` é um enum (os casos nomeados são
   as constantes; casos numéricos sem nome não aparecem; o valor de um caso é um número ou uma constante .NET, como `CsSeekOrigin.Begin`). Structs genéricas: ver "Structs genéricas de Tq em .NET".
 - Acesso: `@public` é público; o resto (namespace/módulo) é `internal`, o máximo que o .NET diz.
 - Funções: `@static`, `@virtual` e `@override` viram os flags; `lazy` ainda não.
@@ -475,5 +477,5 @@ declarado, mas com valores iniciais, também ganha um (`new X()` chama ele). Sem
 `DefaultMember("Item")`. Os indexadores podem ser `@private`: servem a `a[i]` de qualquer lugar, e no .NET os acessores são públicos.
 
 **Funções sem corpo:** uma função pode terminar na assinatura, sem `{ }` (`@public func write(string value)`, com ou sem tipo de retorno),
-até o fim da linha, do arquivo ou da struct. Numa struct `@abstract`/`@interface` é uma função abstrata; em qualquer outro lugar ela
+até o fim da linha, do arquivo ou da struct. Numa struct `@abstract` ou num protocol é uma função abstrata; em qualquer outro lugar ela
 continua sem corpo e o backend .NET emite um stub que falha ao ser chamado.

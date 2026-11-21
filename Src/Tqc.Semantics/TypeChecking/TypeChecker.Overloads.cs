@@ -62,7 +62,7 @@ internal sealed partial class TypeChecker
 
         if (definition is IObjectType { IsAbstract: true } abstractType)
         {
-            Error($"'{structure.Name}' is {(abstractType.IsInterface ? "an interface" : "abstract")} and cannot be created",
+            Error($"'{structure.Name}' is {(abstractType.IsInterface ? (abstractType is TqStruct ? "a protocol" : "an interface") : "abstract")} and cannot be created",
                 creation.Location);
             return null;
         }

@@ -20,7 +20,7 @@ public class TqFunction(string name, SourceLocation location) : IMethod, ITqMemb
     public bool IsStatic => Has(BuiltinAttribute.Static);
     public bool IsConstructor => this is TqConstructor;
 
-    /// <summary>No body in an `@abstract` or `@interface` struct.</summary>
+    /// <summary>No body in an `@abstract` struct or a `protocol`.</summary>
     public bool IsAbstract => Body == null && Owner is { IsAbstract: true };
 
     public bool CanBeOverridden => IsAbstract || Has(BuiltinAttribute.Virtual) || Has(BuiltinAttribute.Override);

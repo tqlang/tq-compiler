@@ -39,7 +39,6 @@ internal static class BuiltinAttributes
         ["class"] = new(BuiltinAttribute.Class, AttributeTarget.Struct),
         ["final"] = new(BuiltinAttribute.Final, AttributeTarget.Struct),
         ["abstract"] = new(BuiltinAttribute.Abstract, AttributeTarget.Struct),
-        ["interface"] = new(BuiltinAttribute.Interface, AttributeTarget.Struct),
         ["valueOnly"] = new(BuiltinAttribute.ValueOnly, AttributeTarget.Struct),
         ["referenceOnly"] = new(BuiltinAttribute.ReferenceOnly, AttributeTarget.Struct),
         ["virtual"] = new(BuiltinAttribute.Virtual, AttributeTarget.Function),
@@ -77,7 +76,7 @@ internal static class BuiltinAttributes
         [BuiltinAttribute.Public, BuiltinAttribute.Internal, BuiltinAttribute.Private],
         [BuiltinAttribute.Comptime, BuiltinAttribute.Runtime],
         [BuiltinAttribute.Inline, BuiltinAttribute.NoInline],
-        [BuiltinAttribute.Final, BuiltinAttribute.Abstract, BuiltinAttribute.Interface],
+        [BuiltinAttribute.Final, BuiltinAttribute.Abstract],
         [BuiltinAttribute.ValueOnly, BuiltinAttribute.ReferenceOnly],
     ];
 
@@ -89,6 +88,8 @@ internal static class BuiltinAttributes
         string name, IrExpression[] arguments, SourceLocation location)
     {
         ImmutableArray<IrExpression> immutableArguments = [..arguments];
+        if (name == "interface")
+            return (null, "Attribute '@interface' does not exist anymore: declare it with 'protocol Name { ... }'");
         if (!Specs.TryGetValue(name, out var spec))
             return (new TqUnknownAttribute(name, immutableArguments, location), null);
 

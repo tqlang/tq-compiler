@@ -55,7 +55,7 @@ public class Parser(DiagnosticBag diagnostics)
         
         if (allowedDeclarations.HasFlag(ScopeAllowedDeclarations.Import) && CheckKeyword("from")) return parseImportDefinition();
         if (CheckKeyword("func")) return ParseFunctionDeclaration();
-        if (allowedDeclarations.HasFlag(ScopeAllowedDeclarations.Struct) && CheckKeyword("struct")) return ParseStructDeclaration();
+        if (allowedDeclarations.HasFlag(ScopeAllowedDeclarations.Struct) && (CheckKeyword("struct") || CheckKeyword("protocol"))) return ParseStructDeclaration();
         if (allowedDeclarations.HasFlag(ScopeAllowedDeclarations.Typedef) && CheckKeyword("typedef")) return ParseTypedefDeclaration();
         
         if (allowedDeclarations.HasFlag(ScopeAllowedDeclarations.Constructor) && CheckKeyword("constructor")) return ParseConstructorDeclaration();
@@ -189,7 +189,8 @@ public class Parser(DiagnosticBag diagnostics)
 
     private StructDeclarationNode ParseStructDeclaration()
     {
-        var structKeyword = ExpectNode("struct", "'struct' keyword");
+        // A `protocol` is declared like a struct; it is the one that has the keyword `protocol` (see `StructDeclarationNode.IsProtocol`).
+        var structKeyword = CheckKeyword("protocol") ? ExpectNode("protocol", "'protocol' keyword") : ExpectNode("struct", "'struct' keyword");
         AdvanceTrivia(TokenKind.Whitespace);
         var nameIdentifier = ParseSingleIdentifier();
         AdvanceTrivia(_midDeclarationTrivia);

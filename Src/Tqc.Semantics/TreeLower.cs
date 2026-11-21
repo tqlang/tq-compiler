@@ -208,6 +208,7 @@ public static class TreeLower
         FunctionDeclarationNode => "function",
         ConstructorDeclarationNode => "constructor",
         DestructorDeclarationNode => "destructor",
+        StructDeclarationNode { IsProtocol: true } => "protocol",
         StructDeclarationNode => "struct",
         TypedefDeclarationNode => "typedef",
         TypedefCaseDeclaration => "case",
@@ -423,6 +424,17 @@ public static class TreeLower
 
     private static TqStruct LowerStructMember(STContext ctx, TqAttribute[] attributes, StructDeclarationNode structNode)
     {
+        // A `protocol` is a struct with no fields and no code of its own: it is the interface (`Interface`) of the struct it is.
+        if (structNode.IsProtocol)
+        {
+            foreach (var attribute in attributes.OfType<TqBuiltinAttribute>()
+                         .Where(attribute => attribute.Kind is BuiltinAttribute.Final or BuiltinAttribute.Abstract or BuiltinAttribute.Class
+                             or BuiltinAttribute.ValueOnly or BuiltinAttribute.ReferenceOnly or BuiltinAttribute.Packed or BuiltinAttribute.Union))
+                ctx.Diagnostics.ReportError(Error($"Attribute '@{attribute.Name}' cannot be applied to the protocol '{structNode.Name.Value}'", attribute.Location));
+
+            attributes = [.. attributes, new TqBuiltinAttribute(BuiltinAttribute.Interface, "protocol", [], structNode.GetLoc(ctx.SrcFile))];
+        }
+
         var lowered = LowerMembers(ctx, structNode.Body.Children, MemberScope.Struct);
 
         var structure = new TqStruct(structNode.Name.Value, structNode.GetLoc(ctx.SrcFile))

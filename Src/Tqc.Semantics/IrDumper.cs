@@ -165,7 +165,7 @@ public sealed class IrDumper
     {
         var flags = new List<string>();
         if (structure.IsReference) flags.Add("class");
-        if (structure.IsInterface) flags.Add("interface");
+        if (structure.IsInterface) flags.Add("protocol");
         else if (structure.IsAbstract) flags.Add("abstract");
         if (structure.IsFinal) flags.Add("final");
 

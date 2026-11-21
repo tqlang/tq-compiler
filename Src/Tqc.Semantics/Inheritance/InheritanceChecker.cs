@@ -12,7 +12,7 @@ namespace Tqc.Semantics;
 /// whether a type is abstract, an interface or final and whether a method can be overridden, the same way
 /// for Tq (attributes) and for .NET (metadata).
 /// <list type="bullet">
-/// <item>A final type cannot be extended; an `@interface` has no constructors and only extends interfaces.</item>
+/// <item>A final type cannot be extended; a `protocol` has no constructors and only extends protocols or interfaces.</item>
 /// <item>`@virtual` and `@override` belong to functions of a struct that are not `@static`.</item>
 /// <item>`@override` replaces a method of the same name and signature that can be overridden, and needs a body.</item>
 /// <item>A function that has the signature of a method that can be overridden must say `@override`.</item>
@@ -78,7 +78,7 @@ internal sealed class InheritanceChecker(DiagnosticBag diagnostics)
         CheckExtends(structure);
 
         if (structure.IsInterface && (structure.Constructors.Count > 0 || structure.Destructor != null))
-            Error($"The interface '{structure.Name}' cannot have a constructor or a destructor", structure.SourceLocation);
+            Error($"The protocol '{structure.Name}' cannot have a constructor or a destructor", structure.SourceLocation);
 
         foreach (var member in structure.Members.Values)
         {
@@ -99,7 +99,7 @@ internal sealed class InheritanceChecker(DiagnosticBag diagnostics)
             Error($"'{structure.Name}' cannot extend '{baseName}', which is final", structure.SourceLocation);
 
         if (structure.IsInterface && !baseType.IsInterface)
-            Error($"The interface '{structure.Name}' can only extend interfaces, not '{baseName}'", structure.SourceLocation);
+            Error($"The protocol '{structure.Name}' can only extend protocols or interfaces, not '{baseName}'", structure.SourceLocation);
     }
 
     // ---- Members of any type

@@ -68,7 +68,7 @@ internal sealed partial class ModuleEmitter
 
         if (container.Struct is { IsInterface: true })
         {
-            Report($"The interface '{container.Struct.Name}' cannot have the field '{field.Name}'", field.SourceLocation);
+            Report($"The protocol '{container.Struct.Name}' cannot have the field '{field.Name}'", field.SourceLocation);
             return;
         }
 
@@ -187,7 +187,7 @@ internal sealed partial class ModuleEmitter
         if (structure.IsInterface)
         {
             if (structure.Constructors.Count > 0 || structure.Destructor != null)
-                Report($"The interface '{structure.Name}' cannot have a constructor or a destructor", structure.SourceLocation);
+                Report($"The protocol '{structure.Name}' cannot have a constructor or a destructor", structure.SourceLocation);
             return;
         }
 

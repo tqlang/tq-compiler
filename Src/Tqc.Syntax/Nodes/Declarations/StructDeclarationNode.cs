@@ -31,5 +31,8 @@ public record StructDeclarationNode(
             .AppendTrivia(LeadingTrivia);
     }
 
+    /// <summary>Declared with `protocol` instead of `struct`.</summary>
+    public bool IsProtocol => StructKeyword.Value == "protocol";
+
     public override SourceSpan Span => StructKeyword.Span + Body.Span;
 }

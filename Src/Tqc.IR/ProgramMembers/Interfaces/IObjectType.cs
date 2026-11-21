@@ -2,12 +2,12 @@ namespace Tqc.IR.ProgramMembers;
 
 /// <summary>
 /// A struct, class, interface or typedef, whatever it is written in: what the object model needs to know about it.
-/// Tq says it with attributes (`@abstract`, `@interface`, `@final`, `@class`); .NET says it in its metadata.
+/// Tq says it with attributes (`@abstract`, `protocol`, `@final`, `@class`); .NET says it in its metadata.
 /// Everything that needs to know asks here, never the concrete type.
 /// </summary>
 public interface IObjectType : IMemberContainer
 {
-    /// <summary>It cannot be created: `@abstract` and `@interface` structs, abstract classes and interfaces of .NET.</summary>
+    /// <summary>It cannot be created: `@abstract` structs, protocols, abstract classes and interfaces of .NET.</summary>
     bool IsAbstract { get; }
 
     bool IsInterface { get; }
