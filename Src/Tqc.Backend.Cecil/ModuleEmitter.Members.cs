@@ -199,16 +199,17 @@ internal sealed partial class ModuleEmitter
 
         var name = isConstructor ? ".ctor" : function.Name;
 
-        // The functions marked `@indexerGet` and `@indexerSet` are the accessors of the indexer `Item` (see DeclareIndexers).
+        // The functions marked `@indexerGet` and `@indexerSet` are the accessors of the indexer `Item` (see DeclareIndexers); they serve `a[i]` from
+        // anywhere, so in .NET they are public whatever the access of the function.
         if (accessorOf == null && !isConstructor && !isStatic && Has(function.Attributes, BuiltinAttribute.IndexerGet))
         {
             name = "get_Item";
-            attributes |= MethodAttributes.SpecialName;
+            attributes = (attributes & ~MethodAttributes.MemberAccessMask) | MethodAttributes.Public | MethodAttributes.SpecialName;
         }
         else if (accessorOf == null && !isConstructor && !isStatic && Has(function.Attributes, BuiltinAttribute.IndexerSet))
         {
             name = "set_Item";
-            attributes |= MethodAttributes.SpecialName;
+            attributes = (attributes & ~MethodAttributes.MemberAccessMask) | MethodAttributes.Public | MethodAttributes.SpecialName;
         }
         var isSetter = accessorOf != null && ReferenceEquals(function, accessorOf.SetterFunction);
 

@@ -464,4 +464,4 @@ declarado, mas com valores iniciais, também ganha um (`new X()` chama ele). Sem
 
 **Indexadores em .NET:** as funções `@indexerGet` e `@indexerSet` de uma struct viram os acessores `get_Item`/`set_Item` de propriedades
 `Item` (o que uma linguagem .NET enxerga como `a[i]`); um `@indexerSet` casa com o `@indexerGet` de mesmos índices, e a struct ganha
-`DefaultMember("Item")`. Para usar `a[i]` de fora da struct, a função precisa ser `@public`: sendo `@private`, o erro diz isso.
+`DefaultMember("Item")`. Os indexadores podem ser `@private`: servem a `a[i]` de qualquer lugar, e no .NET os acessores são públicos.
