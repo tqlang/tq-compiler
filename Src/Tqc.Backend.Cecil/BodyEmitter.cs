@@ -115,6 +115,17 @@ internal sealed class BodyEmitter
         }
     }
 
+    /// <summary>The values of the constants that are not literals, which the type initializer gives, in the order they are written.</summary>
+    internal void EmitStaticInitializers(List<(TqField Field, FieldDefinition Definition)> pending)
+    {
+        foreach (var (field, definition) in pending.OrderBy(item => item.Field.SourceLocation.span.LineStart)
+                     .ThenBy(item => item.Field.SourceLocation.span.ColStart))
+        {
+            EmitValue(field.Value!, definition.FieldType);
+            _il.Emit(OpCodes.Stsfld, definition);
+        }
+    }
+
     private VariableDefinition NewTemp(TypeReference type)
     {
         var variable = new VariableDefinition(type);

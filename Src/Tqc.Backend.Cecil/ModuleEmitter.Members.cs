@@ -115,15 +115,48 @@ internal sealed partial class ModuleEmitter
                 definition.Attributes |= FieldAttributes.Literal | FieldAttributes.HasDefault;
                 definition.Constant = constant;
             }
+            else if (field.Value != null && container.Type.HasGenericParameters)
+            {
+                Report($"The constant '{field.Name}' of the generic struct '{container.Struct?.Name}' must be a literal to be emitted", field.SourceLocation);
+            }
+            else if (field.Value != null)
+            {
+                // Not a literal: it is a `static readonly` field, which the type initializer sets.
+                definition.Attributes |= FieldAttributes.InitOnly;
+                if (!_staticInitializers.TryGetValue(container.Type, out var pending))
+                    _staticInitializers[container.Type] = pending = [];
+                pending.Add((field, definition));
+            }
             else
             {
-                Report($"The value of the constant '{field.Name}' must be a literal that fits '{type.FullName}' to be emitted", field.SourceLocation);
+                Report($"The constant '{field.Name}' has no value", field.SourceLocation);
             }
         }
 
         // The initial value of any other field takes code (a constructor), which is not emitted yet.
         container.Type.Fields.Add(definition);
         _backend.Definitions[field] = definition;
+    }
+
+    /// <summary>The type initializer (`.cctor`) of each type that has constants with a value that is not a literal.</summary>
+    private void DeclareStaticInitializers()
+    {
+        foreach (var (type, pending) in _staticInitializers)
+        {
+            var initializer = new MethodDefinition(".cctor",
+                MethodAttributes.Private | MethodAttributes.Static | MethodAttributes.HideBySig
+                | MethodAttributes.SpecialName | MethodAttributes.RTSpecialName, Core("System.Void"));
+            type.Methods.Add(initializer);
+            type.IsBeforeFieldInit = false;
+
+            var location = pending[0].Field.SourceLocation;
+            _bodies.Add((initializer, il =>
+            {
+                var emitter = new BodyEmitter(this, new TqConstructor(location) { Parameters = [] }, initializer, il);
+                emitter.EmitStaticInitializers(pending);
+                il.Emit(OpCodes.Ret);
+            }));
+        }
     }
 
     // ---- Functions
