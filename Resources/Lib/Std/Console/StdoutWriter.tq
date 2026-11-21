@@ -1,0 +1,14 @@
+from Std.Io import { Writer }
+from Dotnet.System import { Console }
+
+@private struct StdoutWriter extends Writer {
+
+	@public @override func write(string value) {
+		Console.Write(value)
+	}
+
+	@public @override func writeln(string value) {
+		Console.WriteLine(value)
+	}
+
+}

@@ -1,0 +1,263 @@
+from Std import { Test }
+
+func testArithmeticU32() {
+	let u32 u32_0 = 0
+	let u32 u32_1 = 1
+	let u32 u32_2 = 2
+	let u32 u32_3 = 3
+	let u32 u32_4 = 4
+	let u32 u32_5 = 5
+	let u32 u32_6 = 6
+	let u32 u32_7 = 7
+	let u32 u32_8 = 8
+	let u32 u32_9 = 9
+	let u32 u32_100 = 100
+	let u32 u32_101 = 101
+	let u32 u32_255 = 255
+	let u32 u32_5000 = 5000
+	let u32 u32_min = u32.min
+	let u32 u32_max = u32.max
+	
+	Test.newTestUnit("u32 arithmetic - checked add")
+	Test.assert(u32_1 + u32_1, 2)
+	Test.assert(u32_2 + u32_2, 4)
+	Test.assert(u32_max + 0, u32_max)
+	#Test.assert(u32_max + 1, ?) #!! FATAL ERROR !!
+	#Test.assert(u32_max + 100, ?) #!! FATAL ERROR !!
+
+	Test.newTestUnit("u32 arithmetic - add with overflow")
+	Test.assert(u32_1 +% u32_1, 2)
+	Test.assert(u32_2 +% u32_2, 4)
+	Test.assert(u32_max +% u32_0, u32_max)
+	Test.assert(u32_max +% u32_1, u32_min)
+	Test.assert(u32_max +% u32_100, 99)
+
+	Test.newTestUnit("u32 arithmetic - add saturated")
+	Test.assert(u32_1 +| u32_1, 2)
+	Test.assert(u32_2 +| u32_2, 4)
+	Test.assert(u32_max +| u32_0, u32_max)
+	Test.assert(u32_max +| u32_1, u32_max)
+	Test.assert(u32_max +| u32_100, u32_max)
+
+
+	Test.newTestUnit("u32 arithmetic - checked sub")
+	Test.assert(u32_1 - u32_1, 0)
+	Test.assert(u32_2 - u32_1, 1)
+	Test.assert(u32_0 - u32_0, 0)
+	#Test.assert(u32_1 - u32_2, ?) #!! FATAL ERROR !!
+	#Test.assert(u32_0 - 100, ?) #!! FATAL ERROR !!
+
+	Test.newTestUnit("u32 arithmetic - sub with overflow")
+	Test.assert(u32_1 -% u32_1, 0)
+	Test.assert(u32_2 -% u32_1, 1)
+	Test.assert(u32_0 -% u32_0, 0)
+	Test.assert(u32_1 -% u32_2, u32.max)
+	Test.assert(u32_0 -% 100, 4294967196)
+
+	Test.newTestUnit("u32 arithmetic - sub saturated")
+	Test.assert(u32_1 -| u32_1, 0)
+	Test.assert(u32_2 -| u32_1, 1)
+	Test.assert(u32_0 -| u32_0, 0)
+	Test.assert(u32_1 -| u32_2, 0)
+	Test.assert(u32_0 -| 100, 0)
+
+	Test.newTestUnit("u32 arithmetic - mul checked")
+	Test.assert(u32_1 * u32_1, 1)
+	Test.assert(u32_2 * u32_2, 4)
+	Test.assert(u32_2 * u32_100, 200)
+	Test.assert(u32_0 * u32_100, 0)
+	#Test.assert(u32_100 * u32_100, ?) #!! FATAL ERROR !!
+
+	Test.newTestUnit("u32 arithmetic - mul with overflow")
+	Test.assert(u32_1 *% u32_1, 1)
+	Test.assert(u32_2 *% u32_2, 4)
+	Test.assert(u32_2 *% u32_100, 200)
+	Test.assert(u32_5000 *% u32_5000, 16)
+	Test.assert(u32_max *% u32_2, 254)
+
+	Test.newTestUnit("u32 arithmetic - mul saturated")
+	Test.assert(u32_1 *| u32_1, 1)
+	Test.assert(u32_2 *| u32_2, 4)
+	Test.assert(u32_2 *| u32_100, 200)
+	Test.assert(u32_100 *| u32_100, u32_max)
+	Test.assert(u32_max *| u32_2, u32_max)
+
+	Test.newTestUnit("u32 arithmetic - div checked")
+	Test.assert(u32_2 / u32_1, 2)
+	Test.assert(u32_100 / u32_2, 50)
+	Test.assert(u32_0 / u32_100, 0)
+	#Test.assert(u32_1 / u32_2, ?) #!! FATAL ERROR !!
+	#Test.assert(u32_1 / u32_0, ?) #!! FATAL ERROR !!
+
+	Test.newTestUnit("u32 arithmetic - div floor")
+	Test.assert(u32_2 /_ u32_1, 2)
+	Test.assert(u32_100 /_ u32_2, 50)
+	Test.assert(u32_1 /_ u32_2, 0)
+	Test.assert(u32_0 /_ u32_100, 0)
+
+	Test.newTestUnit("u32 arithmetic - div ceil")
+	Test.assert(u32_2 /^ u32_1, 2)
+	Test.assert(u32_100 /^ u32_2, 50)
+	Test.assert(u32_1 /^ u32_2, 1)
+	Test.assert(u32_3 /^ u32_2, 2)
+	Test.assert(u32_0 /^ u32_100, 0)
+
+	Test.newTestUnit("u32 arithmetic - reminder")
+	Test.assert(u32_2 % u32_1, 0)
+	Test.assert(u32_100 % u32_2, 0)
+	Test.assert(u32_101 % u32_2, 1)
+	Test.assert(u32_255 % u32_2, 1)
+	Test.assert(u32_0 % u32_100, 0)
+	#Test.assert(u32_1 % u32_0, ?)
+	
+	Test.newTestUnit("u32 arithmetic - pow checked")
+	Test.assert(u32_2 ** u32_1, 2)
+	Test.assert(u32_2 ** u32_2, 4)
+	Test.assert(u32_2 ** u32_3, 8)
+	Test.assert(u32_1 ** u32_100, 1)
+	Test.assert(u32_0 ** u32_1, 0)
+	Test.assert(u32_0 ** u32_0, 1)
+	# #Test.assert(u32_2 ** u32_8, ?) #!! FATAL ERROR !!
+
+	Test.newTestUnit("u32 arithmetic - pow with overflow")
+	Test.assert(u32_2 **% u32_8, 0)
+	Test.assert(u32_2 **% u32_9, 0)
+	Test.assert(u32_3 **% u32_5, 243)
+	Test.assert(u32_5 **% u32_4, 113)
+
+	Test.newTestUnit("u32 arithmetic - pow saturated")
+	Test.assert(u32_2 **| u32_3, 8)
+	Test.assert(u32_2 **| u32_7, 128)
+	Test.assert(u32_2 **| u32_8, u32_max)
+	Test.assert(u32_3 **| u32_6, u32_max)
+}
+
+func testArithmeticI32() {
+	let i32 i32_0 = 0
+	let i32 i32_1 = 1
+	let i32 i32_2 = 2
+	let i32 i32_3 = 3
+	let i32 i32_4 = 4
+	let i32 i32_5 = 5
+	let i32 i32_6 = 6
+	let i32 i32_7 = 7
+	let i32 i32_8 = 8
+	let i32 i32_9 = 9
+	let i32 i32_100 = 100
+	let i32 i32_101 = 101
+	let i32 i32_127 = 127
+	let i32 i32_min = i32.min
+	let i32 i32_max = i32.max
+	
+	Test.newTestUnit("i32 arithmetic - checked add")
+	Test.assert(i32_1 + i32_1, 2)
+	Test.assert(i32_2 + i32_2, 4)
+	Test.assert(i32_max + 0, i32_max)
+	#Test.assert(i32_max + 1, ?) #!! FATAL ERROR !!
+	#Test.assert(i32_max + 100, ?) #!! FATAL ERROR !!
+
+	Test.newTestUnit("i32 arithmetic - add with overflow")
+	Test.assert(i32_1 +% i32_1, 2)
+	Test.assert(i32_2 +% i32_2, 4)
+	Test.assert(i32_max +% i32_0, i32_max)
+	Test.assert(i32_max +% i32_1, i32_min)
+	Test.assert(i32_max +% i32_100, -29)
+
+	Test.newTestUnit("i32 arithmetic - add saturated")
+	Test.assert(i32_1 +| i32_1, 2)
+	Test.assert(i32_2 +| i32_2, 4)
+	Test.assert(i32_max +| i32_0, i32_max)
+	Test.assert(i32_max +| i32_1, i32_max)
+	Test.assert(i32_max +| i32_100, i32_max)
+
+	Test.newTestUnit("i32 arithmetic - checked sub")
+	Test.assert(i32_1 - i32_1, 0)
+	Test.assert(i32_2 - i32_1, 1)
+	Test.assert(i32_0 - i32_0, 0)
+	#Test.assert(i32_1 - i32_2, ?) #!! FATAL ERROR !!
+	#Test.assert(i32_0 - 100, ?) #!! FATAL ERROR !!
+
+	Test.newTestUnit("i32 arithmetic - sub with overflow")
+	Test.assert(i32_1 -% i32_1, 0)
+	Test.assert(i32_2 -% i32_1, 1)
+	Test.assert(i32_0 -% i32_0, 0)
+	Test.assert(i32_1 -% i32_2, -1)
+	Test.assert(i32_0 -% 100, -100)
+
+	Test.newTestUnit("i32 arithmetic - sub saturated")
+	Test.assert(i32_1 -| i32_1, 0)
+	Test.assert(i32_2 -| i32_1, 1)
+	Test.assert(i32_0 -| i32_0, 0)
+	Test.assert(i32_1 -| i32_2, -1)
+	Test.assert(i32_0 -| 100, -100)
+
+	Test.newTestUnit("i32 arithmetic - mul checked")
+	Test.assert(i32_1 * i32_1, 1)
+	Test.assert(i32_2 * i32_2, 4)
+	#Test.assert(i32_2 * i32_100, 200) #!! FATAL ERROR !!
+	Test.assert(i32_0 * i32_100, 0)
+	#Test.assert(i32_100 * i32_100, ?) #!! FATAL ERROR !!
+
+	Test.newTestUnit("i32 arithmetic - mul with overflow")
+	Test.assert(i32_1 *% i32_1, 1)
+	Test.assert(i32_2 *% i32_2, 4)
+	Test.assert(i32_2 *% i32_100, 200)
+	Test.assert(i32_100 *% i32_100, 16)
+	Test.assert(i32_max *% i32_2, 254)
+
+	Test.newTestUnit("i32 arithmetic - mul saturated")
+	Test.assert(i32_1 *| i32_1, 1)
+	Test.assert(i32_2 *| i32_2, 4)
+	Test.assert(i32_2 *| i32_100, 200)
+	Test.assert(i32_100 *| i32_100, i32_max)
+	Test.assert(i32_max *| i32_2, i32_max)
+
+	Test.newTestUnit("i32 arithmetic - div checked")
+	Test.assert(i32_2 / i32_1, 2)
+	Test.assert(i32_100 / i32_2, 50)
+	Test.assert(i32_0 / i32_100, 0)
+	#Test.assert(i32_1 / i32_2, ?) #!! FATAL ERROR !!
+	#Test.assert(i32_1 / i32_0, ?) #!! FATAL ERROR !!
+
+	Test.newTestUnit("i32 arithmetic - div floor")
+	Test.assert(i32_2 /_ i32_1, 2)
+	Test.assert(i32_100 /_ i32_2, 50)
+	Test.assert(i32_1 /_ i32_2, 0)
+	Test.assert(i32_0 /_ i32_100, 0)
+
+	Test.newTestUnit("i32 arithmetic - div ceil")
+	Test.assert(i32_2 /^ i32_1, 2)
+	Test.assert(i32_100 /^ i32_2, 50)
+	Test.assert(i32_1 /^ i32_2, 1)
+	Test.assert(i32_3 /^ i32_2, 2)
+	Test.assert(i32_0 /^ i32_100, 0)
+
+	Test.newTestUnit("i32 arithmetic - reminder")
+	Test.assert(i32_2 % i32_1, 0)
+	Test.assert(i32_100 % i32_2, 0)
+	Test.assert(i32_101 % i32_2, 1)
+	Test.assert(i32_127 % i32_2, 1)
+	Test.assert(i32_0 % i32_100, 0)
+	#Test.assert(i32_1 % i32_0, ?)
+	
+	Test.newTestUnit("i32 arithmetic - pow checked")
+	Test.assert(i32_2 ** i32_1, 2)
+	Test.assert(i32_2 ** i32_2, 4)
+	Test.assert(i32_2 ** i32_3, 8)
+	Test.assert(i32_1 ** i32_100, 1)
+	Test.assert(i32_0 ** i32_1, 0)
+	Test.assert(i32_0 ** i32_0, 1)
+	#Test.assert(i32_2 ** i32_8, ?) #!! FATAL ERROR !!
+
+	Test.newTestUnit("i32 arithmetic - pow with overflow")
+	Test.assert(i32_2 **% i32_8, 0)
+	Test.assert(i32_2 **% i32_9, 0)
+	Test.assert(i32_3 **% i32_5, 243)
+	Test.assert(i32_5 **% i32_4, 113)
+
+	Test.newTestUnit("i32 arithmetic - pow saturated")
+	Test.assert(i32_2 **| i32_3, 8)
+	Test.assert(i32_2 **| i32_7, 128)
+	Test.assert(i32_2 **| i32_8, i32_max)
+	Test.assert(i32_3 **| i32_6, i32_max)
+}

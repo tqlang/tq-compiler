@@ -1,0 +1,5 @@
+from Std.Io import
+
+@public struct FileReader extends Reader {
+
+}

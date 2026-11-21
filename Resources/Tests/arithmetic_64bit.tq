@@ -1,0 +1,262 @@
+from Std import { Test }
+
+func testArithmeticU64() {
+	let u64 u64_0 = 0
+	let u64 u64_1 = 1
+	let u64 u64_2 = 2
+	let u64 u64_3 = 3
+	let u64 u64_4 = 4
+	let u64 u64_5 = 5
+	let u64 u64_6 = 6
+	let u64 u64_7 = 7
+	let u64 u64_8 = 8
+	let u64 u64_9 = 9
+	let u64 u64_100 = 100
+	let u64 u64_101 = 101
+	let u64 u64_255 = 255
+	let u64 u64_min = u64.min
+	let u64 u64_max = u64.max
+	
+	Test.newTestUnit("u64 arithmetic - checked add")
+	Test.assert(u64_1 + u64_1, 2)
+	Test.assert(u64_2 + u64_2, 4)
+	Test.assert(u64_max + 0, u64_max)
+	#Test.assert(u64_max + 1, ?) #!! FATAL ERROR !!
+	#Test.assert(u64_max + 100, ?) #!! FATAL ERROR !!
+
+	Test.newTestUnit("u64 arithmetic - add with overflow")
+	Test.assert(u64_1 +% u64_1, 2)
+	Test.assert(u64_2 +% u64_2, 4)
+	Test.assert(u64_max +% u64_0, u64_max)
+	Test.assert(u64_max +% u64_1, u64_min)
+	Test.assert(u64_max +% u64_100, 99)
+
+	Test.newTestUnit("u64 arithmetic - add saturated")
+	Test.assert(u64_1 +| u64_1, 2)
+	Test.assert(u64_2 +| u64_2, 4)
+	Test.assert(u64_max +| u64_0, u64_max)
+	Test.assert(u64_max +| u64_1, u64_max)
+	Test.assert(u64_max +| u64_100, u64_max)
+
+
+	Test.newTestUnit("u64 arithmetic - checked sub")
+	Test.assert(u64_1 - u64_1, 0)
+	Test.assert(u64_2 - u64_1, 1)
+	Test.assert(u64_0 - u64_0, 0)
+	#Test.assert(u64_1 - u64_2, ?) #!! FATAL ERROR !!
+	#Test.assert(u64_0 - 100, ?) #!! FATAL ERROR !!
+
+	Test.newTestUnit("u64 arithmetic - sub with overflow")
+	Test.assert(u64_1 -% u64_1, 0)
+	Test.assert(u64_2 -% u64_1, 1)
+	Test.assert(u64_0 -% u64_0, 0)
+	Test.assert(u64_1 -% u64_2, 255)
+	Test.assert(u64_0 -% 100, 156)
+
+	Test.newTestUnit("u64 arithmetic - sub saturated")
+	Test.assert(u64_1 -| u64_1, 0)
+	Test.assert(u64_2 -| u64_1, 1)
+	Test.assert(u64_0 -| u64_0, 0)
+	Test.assert(u64_1 -| u64_2, 0)
+	Test.assert(u64_0 -| 100, 0)
+
+	Test.newTestUnit("u64 arithmetic - mul checked")
+	Test.assert(u64_1 * u64_1, 1)
+	Test.assert(u64_2 * u64_2, 4)
+	Test.assert(u64_2 * u64_100, 200)
+	Test.assert(u64_0 * u64_100, 0)
+	#Test.assert(u64_100 * u64_100, ?) #!! FATAL ERROR !!
+
+	Test.newTestUnit("u64 arithmetic - mul with overflow")
+	Test.assert(u64_1 *% u64_1, 1)
+	Test.assert(u64_2 *% u64_2, 4)
+	Test.assert(u64_2 *% u64_100, 200)
+	Test.assert(u64_100 *% u64_100, 16)
+	Test.assert(u64_max *% u64_2, 254)
+
+	Test.newTestUnit("u64 arithmetic - mul saturated")
+	Test.assert(u64_1 *| u64_1, 1)
+	Test.assert(u64_2 *| u64_2, 4)
+	Test.assert(u64_2 *| u64_100, 200)
+	Test.assert(u64_100 *| u64_100, u64_max)
+	Test.assert(u64_max *| u64_2, u64_max)
+
+	Test.newTestUnit("u64 arithmetic - div checked")
+	Test.assert(u64_2 / u64_1, 2)
+	Test.assert(u64_100 / u64_2, 50)
+	Test.assert(u64_0 / u64_100, 0)
+	#Test.assert(u64_1 / u64_2, ?) #!! FATAL ERROR !!
+	#Test.assert(u64_1 / u64_0, ?) #!! FATAL ERROR !!
+
+	Test.newTestUnit("u64 arithmetic - div floor")
+	Test.assert(u64_2 /_ u64_1, 2)
+	Test.assert(u64_100 /_ u64_2, 50)
+	Test.assert(u64_1 /_ u64_2, 0)
+	Test.assert(u64_0 /_ u64_100, 0)
+
+	Test.newTestUnit("u64 arithmetic - div ceil")
+	Test.assert(u64_2 /^ u64_1, 2)
+	Test.assert(u64_100 /^ u64_2, 50)
+	Test.assert(u64_1 /^ u64_2, 1)
+	Test.assert(u64_3 /^ u64_2, 2)
+	Test.assert(u64_0 /^ u64_100, 0)
+
+	Test.newTestUnit("u64 arithmetic - reminder")
+	Test.assert(u64_2 % u64_1, 0)
+	Test.assert(u64_100 % u64_2, 0)
+	Test.assert(u64_101 % u64_2, 1)
+	Test.assert(u64_255 % u64_2, 1)
+	Test.assert(u64_0 % u64_100, 0)
+	#Test.assert(u64_1 % u64_0, ?)
+	
+	Test.newTestUnit("u64 arithmetic - pow checked")
+	Test.assert(u64_2 ** u64_1, 2)
+	Test.assert(u64_2 ** u64_2, 4)
+	Test.assert(u64_2 ** u64_3, 8)
+	Test.assert(u64_1 ** u64_100, 1)
+	Test.assert(u64_0 ** u64_1, 0)
+	Test.assert(u64_0 ** u64_0, 1)
+	# #Test.assert(u64_2 ** u64_8, ?) #!! FATAL ERROR !!
+
+	Test.newTestUnit("u64 arithmetic - pow with overflow")
+	Test.assert(u64_2 **% u64_8, 0)
+	Test.assert(u64_2 **% u64_9, 0)
+	Test.assert(u64_3 **% u64_5, 243)
+	Test.assert(u64_5 **% u64_4, 113)
+
+	Test.newTestUnit("u64 arithmetic - pow saturated")
+	Test.assert(u64_2 **| u64_3, 8)
+	Test.assert(u64_2 **| u64_7, 128)
+	Test.assert(u64_2 **| u64_8, u64_max)
+	Test.assert(u64_3 **| u64_6, u64_max)
+}
+
+func testArithmeticI64() {
+	let i64 i64_0 = 0
+	let i64 i64_1 = 1
+	let i64 i64_2 = 2
+	let i64 i64_3 = 3
+	let i64 i64_4 = 4
+	let i64 i64_5 = 5
+	let i64 i64_6 = 6
+	let i64 i64_7 = 7
+	let i64 i64_8 = 8
+	let i64 i64_9 = 9
+	let i64 i64_100 = 100
+	let i64 i64_101 = 101
+	let i64 i64_127 = 127
+	let i64 i64_min = i64.min
+	let i64 i64_max = i64.max
+	
+	Test.newTestUnit("i64 arithmetic - checked add")
+	Test.assert(i64_1 + i64_1, 2)
+	Test.assert(i64_2 + i64_2, 4)
+	Test.assert(i64_max + 0, i64_max)
+	#Test.assert(i64_max + 1, ?) #!! FATAL ERROR !!
+	#Test.assert(i64_max + 100, ?) #!! FATAL ERROR !!
+
+	Test.newTestUnit("i64 arithmetic - add with overflow")
+	Test.assert(i64_1 +% i64_1, 2)
+	Test.assert(i64_2 +% i64_2, 4)
+	Test.assert(i64_max +% i64_0, i64_max)
+	Test.assert(i64_max +% i64_1, i64_min)
+	Test.assert(i64_max +% i64_100, -29)
+
+	Test.newTestUnit("i64 arithmetic - add saturated")
+	Test.assert(i64_1 +| i64_1, 2)
+	Test.assert(i64_2 +| i64_2, 4)
+	Test.assert(i64_max +| i64_0, i64_max)
+	Test.assert(i64_max +| i64_1, i64_max)
+	Test.assert(i64_max +| i64_100, i64_max)
+
+	Test.newTestUnit("i64 arithmetic - checked sub")
+	Test.assert(i64_1 - i64_1, 0)
+	Test.assert(i64_2 - i64_1, 1)
+	Test.assert(i64_0 - i64_0, 0)
+	#Test.assert(i64_1 - i64_2, ?) #!! FATAL ERROR !!
+	#Test.assert(i64_0 - 100, ?) #!! FATAL ERROR !!
+
+	Test.newTestUnit("i64 arithmetic - sub with overflow")
+	Test.assert(i64_1 -% i64_1, 0)
+	Test.assert(i64_2 -% i64_1, 1)
+	Test.assert(i64_0 -% i64_0, 0)
+	Test.assert(i64_1 -% i64_2, -1)
+	Test.assert(i64_0 -% 100, -100)
+
+	Test.newTestUnit("i64 arithmetic - sub saturated")
+	Test.assert(i64_1 -| i64_1, 0)
+	Test.assert(i64_2 -| i64_1, 1)
+	Test.assert(i64_0 -| i64_0, 0)
+	Test.assert(i64_1 -| i64_2, -1)
+	Test.assert(i64_0 -| 100, -100)
+
+	Test.newTestUnit("i64 arithmetic - mul checked")
+	Test.assert(i64_1 * i64_1, 1)
+	Test.assert(i64_2 * i64_2, 4)
+	#Test.assert(i64_2 * i64_100, 200) #!! FATAL ERROR !!
+	Test.assert(i64_0 * i64_100, 0)
+	#Test.assert(i64_100 * i64_100, ?) #!! FATAL ERROR !!
+
+	Test.newTestUnit("i64 arithmetic - mul with overflow")
+	Test.assert(i64_1 *% i64_1, 1)
+	Test.assert(i64_2 *% i64_2, 4)
+	Test.assert(i64_2 *% i64_100, 200)
+	Test.assert(i64_100 *% i64_100, 16)
+	Test.assert(i64_max *% i64_2, 254)
+
+	Test.newTestUnit("i64 arithmetic - mul saturated")
+	Test.assert(i64_1 *| i64_1, 1)
+	Test.assert(i64_2 *| i64_2, 4)
+	Test.assert(i64_2 *| i64_100, 200)
+	Test.assert(i64_100 *| i64_100, i64_max)
+	Test.assert(i64_max *| i64_2, i64_max)
+
+	Test.newTestUnit("i64 arithmetic - div checked")
+	Test.assert(i64_2 / i64_1, 2)
+	Test.assert(i64_100 / i64_2, 50)
+	Test.assert(i64_0 / i64_100, 0)
+	#Test.assert(i64_1 / i64_2, ?) #!! FATAL ERROR !!
+	#Test.assert(i64_1 / i64_0, ?) #!! FATAL ERROR !!
+
+	Test.newTestUnit("i64 arithmetic - div floor")
+	Test.assert(i64_2 /_ i64_1, 2)
+	Test.assert(i64_100 /_ i64_2, 50)
+	Test.assert(i64_1 /_ i64_2, 0)
+	Test.assert(i64_0 /_ i64_100, 0)
+
+	Test.newTestUnit("i64 arithmetic - div ceil")
+	Test.assert(i64_2 /^ i64_1, 2)
+	Test.assert(i64_100 /^ i64_2, 50)
+	Test.assert(i64_1 /^ i64_2, 1)
+	Test.assert(i64_3 /^ i64_2, 2)
+	Test.assert(i64_0 /^ i64_100, 0)
+
+	Test.newTestUnit("i64 arithmetic - reminder")
+	Test.assert(i64_2 % i64_1, 0)
+	Test.assert(i64_100 % i64_2, 0)
+	Test.assert(i64_101 % i64_2, 1)
+	Test.assert(i64_127 % i64_2, 1)
+	Test.assert(i64_0 % i64_100, 0)
+	#Test.assert(i64_1 % i64_0, ?)
+	
+	Test.newTestUnit("i64 arithmetic - pow checked")
+	Test.assert(i64_2 ** i64_1, 2)
+	Test.assert(i64_2 ** i64_2, 4)
+	Test.assert(i64_2 ** i64_3, 8)
+	Test.assert(i64_1 ** i64_100, 1)
+	Test.assert(i64_0 ** i64_1, 0)
+	Test.assert(i64_0 ** i64_0, 1)
+	#Test.assert(i64_2 ** i64_8, ?) #!! FATAL ERROR !!
+
+	Test.newTestUnit("i64 arithmetic - pow with overflow")
+	Test.assert(i64_2 **% i64_8, 0)
+	Test.assert(i64_2 **% i64_9, 0)
+	Test.assert(i64_3 **% i64_5, 243)
+	Test.assert(i64_5 **% i64_4, 113)
+
+	Test.newTestUnit("i64 arithmetic - pow saturated")
+	Test.assert(i64_2 **| i64_3, 8)
+	Test.assert(i64_2 **| i64_7, 128)
+	Test.assert(i64_2 **| i64_8, i64_max)
+	Test.assert(i64_3 **| i64_6, i64_max)
+}

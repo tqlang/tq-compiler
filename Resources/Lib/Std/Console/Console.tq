@@ -4,12 +4,20 @@ from Dotnet.System import { Console }
 @public const string color_red = "\e[31m"
 @public const string color_green = "\e[32m"
 
+#@public const StdoutWriter out = new StdoutWriter()
+
 @public func write(i64 value) { Console.Write(value as string) }
 @public func write(u64 value) { Console.Write(value as string) }
 @public func write(i128 value) { Console.Write(value as string) }
 @public func write(u128 value) { Console.Write(value as string) }
 @public func write([]anytype value) { Console.Write(value as string) }
 @public func write(string value) { Console.Write(value) }
+# @public func write(i64 value) { out.write(value as string) }
+# @public func write(u64 value) { out.write(value as string) }
+# @public func write(i128 value) { out.write(value as string) }
+# @public func write(u128 value) { out.write(value as string) }
+# @public func write([]anytype value) { out.write(value as string) }
+# @public func write(string value) { out.write(value) }
 
 @public func writeln(i64 value) { Console.WriteLine(value as string) }
 @public func writeln(u64 value) { Console.WriteLine(value as string) }
@@ -18,4 +26,11 @@ from Dotnet.System import { Console }
 @public func writeln([]anytype value) { Console.WriteLine(value as string) }
 @public func writeln(string value) { Console.WriteLine(value) }
 @public func writeln() { Console.WriteLine() }
+# @public func writeln(i64 value) { out.writeln(value as string) }
+# @public func writeln(u64 value) { out.writeln(value as string) }
+# @public func writeln(i128 value) { out.writeln(value as string) }
+# @public func writeln(u128 value) { out.writeln(value as string) }
+# @public func writeln([]anytype value) { out.writeln(value as string) }
+# @public func writeln(string value) { out.writeln(value) }
+# @public func writeln() { out.writeln("") }
 

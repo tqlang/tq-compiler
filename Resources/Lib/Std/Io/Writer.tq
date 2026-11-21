@@ -1,0 +1,6 @@
+@public @abstract struct Writer {
+    
+	@public func write(string value)
+	@public func writeln(string value)
+
+}

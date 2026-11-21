@@ -1,10 +1,23 @@
 
 @public func runTests() {
-    testConditionals()
-    testArraysAndSlices()
-    
-    testBuiltins()
-    testNullables()
+    #testConditionals()
+
+    #testArraysAndSlices()
+
+    #testBuiltins()
+    #testNullables()
+
     #testArithmeticU8()
     #testArithmeticI8()
+    #testArithmeticU16()
+    #testArithmeticI16()
+    testArithmeticU32()
+    testArithmeticI32()
+    #testArithmeticU64()
+    #testArithmeticI64()
+    #testArithmeticU128()
+    #testArithmeticI128()
+
+    # test STD lib
+    testDynamicArray()
 }

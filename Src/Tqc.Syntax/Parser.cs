@@ -545,6 +545,9 @@ public class Parser(DiagnosticBag diagnostics)
 
         while (!AtEnd() && !Check(TokenKind.RightBrace))
         {
+            AdvanceTrivia(_midDeclarationTrivia);
+            if (AtEnd()) break;
+            
             content.Add(ParseDeclaration(
                 ScopeAllowedDeclarations.Attributes
                 | ScopeAllowedDeclarations.Field
@@ -586,7 +589,6 @@ public class Parser(DiagnosticBag diagnostics)
     private StatementNode ParseStatement()
     {
         StatementNode statement;
-        AdvanceTrivia(_midStatementTrivia);
         
         // Conditionals
         if (CheckKeyword("if")) statement = ParseIfStatement();
@@ -712,7 +714,13 @@ public class Parser(DiagnosticBag diagnostics)
         var content = new List<StatementNode>();
         
         var start = ExpectNode(TokenKind.LeftBrace, "'{'");
-        while (!AtEnd() && !Check(TokenKind.RightBrace)) content.Add(ParseStatement());
+        while (!AtEnd())
+        {
+            AdvanceTrivia(_midStatementTrivia);
+            if (Check(TokenKind.RightBrace)) break;
+            
+            content.Add(ParseStatement());
+        }
         var end = ExpectNode(TokenKind.RightBrace, "'}'");
         
         return new ScopeNode(start, [..content], end, ConsumeStatementLeadingTrivia());
@@ -1081,7 +1089,7 @@ public class Parser(DiagnosticBag diagnostics)
 
         if (Check(TokenKind.DoubleQuote)) return ParseStringExpression();
         
-        if (Peek() is { } bad) throw Error(bad, "Invalid expression");
+        if (Peek() is { } bad) throw Error(bad, $"Invalid expression ({bad})");
             throw new EndOfStreamException("Expected expression, found End of Stream");
     }
 
@@ -1173,15 +1181,18 @@ public class Parser(DiagnosticBag diagnostics)
     private TriviaNode[] ConsumeStatementLeadingTrivia()
     {
         AdvanceTrivia(TokenKind.Whitespace, TokenKind.Comment);
+        
         if (Check(TokenKind.Semicolon) || Check(TokenKind.LineFeed)) AdvanceTrivia();
-        else if (!Check(TokenKind.RightBrace)) Expect(TokenKind.LineFeed, "Line feed after statement");
+        else if (Check(TokenKind.Eof)) {}
+        else if (Check(TokenKind.RightBrace)) {}
+        else Expect(TokenKind.LineFeed, "Line feed after statement");
         
         return _trivia.Dump();
     }
     private TriviaNode[] ConsumeDeclarationsLeadingTrivia()
     {
         AdvanceTrivia(TokenKind.Whitespace, TokenKind.Comment);
-        if (Check(TokenKind.Semicolon) || Check(TokenKind.LineFeed)) AdvanceTrivia();
+        while (Check(TokenKind.Semicolon) || Check(TokenKind.LineFeed)) AdvanceTrivia();
         
         return _trivia.Dump();
     }
@@ -1241,7 +1252,7 @@ public class Parser(DiagnosticBag diagnostics)
         }
     }
     
-    private bool Check(TokenKind kind) => Peek() is { } t && t.kind == kind;
+    private bool Check(TokenKind kind) => Peek() is { } t && t.kind == kind || Peek() == null && kind == TokenKind.Eof;
 
     private bool CheckKeyword(string word) => Peek() is { kind: TokenKind.Identifier } t && t.value == word;
     

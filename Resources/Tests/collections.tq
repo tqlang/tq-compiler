@@ -1,10 +1,11 @@
 from Std import { Test }
+from Std.Collections import
 
 func testArraysAndSlices() {
-    Test.newTestUnit("arrays - array indexing")
     #let [5]i32 numbers = [10, 20, 30, 40, 50]
     let []int numbers = [10, 20, 30, 40, 50]
-    
+
+    Test.newTestUnit("arrays - array indexing")
     Test.assert(numbers[0], 10)
     Test.assert(numbers[2], 30)
     Test.assert(numbers[4], 50)
@@ -19,3 +20,20 @@ func testArraysAndSlices() {
     #Test.assert(numbers[1], 99)
     #Test.assert(middle[0], 99)
 }
+
+func testDynamicArray() {
+    let list = new DynamicArray(u32)()
+
+    Test.newTestUnit("DynamicArray - add elements")
+    list.append(10)
+    list.append(20)
+    list.append(30)
+    list.append(40)
+    list.append(50)
+
+    Test.assert(list[0], 10)
+    Test.assert(list[2], 30)
+    Test.assert(list[4], 50)
+
+}
+

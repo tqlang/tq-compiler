@@ -26,7 +26,8 @@ static class Program
         switch (args[0])
         {
             case "build_toml":
-                Environment.Exit(Build(args[1..]));
+                var result = Build(args[1..]);
+                Environment.Exit(result);
             break;
         }
         

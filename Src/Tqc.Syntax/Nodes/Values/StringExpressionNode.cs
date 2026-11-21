@@ -25,6 +25,17 @@ public abstract record StringContentNode : SyntaxNode;
 public record StringCharacterLiteralNode(TokenNode Value) : StringContentNode
 {
     override internal StringBuilder AppendSyntaxToStringBuilder(StringBuilder sb) => sb.AppendSyntaxNode(Value);
+    public char GetCharacterLiteralValue() => Value.Value switch
+    {
+        "\\'"  => '\'',
+        "\\\"" => '"',
+        "\\0"  => '\x00',
+        "\\t"  => '\t',
+        "\\e"  => '\x1B',
+        "\\n"  => '\n',
+        "\\r"  => '\r',
+        _ => throw new NotImplementedException(),
+    };
     public override SourceSpan Span => Value.Span;
 }
 public record StringLiteralNode(TokenNode Value) : StringContentNode

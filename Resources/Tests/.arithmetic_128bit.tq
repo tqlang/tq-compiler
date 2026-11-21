@@ -1,0 +1,262 @@
+from Std import { Test }
+
+func testArithmeticU128() {
+	let u128 u128_0 = 0
+	let u128 u128_1 = 1
+	let u128 u128_2 = 2
+	let u128 u128_3 = 3
+	let u128 u128_4 = 4
+	let u128 u128_5 = 5
+	let u128 u128_6 = 6
+	let u128 u128_7 = 7
+	let u128 u128_8 = 8
+	let u128 u128_9 = 9
+	let u128 u128_100 = 100
+	let u128 u128_101 = 101
+	let u128 u128_255 = 255
+	let u128 u128_min = u128.min
+	let u128 u128_max = u128.max
+	
+	Test.newTestUnit("u128 arithmetic - checked add")
+	Test.assert(u128_1 + u128_1, 2)
+	Test.assert(u128_2 + u128_2, 4)
+	Test.assert(u128_max + 0, u128_max)
+	#Test.assert(u128_max + 1, ?) #!! FATAL ERROR !!
+	#Test.assert(u128_max + 100, ?) #!! FATAL ERROR !!
+
+	Test.newTestUnit("u128 arithmetic - add with overflow")
+	Test.assert(u128_1 +% u128_1, 2)
+	Test.assert(u128_2 +% u128_2, 4)
+	Test.assert(u128_max +% u128_0, u128_max)
+	Test.assert(u128_max +% u128_1, u128_min)
+	Test.assert(u128_max +% u128_100, 99)
+
+	Test.newTestUnit("u128 arithmetic - add saturated")
+	Test.assert(u128_1 +| u128_1, 2)
+	Test.assert(u128_2 +| u128_2, 4)
+	Test.assert(u128_max +| u128_0, u128_max)
+	Test.assert(u128_max +| u128_1, u128_max)
+	Test.assert(u128_max +| u128_100, u128_max)
+
+
+	Test.newTestUnit("u128 arithmetic - checked sub")
+	Test.assert(u128_1 - u128_1, 0)
+	Test.assert(u128_2 - u128_1, 1)
+	Test.assert(u128_0 - u128_0, 0)
+	#Test.assert(u128_1 - u128_2, ?) #!! FATAL ERROR !!
+	#Test.assert(u128_0 - 100, ?) #!! FATAL ERROR !!
+
+	Test.newTestUnit("u128 arithmetic - sub with overflow")
+	Test.assert(u128_1 -% u128_1, 0)
+	Test.assert(u128_2 -% u128_1, 1)
+	Test.assert(u128_0 -% u128_0, 0)
+	Test.assert(u128_1 -% u128_2, 255)
+	Test.assert(u128_0 -% 100, 156)
+
+	Test.newTestUnit("u128 arithmetic - sub saturated")
+	Test.assert(u128_1 -| u128_1, 0)
+	Test.assert(u128_2 -| u128_1, 1)
+	Test.assert(u128_0 -| u128_0, 0)
+	Test.assert(u128_1 -| u128_2, 0)
+	Test.assert(u128_0 -| 100, 0)
+
+	Test.newTestUnit("u128 arithmetic - mul checked")
+	Test.assert(u128_1 * u128_1, 1)
+	Test.assert(u128_2 * u128_2, 4)
+	Test.assert(u128_2 * u128_100, 200)
+	Test.assert(u128_0 * u128_100, 0)
+	#Test.assert(u128_100 * u128_100, ?) #!! FATAL ERROR !!
+
+	Test.newTestUnit("u128 arithmetic - mul with overflow")
+	Test.assert(u128_1 *% u128_1, 1)
+	Test.assert(u128_2 *% u128_2, 4)
+	Test.assert(u128_2 *% u128_100, 200)
+	Test.assert(u128_100 *% u128_100, 16)
+	Test.assert(u128_max *% u128_2, 254)
+
+	Test.newTestUnit("u128 arithmetic - mul saturated")
+	Test.assert(u128_1 *| u128_1, 1)
+	Test.assert(u128_2 *| u128_2, 4)
+	Test.assert(u128_2 *| u128_100, 200)
+	Test.assert(u128_100 *| u128_100, u128_max)
+	Test.assert(u128_max *| u128_2, u128_max)
+
+	Test.newTestUnit("u128 arithmetic - div checked")
+	Test.assert(u128_2 / u128_1, 2)
+	Test.assert(u128_100 / u128_2, 50)
+	Test.assert(u128_0 / u128_100, 0)
+	#Test.assert(u128_1 / u128_2, ?) #!! FATAL ERROR !!
+	#Test.assert(u128_1 / u128_0, ?) #!! FATAL ERROR !!
+
+	Test.newTestUnit("u128 arithmetic - div floor")
+	Test.assert(u128_2 /_ u128_1, 2)
+	Test.assert(u128_100 /_ u128_2, 50)
+	Test.assert(u128_1 /_ u128_2, 0)
+	Test.assert(u128_0 /_ u128_100, 0)
+
+	Test.newTestUnit("u128 arithmetic - div ceil")
+	Test.assert(u128_2 /^ u128_1, 2)
+	Test.assert(u128_100 /^ u128_2, 50)
+	Test.assert(u128_1 /^ u128_2, 1)
+	Test.assert(u128_3 /^ u128_2, 2)
+	Test.assert(u128_0 /^ u128_100, 0)
+
+	Test.newTestUnit("u128 arithmetic - reminder")
+	Test.assert(u128_2 % u128_1, 0)
+	Test.assert(u128_100 % u128_2, 0)
+	Test.assert(u128_101 % u128_2, 1)
+	Test.assert(u128_255 % u128_2, 1)
+	Test.assert(u128_0 % u128_100, 0)
+	#Test.assert(u128_1 % u128_0, ?)
+	
+	Test.newTestUnit("u128 arithmetic - pow checked")
+	Test.assert(u128_2 ** u128_1, 2)
+	Test.assert(u128_2 ** u128_2, 4)
+	Test.assert(u128_2 ** u128_3, 8)
+	Test.assert(u128_1 ** u128_100, 1)
+	Test.assert(u128_0 ** u128_1, 0)
+	Test.assert(u128_0 ** u128_0, 1)
+	# #Test.assert(u128_2 ** u128_8, ?) #!! FATAL ERROR !!
+
+	Test.newTestUnit("u128 arithmetic - pow with overflow")
+	Test.assert(u128_2 **% u128_8, 0)
+	Test.assert(u128_2 **% u128_9, 0)
+	Test.assert(u128_3 **% u128_5, 243)
+	Test.assert(u128_5 **% u128_4, 113)
+
+	Test.newTestUnit("u128 arithmetic - pow saturated")
+	Test.assert(u128_2 **| u128_3, 8)
+	Test.assert(u128_2 **| u128_7, 128)
+	Test.assert(u128_2 **| u128_8, u128_max)
+	Test.assert(u128_3 **| u128_6, u128_max)
+}
+
+func testArithmeticI128() {
+	let i128 i128_0 = 0
+	let i128 i128_1 = 1
+	let i128 i128_2 = 2
+	let i128 i128_3 = 3
+	let i128 i128_4 = 4
+	let i128 i128_5 = 5
+	let i128 i128_6 = 6
+	let i128 i128_7 = 7
+	let i128 i128_8 = 8
+	let i128 i128_9 = 9
+	let i128 i128_100 = 100
+	let i128 i128_101 = 101
+	let i128 i128_127 = 127
+	let i128 i128_min = i128.min
+	let i128 i128_max = i128.max
+	
+	Test.newTestUnit("i128 arithmetic - checked add")
+	Test.assert(i128_1 + i128_1, 2)
+	Test.assert(i128_2 + i128_2, 4)
+	Test.assert(i128_max + 0, i128_max)
+	#Test.assert(i128_max + 1, ?) #!! FATAL ERROR !!
+	#Test.assert(i128_max + 100, ?) #!! FATAL ERROR !!
+
+	Test.newTestUnit("i128 arithmetic - add with overflow")
+	Test.assert(i128_1 +% i128_1, 2)
+	Test.assert(i128_2 +% i128_2, 4)
+	Test.assert(i128_max +% i128_0, i128_max)
+	Test.assert(i128_max +% i128_1, i128_min)
+	Test.assert(i128_max +% i128_100, -29)
+
+	Test.newTestUnit("i128 arithmetic - add saturated")
+	Test.assert(i128_1 +| i128_1, 2)
+	Test.assert(i128_2 +| i128_2, 4)
+	Test.assert(i128_max +| i128_0, i128_max)
+	Test.assert(i128_max +| i128_1, i128_max)
+	Test.assert(i128_max +| i128_100, i128_max)
+
+	Test.newTestUnit("i128 arithmetic - checked sub")
+	Test.assert(i128_1 - i128_1, 0)
+	Test.assert(i128_2 - i128_1, 1)
+	Test.assert(i128_0 - i128_0, 0)
+	#Test.assert(i128_1 - i128_2, ?) #!! FATAL ERROR !!
+	#Test.assert(i128_0 - 100, ?) #!! FATAL ERROR !!
+
+	Test.newTestUnit("i128 arithmetic - sub with overflow")
+	Test.assert(i128_1 -% i128_1, 0)
+	Test.assert(i128_2 -% i128_1, 1)
+	Test.assert(i128_0 -% i128_0, 0)
+	Test.assert(i128_1 -% i128_2, -1)
+	Test.assert(i128_0 -% 100, -100)
+
+	Test.newTestUnit("i128 arithmetic - sub saturated")
+	Test.assert(i128_1 -| i128_1, 0)
+	Test.assert(i128_2 -| i128_1, 1)
+	Test.assert(i128_0 -| i128_0, 0)
+	Test.assert(i128_1 -| i128_2, -1)
+	Test.assert(i128_0 -| 100, -100)
+
+	Test.newTestUnit("i128 arithmetic - mul checked")
+	Test.assert(i128_1 * i128_1, 1)
+	Test.assert(i128_2 * i128_2, 4)
+	#Test.assert(i128_2 * i128_100, 200) #!! FATAL ERROR !!
+	Test.assert(i128_0 * i128_100, 0)
+	#Test.assert(i128_100 * i128_100, ?) #!! FATAL ERROR !!
+
+	Test.newTestUnit("i128 arithmetic - mul with overflow")
+	Test.assert(i128_1 *% i128_1, 1)
+	Test.assert(i128_2 *% i128_2, 4)
+	Test.assert(i128_2 *% i128_100, 200)
+	Test.assert(i128_100 *% i128_100, 16)
+	Test.assert(i128_max *% i128_2, 254)
+
+	Test.newTestUnit("i128 arithmetic - mul saturated")
+	Test.assert(i128_1 *| i128_1, 1)
+	Test.assert(i128_2 *| i128_2, 4)
+	Test.assert(i128_2 *| i128_100, 200)
+	Test.assert(i128_100 *| i128_100, i128_max)
+	Test.assert(i128_max *| i128_2, i128_max)
+
+	Test.newTestUnit("i128 arithmetic - div checked")
+	Test.assert(i128_2 / i128_1, 2)
+	Test.assert(i128_100 / i128_2, 50)
+	Test.assert(i128_0 / i128_100, 0)
+	#Test.assert(i128_1 / i128_2, ?) #!! FATAL ERROR !!
+	#Test.assert(i128_1 / i128_0, ?) #!! FATAL ERROR !!
+
+	Test.newTestUnit("i128 arithmetic - div floor")
+	Test.assert(i128_2 /_ i128_1, 2)
+	Test.assert(i128_100 /_ i128_2, 50)
+	Test.assert(i128_1 /_ i128_2, 0)
+	Test.assert(i128_0 /_ i128_100, 0)
+
+	Test.newTestUnit("i128 arithmetic - div ceil")
+	Test.assert(i128_2 /^ i128_1, 2)
+	Test.assert(i128_100 /^ i128_2, 50)
+	Test.assert(i128_1 /^ i128_2, 1)
+	Test.assert(i128_3 /^ i128_2, 2)
+	Test.assert(i128_0 /^ i128_100, 0)
+
+	Test.newTestUnit("i128 arithmetic - reminder")
+	Test.assert(i128_2 % i128_1, 0)
+	Test.assert(i128_100 % i128_2, 0)
+	Test.assert(i128_101 % i128_2, 1)
+	Test.assert(i128_127 % i128_2, 1)
+	Test.assert(i128_0 % i128_100, 0)
+	#Test.assert(i128_1 % i128_0, ?)
+	
+	Test.newTestUnit("i128 arithmetic - pow checked")
+	Test.assert(i128_2 ** i128_1, 2)
+	Test.assert(i128_2 ** i128_2, 4)
+	Test.assert(i128_2 ** i128_3, 8)
+	Test.assert(i128_1 ** i128_100, 1)
+	Test.assert(i128_0 ** i128_1, 0)
+	Test.assert(i128_0 ** i128_0, 1)
+	#Test.assert(i128_2 ** i128_8, ?) #!! FATAL ERROR !!
+
+	Test.newTestUnit("i128 arithmetic - pow with overflow")
+	Test.assert(i128_2 **% i128_8, 0)
+	Test.assert(i128_2 **% i128_9, 0)
+	Test.assert(i128_3 **% i128_5, 243)
+	Test.assert(i128_5 **% i128_4, 113)
+
+	Test.newTestUnit("i128 arithmetic - pow saturated")
+	Test.assert(i128_2 **| i128_3, 8)
+	Test.assert(i128_2 **| i128_7, 128)
+	Test.assert(i128_2 **| i128_8, i128_max)
+	Test.assert(i128_3 **| i128_6, i128_max)
+}

@@ -1,7 +1,19 @@
-# from Dotnet.System.Collections.Generic import { List }
+from Dotnet.System.Collections.Generic import { List }
 
-# @public struct DynamicArray(type T) {
+@public struct DynamicArray(type T) {
+	let _list = new List(T)()
 
-# 	let *List(T) _list = new List(T)()
+	@public func append(T value) {
+		_list.Add(value)
+	}
 
-# }
+	@indexerGet
+	@public func indexerGet(int index) T {
+		return _list[index]
+	}
+	
+	@indexerSet
+	@public func indexerSet(int index, T value) {
+		_list[index] = value
+	}
+}
