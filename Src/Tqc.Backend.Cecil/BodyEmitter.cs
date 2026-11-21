@@ -569,6 +569,17 @@ internal sealed class BodyEmitter
 
         if (expected == null || actual.FullName == expected.FullName) return actual;
 
+        // A struct of a hierarchy where `*S` is expected: a reference to a copy of it.
+        if (IsRefType(expected) && !IsRefType(actual) && actual.IsValueType && _owner.Backend.TypeInfoFields.ContainsKey(actual.FullName))
+        {
+            var copy = NewTemp(actual);
+            _il.Emit(OpCodes.Stloc, copy);
+            _il.Emit(OpCodes.Ldloca, copy);
+            _il.Emit(OpCodes.Ldsfld, _owner.Use(_owner.Backend.TypeInfoFields[actual.FullName]));
+            _il.Emit(OpCodes.Newobj, _owner.Module.ImportReference(_owner.Backend.Runtime.RefConstructor));
+            return expected;
+        }
+
         // A struct of a hierarchy as the one it extends: a copy of the part that is the base.
         if (actual.IsValueType && expected.IsValueType && actual.FullName != expected.FullName
             && _owner.Backend.BaseFields.ContainsKey(actual.FullName))
@@ -598,6 +609,13 @@ internal sealed class BodyEmitter
     private TypeReference? EmitConvert(IrConvert conversion)
     {
         var target = _owner.MapExpression(conversion.toType);
+
+        // `*D` as `*B`, or `x as *D`.
+        if (IsRefType(target) && TypeExpressions.Raw(conversion.toType) is { } rawTarget
+            && CompilerStd.Types.IsRef(rawTarget, out var referred)
+            && referred is StructTypeReference { Struct: TqStruct toStruct } && InHierarchy(toStruct))
+            return EmitRefConversion(conversion.Expression, toStruct);
+
         EmitValue(conversion.Expression, target);
         return target;
     }
@@ -858,7 +876,104 @@ internal sealed class BodyEmitter
         }
     }
 
-    private bool IsRefInterface(TypeReference? type) => type != null && _owner.Backend.RefInterfaceNames.Contains(type.FullName);
+    // ---- `*S` of a struct of a hierarchy: a `Tq.Ref` (see ModuleEmitter.Hierarchy)
+
+    private static bool IsRefType(TypeReference? type) => type != null && type.FullName == "Tq.Ref";
+
+    private TypeReference RuntimeType(TypeDefinition type) => _owner.Module.ImportReference(type);
+
+    private TypeDefinition? DefinitionOf(TqStruct structure) =>
+        _owner.Backend.Definitions.TryGetValue(structure, out var definition) ? definition as TypeDefinition : null;
+
+    private bool InHierarchy(TqStruct structure) =>
+        DefinitionOf(structure) is { } definition && _owner.Backend.HierarchyTypes.Contains(definition.FullName);
+
+    /// <summary>The struct of the hierarchy that an expression of the type `*S` is a reference to.</summary>
+    private TqStruct? RefStructOf(IrExpression? expression)
+    {
+        if (expression == null || _types.Get(expression) is not { } type || !CompilerStd.Types.IsRef(type, out var referred)) return null;
+        return referred is StructTypeReference { Struct: TqStruct structure } && InHierarchy(structure) ? structure : null;
+    }
+
+    /// <summary>The struct of the hierarchy that an expression of the type `S` (the value) is.</summary>
+    private TqStruct? ValueStructOf(IrExpression? expression) =>
+        expression != null && _types.Get(expression) is StructTypeReference { Struct: TqStruct structure } && InHierarchy(structure)
+            ? structure
+            : null;
+
+    /// <summary>`*S` of a struct that is a value: its address, and what it is.</summary>
+    private void EmitRefOfValue(IrExpression value, TqStruct structure)
+    {
+        EmitAddress(value);
+        EmitNewRef(structure);
+    }
+
+    /// <summary>With the address of a struct on the stack: the reference to it, which knows it is `structure`.</summary>
+    private void EmitNewRef(TqStruct structure)
+    {
+        _il.Emit(OpCodes.Ldsfld, _owner.Use(_owner.Backend.TypeInfoFields[DefinitionOf(structure)!.FullName]));
+        _il.Emit(OpCodes.Newobj, _owner.Module.ImportReference(_owner.Backend.Runtime.RefConstructor));
+    }
+
+    private static bool Extends(TqStruct derived, TqStruct @base)
+    {
+        for (var current = derived.BaseStruct as TqStruct; current != null; current = current.BaseStruct as TqStruct)
+            if (ReferenceEquals(current, @base)) return true;
+        return false;
+    }
+
+    /// <summary>
+    /// A value as a `*S` of the hierarchy. A reference to a struct as one it extends is the same struct seen from the part
+    /// that is the base; as one that extends it (`x as *D`), the part that is `D`, if it really is one.
+    /// </summary>
+    private TypeReference? EmitRefConversion(IrExpression expression, TqStruct to)
+    {
+        var runtime = _owner.Backend.Runtime;
+        var refType = RuntimeType(runtime.Ref);
+
+        TqStruct from;
+        if (RefStructOf(expression) is { } viewed)
+        {
+            EmitValue(expression, null);
+            from = viewed;
+        }
+        else if (ValueStructOf(expression) is { } value)
+        {
+            EmitRefOfValue(expression, value);
+            from = value;
+        }
+        else
+        {
+            Report($"This expression is not a reference to a struct of a hierarchy, so it cannot be one to '{to.Name}'", expression.Location);
+            return refType;
+        }
+
+        if (ReferenceEquals(from, to)) return refType;
+
+        if (Extends(from, to))
+        {
+            var reference = NewTemp(refType);
+            _il.Emit(OpCodes.Stloc, reference);
+            _il.Emit(OpCodes.Ldloca, reference);
+            _il.Emit(OpCodes.Ldfld, _owner.Module.ImportReference(runtime.RefView));
+            EmitBasePath(DefinitionOf(from)!, DefinitionOf(to)!);
+            _il.Emit(OpCodes.Ldloca, reference);
+            _il.Emit(OpCodes.Ldfld, _owner.Module.ImportReference(runtime.RefType));
+            _il.Emit(OpCodes.Newobj, _owner.Module.ImportReference(runtime.RefConstructor));
+        }
+        else if (Extends(to, from))
+        {
+            _il.Emit(OpCodes.Ldsfld, _owner.Use(_owner.Backend.TypeInfoFields[DefinitionOf(from)!.FullName]));
+            _il.Emit(OpCodes.Ldsfld, _owner.Use(_owner.Backend.TypeInfoFields[DefinitionOf(to)!.FullName]));
+            _il.Emit(OpCodes.Call, _owner.Module.ImportReference(runtime.RefCast));
+        }
+        else
+        {
+            Report($"'{from.Name}' and '{to.Name}' are not in the same line of a hierarchy: a reference to one cannot be one to the other", expression.Location);
+        }
+
+        return refType;
+    }
 
     /// <summary>A value type is called and read through its address; a class through the reference.</summary>
     private void EmitReceiver(IrExpression receiver, TypeReference declaring)
@@ -873,11 +988,12 @@ internal sealed class BodyEmitter
 
         var actual = TypeOfNode(receiver);
 
-        // A reference to a struct of a hierarchy: its value is read through the interface, which has it.
-        if (IsRefInterface(actual) && _owner.Backend.RefGetters.TryGetValue(declaring.FullName, out var getter))
+        // A reference to a struct of a hierarchy: the view is a reference to its part, which is the struct or one it extends.
+        if (RefStructOf(receiver) is { } viewed && DefinitionOf(viewed) is { } viewedType)
         {
             EmitValue(receiver, null);
-            _il.Emit(OpCodes.Callvirt, _owner.Use(getter));
+            _il.Emit(OpCodes.Ldfld, _owner.Module.ImportReference(_owner.Backend.Runtime.RefView));
+            EmitBasePath(viewedType, declaring);
             return;
         }
 
@@ -951,13 +1067,31 @@ internal sealed class BodyEmitter
         {
             case TqFunction tq when _owner.Backend.Definitions.TryGetValue(tq, out var definition) && definition is MethodDefinition method:
             {
-                // Through a reference to a struct of a hierarchy the call goes to the interface, so that the most derived function runs.
-                if (!method.IsStatic && receiver != null && method.DeclaringType.IsValueType && IsRefInterface(TypeOfNode(receiver))
-                    && _owner.Backend.RefMethods.TryGetValue(tq, out var interfaceMethod))
+                // Through a reference to a struct of a hierarchy a virtual function goes by the table of the struct it really is.
+                if (!method.IsStatic && receiver != null && _owner.Backend.Slots.TryGetValue(tq, out var slot)
+                    && RefStructOf(receiver) is { } viewed && DefinitionOf(viewed) is { } viewedType
+                    && DefinitionOf(_owner.Backend.SlotOwners[tq]) is { } declaringType)
                 {
+                    var viewedRef = NewTemp(RuntimeType(_owner.Backend.Runtime.Ref));
                     EmitValue(receiver, null);
+                    _il.Emit(OpCodes.Stloc, viewedRef);
+
+                    // The part of the struct that declares the function, which is what the pointers of the table take.
+                    _il.Emit(OpCodes.Ldloca, viewedRef);
+                    _il.Emit(OpCodes.Ldfld, _owner.Module.ImportReference(_owner.Backend.Runtime.RefView));
+                    EmitBasePath(viewedType, declaringType);
                     EmitArguments(call.ArgumentsList.arguments, method.Parameters, tq.Parameters);
-                    _il.Emit(OpCodes.Callvirt, _owner.Use(interfaceMethod));
+
+                    _il.Emit(OpCodes.Ldloca, viewedRef);
+                    _il.Emit(OpCodes.Ldfld, _owner.Module.ImportReference(_owner.Backend.Runtime.RefType));
+                    _il.Emit(OpCodes.Ldfld, _owner.Module.ImportReference(_owner.Backend.Runtime.TypeInfoTable));
+                    _il.Emit(OpCodes.Ldc_I4, slot);
+                    _il.Emit(OpCodes.Ldelem_I);
+
+                    var site = new CallSite(method.ReturnType);
+                    site.Parameters.Add(new ParameterDefinition(new ByReferenceType(Core("System.Byte"))));
+                    foreach (var parameter in method.Parameters) site.Parameters.Add(new ParameterDefinition(parameter.ParameterType));
+                    _il.Emit(OpCodes.Calli, site);
                     return IsVoid(method.ReturnType) ? null : method.ReturnType;
                 }
 
@@ -1065,6 +1199,7 @@ internal sealed class BodyEmitter
             }
 
             if (type is ByReferenceType) EmitAddress(argument);
+            else if (IsRefType(type) && ValueStructOf(argument) is { } valueStruct) EmitRefOfValue(argument, valueStruct);
             else EmitValue(argument, type);
         }
 

@@ -39,18 +39,18 @@ public sealed class CecilBackend(DiagnosticBag diagnostics)
     internal Dictionary<TqProperty, FieldDefinition> BackingFields { get; } = new(ReferenceEqualityComparer.Instance);
 
     // The hierarchy of structs by value (see ModuleEmitter.Hierarchy), found by the full name of the value type.
-    /// <summary>The nested interface `Ref` of each struct of a hierarchy, and the names of them all.</summary>
-    internal Dictionary<string, TypeDefinition> RefInterfaces { get; } = [];
-    internal HashSet<string> RefInterfaceNames { get; } = [];
+    /// <summary>The full names of the structs of a hierarchy: `*S` of them is a `Tq.Ref`.</summary>
+    internal HashSet<string> HierarchyTypes { get; } = [];
 
     /// <summary>`__base`: the field of a struct that holds the one it extends.</summary>
     internal Dictionary<string, FieldDefinition> BaseFields { get; } = [];
 
-    /// <summary>`ref S get_Value()` of the interface of the struct.</summary>
-    internal Dictionary<string, MethodDefinition> RefGetters { get; } = [];
+    /// <summary>`__type`: the static field of each struct of a hierarchy that holds its `Tq.TypeInfo`.</summary>
+    internal Dictionary<string, FieldDefinition> TypeInfoFields { get; } = [];
 
-    /// <summary>The method of the interface of a struct for each of its functions.</summary>
-    internal Dictionary<TqFunction, MethodDefinition> RefMethods { get; } = new(ReferenceEqualityComparer.Instance);
+    /// <summary>The slot of the table of virtual functions of a function (`@virtual`, `@abstract` or `@override`), and the struct that declares it.</summary>
+    internal Dictionary<TqFunction, int> Slots { get; } = new(ReferenceEqualityComparer.Instance);
+    internal Dictionary<TqFunction, TqStruct> SlotOwners { get; } = new(ReferenceEqualityComparer.Instance);
 
     /// <summary>The assemblies of a dotnet module are searched for the base types before `System.Runtime`, which is implicit.</summary>
     public void AddDotnetModule(IModule module)

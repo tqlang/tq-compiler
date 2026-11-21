@@ -97,7 +97,7 @@ internal sealed partial class ModuleEmitter
             return;
         }
 
-        if (type is ByReferenceType)
+        if (type is ByReferenceType || type.FullName == "Tq.Ref")
         {
             Report($"The field '{field.Name}' cannot hold a reference to a value in .NET; only a parameter or a result can", field.SourceLocation);
             type = Core("System.Object");
@@ -173,7 +173,9 @@ internal sealed partial class ModuleEmitter
         var isConstructor = function is TqConstructor;
         var isStatic = !isConstructor && (structure == null || function.IsStatic);
         var isInterface = structure is { IsInterface: true };
-        var isAbstract = !isStatic && !isConstructor && function.IsAbstract;
+        // A function without body of a struct by value is not abstract in .NET (it has no inheritance): it has a slot of the TypeInfo.
+        var isAbstract = !isStatic && !isConstructor && function.IsAbstract
+                         && structure != null && (IsClass(structure) || structure.IsInterface);
 
         // A static member of a generic type would be called through the type with its arguments, which a call of the namespace form does not give.
         if (isStatic && structure != null && container.Type.HasGenericParameters)
