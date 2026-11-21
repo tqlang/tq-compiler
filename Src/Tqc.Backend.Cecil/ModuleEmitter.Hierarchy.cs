@@ -16,8 +16,9 @@ namespace Tqc.Backend.Cecil;
 ///   extend one another the way the structs do (`D.Ref` extends `B.Ref`), so a reference to the derived struct is a
 ///   reference to the base one, and `x as *D` is a cast of .NET. A reference is a real reference: it can be a field, be
 ///   returned, be kept. What it refers to is a struct, kept by `S.Box`, the concrete class that has it.
-/// - Each `X.Ref` has `ref X get_Value_X()` (abstract: the `Box` of the struct has it), which is how the fields are read
-///   and written with no copy; the one of the class above is overridden to give the `__base` of it. And each `X.Ref` has a
+/// - Each `X.Ref` has the property `ref X Value` (abstract: the `Box` of the struct has it), which is how the fields are read
+///   and written with no copy. The `Value` of the class above is overridden by the property `@base_N`, N being the depth of
+///   that struct (the root is 0), which gives the `__base` of this one. And each `X.Ref` has a
 ///   method for each function of X, which calls it on the value; the `@override` of a struct is the override of the
 ///   method of the class, so a call through a reference reaches the most derived function.
 /// - A struct by value where `*S` is expected is put in a new `Box` (a copy).
@@ -140,7 +141,7 @@ internal sealed partial class ModuleEmitter
     }
 
     /// <summary>
-    /// The members of the classes: the value of each struct (`get_Value_X`), a method for each function of the struct, and the
+    /// The members of the classes: the value of each struct (property `Value`, and `@base_N` for the ones above), a method for each function of the struct, and the
     /// storage of the `Box`.
     /// </summary>
     private void DeclareRefMembers()
@@ -158,26 +159,35 @@ internal sealed partial class ModuleEmitter
             var box = _backend.RefBoxes[type.FullName];
 
             // The value: a reference to the struct inside the object. The `Box` has it; the classes above it ask this one.
-            var valueName = $"get_Value_{type.Name}";
+            // It is the property `Value`, of type `ref S`.
+            const string valueName = "get_Value";
             var byReference = new ByReferenceType(Use(type));
             var getter = new MethodDefinition(valueName,
-                MethodAttributes.Public | MethodAttributes.Abstract | MethodAttributes.Virtual | MethodAttributes.NewSlot | MethodAttributes.HideBySig,
+                MethodAttributes.Public | MethodAttributes.Abstract | MethodAttributes.Virtual | MethodAttributes.NewSlot
+                | MethodAttributes.HideBySig | MethodAttributes.SpecialName,
                 byReference);
             reference.Methods.Add(getter);
+            reference.Properties.Add(new PropertyDefinition("Value", PropertyAttributes.None, byReference) { GetMethod = getter });
             _backend.RefGetters[type.FullName] = getter;
 
             // The struct that is extended is the `__base` of this one.
             if (BaseOf(structure) is { } above)
             {
                 var aboveType = (TypeDefinition)_backend.Definitions[above];
-                var override_ = new MethodDefinition($"get_Value_{aboveType.Name}",
-                    MethodAttributes.Public | MethodAttributes.Virtual | MethodAttributes.HideBySig, new ByReferenceType(Use(aboveType)));
+                // The property `@base_X`, X being the depth of the struct above (the root is 0). It is the `Value` of that
+                // struct, so it overrides the `Value` of the class above.
+                var aboveReference = new ByReferenceType(Use(aboveType));
+                var override_ = new MethodDefinition($"get_@base_{Depth(above)}",
+                    MethodAttributes.Public | MethodAttributes.Virtual | MethodAttributes.Final | MethodAttributes.NewSlot
+                    | MethodAttributes.HideBySig | MethodAttributes.SpecialName, aboveReference);
+                override_.Overrides.Add(Use(_backend.RefGetters[aboveType.FullName]));
                 var il = override_.Body.GetILProcessor();
                 il.Emit(OpCodes.Ldarg_0);
                 il.Emit(OpCodes.Callvirt, getter);
                 il.Emit(OpCodes.Ldflda, _backend.BaseFields[type.FullName]);
                 il.Emit(OpCodes.Ret);
                 reference.Methods.Add(override_);
+                reference.Properties.Add(new PropertyDefinition($"@base_{Depth(above)}", PropertyAttributes.None, aboveReference) { GetMethod = override_ });
             }
 
             // A method for each function: it runs the function of the struct on the value. The `@override` of a struct
@@ -207,7 +217,7 @@ internal sealed partial class ModuleEmitter
             }
 
             // The `Box`: the struct, and the access to it.
-            var value = new FieldDefinition("Value", FieldAttributes.Public, Use(type));
+            var value = new FieldDefinition("__value", FieldAttributes.Public, Use(type));
             box.Fields.Add(value);
 
             var constructor = new MethodDefinition(".ctor",
@@ -224,12 +234,14 @@ internal sealed partial class ModuleEmitter
             box.Methods.Add(constructor);
 
             var access = new MethodDefinition(valueName,
-                MethodAttributes.Public | MethodAttributes.Virtual | MethodAttributes.Final | MethodAttributes.HideBySig, byReference);
+                MethodAttributes.Public | MethodAttributes.Virtual | MethodAttributes.Final | MethodAttributes.HideBySig
+                | MethodAttributes.SpecialName, byReference);
             body = access.Body.GetILProcessor();
             body.Emit(OpCodes.Ldarg_0);
             body.Emit(OpCodes.Ldflda, value);
             body.Emit(OpCodes.Ret);
             box.Methods.Add(access);
+            box.Properties.Add(new PropertyDefinition("Value", PropertyAttributes.None, byReference) { GetMethod = access });
         }
     }
 

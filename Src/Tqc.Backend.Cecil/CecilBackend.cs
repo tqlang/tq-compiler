@@ -49,7 +49,7 @@ public sealed class CecilBackend(DiagnosticBag diagnostics)
     /// <summary>`__base`: the field of a struct that holds the one it extends.</summary>
     internal Dictionary<string, FieldDefinition> BaseFields { get; } = [];
 
-    /// <summary>`ref S get_Value()` of the interface of the struct.</summary>
+    /// <summary>property `ref S Value` (`get_Value`) of the interface of the struct.</summary>
     internal Dictionary<string, MethodDefinition> RefGetters { get; } = [];
 
     /// <summary>The method of the interface of a struct for each of its functions.</summary>

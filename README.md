@@ -371,9 +371,9 @@ percorre o caminho (`d.__base.x`). Cada struct da hierarquia (as que estendem ou
 
 - `*S` é uma **referência de verdade**, para um objeto da classe aninhada `S.Ref`. As classes se estendem como as structs
   (`D.Ref` estende `B.Ref`), então `*D` serve onde se espera `*B` sem conversão, e `x as *D` é um `castclass`. Uma referência pode ser
-  campo, ser retornada e guardada. Quem guarda a struct é `S.Box`, a classe concreta (um campo `Value`).
-- `S.Ref` tem `ref S get_Value_S()` (abstrato; o `Box` implementa), por onde os campos são lidos e escritos sem cópia; o da classe de
-  cima é sobrescrito para dar o `__base`. E tem um método virtual por função da struct, que chama a função no valor; o `@override` de
+  campo, ser retornada e guardada. Quem guarda a struct é `S.Box`, a classe concreta (um campo `__value`).
+- `S.Ref` tem a propriedade `ref S Value` (abstrata; o `Box` implementa), por onde os campos são lidos e escritos sem cópia; o `Value` da
+  classe de cima é sobrescrito pela propriedade `@base_N` (N = profundidade daquela struct, a raiz é 0), que dá o `__base`. E tem um método virtual por função da struct, que chama a função no valor; o `@override` de
   uma struct sobrescreve o método da classe de cima, então a chamada por referência chega na função mais derivada, com o despacho
   virtual do próprio .NET.
 - Um valor (`S`) passado onde se espera `*S` vira um novo `Box` com uma cópia dele: a alocação é a criação da referência.
