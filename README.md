@@ -461,3 +461,7 @@ própria struct, ela com os seus parâmetros (`DynamicArray<!0>`). Funções `@s
 escritos, antes do corpo. Uma classe sem construtor declarado já tinha o construtor sem argumentos; agora uma struct por valor sem construtor
 declarado, mas com valores iniciais, também ganha um (`new X()` chama ele). Sem valores iniciais, `new X()` continua sendo tudo zero
 (`initobj`), e `default`/arrays de structs não passam por construtor (regra do .NET). Campos estáticos com valor inicial ainda não.
+
+**Indexadores em .NET:** as funções `@indexerGet` e `@indexerSet` de uma struct viram os acessores `get_Item`/`set_Item` de propriedades
+`Item` (o que uma linguagem .NET enxerga como `a[i]`); um `@indexerSet` casa com o `@indexerGet` de mesmos índices, e a struct ganha
+`DefaultMember("Item")`. Para usar `a[i]` de fora da struct, a função precisa ser `@public`: sendo `@private`, o erro diz isso.

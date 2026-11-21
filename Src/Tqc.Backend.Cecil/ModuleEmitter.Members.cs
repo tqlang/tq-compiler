@@ -198,6 +198,18 @@ internal sealed partial class ModuleEmitter
         }
 
         var name = isConstructor ? ".ctor" : function.Name;
+
+        // The functions marked `@indexerGet` and `@indexerSet` are the accessors of the indexer `Item` (see DeclareIndexers).
+        if (accessorOf == null && !isConstructor && !isStatic && Has(function.Attributes, BuiltinAttribute.IndexerGet))
+        {
+            name = "get_Item";
+            attributes |= MethodAttributes.SpecialName;
+        }
+        else if (accessorOf == null && !isConstructor && !isStatic && Has(function.Attributes, BuiltinAttribute.IndexerSet))
+        {
+            name = "set_Item";
+            attributes |= MethodAttributes.SpecialName;
+        }
         var isSetter = accessorOf != null && ReferenceEquals(function, accessorOf.SetterFunction);
 
         // The accessors of a property have the signature of the property: `() -> T` and `(T) -> void`.
@@ -357,6 +369,80 @@ internal sealed partial class ModuleEmitter
             container.Type.Properties.Add(definition);
             _backend.Definitions[property] = definition;
         }
+    }
+
+    /// <summary>
+    /// The functions marked `@indexerGet` (the indices are the parameters) and `@indexerSet` (the indices, then the value) of a
+    /// struct are the accessors of properties named `Item`, which is what a .NET language sees as `a[i]`. A setter goes with the
+    /// getter that has the same indices; the struct is given the `DefaultMember("Item")` that C# looks for.
+    /// </summary>
+    private void DeclareIndexers(Container container)
+    {
+        if (container.Struct == null || container.Struct.IsInterface) return;
+
+        List<MethodDefinition> getters = [], setters = [];
+        foreach (var member in Ordered(container.Members))
+        {
+            IEnumerable<TqFunction> functions = member switch
+            {
+                TqFunctionGroup group => group.Functions,
+                TqFunction function => [function],
+                _ => [],
+            };
+
+            foreach (var function in functions)
+            {
+                if (!_backend.Definitions.TryGetValue(function, out var definition) || definition is not MethodDefinition method || method.IsStatic) continue;
+                if (Has(function.Attributes, BuiltinAttribute.IndexerGet)) getters.Add(method);
+                else if (Has(function.Attributes, BuiltinAttribute.IndexerSet)) setters.Add(method);
+            }
+        }
+
+        if (getters.Count + setters.Count == 0) return;
+
+        static bool SameIndices(MethodDefinition getter, MethodDefinition setter) =>
+            setter.Parameters.Count == getter.Parameters.Count + 1
+            && getter.Parameters.Select(parameter => parameter.ParameterType.FullName)
+                .SequenceEqual(setter.Parameters.Take(getter.Parameters.Count).Select(parameter => parameter.ParameterType.FullName));
+
+        var paired = new HashSet<MethodDefinition>();
+        foreach (var getter in getters)
+        {
+            var property = new PropertyDefinition("Item", PropertyAttributes.None, getter.ReturnType) { HasThis = true, GetMethod = getter };
+            foreach (var parameter in getter.Parameters)
+                property.Parameters.Add(new ParameterDefinition(parameter.Name, ParameterAttributes.None, parameter.ParameterType));
+
+            var setter = setters.FirstOrDefault(candidate => !paired.Contains(candidate) && SameIndices(getter, candidate));
+            if (setter != null)
+            {
+                property.SetMethod = setter;
+                paired.Add(setter);
+            }
+
+            container.Type.Properties.Add(property);
+        }
+
+        foreach (var setter in setters.Where(setter => !paired.Contains(setter)))
+        {
+            if (setter.Parameters.Count < 2)
+            {
+                Report($"The indexer '@indexerSet' of '{container.Struct.Name}' needs the indices and the value", container.Struct.SourceLocation);
+                continue;
+            }
+
+            var property = new PropertyDefinition("Item", PropertyAttributes.None, setter.Parameters[^1].ParameterType) { HasThis = true, SetMethod = setter };
+            foreach (var parameter in setter.Parameters.Take(setter.Parameters.Count - 1))
+                property.Parameters.Add(new ParameterDefinition(parameter.Name, ParameterAttributes.None, parameter.ParameterType));
+            container.Type.Properties.Add(property);
+        }
+
+        var defaultMember = _backend.Core.Find("System.Reflection.DefaultMemberAttribute")?.Methods
+            .FirstOrDefault(candidate => candidate.IsConstructor && !candidate.IsStatic && candidate.Parameters.Count == 1);
+        if (defaultMember == null) return;
+
+        var attribute = new CustomAttribute(_module.ImportReference(defaultMember));
+        attribute.ConstructorArguments.Add(new CustomAttributeArgument(Core("System.String"), "Item"));
+        container.Type.CustomAttributes.Add(attribute);
     }
 
     /// <summary>The method that reads or writes the property: its own accessor, or the function that `get = f` names.</summary>

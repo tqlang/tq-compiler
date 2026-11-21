@@ -202,7 +202,7 @@ internal sealed partial class TypeChecker
         if (getters.Count == 0)
         {
             Error(container is TqStruct or TqTypedef
-                ? $"'{TypeFormatter.Format(targetType)}' has no function marked '@indexerGet'"
+                ? IndexerMissing(targetType, container, BuiltinAttribute.IndexerGet, "@indexerGet")
                 : $"'{TypeFormatter.Format(targetType)}' has no indexer to read", index.Location);
             return (visited, null);
         }
@@ -250,7 +250,7 @@ internal sealed partial class TypeChecker
         if (setters.Count == 0)
         {
             Error(container is TqStruct or TqTypedef
-                ? $"'{TypeFormatter.Format(targetType!)}' has no function marked '@indexerSet'"
+                ? IndexerMissing(targetType!, container, BuiltinAttribute.IndexerSet, "@indexerSet")
                 : $"'{TypeFormatter.Format(targetType!)}' has no indexer to write", index.Location);
             return (assign with { Target = visitedIndex, Source = source }, null);
         }
@@ -270,6 +270,12 @@ internal sealed partial class TypeChecker
         new IrAccess(index.Location, target, new IrReference(index.Location, new FunctionTypeReference(winner.Overload.Function)));
 
     /// <summary>Tq structs and typedefs and .NET types declare their indexers; the other types have none.</summary>
+    /// <summary>No indexer is usable here: none is marked, or the ones marked cannot be reached from this namespace (`@private`).</summary>
+    private string IndexerMissing(ITypeRef type, IMemberContainer container, BuiltinAttribute kind, string attribute) =>
+        IndexerFunctions(container, kind, false).Count > 0
+            ? $"'{TypeFormatter.Format(type)}' has a function marked '{attribute}', but it cannot be accessed from here: mark it '@public'"
+            : $"'{TypeFormatter.Format(type)}' has no function marked '{attribute}'";
+
     private static bool HasIndexers(IMemberContainer? container) =>
         container is TqStruct or TqTypedef or DotnetClass or DotnetStruct or DotnetInterface;
 
@@ -284,7 +290,7 @@ internal sealed partial class TypeChecker
     /// The functions of the container, or of what it extends, that read or write an index: the ones that carry
     /// the attribute, and the accessors of the indexed properties of a .NET type.
     /// </summary>
-    private List<IFunction> IndexerFunctions(IMemberContainer container, BuiltinAttribute kind)
+    private List<IFunction> IndexerFunctions(IMemberContainer container, BuiltinAttribute kind, bool checkAccess = true)
     {
         List<IFunction> found = [];
         HashSet<IMemberContainer> visited = [];
@@ -302,7 +308,7 @@ internal sealed partial class TypeChecker
 
                 found.AddRange(functions.Where(function =>
                     function.Attributes.OfType<TqBuiltinAttribute>().Any(attribute => attribute.Kind == kind)
-                    && AccessChecker.CanAccess(function, _accessor)));
+                    && (!checkAccess || AccessChecker.CanAccess(function, _accessor))));
 
                 if (member is DotnetProperty { IsIndexer: true } indexer)
                 {
