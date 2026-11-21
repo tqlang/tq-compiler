@@ -1109,10 +1109,15 @@ public class Parser(DiagnosticBag diagnostics)
             
             else if (Check(TokenKind.EscapedLeftBrace))
             {
+                // What is inside `\{ }` is an expression, not text of the string: the lexer reads it as code.
                 var leftBrace = AdvanceNode();
+                _lexer.Mode = Lexer.LexerMode.Normal;
+                AdvanceTrivia(_midExpressionTrivia);
                 var exp = ParseExpression();
-                var rightBrace = ExpectNode(TokenKind.RightBrace, "Expected right brace");
-                
+                AdvanceTrivia(_midExpressionTrivia);
+                var rightBrace = ExpectNode(TokenKind.RightBrace, "right brace ('}') that closes the interpolation");
+                _lexer.Mode = Lexer.LexerMode.String;
+
                 content.Add(new InterpolatedExpressionNode(leftBrace, exp, rightBrace));
             }
             

@@ -398,7 +398,7 @@ usa `Convert.ToString`.
 **Os corpos são traduzidos para IL** (`BodyEmitter`): `return`, `if/elif/else`, `while` (com declaração e passo),
 `break`, variáveis locais, atribuições (a variáveis, parâmetros, campos, propriedades .NET e elementos de slice),
 chamadas (Tq e .NET, com valores padrão de parâmetros), `new`, conversões numéricas, strings (`+`, comparações,
-interpolação), `[a, b]`, `++`/`--`, `!`, `-`. Literais assumem o tipo esperado; `a + b` é checado (lança no overflow) e
+interpolação `"a \{expr} b"`), `[a, b]`, `++`/`--`, `!`, `-`. Literais assumem o tipo esperado; `a + b` é checado (lança no overflow) e
 `+%`/`-%`/`*%` dão a volta. `return v` em função `!T` embrulha em `Tq.Failable<T>` sem erro. O que ainda não existe
 (`+|` e afins `OnBounds`, `DivFloor`/`DivCeil`, `?` nullable, propagação de falha, `lazy`, índice múltiplo) é
 **reportado como erro do backend**, nunca ignorado em silêncio. Propriedades automáticas e construtores padrão são reais;

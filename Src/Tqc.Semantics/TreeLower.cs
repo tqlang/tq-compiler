@@ -653,21 +653,21 @@ public static class TreeLower
                         break;
 
                         case StringLiteralNode text:
-                            literal.Append(text.Value);
+                            literal.Append(text.Value.Value);
                         break;
 
-                        // case InterpolatedContentNode interpolation:
-                        // {
-                        //     if (literal.Length > 0)
-                        //     {
-                        //         parts.Add(new IrStringConstant(
-                        //             stringExp.GetLoc(ctx.SrcFile),
-                        //             literal.ToString()));
-                        //         literal.Clear();
-                        //     }
-                        //
-                        //     parts.Add(LowerExpression(ctx, interpolation.Expression));
-                        // } break;
+                        // `"a \{x} b"`: the text before it, then the expression.
+                        case InterpolatedExpressionNode interpolation:
+                        {
+                            if (literal.Length > 0)
+                            {
+                                parts.Add(new IrStringConstant(stringExp.GetLoc(ctx.SrcFile), literal.ToString()));
+                                literal.Clear();
+                            }
+
+                            parts.Add(LowerExpression(ctx, interpolation.Expressison));
+                        }
+                        break;
 
                         default:
                             throw new NotSupportedException($"Unsupported string content: {content.GetType().Name}");
@@ -680,7 +680,7 @@ public static class TreeLower
                 return parts.Count switch
                 {
                     0 => new IrStringConstant(stringExp.GetLoc(ctx.SrcFile), string.Empty),
-                    1 => new IrStringConstant(stringExp.GetLoc(ctx.SrcFile), ((IrStringConstant)parts[0]).Value),
+                    1 when parts[0] is IrStringConstant constant => constant,
                     _ => new IrStringConcat(stringExp.GetLoc(ctx.SrcFile), parts.ToArray()),
                 };
             }
