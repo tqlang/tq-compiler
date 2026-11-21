@@ -336,7 +336,7 @@ internal sealed partial class TypeChecker
         LocalReference { Local: var local } => LocalValueType(local),
         ParameterReference { Parameter: var parameter } => TypeFromExpression(parameter.Type),
         PropertyReference { Property: var property } => PropertyTypeOf(property),
-        FieldReference { Field: TqField { Type: not null } field } => FieldValueType(field),
+        FieldReference { Field: TqField field } => FieldValueType(field),
         FieldReference { Field: DotnetField field } => field.Type,
         FieldReference { Field: DotnetProperty property } => property.Type,
         ThisReference { Owner: TqTypedef typedef } => new TypedefTypeReference(typedef),

@@ -45,7 +45,7 @@ internal sealed partial class TypeChecker(
         path.Add(namespaceNode);
 
         foreach (var fileScope in namespaceNode.FileScopes)
-        foreach (var member in fileScope.Members.Values)
+        foreach (var member in fileScope.Members.Values.OrderBy(member => member is TqField ? 0 : 1))
         {
             _accessor = AccessContext.Of(path);
             CheckMember(member);
@@ -76,6 +76,11 @@ internal sealed partial class TypeChecker(
                         field.Value = Coerce(field.Value, ValueTypeOf(declared, null), WithoutConst(field.Type), $"the field '{field.Name}'");
                     }
                 }
+                else if (TypeOf(field.Value) is { } inferred)
+                {
+                    // `let x = value`: the field takes the type of its value.
+                    _inferredConstants[field] = DefaultTypeOf(inferred);
+                }
                 break;
 
             case TqProperty property:
@@ -95,7 +100,8 @@ internal sealed partial class TypeChecker(
             case TqStruct structure:
                 InsideOf(structure, () =>
                 {
-                    foreach (var inner in structure.Members.Values) CheckMember(inner);
+                    // The fields first: one without a type has the type of its value, which the functions that use it need.
+                    foreach (var inner in structure.Members.Values.OrderBy(inner => inner is TqField ? 0 : 1)) CheckMember(inner);
                     foreach (var constructor in structure.Constructors) CheckFunction(constructor);
                     if (structure.Destructor != null) CheckFunction(structure.Destructor);
                 });

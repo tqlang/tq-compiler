@@ -66,7 +66,7 @@ internal sealed partial class TypeChecker
     }
 
     private ITypeRef? FieldValueType(TqField field) =>
-        field.Type == null ? null : ValueTypeOf(TypeFromExpression(field.Type), _inferredConstants.GetValueOrDefault(field));
+        field.Type == null ? _inferredConstants.GetValueOrDefault(field) : ValueTypeOf(TypeFromExpression(field.Type), _inferredConstants.GetValueOrDefault(field));
 
     /// <summary>A literal has no size: a variable that takes its type from one gets the default.</summary>
     private static ITypeRef DefaultTypeOf(ITypeRef sourceType) => sourceType switch
