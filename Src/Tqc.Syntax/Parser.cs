@@ -244,7 +244,7 @@ public class Parser(DiagnosticBag diagnostics)
         letKeyword = CheckKeyword("const") ? ExpectNode("const", "'const' keyword") : ExpectNode("let", "'let' keyword");
         AdvanceTrivia(TokenKind.Whitespace);
         
-        firstExpression = ParseType()  // not an assignment: in `let x = 1` the `= 1` is the value of the field;
+        firstExpression = ParseType(); // not an assignment: in `let x = 1` the `= 1` is the value of the field
         AdvanceTrivia(_midDeclarationTrivia);
 
         if (!Check(TokenKind.Equals) && !Check(TokenKind.LeftBrace) && !Check(TokenKind.LineFeed))
