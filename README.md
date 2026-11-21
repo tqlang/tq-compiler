@@ -465,3 +465,7 @@ declarado, mas com valores iniciais, também ganha um (`new X()` chama ele). Sem
 **Indexadores em .NET:** as funções `@indexerGet` e `@indexerSet` de uma struct viram os acessores `get_Item`/`set_Item` de propriedades
 `Item` (o que uma linguagem .NET enxerga como `a[i]`); um `@indexerSet` casa com o `@indexerGet` de mesmos índices, e a struct ganha
 `DefaultMember("Item")`. Os indexadores podem ser `@private`: servem a `a[i]` de qualquer lugar, e no .NET os acessores são públicos.
+
+**Funções sem corpo:** uma função pode terminar na assinatura, sem `{ }` (`@public func write(string value)`, com ou sem tipo de retorno),
+até o fim da linha, do arquivo ou da struct. Numa struct `@abstract`/`@interface` é uma função abstrata; em qualquer outro lugar ela
+continua sem corpo e o backend .NET emite um stub que falha ao ser chamado.

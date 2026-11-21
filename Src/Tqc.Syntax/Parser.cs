@@ -149,14 +149,16 @@ public class Parser(DiagnosticBag diagnostics)
         var parameters = ParseParameters();
         AdvanceTrivia(_midDeclarationTrivia);
 
+        // `func f(string value)`: a function can end after its signature, with no body (an abstract one).
         ExpressionNode? returnType = null;
-        if (PeekKind() != TokenKind.LeftBrace)
+        if (PeekKind() != TokenKind.LeftBrace && !AtEndOfSignature())
         {
             returnType = ParseExpression();
             AdvanceTrivia(_midDeclarationTrivia);
         }
 
-        var body = ParseScope();
+        ScopeNode? body = null;
+        if (!AtEndOfSignature()) body = ParseScope();
         AdvanceTrivia(_midDeclarationTrivia);
         
         return new FunctionDeclarationNode(
@@ -168,6 +170,9 @@ public class Parser(DiagnosticBag diagnostics)
             ConsumeDeclarationsLeadingTrivia()
         );
     }
+    /// <summary>The declaration ends here: the end of the line, of the file or of the struct that holds it.</summary>
+    private bool AtEndOfSignature() => Peek() is not { } token || token.kind is TokenKind.LineFeed or TokenKind.Semicolon or TokenKind.RightBrace;
+
     private StructDeclarationNode ParseStructDeclaration()
     {
         var structKeyword = ExpectNode("struct", "'struct' keyword");
