@@ -147,18 +147,19 @@ public class Parser(DiagnosticBag diagnostics)
         var nameIdentifier = ParseSingleIdentifier();
         AdvanceTrivia(_midDeclarationTrivia);
         var parameters = ParseParameters();
-        AdvanceTrivia(_midDeclarationTrivia);
+        var newLine = AdvanceTriviaNoticingLines();
 
-        // `func f(string value)`: a function can end after its signature, with no body (an abstract one).
+        // `func f(string value)`: a function can end after its signature, with no body (an abstract one). The body is the
+        // `{` that comes next, even on another line; anything else on a line of its own is the next declaration.
         ExpressionNode? returnType = null;
-        if (PeekKind() != TokenKind.LeftBrace && !AtEndOfSignature())
+        if (PeekKind() != TokenKind.LeftBrace && !newLine && !AtEndOfSignature())
         {
             returnType = ParseExpression();
-            AdvanceTrivia(_midDeclarationTrivia);
+            AdvanceTriviaNoticingLines();
         }
 
         ScopeNode? body = null;
-        if (!AtEndOfSignature()) body = ParseScope();
+        if (PeekKind() == TokenKind.LeftBrace) body = ParseScope();
         AdvanceTrivia(_midDeclarationTrivia);
         
         return new FunctionDeclarationNode(
@@ -170,8 +171,21 @@ public class Parser(DiagnosticBag diagnostics)
             ConsumeDeclarationsLeadingTrivia()
         );
     }
-    /// <summary>The declaration ends here: the end of the line, of the file or of the struct that holds it.</summary>
-    private bool AtEndOfSignature() => Peek() is not { } token || token.kind is TokenKind.LineFeed or TokenKind.Semicolon or TokenKind.RightBrace;
+    /// <summary>The declaration ends here: the end of the file, or of the struct that holds it.</summary>
+    private bool AtEndOfSignature() => Peek() is not { } token || token.kind is TokenKind.Semicolon or TokenKind.RightBrace;
+
+    /// <summary>Skips the trivia between the parts of a declaration; true if it went through the end of a line.</summary>
+    private bool AdvanceTriviaNoticingLines()
+    {
+        var crossed = false;
+        while (!AtEnd() && _midDeclarationTrivia.Contains(PeekKind()))
+        {
+            if (PeekKind() == TokenKind.LineFeed) crossed = true;
+            AdvanceTrivia();
+        }
+
+        return crossed;
+    }
 
     private StructDeclarationNode ParseStructDeclaration()
     {
