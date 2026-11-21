@@ -12,12 +12,15 @@ namespace Tqc.Backend.Cecil;
 ///
 /// - A struct that extends another keeps it in a field, `__base`. By value, the code goes through the fields to reach
 ///   what it inherits (`d.__base.x`).
-/// - Each struct of the hierarchy has a nested interface, `Ref`, which is the type of a reference to it (`*S`). The
-///   interface of a struct extends the one of its base, so a reference to the derived one is a reference to the base.
-///   The struct implements it, and a reference is the struct boxed.
-/// - The interface gives the value (`ref S get_Value()`: the fields are read and written through it, with no copy) and
-///   a method for each function of the struct, so that a call through a reference reaches what the derived struct
-///   overrides. The derived struct implements what it inherits by passing it on to its `__base`.
+/// - `*S` of a struct of the hierarchy is a reference to an object of the class `S.Ref`, nested in the struct. The classes
+///   extend one another the way the structs do (`D.Ref` extends `B.Ref`), so a reference to the derived struct is a
+///   reference to the base one, and `x as *D` is a cast of .NET. A reference is a real reference: it can be a field, be
+///   returned, be kept. What it refers to is a struct, kept by `S.Box`, the concrete class that has it.
+/// - Each `X.Ref` has `ref X get_Value_X()` (abstract: the `Box` of the struct has it), which is how the fields are read
+///   and written with no copy; the one of the class above is overridden to give the `__base` of it. And each `X.Ref` has a
+///   method for each function of X, which calls it on the value; the `@override` of a struct is the override of the
+///   method of the class, so a call through a reference reaches the most derived function.
+/// - A struct by value where `*S` is expected is put in a new `Box` (a copy).
 /// </summary>
 internal sealed partial class ModuleEmitter
 {
@@ -44,39 +47,64 @@ internal sealed partial class ModuleEmitter
     private TqStruct? BaseOf(TqStruct structure) =>
         InHierarchy(structure) && structure.BaseStruct is TqStruct @base && InHierarchy(@base) ? @base : null;
 
-    /// <summary>The interface of each struct of the hierarchy, and the structs that implement the ones above them.</summary>
+    /// <summary>
+    /// The class `Ref` of each struct of the hierarchy (the type of `*S`), and `Box`, the class that has the value. The one
+    /// of a struct extends the one of its base.
+    /// </summary>
     private void DeclareRefInterfaces()
     {
-        foreach (var container in _containers)
-        {
-            if (container.Struct is not { } structure || !InHierarchy(structure)) continue;
+        var ordered = _containers
+            .Where(container => container.Struct != null && InHierarchy(container.Struct))
+            .OrderBy(container => Depth(container.Struct!));
 
+        foreach (var container in ordered)
+        {
+            var structure = container.Struct!;
             var type = container.Type;
-            var attributes = (IsPublic(structure.Access) ? TypeAttributes.NestedPublic : TypeAttributes.NestedAssembly)
-                             | TypeAttributes.Interface | TypeAttributes.Abstract;
-            var reference = new TypeDefinition("", "Ref", attributes);
+            var access = IsPublic(structure.Access) ? TypeAttributes.NestedPublic : TypeAttributes.NestedAssembly;
+
+            TypeReference parent = Core("System.Object");
+            if (BaseOf(structure) is { } above) parent = Use(_backend.RefInterfaces[((TypeDefinition)_backend.Definitions[above]).FullName]);
+
+            var reference = new TypeDefinition("", "Ref", access | TypeAttributes.Class | TypeAttributes.Abstract | TypeAttributes.BeforeFieldInit, parent);
             type.NestedTypes.Add(reference);
+            reference.Methods.Add(NewConstructor(reference, parent));
+
+            var box = new TypeDefinition("", "Box", access | TypeAttributes.Class | TypeAttributes.Sealed | TypeAttributes.BeforeFieldInit, Use(reference));
+            type.NestedTypes.Add(box);
 
             _backend.RefInterfaces[type.FullName] = reference;
             _backend.RefInterfaceNames.Add(reference.FullName);
+            _backend.RefBoxes[type.FullName] = box;
         }
+    }
 
-        foreach (var container in _containers)
-        {
-            if (container.Struct is not { } structure || !InHierarchy(structure)) continue;
+    private int Depth(TqStruct structure)
+    {
+        var depth = 0;
+        for (var current = BaseOf(structure); current != null; current = BaseOf(current)) depth++;
+        return depth;
+    }
 
-            var reference = _backend.RefInterfaces[container.Type.FullName];
+    /// <summary>A constructor with no parameters that calls the one of the parent.</summary>
+    private MethodDefinition NewConstructor(TypeDefinition type, TypeReference parent)
+    {
+        var constructor = new MethodDefinition(".ctor",
+            MethodAttributes.Public | MethodAttributes.HideBySig | MethodAttributes.SpecialName | MethodAttributes.RTSpecialName,
+            Core("System.Void"));
 
-            // The interface extends the one of the base; the struct implements its own and all the ones above.
-            container.Type.Interfaces.Add(new InterfaceImplementation(reference));
+        MethodReference baseConstructor;
+        if (parent is TypeDefinition definition)
+            baseConstructor = definition.Methods.First(method => method.IsConstructor && !method.IsStatic && !method.HasParameters);
+        else
+            baseConstructor = _module.ImportReference(_backend.Core.Find("System.Object")!.Methods
+                .First(method => method.IsConstructor && !method.IsStatic && !method.HasParameters));
 
-            for (var @base = BaseOf(structure); @base != null; @base = BaseOf(@base))
-            {
-                var above = _backend.RefInterfaces[((TypeDefinition)_backend.Definitions[@base]).FullName];
-                if (ReferenceEquals(@base, BaseOf(structure))) reference.Interfaces.Add(new InterfaceImplementation(above));
-                container.Type.Interfaces.Add(new InterfaceImplementation(above));
-            }
-        }
+        var il = constructor.Body.GetILProcessor();
+        il.Emit(OpCodes.Ldarg_0);
+        il.Emit(OpCodes.Call, baseConstructor);
+        il.Emit(OpCodes.Ret);
+        return constructor;
     }
 
     /// <summary>`__base`, the struct that this one extends.</summary>
@@ -111,128 +139,122 @@ internal sealed partial class ModuleEmitter
                                      && definition is MethodDefinition { IsStatic: false, HasGenericParameters: false });
     }
 
-    /// <summary>The members of the interfaces: the value, and a method for each function of the struct.</summary>
+    /// <summary>
+    /// The members of the classes: the value of each struct (`get_Value_X`), a method for each function of the struct, and the
+    /// storage of the `Box`.
+    /// </summary>
     private void DeclareRefMembers()
     {
-        foreach (var container in _containers)
+        var containers = _containers
+            .Where(container => container.Struct != null && InHierarchy(container.Struct))
+            .OrderBy(container => Depth(container.Struct!))
+            .ToList();
+
+        foreach (var container in containers)
         {
-            if (container.Struct is not { } structure || !InHierarchy(structure)) continue;
+            var structure = container.Struct!;
+            var type = container.Type;
+            var reference = _backend.RefInterfaces[type.FullName];
+            var box = _backend.RefBoxes[type.FullName];
 
-            var reference = _backend.RefInterfaces[container.Type.FullName];
-            const MethodAttributes open = MethodAttributes.Public | MethodAttributes.Abstract | MethodAttributes.Virtual
-                                          | MethodAttributes.NewSlot | MethodAttributes.HideBySig;
-
-            // The value: a reference to the struct inside the one that is referred to.
-            var byReference = new ByReferenceType(Use(container.Type));
-            var getter = new MethodDefinition("get_Value", open | MethodAttributes.SpecialName, byReference);
+            // The value: a reference to the struct inside the object. The `Box` has it; the classes above it ask this one.
+            var valueName = $"get_Value_{type.Name}";
+            var byReference = new ByReferenceType(Use(type));
+            var getter = new MethodDefinition(valueName,
+                MethodAttributes.Public | MethodAttributes.Abstract | MethodAttributes.Virtual | MethodAttributes.NewSlot | MethodAttributes.HideBySig,
+                byReference);
             reference.Methods.Add(getter);
-            reference.Properties.Add(new PropertyDefinition("Value", PropertyAttributes.None, byReference) { GetMethod = getter });
-            _backend.RefGetters[container.Type.FullName] = getter;
+            _backend.RefGetters[type.FullName] = getter;
 
+            // The struct that is extended is the `__base` of this one.
+            if (BaseOf(structure) is { } above)
+            {
+                var aboveType = (TypeDefinition)_backend.Definitions[above];
+                var override_ = new MethodDefinition($"get_Value_{aboveType.Name}",
+                    MethodAttributes.Public | MethodAttributes.Virtual | MethodAttributes.HideBySig, new ByReferenceType(Use(aboveType)));
+                var il = override_.Body.GetILProcessor();
+                il.Emit(OpCodes.Ldarg_0);
+                il.Emit(OpCodes.Callvirt, getter);
+                il.Emit(OpCodes.Ldflda, _backend.BaseFields[type.FullName]);
+                il.Emit(OpCodes.Ret);
+                reference.Methods.Add(override_);
+            }
+
+            // A method for each function: it runs the function of the struct on the value. The `@override` of a struct
+            // overrides the method of the one above, so what runs through a reference is the most derived one.
             foreach (var function in InstanceFunctions(container))
             {
                 var method = (MethodDefinition)_backend.Definitions[function];
-                var declared = new MethodDefinition(method.Name, open | (method.IsSpecialName ? MethodAttributes.SpecialName : 0), method.ReturnType);
+                var overridden = Has(function.Attributes, BuiltinAttribute.Override) ? FindOverridden(function, structure) : null;
+
+                var attributes = MethodAttributes.Public | MethodAttributes.Virtual | MethodAttributes.HideBySig;
+                if (overridden == null) attributes |= MethodAttributes.NewSlot;
+                if (method.IsSpecialName) attributes |= MethodAttributes.SpecialName;
+
+                var declared = new MethodDefinition(method.Name, attributes, method.ReturnType);
                 foreach (var parameter in method.Parameters)
                     declared.Parameters.Add(new ParameterDefinition(parameter.Name, ParameterAttributes.None, parameter.ParameterType));
+
+                var il = declared.Body.GetILProcessor();
+                il.Emit(OpCodes.Ldarg_0);
+                il.Emit(OpCodes.Callvirt, getter);
+                for (var i = 0; i < declared.Parameters.Count; i++) il.Emit(OpCodes.Ldarg, declared.Parameters[i]);
+                il.Emit(OpCodes.Call, Use(method));
+                il.Emit(OpCodes.Ret);
 
                 reference.Methods.Add(declared);
                 _backend.RefMethods[function] = declared;
             }
+
+            // The `Box`: the struct, and the access to it.
+            var value = new FieldDefinition("Value", FieldAttributes.Public, Use(type));
+            box.Fields.Add(value);
+
+            var constructor = new MethodDefinition(".ctor",
+                MethodAttributes.Public | MethodAttributes.HideBySig | MethodAttributes.SpecialName | MethodAttributes.RTSpecialName,
+                Core("System.Void"));
+            constructor.Parameters.Add(new ParameterDefinition("value", ParameterAttributes.None, Use(type)));
+            var body = constructor.Body.GetILProcessor();
+            body.Emit(OpCodes.Ldarg_0);
+            body.Emit(OpCodes.Call, reference.Methods.First(candidate => candidate.IsConstructor && !candidate.HasParameters));
+            body.Emit(OpCodes.Ldarg_0);
+            body.Emit(OpCodes.Ldarg_1);
+            body.Emit(OpCodes.Stfld, value);
+            body.Emit(OpCodes.Ret);
+            box.Methods.Add(constructor);
+
+            var access = new MethodDefinition(valueName,
+                MethodAttributes.Public | MethodAttributes.Virtual | MethodAttributes.Final | MethodAttributes.HideBySig, byReference);
+            body = access.Body.GetILProcessor();
+            body.Emit(OpCodes.Ldarg_0);
+            body.Emit(OpCodes.Ldflda, value);
+            body.Emit(OpCodes.Ret);
+            box.Methods.Add(access);
         }
     }
 
-    /// <summary>
-    /// What the struct does for each interface it implements: the value is its `__base` (or itself), and a function goes
-    /// to the most derived one that overrides it, or to the one that declares it.
-    /// </summary>
-    private void DeclareRefBridges()
-    {
-        var containers = _containers
-            .Where(container =>
-                container.Struct != null &&
-                InHierarchy(container.Struct))
-            .ToDictionary(
-                container => container.Struct!,
-                container => container,
-                ReferenceComparer<TqStruct>.Instance
-            );
-
-        foreach (var container in containers.Values)
-        {
-            // From the struct up to the farthest base.
-            var chain = new List<TqStruct>();
-            for (var current = container.Struct; current != null; current = BaseOf(current)) chain.Add(current);
-
-            for (var level = 0; level < chain.Count; level++)
-            {
-                var implemented = containers[chain[level]];
-                var getter = _backend.RefGetters[implemented.Type.FullName];
-
-                var bridge = NewBridge($"Ref${implemented.Type.Name}$get_Value", getter.ReturnType, getter);
-                container.Type.Methods.Add(bridge);
-                var il = bridge.Body.GetILProcessor();
-                il.Emit(OpCodes.Ldarg_0);
-                for (var hop = 0; hop < level; hop++) il.Emit(OpCodes.Ldflda, _backend.BaseFields[containers[chain[hop]].Type.FullName]);
-                il.Emit(OpCodes.Ret);
-
-                foreach (var function in InstanceFunctions(implemented))
-                {
-                    var declared = _backend.RefMethods[function];
-                    var (target, targetLevel) = MostDerived(function, containers, chain, level);
-
-                    var forward = NewBridge($"Ref${implemented.Type.Name}${declared.Name}", declared.ReturnType, declared);
-                    foreach (var parameter in declared.Parameters)
-                        forward.Parameters.Add(new ParameterDefinition(parameter.Name, ParameterAttributes.None, parameter.ParameterType));
-                    container.Type.Methods.Add(forward);
-
-                    il = forward.Body.GetILProcessor();
-                    il.Emit(OpCodes.Ldarg_0);
-                    for (var hop = 0; hop < targetLevel; hop++) il.Emit(OpCodes.Ldflda, _backend.BaseFields[containers[chain[hop]].Type.FullName]);
-                    for (var i = 0; i < declared.Parameters.Count; i++) il.Emit(OpCodes.Ldarg, forward.Parameters[i]);
-                    il.Emit(OpCodes.Call, Use((MethodDefinition)_backend.Definitions[target]));
-                    il.Emit(OpCodes.Ret);
-                }
-            }
-        }
-    }
-
-    /// <summary>A method that implements one of the interface, and is not callable but through it.</summary>
-    private MethodDefinition NewBridge(string name, TypeReference returnType, MethodDefinition implemented)
-    {
-        var bridge = new MethodDefinition(name,
-            MethodAttributes.Private | MethodAttributes.Final | MethodAttributes.Virtual | MethodAttributes.NewSlot | MethodAttributes.HideBySig,
-            returnType);
-        bridge.Overrides.Add(Use(implemented));
-        return bridge;
-    }
-
-    /// <summary>
-    /// The function that runs when `function` (declared by the struct at `level` of the chain) is called on the struct at
-    /// the start of the chain: a function with the same name and parameters, marked `@override`, of a struct below it;
-    /// else the function itself.
-    /// </summary>
-    private (TqFunction Function, int Level) MostDerived(
-        TqFunction function, Dictionary<TqStruct, Container> containers, List<TqStruct> chain, int level)
+    /// <summary>The function of a struct above, with the same name and parameters, that has a method in its class.</summary>
+    private TqFunction? FindOverridden(TqFunction function, TqStruct structure)
     {
         var method = (MethodDefinition)_backend.Definitions[function];
 
-        for (var candidateLevel = 0; candidateLevel < level; candidateLevel++)
+        for (var above = BaseOf(structure); above != null; above = BaseOf(above))
         {
-            foreach (var candidate in InstanceFunctions(containers[chain[candidateLevel]]))
+            var container = _containers.First(candidate => ReferenceEquals(candidate.Struct, above));
+            foreach (var candidate in InstanceFunctions(container))
             {
-                if (!Has(candidate.Attributes, BuiltinAttribute.Override) || candidate.Name != function.Name) continue;
+                if (candidate.Name != function.Name || !_backend.RefMethods.ContainsKey(candidate)) continue;
 
                 var other = (MethodDefinition)_backend.Definitions[candidate];
                 if (other.Parameters.Select(parameter => parameter.ParameterType.FullName)
                     .SequenceEqual(method.Parameters.Select(parameter => parameter.ParameterType.FullName)))
-                    return (candidate, candidateLevel);
+                    return candidate;
             }
         }
 
-        return (function, level);
+        return null;
     }
-    
+
     private sealed class ReferenceComparer<T> : IEqualityComparer<T> where T : class
     {
         public static readonly ReferenceComparer<T> Instance = new();

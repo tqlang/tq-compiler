@@ -367,12 +367,20 @@ assembly referencia os definidos antes dele.
 
 **Herança de struct por valor** (`struct FileReader extends Reader`, nenhuma das duas `@class`): .NET não tem herança de
 value type, então ela é montada com o que existe. A struct que estende guarda a base num campo `__base`; por valor, o código
-percorre o caminho (`d.__base.x`). Cada struct da hierarquia (as que estendem ou são estendidas por outra do mesmo módulo)
-ganha uma **interface aninhada `Ref`**, que é o tipo de `*S`. A interface de `D` estende a de `B`, então `*D` serve onde se
-espera `*B`. A interface tem `ref S get_Value()` (os campos são lidos e escritos por ela, sem cópia) e um método por função
-da struct; a derivada implementa o que herda repassando para o `__base`, ou chamando o `@override`, então a chamada por
-referência chega na função mais derivada. Limites: a base precisa ser do mesmo módulo; uma referência é a struct *boxada*
-(passar um valor onde se espera `*S` copia); structs `@abstract` por valor e funções genéricas não entram na interface.
+percorre o caminho (`d.__base.x`). Cada struct da hierarquia (as que estendem ou são estendidas por outra do mesmo módulo):
+
+- `*S` é uma **referência de verdade**, para um objeto da classe aninhada `S.Ref`. As classes se estendem como as structs
+  (`D.Ref` estende `B.Ref`), então `*D` serve onde se espera `*B` sem conversão, e `x as *D` é um `castclass`. Uma referência pode ser
+  campo, ser retornada e guardada. Quem guarda a struct é `S.Box`, a classe concreta (um campo `Value`).
+- `S.Ref` tem `ref S get_Value_S()` (abstrato; o `Box` implementa), por onde os campos são lidos e escritos sem cópia; o da classe de
+  cima é sobrescrito para dar o `__base`. E tem um método virtual por função da struct, que chama a função no valor; o `@override` de
+  uma struct sobrescreve o método da classe de cima, então a chamada por referência chega na função mais derivada, com o despacho
+  virtual do próprio .NET.
+- Um valor (`S`) passado onde se espera `*S` vira um novo `Box` com uma cópia dele: a alocação é a criação da referência.
+
+Limites: a base precisa ser do mesmo módulo; `this` dentro de uma função da struct é o valor (`ref S`), então chamar uma função virtual
+por `this`, ou por um valor, chama a função daquela struct (sem despacho); funções genéricas não ficam na classe `Ref`; ainda não
+existe `is`.
 
 **Membros herdados de tipos .NET:** classes herdam de `System.Object` (`ToString`, `Equals`, `GetHashCode`) e de toda a
 cadeia, inclusive de bases fora dos assemblies do módulo (seus membros também são lidos); structs e enums enxergam os de

@@ -569,6 +569,20 @@ internal sealed class BodyEmitter
 
         if (expected == null || actual.FullName == expected.FullName) return actual;
 
+        // A struct of a hierarchy where `*S` is expected: a reference to a new object that has a copy of it.
+        if (IsRefInterface(expected) && actual.IsValueType && _owner.Backend.RefBoxes.TryGetValue(actual.FullName, out var box))
+        {
+            _il.Emit(OpCodes.Newobj, _owner.Use(box.Methods.First(method => method.IsConstructor && method.HasParameters)));
+            return expected;
+        }
+
+        // `*D` as `*B` needs nothing (the class of D extends the one of B); `x as *D` is a cast.
+        if (IsRefInterface(expected) && IsRefInterface(actual))
+        {
+            _il.Emit(OpCodes.Castclass, expected);
+            return expected;
+        }
+
         // A struct of a hierarchy as the one it extends: a copy of the part that is the base.
         if (actual.IsValueType && expected.IsValueType && actual.FullName != expected.FullName
             && _owner.Backend.BaseFields.ContainsKey(actual.FullName))

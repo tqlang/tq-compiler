@@ -43,6 +43,9 @@ public sealed class CecilBackend(DiagnosticBag diagnostics)
     internal Dictionary<string, TypeDefinition> RefInterfaces { get; } = [];
     internal HashSet<string> RefInterfaceNames { get; } = [];
 
+    /// <summary>`S.Box`, the class that has the value of each struct of a hierarchy.</summary>
+    internal Dictionary<string, TypeDefinition> RefBoxes { get; } = [];
+
     /// <summary>`__base`: the field of a struct that holds the one it extends.</summary>
     internal Dictionary<string, FieldDefinition> BaseFields { get; } = [];
 

@@ -67,7 +67,6 @@ internal sealed partial class ModuleEmitter
         foreach (var container in _containers) DeclareProperties(container);
         foreach (var container in _containers) DeclareIndexers(container);
         DeclareRefMembers();
-        DeclareRefBridges();
 
         foreach (var (method, emit) in _bodies) emit(method.Body.GetILProcessor());
 
