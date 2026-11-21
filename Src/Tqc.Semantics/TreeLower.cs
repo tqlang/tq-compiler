@@ -1,4 +1,5 @@
 using System.Collections.Immutable;
+using System.Diagnostics;
 using System.Text;
 using Tqc.Core;
 using Tqc.Diagnostics;
@@ -636,7 +637,7 @@ public static class TreeLower
                     switch (content)
                     {
                         case StringCharacterLiteralNode character:
-                            literal.Append(character.Value);
+                            literal.Append(character.GetCharacterLiteralValue());
                         break;
 
                         case StringLiteralNode text:
@@ -663,7 +664,7 @@ public static class TreeLower
 
                 if (literal.Length > 0)
                     parts.Add(new IrStringConstant(stringExp.GetLoc(ctx.SrcFile), literal.ToString()));
-
+                
                 return parts.Count switch
                 {
                     0 => new IrStringConstant(stringExp.GetLoc(ctx.SrcFile), string.Empty),

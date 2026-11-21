@@ -1,0 +1,6 @@
+@public typedef LogLevel {
+	case debug
+	case warn
+	case info
+	case error
+}

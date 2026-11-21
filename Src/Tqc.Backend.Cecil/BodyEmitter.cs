@@ -1372,7 +1372,8 @@ internal sealed class BodyEmitter
             return Core(expected.FullName);
         }
 
-        if (value >= decimal.MinValue && value <= decimal.MaxValue) return EmitNumber((decimal)value, false, expected, location);
+        if (value >= (BigInteger)decimal.MinValue && value <= (BigInteger)decimal.MaxValue)
+            return EmitNumber((decimal)value, false, expected, location);
 
         Report($"The literal {value} is too large for a number of .NET that is not 128 bits wide", location);
         _il.Emit(OpCodes.Ldc_I4_0);
@@ -1889,15 +1890,15 @@ internal sealed class BodyEmitter
         {
             case BinaryOperator.Add:
                 _il.Emit(OpCodes.Call, Library("System.String", "Concat", "System.String", "System.String"));
-                break;
+            break;
 
             case BinaryOperator.Equal or BinaryOperator.ExactEqual:
                 _il.Emit(OpCodes.Call, Library("System.String", "op_Equality", "System.String", "System.String"));
-                break;
+            break;
 
             case BinaryOperator.NotEqual or BinaryOperator.NotExactEqual:
                 _il.Emit(OpCodes.Call, Library("System.String", "op_Inequality", "System.String", "System.String"));
-                break;
+            break;
 
             case BinaryOperator.Less or BinaryOperator.Greater or BinaryOperator.LessEqual or BinaryOperator.GreaterEqual:
                 _il.Emit(OpCodes.Call, Library("System.String", "CompareOrdinal", "System.String", "System.String"));
@@ -1917,11 +1918,11 @@ internal sealed class BodyEmitter
                     _il.Emit(OpCodes.Ldc_I4_0);
                     _il.Emit(OpCodes.Ceq);
                 }
-                break;
+            break;
 
             default:
                 Report($"The operator '{binary.Operator}' does not exist for strings", binary.Location);
-                break;
+            break;
         }
     }
 

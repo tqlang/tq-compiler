@@ -1,0 +1,16 @@
+from Std import { Console }
+
+@public struct Logger {
+
+	let string scope
+
+	constructor(string scope) {}
+		#self.scope = scope
+	#}
+
+	@private func log() {
+
+	}
+
+
+}
