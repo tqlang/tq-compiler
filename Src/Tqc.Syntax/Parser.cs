@@ -152,14 +152,23 @@ public class Parser(DiagnosticBag diagnostics)
         // `func f(string value)`: a function can end after its signature, with no body (an abstract one). The body is the
         // `{` that comes next, even on another line; anything else on a line of its own is the next declaration.
         ExpressionNode? returnType = null;
-        if (PeekKind() != TokenKind.LeftBrace && !newLine && !AtEndOfSignature())
+        if (PeekKind() != TokenKind.LeftBrace && PeekKind() != TokenKind.FatArrow && !newLine && !AtEndOfSignature())
         {
             returnType = ParseExpression();
             AdvanceTriviaNoticingLines();
         }
 
         ScopeNode? body = null;
-        if (PeekKind() == TokenKind.LeftBrace) body = ParseScope();
+        TokenNode? arrow = null;
+        ExpressionNode? expression = null;
+        if (PeekKind() == TokenKind.FatArrow)
+        {
+            // `func f(i32 a) i32 => a * 2`
+            arrow = AdvanceNode();
+            AdvanceTrivia(_midDeclarationTrivia);
+            expression = ParseExpression();
+        }
+        else if (PeekKind() == TokenKind.LeftBrace) body = ParseScope();
         AdvanceTrivia(_midDeclarationTrivia);
         
         return new FunctionDeclarationNode(
@@ -168,6 +177,8 @@ public class Parser(DiagnosticBag diagnostics)
             parameters,
             returnType,
             body,
+            arrow,
+            expression,
             ConsumeDeclarationsLeadingTrivia()
         );
     }

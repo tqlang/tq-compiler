@@ -200,6 +200,17 @@ Acesso (`Semantics/Access/`), verificado ao resolver nomes e `a.b`, e ao escolhe
   desconhecido combina com qualquer outro. `IsSameAs` (parâmetros e retorno) e `HasSameParametersAs` substituem as
   comparações à mão; o overload e o tipo de retorno de uma chamada também passam por ela.
 
+## Funções com `=>`
+
+Uma função pode ter por corpo uma expressão, depois de `=>`:
+
+    func dobro(i32 a) i32 => a * 2      # devolve a * 2
+    func saudar() => print("oi")        # sem tipo de retorno: a expressão é executada e nada é devolvido
+
+Com tipo de retorno é um `return` da expressão (convertida ao tipo declarado); sem tipo, a função é `void` e o valor da
+expressão, se houver, é descartado. O tipo de retorno nunca é inferido. Funciona em namespaces e em structs; `=> { ... }` não existe,
+para um bloco use `{ ... }`. As propriedades `let nome => valor` seguem a mesma notação.
+
 ## Laços: `while` e `break`
 
 Três formas, conforme a spec; as partes são separadas por `:`:

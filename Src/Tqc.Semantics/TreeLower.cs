@@ -426,6 +426,14 @@ public static class TreeLower
                 ctx.Diagnostics.ReportError(Error("'@onset' needs a function with exactly one parameter", attribute.Location));
         }
         if (functionNode.Body != null) function.Body = LowerScope(ctx, functionNode.Body);
+        else if (functionNode.Expression != null)
+        {
+            // `=> value` returns the value; in a function with no return type it is run and nothing is returned.
+            var value = LowerExpression(ctx, functionNode.Expression);
+            var location = functionNode.Expression.GetLoc(ctx.SrcFile);
+            function.Body = new IrBody(location);
+            function.Body.Children.Add(type != null ? new IrReturnStatement(location, value) : new IrExpressionStatement(location, value));
+        }
         return function;
     }
     private static TqConstructor LowerConstructor(STContext ctx, TqAttribute[] attributes, ConstructorDeclarationNode node)
