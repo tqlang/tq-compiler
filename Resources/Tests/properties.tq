@@ -9,7 +9,8 @@ struct Rect {
     let int width { get; set }
     let int height { get; set }
     let int area => width * height
-    let int doubled { get { return field * 2 } set }
+    let int doubled { get { return field * 2 }; set }
+    let int tripled { get => field * 3; set }
 }
 
 func testProperties() {
@@ -56,5 +57,12 @@ func testProperties() {
         let Rect rect = new Rect()
         rect.doubled = 6
         Test.assert(rect.doubled, 12)
+    }
+
+    Test.newTestUnit("properties - get => with field and an automatic set")
+    {
+        let Rect rect = new Rect()
+        rect.tripled = 5
+        Test.assert(rect.tripled, 15)
     }
 }

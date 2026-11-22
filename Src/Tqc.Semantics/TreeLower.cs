@@ -343,6 +343,9 @@ public static class TreeLower
             // `let name => value` / `let T name => { ... }`: a getter that is written right here.
             if (accessor.IsArrow)
             {
+                if (!isGetter)
+                    throw Error($"The property '{name}' cannot write '{accessor.Keyword.Value} =>': only a getter can use it", accessorLocation);
+
                 if (type == null && accessor.Body != null)
                     throw Error($"The property '{name}' needs a type: only '=> value' can give it", location);
 

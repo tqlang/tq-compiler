@@ -450,7 +450,15 @@ public class Parser(DiagnosticBag diagnostics)
         ExpressionNode? function = null;
         ScopeNode? body = null;
 
-        if (Check(TokenKind.Equals))
+        if (Check(TokenKind.FatArrow))
+        {
+            // `get => value` or `get => { ... }`
+            equals = AdvanceNode();
+            AdvanceTrivia(_midDeclarationConservativeTrivia);
+            if (Check(TokenKind.LeftBrace)) body = ParseScope();
+            else function = ParseExpression();
+        }
+        else if (Check(TokenKind.Equals))
         {
             equals = AdvanceNode();
             AdvanceTrivia(_midDeclarationConservativeTrivia);

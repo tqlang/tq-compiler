@@ -36,7 +36,7 @@ public record PropertyDeclarationNode(
     public override SourceSpan Span => LetKeyword.Span + (RightBrace?.Span ?? Accessors[^1].Span);
 }
 
-/// <summary>`get`, `set`, `get = function` or `get { ... }`.</summary>
+/// <summary>`get`, `set`, `get = function`, `get { ... }` or `get => value`.</summary>
 public record PropertyAccessorNode(
     TokenNode Keyword,
     TokenNode? EqualsToken,
@@ -46,7 +46,7 @@ public record PropertyAccessorNode(
 ) : SyntaxNode
 {
     public bool IsGetter => Keyword.Value is "get" or "=>";
-    public bool IsArrow => Keyword.Value == "=>";
+    public bool IsArrow => Keyword.Value == "=>" || EqualsToken?.Value == "=>";
 
     override internal StringBuilder AppendSyntaxToStringBuilder(StringBuilder sb) => sb
         .AppendSyntaxNode(Keyword)
