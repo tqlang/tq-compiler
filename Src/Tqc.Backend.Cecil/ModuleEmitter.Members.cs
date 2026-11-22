@@ -559,7 +559,8 @@ internal sealed partial class ModuleEmitter
         if (!_backend.Definitions.TryGetValue(main, out var definition) || definition is not MethodDefinition method) return;
 
         var takesArguments = main.Parameters?.Length == 1;
-        if (takesArguments && !(IsMemory(method.Parameters[0].ParameterType, out var argumentsType)
+        GenericInstanceType? argumentsType = null;
+        if (takesArguments && !(IsMemory(method.Parameters[0].ParameterType, out argumentsType)
                                 && argumentsType.GenericArguments[0].FullName == "System.String"))
         {
             Report("The parameter of 'main' must be '[]string'", main.SourceLocation);
@@ -576,7 +577,7 @@ internal sealed partial class ModuleEmitter
             // `[]string` is a `Memory<string>` that refers to the array of `Main`.
             il.Emit(OpCodes.Ldarg_0);
             il.Emit(OpCodes.Newobj, GenericMember(
-                "System.Memory`1", argumentsType, ".ctor", 1, parameter => parameter.ParameterType is ArrayType));
+                "System.Memory`1", argumentsType!, ".ctor", 1, parameter => parameter.ParameterType is ArrayType));
         }
         il.Emit(OpCodes.Call, method);
         if (method.ReturnType.FullName != "System.Void") il.Emit(OpCodes.Pop);
