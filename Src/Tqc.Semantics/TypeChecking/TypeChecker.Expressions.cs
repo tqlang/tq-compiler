@@ -125,7 +125,8 @@ internal sealed partial class TypeChecker
 
     /// <summary>
     /// `match v { case a, b => x  default => y }`: each pattern is compared with `v` as in `v == a` (so a literal takes the type of
-    /// `v`, and the operators of its type apply). The type is the one the arms share; it is not known when they differ or when an arm
+    /// `v`, and the operators of its type apply). The arms mean the same in any order, and `default`, which is required, takes what no
+    /// other arm does. The type is the one the arms share; it is not known when they differ or when an arm
     /// is a block, and then the match can only be a statement.
     /// </summary>
     private (IrExpression, ITypeRef?) VisitMatch(IrMatch match)
@@ -141,6 +142,7 @@ internal sealed partial class TypeChecker
         List<ITypeRef?> values = [];
         var blocks = false;
         var defaults = 0;
+        HashSet<object> literals = [];
 
         foreach (var arm in match.Arms)
         {
@@ -148,6 +150,16 @@ internal sealed partial class TypeChecker
             List<IrExpression> conditions = [];
             foreach (var pattern in arm.Patterns)
             {
+                // The order of the arms means nothing, so one value cannot be in two of them.
+                object? literal = pattern switch
+                {
+                    IrComptimeInt integer => integer.BigInteger,
+                    IrStringConstant text => text.Value,
+                    _ => null,
+                };
+                if (literal != null && !literals.Add(literal))
+                    Error("This value is already in another arm of the 'match'", pattern.Location);
+
                 var visitedPattern = Visit(pattern);
                 var comparison = Visit(new IrBinary(pattern.Location, BinaryOperator.Equal, held, visitedPattern));
 
@@ -175,6 +187,9 @@ internal sealed partial class TypeChecker
 
             arms.Add(arm with { Patterns = [..patterns], Conditions = [..conditions], Body = body });
         }
+
+        // What is not in any arm goes to `default`, wherever it is written: a match always has one.
+        if (defaults == 0) Error("A 'match' needs a 'default' arm", match.Location);
 
         ITypeRef? type = null;
         if (!blocks && values.Count > 0 && values.All(value => value != null))

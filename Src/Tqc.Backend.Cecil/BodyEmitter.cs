@@ -772,8 +772,8 @@ internal sealed class BodyEmitter
     }
 
     /// <summary>
-    /// `match`: the value is kept in a variable, each arm tests its conditions in order and jumps to its body, and `default` is the one
-    /// that runs when none fits. As a value, the result is kept in a variable too, so the stack is the same wherever the arms end.
+    /// `match`: the value is kept in a variable, each arm tests its conditions and jumps to its body, and `default` (wherever it is
+    /// written) is the one that runs when none fits. As a value, the result is kept in a variable too, so the stack is the same wherever the arms end.
     /// </summary>
     private TypeReference? EmitMatch(IrMatch match, TypeReference? expected, bool discard)
     {
@@ -796,8 +796,6 @@ internal sealed class BodyEmitter
 
             if (match.Arms.Any(arm => arm.Body is IrBody))
                 Report("A 'match' used as a value cannot have an arm that is a block", match.Location);
-            if (match.Arms.All(arm => !arm.IsDefault))
-                Report("A 'match' used as a value needs a 'default' arm", match.Location);
 
             result = NewTemp(resultType);
         }
