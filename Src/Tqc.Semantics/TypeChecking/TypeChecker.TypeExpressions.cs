@@ -33,6 +33,10 @@ internal sealed partial class TypeChecker
                 var element = TypeFromExpression(slice.subtype);
                 return element != null ? new SliceTypeRef(element) : null;
 
+            case IrArrayTypeModifier { Length: IrComptimeInt { BigInteger: var length } } array when length >= 0 && length <= int.MaxValue:
+                var arrayElement = TypeFromExpression(array.subtype);
+                return arrayElement != null ? new ArrayTypeRef((int)length, arrayElement) : null;
+
             default:
                 return null;
         }

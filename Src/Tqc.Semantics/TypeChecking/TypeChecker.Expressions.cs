@@ -76,6 +76,12 @@ internal sealed partial class TypeChecker
             case IrArray array:
                 return VisitArray(array);
 
+            case IrRange range:
+                return VisitRange(range);
+
+            case IrAddressOf addressOf:
+                return VisitAddressOf(addressOf);
+
             case IrConvert conversion:
                 return (conversion with { Expression = Visit(conversion.Expression) },
                     TypeFromExpression(conversion.toType));
@@ -92,8 +98,9 @@ internal sealed partial class TypeChecker
         list with { arguments = [..list.arguments.Select(Visit)] };
 
     /// <summary>
-    /// `[a, b]` is a slice of the type its elements share. Literals have no size, so they make a slice of the
-    /// default integer; elements of different types, or of unknown type, leave the type unknown.
+    /// `[a, b]` is an array of as many elements as it has, of the type they share. Literals have no size, so they make an
+    /// array of the default integer (a declaration with a type, as `let [2]u8 x = [1, 2]`, gives them its own: see Coerce);
+    /// elements of different types, or of unknown type, leave the type unknown.
     /// </summary>
     private (IrExpression, ITypeRef?) VisitArray(IrArray array)
     {
@@ -110,7 +117,44 @@ internal sealed partial class TypeChecker
             ComptimeDecimalTypeRef => new StructTypeReference(CompilerStd.Types.FloatOf(64)),
             _ => first,
         };
-        return (visited, new SliceTypeRef(element));
+        return (visited, new ArrayTypeRef(elements.Length, element));
+    }
+
+    /// <summary>`a .. b`: both ends are integers, and the first is not after the last.</summary>
+    private (IrExpression, ITypeRef?) VisitRange(IrRange range)
+    {
+        var from = Visit(range.From);
+        var to = Visit(range.To);
+        CheckPositionIndices([from, to]);
+
+        if (from is IrComptimeInt { BigInteger: var first } && to is IrComptimeInt { BigInteger: var last } && first > last)
+            Error($"The range '{first} .. {last}' ends before it starts (both ends are included)", range.Location);
+
+        return (range with { From = from, To = to }, null);
+    }
+
+    /// <summary>`&array`: a slice that refers to the array, so what is written through one is seen by the other.</summary>
+    private (IrExpression, ITypeRef?) VisitAddressOf(IrAddressOf addressOf)
+    {
+        var operand = Visit(addressOf.Operand);
+        var visited = addressOf with { Operand = operand };
+
+        switch (TypeOf(operand))
+        {
+            case null:
+                return (visited, null);
+
+            case ArrayTypeRef array:
+                return (visited, new SliceTypeRef(array.Element));
+
+            case SliceTypeRef:
+                Error("A slice already is a reference: '&' takes an array", addressOf.Location);
+                return (visited, null);
+
+            case var other:
+                Error($"'&' takes an array, not '{TypeFormatter.Format(other)}'", addressOf.Location);
+                return (visited, null);
+        }
     }
 
     /// <summary>
@@ -132,9 +176,9 @@ internal sealed partial class TypeChecker
 
         // The length of a slice is an `int`; it is not a member of any struct, so it stays an unresolved name
         // and the backend knows it by the type of the value.
-        if (TypeOf(baseExpr) is SliceTypeRef && name.Value == "len")
+        if (TypeOf(baseExpr) is SliceTypeRef or ArrayTypeRef && name.Value == "len")
         {
-            if (asTarget) Error("The length of a slice cannot be assigned", access.access.Location);
+            if (asTarget) Error("The length of a slice or an array cannot be assigned", access.access.Location);
             return (visited, new StructTypeReference(CompilerStd.Types.Natural(true)));
         }
 

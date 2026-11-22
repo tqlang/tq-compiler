@@ -129,6 +129,7 @@ internal sealed partial class ModuleEmitter
     {
         IrReference { Reference: var reference } => $"the reference '{reference}' ({reference.GetType().Name})",
         IrSliceTypeModifier slice => $"the slice of {Describe(slice.subtype)}",
+        IrArrayTypeModifier array => $"the array of {Describe(array.subtype)}",
         _ => $"the expression of the kind {expression.GetType().Name}",
     };
 
@@ -161,7 +162,9 @@ internal sealed partial class ModuleEmitter
             case ComptimeIntegerTypeRef: return Core("System.Int32");
             case ComptimeDecimalTypeRef: return Core("System.Double");
             case NullTypeRef: return Core("System.Object");
-            case SliceTypeRef slice: return new ArrayType(MapType(slice.Element, location));
+            // `[]T` refers to part of an array: a `Memory<T>` (array, start and length). `[N]T` is the array itself.
+            case SliceTypeRef slice: return MemoryOf(MapType(slice.Element, location));
+            case ArrayTypeRef array: return new ArrayType(MapType(array.Element, location));
             case GenericParameterTypeRef generic:
                 return GenericParameters.TryGetValue(generic.Parameter, out var parameter)
                     ? parameter
@@ -172,6 +175,35 @@ internal sealed partial class ModuleEmitter
             case StructTypeReference { Struct: var structure }: return MapStruct(structure, location);
             default: return Unsupported($"The type '{type}' ({type.GetType().Name})", location);
         }
+    }
+
+    internal GenericInstanceType MemoryOf(TypeReference element)
+    {
+        var memory = new GenericInstanceType(Core("System.Memory`1"));
+        memory.GenericArguments.Add(element);
+        return memory;
+    }
+
+    /// <summary>
+    /// A method of a generic type of the runtime (`Memory<T>.Slice`), as a member of the instance `host` (`Memory<int>`).
+    /// `firstParameter` tells apart the overloads that have the same number of parameters.
+    /// </summary>
+    internal MethodReference GenericMember(
+        string typeName, GenericInstanceType host, string name, int parameters, Func<ParameterDefinition, bool>? firstParameter = null)
+    {
+        var type = _backend.Core.Find(typeName) ?? throw new BackendError($"The type '{typeName}' was not found in 'System.Runtime'");
+        var method = type.Methods.FirstOrDefault(candidate => candidate.Name == name && candidate.Parameters.Count == parameters
+                                                              && (firstParameter == null || firstParameter(candidate.Parameters[0])))
+                     ?? throw new BackendError($"The method '{typeName}.{name}' was not found in 'System.Runtime'");
+
+        return BodyEmitter.OnHost(_module.ImportReference(method), host);
+    }
+
+    /// <summary>`Memory<T>`: what a slice is in .NET.</summary>
+    internal static bool IsMemory(TypeReference? type, out GenericInstanceType memory)
+    {
+        memory = (type as GenericInstanceType)!;
+        return type is GenericInstanceType { ElementType.FullName: "System.Memory`1" };
     }
 
     private TypeReference Defined(IMember member, string name, SourceLocation? location)

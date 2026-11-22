@@ -232,6 +232,18 @@ internal sealed partial class TypeChecker
         var valueType = TypeOf(value);
         if (valueType == null || target == null) return value;
 
+        // A literal takes the type it is given: `let [3]u8 x = [1, 2, 3]` has `u8` elements, and `&[1, 2]` for a `[]u8` too.
+        if (target is ArrayTypeRef literalTarget && value is IrArray literal && literal.Elements.Length == literalTarget.Length)
+            return RetypeLiteral(literal, literalTarget, where);
+
+        if (target is SliceTypeRef sliceTarget && value is IrAddressOf { Operand: IrArray inner } addressOf)
+        {
+            var retyped = RetypeLiteral(inner, new ArrayTypeRef(inner.Elements.Length, sliceTarget.Element), where);
+            var address = addressOf with { Operand = retyped };
+            types.Set(address, target);
+            return address;
+        }
+
         var match = ConversionRules.Classify(valueType, value, target, conversions, _accessor);
         if (match.Kind == MatchKind.None)
         {
@@ -244,6 +256,13 @@ internal sealed partial class TypeChecker
         }
 
         return ConvertTo(value, match, target, targetExpression);
+    }
+
+    private IrExpression RetypeLiteral(IrArray literal, ArrayTypeRef target, string where)
+    {
+        var retyped = literal with { Elements = [..literal.Elements.Select(element => Coerce(element, target.Element, null, where))] };
+        types.Set(retyped, target);
+        return retyped;
     }
 
     private void ReportAmbiguity(

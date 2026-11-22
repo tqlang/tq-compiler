@@ -100,7 +100,16 @@ Acesso (`Semantics/Access/`), verificado ao resolver nomes e `a.b`, e ao escolhe
 
 ## Arrays, structs e typedefs
 
-- `[a, b, c]` vira `IrArray`; o tipo é um slice do tipo comum dos elementos (literais inteiros dão `[]int`).
+- `[a, b, c]` vira `IrArray`; o tipo é um array `[3]T` do tipo comum dos elementos (literais inteiros dão `[3]int`; numa
+  declaração com tipo, `let [3]u8 x = [1, 2, 3]`, os elementos ganham o tipo dela).
+- **Arrays e slices.** `[N]T` (`IrArrayTypeModifier`/`ArrayTypeRef`) é memória pré-alocada com `N` fixo na compilação (hoje um literal inteiro;
+  o `[` precisa estar colado a um tipo: `[5]int`). Atribuir a um array **escreve os elementos** (`numbers = [60, 70]` é um `memcpy`, não troca
+  a referência); declarar com outro array (`let [2]int b = a`) faz uma cópia. `[]T` (`SliceTypeRef`) é uma referência a um array, sem tamanho
+  estático. `&array` (`IrAddressOf`) dá o slice que o enxerga, e `a[i .. j]` (`IrRange`, **os dois extremos entram**) dá um slice da parte;
+  o que se escreve por um aparece no outro. Um array não vira slice sozinho: é preciso o `&` (`&[1, 2]` também vale).
+  No .NET, `[N]T` é um `T[]` e `[]T` é um `Memory<T>`; ao chamar um método .NET que pede `T[]` o slice vira o array (**uma cópia**, então
+  o .NET não escreve de volta no slice) e um `T[]` que o .NET devolve vira `Memory<T>`. Ainda não: parâmetros de array por valor (copiar ao chamar),
+  campos de array sem valor (ficam `null`), tamanho que não seja literal, extremos de range omitidos.
 - Struct: campos, funções (overloads em grupo), `constructor`, `destructor` e `extends` (`TqStruct`, `TqConstructor`,
   `TqDestructor`). Dentro dele valem os parâmetros genéricos, os membros herdados, os próprios e `this`.
   `extends` aceita qualquer struct, escrito em Tq ou vindo do .NET (os membros herdados de classes .NET também são
@@ -433,14 +442,14 @@ no backend ("The generic type 'Span' of .NET..."): instanciar com `Span(i8)` é 
 (`char[]`, `Span<T>`, genéricos...) não é candidato a sobrecarga. Antes o parâmetro desconhecido aceitava qualquer
 argumento e a chamada ficava sem decidir em silêncio (`Console.Write(string)` competia com `Write(char[])`).
 
-**`len` de slices:** `slice.len` é um `int` (o mesmo tipo de `let i = 0`, então `i < slice.len` não pede `as`); não dá para
-atribuir. No .NET é `ldlen` + `conv.i4`.
+**`len` de slices e arrays:** `slice.len` (e `array.len`) é um `int` (o mesmo tipo de `let i = 0`, então `i < slice.len` não pede `as`); não dá para
+atribuir. No .NET é `ldlen` + `conv.i4` num array e `Memory<T>.Length` num slice.
 
 **Métodos genéricos e arrays do .NET (etapa 1b, parte 1):** os parâmetros genéricos de um método .NET são os primeiros
 argumentos da chamada, como numa função genérica de Tq: `GC.AllocateArray(T, length as int, false)` chama
 `GC.AllocateArray<T>(int, bool)` (`DotnetMethod.TypeParameters`; no dump aparece `func AllocateArray(type T, ...)`). O checker troca
 o `T` pelo tipo dado no retorno e nos parâmetros, e o backend monta um `GenericInstanceMethod`. Não há inferência: o tipo
-é sempre escrito. Um array `T[]` é um slice `[]T` (só de uma dimensão), então os métodos com `char[]`, `byte[]` etc. voltam a ser
+é sempre escrito. Um array `T[]` do .NET é um slice `[]T` de Tq (só de uma dimensão), então os métodos com `char[]`, `byte[]` etc. voltam a ser
 chamáveis; `char` do .NET sai como `System.Char`. Tipos genéricos (`Span<T>`, `List<T>`) ainda não: parte 2.
 
 **Tipos genéricos do .NET (etapa 1b, parte 2):** um tipo genérico (`List<T>`, `Span<T>`, `Dictionary<K, V>`) é um construtor de

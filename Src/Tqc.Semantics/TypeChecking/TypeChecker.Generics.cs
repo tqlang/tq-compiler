@@ -44,6 +44,7 @@ internal sealed partial class TypeChecker
     {
         GenericParameterTypeRef generic => bound.GetValueOrDefault(generic.Parameter),
         SliceTypeRef slice => Substitute(slice.Element, bound) is { } element ? new SliceTypeRef(element) : null,
+        ArrayTypeRef array => Substitute(array.Element, bound) is { } arrayElement ? new ArrayTypeRef(array.Length, arrayElement) : null,
         StructTypeReference { Struct: GenericInstance instance } when DependsOnTypeParameter(type) => SubstituteInstance(instance, bound),
         _ => type,
     };
@@ -74,6 +75,7 @@ internal sealed partial class TypeChecker
     {
         GenericParameterTypeRef => true,
         SliceTypeRef slice => DependsOnTypeParameter(slice.Element),
+        ArrayTypeRef array => DependsOnTypeParameter(array.Element),
         StructTypeReference { Struct: GenericInstance instance } =>
             instance.Arguments.Any(argument => TypeExpressions.Raw(argument) is { } raw && DependsOnTypeParameter(raw)),
         _ => false,

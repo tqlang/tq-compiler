@@ -2,23 +2,37 @@ from Std import { Test }
 from Std.Collections import
 
 func testArraysAndSlices() {
-    #let [5]i32 numbers = [10, 20, 30, 40, 50]
-    let []int numbers = [10, 20, 30, 40, 50]
+    let [5]int numbers = [10, 20, 30, 40, 50]
 
     Test.newTestUnit("arrays - array indexing")
     Test.assert(numbers[0], 10)
     Test.assert(numbers[2], 30)
     Test.assert(numbers[4], 50)
+    Test.assert(numbers.len, 5)
 
-    #Test.newTestUnit("slices - slice creation and access")
-    #let []i32 middle = numbers[1..4] 
-    #Test.assert(middle[0], 20)
-    #Test.assert(middle[1], 30)
+    Test.newTestUnit("arrays - assigning an array writes the elements")
+    numbers = [60, 70, 80, 90, 100]
+    Test.assert(numbers[0], 60)
+    Test.assert(numbers[4], 100)
 
-    #Test.newTestUnit("slices - slice modification reflects on array")
-    #ddle[0] = 99
-    #Test.assert(numbers[1], 99)
-    #Test.assert(middle[0], 99)
+    Test.newTestUnit("slices - a slice refers to the array")
+    let []int all = &numbers
+    Test.assert(all.len, 5)
+    all[0] = 11
+    Test.assert(numbers[0], 11)
+    numbers[1] = 22
+    Test.assert(all[1], 22)
+
+    Test.newTestUnit("slices - slice of a range (both ends are included)")
+    let []int middle = numbers[2 .. 3]
+    Test.assert(middle.len, 2)
+    Test.assert(middle[0], 80)
+    Test.assert(middle[1], 90)
+
+    Test.newTestUnit("slices - slice modification reflects on array")
+    middle[0] = 99
+    Test.assert(numbers[2], 99)
+    Test.assert(all[2], 99)
 }
 
 func testDynamicArray() {

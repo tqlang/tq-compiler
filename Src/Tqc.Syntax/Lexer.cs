@@ -47,6 +47,7 @@ internal class Lexer(string Source)
             case '[': return GetTokenValue(TokenKind.LeftBracket);
             case ']': return GetTokenValue(TokenKind.RightBracket);
             
+            case '&': return GetTokenValue(TokenKind.Ampersand);
             case '?': return GetTokenValue(TokenKind.QuestionMark);
             case '@': return GetTokenValue(TokenKind.At);
             case ':': return GetTokenValue(TokenKind.Colon);

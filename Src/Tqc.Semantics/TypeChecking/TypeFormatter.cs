@@ -40,6 +40,9 @@ internal static class TypeFormatter
             case SliceTypeRef slice:
                 return "[]" + Format(slice.Element);
 
+            case ArrayTypeRef array:
+                return $"[{array.Length}]{Format(array.Element)}";
+
             case StructTypeReference { Struct: GenericInstance instance }:
                 return FormatInstance(instance);
 

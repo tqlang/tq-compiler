@@ -917,6 +917,13 @@ public class Parser(DiagnosticBag diagnostics)
                 return new ReferenceTypeModifierNode(starNode, type);
             }
             
+            // `&x`: the slice that refers to the array `x`.
+            case TokenKind.Ampersand:
+            {
+                var ampersand = AdvanceNode();
+                return new AddressOfExpressionNode(ampersand, ParsePrefix());
+            }
+
             case TokenKind.LeftBracket:
             {
                 var leftBracket = AdvanceNode();
@@ -928,6 +935,13 @@ public class Parser(DiagnosticBag diagnostics)
                     var elements = ParseCommaSeparatedExpressionCollection(TokenKind.RightBracket);
                     AdvanceTrivia(_midExpressionTrivia);
                     var close = ExpectNode(TokenKind.RightBracket, "close bracket (']')");
+
+                    // `[5]int`: one element, no comma, and a type right after the bracket (with no space: `[a] * b` is a product).
+                    if (elements is [{ Item2: null } size]
+                        && (PeekKind() is TokenKind.LeftBracket or TokenKind.Star
+                            || (Peek() is { kind: TokenKind.Identifier } word && !_notATypeAfterBracket.Contains(word.value))))
+                        return new ArrayTypeModifierNode(leftBracket, size.Item1, close, ParsePrefix());
+
                     return new ArrayLiteralExpressionNode(leftBracket, [..elements], close);
                 }
 
@@ -973,7 +987,7 @@ public class Parser(DiagnosticBag diagnostics)
             {
                 var leftBracket = ExpectNode(TokenKind.LeftBracket, "open bracket ('[')");
                 AdvanceTrivia(_midExpressionTrivia);
-                var args = ParseCommaSeparatedExpressionCollection(TokenKind.RightBracket);
+                var args = ParseIndexArguments();
                 AdvanceTrivia(_midExpressionTrivia);
                 var rightBracket = ExpectNode(TokenKind.RightBracket, "close bracket (']')");
                 expr = new IndexExpressionNode(expr, new IndexCollectionNode(leftBracket, [..args], rightBracket));
@@ -1174,6 +1188,42 @@ public class Parser(DiagnosticBag diagnostics)
 
         return arguments;
     }
+    /// <summary>Words that can follow `]` of an array literal, so `[a] as T` is not the type `[a]as`.</summary>
+    private static readonly HashSet<string> _notATypeAfterBracket =
+        ["as", "and", "or", "is", "do", "then", "else", "elif", "if", "while", "for", "in", "extends"];
+
+    /// <summary>The arguments between the brackets of an index; each is an expression or a range `a .. b`.</summary>
+    private List<(ExpressionNode, TokenNode?)> ParseIndexArguments()
+    {
+        List<(ExpressionNode, TokenNode?)> arguments = [];
+
+        while (!AtEnd() && !Check(TokenKind.RightBracket))
+        {
+            ExpressionNode exp = ParseExpression();
+            AdvanceTrivia(_midExpressionTrivia);
+
+            if (Check(TokenKind.DotDot))
+            {
+                var dots = AdvanceNode();
+                AdvanceTrivia(_midExpressionTrivia);
+                var end = ParseExpression();
+                AdvanceTrivia(_midExpressionTrivia);
+                exp = new RangeExpressionNode(exp, dots, end);
+            }
+
+            TokenNode? comma = null;
+            if (PeekKind() == TokenKind.Comma)
+            {
+                comma = AdvanceNode();
+                AdvanceTrivia(_midExpressionTrivia);
+            }
+
+            arguments.Add((exp, comma));
+        }
+
+        return arguments;
+    }
+
     private ArgumentsCollectionNode ParseArgumentCollection()
     {
         var leftParenthesis = ExpectNode(TokenKind.LeftParenthesis, "open parenthesis ('(')");

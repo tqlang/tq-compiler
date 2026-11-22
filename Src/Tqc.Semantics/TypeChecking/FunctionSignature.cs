@@ -52,6 +52,7 @@ internal sealed class FunctionSignature(IReadOnlyList<ITypeRef?> parameters, ITy
     {
         GenericParameterTypeRef => true,
         SliceTypeRef slice => DependsOnTypeParameter(slice.Element),
+        ArrayTypeRef array => DependsOnTypeParameter(array.Element),
         _ => false,
     };
 

@@ -697,6 +697,22 @@ public static class TreeLower
                     LowerExpression(ctx, sliceTypeModifier.ElementType)
                 );
 
+            // `[5]T`: the size has to be a literal for now.
+            case ArrayTypeModifierNode arrayType:
+            {
+                var length = LowerExpression(ctx, arrayType.Length);
+                if (length is not IrComptimeInt { BigInteger: { Sign: >= 0 } size } || size > int.MaxValue)
+                    throw Error("The size of an array must be a non-negative integer literal", arrayType.Length.GetLoc(ctx.SrcFile));
+
+                return new IrArrayTypeModifier(arrayType.GetLoc(ctx.SrcFile), length, LowerExpression(ctx, arrayType.ElementType));
+            }
+
+            case RangeExpressionNode range:
+                return new IrRange(range.GetLoc(ctx.SrcFile), LowerExpression(ctx, range.From), LowerExpression(ctx, range.To));
+
+            case AddressOfExpressionNode addressOf:
+                return new IrAddressOf(addressOf.GetLoc(ctx.SrcFile), LowerExpression(ctx, addressOf.Operand));
+
             case MemberAccessExpressionNode access:
                 return new IrAccess(
                     access.GetLoc(ctx.SrcFile),

@@ -52,6 +52,15 @@ public record IrAssign(SourceLocation Location, IrExpression Target, IrExpressio
 
 public record IrSliceTypeModifier(SourceLocation Location, IrExpression subtype) : IrExpression(Location);
 
+/// <summary>`[5]T`: `Length` is the expression between the brackets (an integer literal).</summary>
+public record IrArrayTypeModifier(SourceLocation Location, IrExpression Length, IrExpression subtype) : IrExpression(Location);
+
+/// <summary>`a .. b` in an index: the elements from `a` to `b`, both included.</summary>
+public record IrRange(SourceLocation Location, IrExpression From, IrExpression To) : IrExpression(Location);
+
+/// <summary>`&x`: the slice that refers to the array `x`.</summary>
+public record IrAddressOf(SourceLocation Location, IrExpression Operand) : IrExpression(Location);
+
 public record IrBinary(SourceLocation Location, BinaryOperator Operator, IrExpression Left, IrExpression Right) : IrExpression(Location);
 public record IrUnary(SourceLocation Location, UnaryOperator Operator, IrExpression Operand, bool IsPostfix = false) : IrExpression(Location);
 public record IrIndex(SourceLocation Location, IrExpression Target, IrExpression[] Indices) : IrExpression(Location);

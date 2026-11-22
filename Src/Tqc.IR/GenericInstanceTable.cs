@@ -56,6 +56,7 @@ public sealed class GenericInstanceTable
                     IrStringConstant text => text.Value,
                     IrReference { Reference: not UnsolvedRef } reference => reference.Reference,
                     IrSliceTypeModifier slice => Part(slice.subtype) is { } element ? ("slice", element) : null,
+                    IrArrayTypeModifier { Length: IrComptimeInt length } array => Part(array.subtype) is { } element ? ("array", length.BigInteger, element) : null,
                     _ => null,
                 };
 

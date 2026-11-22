@@ -178,10 +178,18 @@ internal sealed partial class TypeChecker
         var targetType = TypeOf(target);
         if (targetType == null) return (visited, null);
 
-        if (targetType is SliceTypeRef slice)
+        if (ElementOf(targetType) is { } elementType)
         {
+            // `a[2 .. 3]`: a slice of that part of the array, which refers to the same memory.
+            if (indices is [IrRange range])
+            {
+                CheckRangeBounds(range, targetType);
+                return (visited, new SliceTypeRef(elementType));
+            }
+
             CheckPositionIndices(indices);
-            return (visited, slice.Element);
+            CheckBounds(indices, targetType);
+            return (visited, elementType);
         }
 
         if (ConversionRules.IsStruct(targetType, CompilerStd.Types.String))
@@ -232,10 +240,14 @@ internal sealed partial class TypeChecker
         {
             ITypeRef? element = null;
 
-            if (targetType is SliceTypeRef slice)
+            if (ElementOf(targetType) is { } sliceElement)
             {
+                if (indices is [IrRange])
+                    Error("A range cannot be assigned: write the elements one by one", index.Location);
+
                 CheckPositionIndices(indices);
-                element = slice.Element;
+                CheckBounds(indices, targetType);
+                element = sliceElement;
                 types.Set(visitedIndex, element);
             }
             else if (targetType != null && container == null)
@@ -316,10 +328,38 @@ internal sealed partial class TypeChecker
     }
 
     /// <summary>Any integer type is valid as a position.</summary>
+    /// <summary>The type of the elements of an array or a slice; null for any other type.</summary>
+    private static ITypeRef? ElementOf(ITypeRef? type) => type switch
+    {
+        SliceTypeRef slice => slice.Element,
+        ArrayTypeRef array => array.Element,
+        _ => null,
+    };
+
+    /// <summary>A literal index that is past the end of an array, which has a size when compiling.</summary>
+    private void CheckBounds(IrExpression[] indices, ITypeRef? target)
+    {
+        if (target is not ArrayTypeRef array) return;
+
+        foreach (var index in indices)
+        {
+            if (index is IrComptimeInt { BigInteger: var value } && (value < 0 || value >= array.Length))
+                Error($"The index {value} is out of the bounds of '{TypeFormatter.Format(array)}'", index.Location);
+        }
+    }
+
+    private void CheckRangeBounds(IrRange range, ITypeRef? target) => CheckBounds([range.From, range.To], target);
+
     private void CheckPositionIndices(IrExpression[] indices)
     {
         foreach (var index in indices)
         {
+            if (index is IrRange)
+            {
+                Error("A range must be the only index", index.Location);
+                continue;
+            }
+
             var type = TypeOf(index);
             if (type != null && !ConversionRules.IsInteger(type) && type is not ComptimeIntegerTypeRef)
                 Error($"An index must be an integer, not '{TypeFormatter.Format(type)}'", index.Location);

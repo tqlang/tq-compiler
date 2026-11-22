@@ -16,6 +16,9 @@ public static class TypeExpressions
         ProtocolTypeReference protocol => new IrReference(location, protocol),
         GenericParameterTypeRef generic => new IrReference(location, new ParameterReference(generic.Parameter)),
         SliceTypeRef slice => Of(slice.Element, location) is { } element ? new IrSliceTypeModifier(location, element) : null,
+        ArrayTypeRef array => Of(array.Element, location) is { } element
+            ? new IrArrayTypeModifier(location, new IrComptimeInt(location, array.Length), element)
+            : null,
         _ => null,
     };
 
@@ -30,6 +33,8 @@ public static class TypeExpressions
         IrReference { Reference: ProtocolTypeReference protocol } => protocol,
         IrReference when GenericParameterTypeRef.Of(expression) is { } generic => generic,
         IrSliceTypeModifier slice => Raw(slice.subtype) is { } element ? new SliceTypeRef(element) : null,
+        IrArrayTypeModifier { Length: IrComptimeInt { BigInteger: var length } } array when length >= 0 && length <= int.MaxValue =>
+            Raw(array.subtype) is { } element ? new ArrayTypeRef((int)length, element) : null,
         _ => null,
     };
 }

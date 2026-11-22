@@ -66,6 +66,15 @@ internal static partial class ReferenceBinder
             case IrSliceTypeModifier slice:
                 return slice with { subtype = BindExpression(ctx, slice.subtype) };
 
+            case IrArrayTypeModifier arrayType:
+                return arrayType with { Length = BindExpression(ctx, arrayType.Length), subtype = BindExpression(ctx, arrayType.subtype) };
+
+            case IrRange range:
+                return range with { From = BindExpression(ctx, range.From), To = BindExpression(ctx, range.To) };
+
+            case IrAddressOf addressOf:
+                return addressOf with { Operand = BindExpression(ctx, addressOf.Operand) };
+
             case IrStringConcat concat:
                 return concat with { Parts = [.. concat.Parts.Select(part => BindExpression(ctx, part))] };
 

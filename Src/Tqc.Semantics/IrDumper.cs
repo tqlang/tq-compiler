@@ -454,6 +454,7 @@ public sealed class IrDumper
         StructTypeReference => "struct type",
         TypedefTypeReference => "typedef",
         SliceTypeRef => "slice type",
+        ArrayTypeRef => "array type",
         _ => reference.GetType().Name,
     };
 
@@ -497,6 +498,15 @@ public sealed class IrDumper
 
             case IrSliceTypeModifier slice:
                 return Typed($"[]{Expr(slice.subtype)}", slice, "slice type");
+
+            case IrArrayTypeModifier arrayType:
+                return Typed($"[{Expr(arrayType.Length)}]{Expr(arrayType.subtype)}", arrayType, "array type");
+
+            case IrRange range:
+                return Typed($"{Expr(range.From)} .. {Expr(range.To)}", range, "range");
+
+            case IrAddressOf addressOf:
+                return Typed($"&{Operand(addressOf.Operand)}", addressOf, "address of");
 
             case IrBinary binary:
                 return Typed($"{Operand(binary.Left)} {Operators.GetValueOrDefault(binary.Operator, binary.Operator.ToString())} {Operand(binary.Right)}", binary, $"binary {binary.Operator}");
