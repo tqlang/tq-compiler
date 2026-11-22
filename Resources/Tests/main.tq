@@ -5,6 +5,8 @@
     testConstants()
     testStrings()
     testProtocols()
+    testInheritance()
+    testPolymorphism()
 
     testArraysAndSlices()
 
