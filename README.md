@@ -263,7 +263,13 @@ struct Pessoa {
   o acessor vazio sem corpo (`Body == null`) é implementado por ele.
 - Uma propriedade vazia numa struct `@abstract` ou num protocol é abstrata: quem estende a struct declara uma
   propriedade de mesmo nome com o acessor (não precisa de `@override`).
-- Ainda não: propriedades estáticas, `@virtual`/`@override` em propriedades, `++`/`--` sobre propriedades.
+- Uma propriedade no topo de um arquivo (namespace) ou marcada `@static` numa struct é estática: os acessores não têm `this`,
+  o armazenamento é um campo estático e ela é lida e escrita pelo nome (`contador`, `contador = 1`) ou por `Tipo.contador`:
+
+      @public let int contador { get; set }
+      let string nome { get { return "tq" } }
+
+- Ainda não: `@virtual`/`@override` em propriedades, `++`/`--` sobre propriedades.
 
 ### Indexadores de tipos .NET
 

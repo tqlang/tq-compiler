@@ -30,7 +30,8 @@ internal sealed partial class ModuleEmitter
                 // The storage of a property whose accessor uses `field` or is automatic. The IR does not declare it.
                 case TqProperty { HasBackingField: true } property when PropertyTypeOf(property) is { } type:
                 {
-                    var backing = new FieldDefinition($"<{property.Name}>k__BackingField", FieldAttributes.Private, type);
+                    var backing = new FieldDefinition($"<{property.Name}>k__BackingField",
+                        property.IsStatic ? FieldAttributes.Private | FieldAttributes.Static : FieldAttributes.Private, type);
                     container.Type.Fields.Add(backing);
                     _backend.BackingFields[property] = backing;
                     break;
@@ -411,7 +412,7 @@ internal sealed partial class ModuleEmitter
         {
             if (member is not TqProperty property || PropertyTypeOf(property) is not { } type) continue;
 
-            var definition = new PropertyDefinition(property.Name, PropertyAttributes.None, type) { HasThis = true };
+            var definition = new PropertyDefinition(property.Name, PropertyAttributes.None, type) { HasThis = !property.IsStatic };
             definition.GetMethod = AccessorOf(property, property.GetterFunction ?? property.Getter, container.Type, "getter");
             definition.SetMethod = AccessorOf(property, property.SetterFunction ?? property.Setter, container.Type, "setter");
 
@@ -527,6 +528,22 @@ internal sealed partial class ModuleEmitter
     private void EmitAutomaticAccessor(ILProcessor il, TqProperty property, bool isSetter)
     {
         var storage = Use(_backend.BackingFields[property]);
+
+        if (property.IsStatic)
+        {
+            if (isSetter)
+            {
+                il.Emit(OpCodes.Ldarg_0);
+                il.Emit(OpCodes.Stsfld, storage);
+            }
+            else
+            {
+                il.Emit(OpCodes.Ldsfld, storage);
+            }
+
+            il.Emit(OpCodes.Ret);
+            return;
+        }
 
         il.Emit(OpCodes.Ldarg_0);
         if (isSetter)

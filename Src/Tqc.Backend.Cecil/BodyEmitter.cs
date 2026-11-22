@@ -1028,6 +1028,12 @@ internal sealed class BodyEmitter
                 return fieldDefinition.FieldType;
 
             case TqProperty property when _owner.Backend.BackingFields.TryGetValue(property, out var backing):
+                if (backing.IsStatic)
+                {
+                    _il.Emit(OpCodes.Ldsfld, _owner.Use(backing));
+                    return backing.FieldType;
+                }
+
                 _il.Emit(OpCodes.Ldarg_0);
                 _il.Emit(OpCodes.Ldfld, _owner.Use(backing));
                 return backing.FieldType;
@@ -2417,7 +2423,7 @@ internal sealed class BodyEmitter
             }
 
             case TqProperty property when _owner.Backend.BackingFields.TryGetValue(property, out var backing):
-                return FieldTarget(_owner.Use(backing), false, backing.FieldType, backing.DeclaringType, null);
+                return FieldTarget(_owner.Use(backing), backing.IsStatic, backing.FieldType, backing.DeclaringType, null);
 
             case DotnetField dotnetField when !dotnetField.IsConstant:
             {

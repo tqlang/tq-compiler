@@ -47,9 +47,17 @@ internal sealed partial class TypeChecker
         return asTarget ? (access, type) : ReadProperty(access.baseExpr, access.Location, property, type);
     }
 
-    private static IrExpression ImplicitThis(SourceLocation location, TqProperty property) =>
-        new IrReference(location, new ThisReference(property.Owner as IType
+    /// <summary>The value a property named without a receiver belongs to: `this`; a static property has none.</summary>
+    private static IrExpression? ImplicitThis(SourceLocation location, TqProperty property) =>
+        property.IsStatic ? null : new IrReference(location, new ThisReference(property.Owner as IType
             ?? throw new InvalidOperationException($"The property '{property.Name}' has no struct")));
+
+    /// <summary>The accessor as it is called: on a receiver, or by its name when it is static and has none.</summary>
+    private static IrExpression AccessorCallee(SourceLocation location, IrExpression? receiver, IFunction accessor)
+    {
+        var reference = new IrReference(location, new FunctionTypeReference(accessor));
+        return receiver == null ? reference : new IrAccess(location, receiver, reference);
+    }
 
     private static TqProperty? PropertyOf(IrExpression target) => target switch
     {
@@ -58,16 +66,16 @@ internal sealed partial class TypeChecker
         _ => null,
     };
 
-    private (IrExpression, ITypeRef?) ReadProperty(IrExpression receiver, SourceLocation location, TqProperty property, ITypeRef? type)
+    private (IrExpression, ITypeRef?) ReadProperty(IrExpression? receiver, SourceLocation location, TqProperty property, ITypeRef? type)
     {
         EnsureAccessors(property);
         if (property.Getter == null)
         {
             Error($"The property '{property.Name}' has no 'get'", location);
-            return (receiver, null);
+            return (receiver ?? new IrReference(location, new PropertyReference(property)), null);
         }
 
-        var callee = new IrAccess(location, receiver, new IrReference(location, new FunctionTypeReference(property.Getter)));
+        var callee = AccessorCallee(location, receiver, property.Getter);
         return (new IrCall(location, callee, new IrArgumentsList(location, [])), type);
     }
 
@@ -86,7 +94,7 @@ internal sealed partial class TypeChecker
         source = Coerce(source, type, property.Type, $"the property '{property.Name}'");
 
         var receiver = target is IrAccess access ? access.baseExpr : ImplicitThis(assign.Location, property);
-        var callee = new IrAccess(assign.Location, receiver, new IrReference(assign.Location, new FunctionTypeReference(property.Setter)));
+        var callee = AccessorCallee(assign.Location, receiver, property.Setter);
         return (new IrCall(assign.Location, callee, new IrArgumentsList(assign.Location, [source])), type);
     }
 
@@ -153,7 +161,9 @@ internal sealed partial class TypeChecker
 
         var matching = candidates
             .Where(candidate => FunctionSignature.Of(candidate)?.Parameters.Count == parameters
-                                && candidate is not IMethod { IsStatic: true })
+                                && (property.IsStatic
+                                    ? property.Owner == null || candidate is not IMethod { IsStatic: false }
+                                    : candidate is not IMethod { IsStatic: true }))
             .ToList();
 
         if (matching.Count != 1)

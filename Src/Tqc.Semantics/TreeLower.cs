@@ -193,8 +193,8 @@ public static class TreeLower
 
     private static bool Accepts(MemberScope scope, SyntaxNode node) => scope switch
     {
-        MemberScope.Root => node is ImportDirectiveNode or FieldDeclarationNode or FunctionDeclarationNode
-            or StructDeclarationNode or TypedefDeclarationNode,
+        MemberScope.Root => node is ImportDirectiveNode or FieldDeclarationNode or PropertyDeclarationNode
+            or FunctionDeclarationNode or StructDeclarationNode or TypedefDeclarationNode,
         MemberScope.Struct => node is FieldDeclarationNode or PropertyDeclarationNode or FunctionDeclarationNode
             or ConstructorDeclarationNode or DestructorDeclarationNode,
         _ => node is FieldDeclarationNode or FunctionDeclarationNode or TypedefCaseDeclaration,
@@ -354,7 +354,8 @@ public static class TreeLower
             {
                 Parameters = isGetter ? [] : [new TqParameter(type, "value")],
                 ReturnType = isGetter ? type : null,
-                Attributes = [],
+                // `@static` on the property makes its accessors static.
+                Attributes = [..attributes.OfType<TqBuiltinAttribute>().Where(attribute => attribute.Kind == BuiltinAttribute.Static)],
             };
 
             if (accessor.Body != null) function.Body = LowerScope(ctx, accessor.Body);

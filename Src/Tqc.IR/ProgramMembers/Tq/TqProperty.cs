@@ -57,7 +57,11 @@ public class TqProperty(IrExpression? type, string name, SourceLocation location
     /// and the struct can be created). The backend declares it, with the type of the property.
     /// </summary>
     public bool HasBackingField => UsesFieldKeyword
-        || (Owner is { IsAbstract: false } && (GetterFunction is { Body: null } || SetterFunction is { Body: null }));
+        || ((IsStatic || Owner is { IsAbstract: false }) && (GetterFunction is { Body: null } || SetterFunction is { Body: null }));
+
+    /// <summary>A property of a namespace, or marked `@static` in a struct: it belongs to no value, so its accessors take no `this`.</summary>
+    public bool IsStatic => Owner == null
+        || Attributes.OfType<TqBuiltinAttribute>().Any(attribute => attribute.Kind == BuiltinAttribute.Static);
 
     public bool HasGetter => GetterFunction != null || GetterSource != null;
     public bool HasSetter => SetterFunction != null || SetterSource != null;
