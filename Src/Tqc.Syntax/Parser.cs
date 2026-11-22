@@ -295,7 +295,7 @@ public class Parser(DiagnosticBag diagnostics)
         firstExpression = ParseType(); // not an assignment: in `let x = 1` the `= 1` is the value of the field
         AdvanceTrivia(_midDeclarationTrivia);
 
-        if (!Check(TokenKind.Equals) && !Check(TokenKind.LeftBrace) && !Check(TokenKind.LineFeed))
+        if (!Check(TokenKind.Equals) && !Check(TokenKind.LeftBrace) && !Check(TokenKind.FatArrow) && !Check(TokenKind.LineFeed))
         {
             secondExpression = ParseSingleIdentifier();
             AdvanceTrivia(_midDeclarationTrivia);
@@ -326,6 +326,19 @@ public class Parser(DiagnosticBag diagnostics)
             );
         }
         
+        if (Check(TokenKind.FatArrow))
+        {
+            // `let name => value` has no type; `let T name => value` does.
+            if (secondExpression == null && firstExpression is not IdentifierExpressionNode)
+                throw Error(Peek()!.Value, "Expected the name of the property");
+            if (secondExpression == null) {
+                secondExpression = (IdentifierExpressionNode)firstExpression;
+                firstExpression  = null!;
+            }
+
+            return ParsePropertyArrow(letKeyword, firstExpression, secondExpression);
+        }
+
         if (Check(TokenKind.LeftBrace))
         {
             // `let name { ... }` has no type; `let T name { ... }` does.
@@ -358,6 +371,24 @@ public class Parser(DiagnosticBag diagnostics)
         
     }
     
+    /// <summary>`=> value` or `=> { ... }`: a property that only reads. It is held as one accessor whose keyword is the arrow.</summary>
+    private PropertyDeclarationNode ParsePropertyArrow(TokenNode letKeyword, ExpressionNode? type, IdentifierExpressionNode name)
+    {
+        if (letKeyword.Value == "const")
+            throw Error(Peek()!.Value, "A property cannot be 'const'");
+
+        var arrow = ExpectNode(TokenKind.FatArrow, "'=>'");
+        AdvanceTrivia(_midDeclarationTrivia);
+
+        ExpressionNode? value = null;
+        ScopeNode? body = null;
+        if (Check(TokenKind.LeftBrace)) body = ParseScope();
+        else value = ParseExpression();
+
+        var accessor = new PropertyAccessorNode(arrow, null, value, body, _trivia.Dump());
+        return new PropertyDeclarationNode(letKeyword, type, name, null, [accessor], null, ConsumeDeclarationsLeadingTrivia());
+    }
+
     /// <summary>`{ get; set }`, one accessor per line or separated by semicolons.</summary>
     private PropertyDeclarationNode ParsePropertyBody(TokenNode letKeyword, ExpressionNode? type, IdentifierExpressionNode name)
     {

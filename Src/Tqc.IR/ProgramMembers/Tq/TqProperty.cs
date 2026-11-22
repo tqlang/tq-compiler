@@ -49,6 +49,9 @@ public class TqProperty(IrExpression? type, string name, SourceLocation location
     public IFunction? Getter { get; set; }
     public IFunction? Setter { get; set; }
 
+    /// <summary>`let name => value` without a type: the checker gives the property the type of the value.</summary>
+    public bool InfersType { get; set; }
+
     /// <summary>Set once an accessor body uses `field`.</summary>
     public bool UsesFieldKeyword { get; set; }
 

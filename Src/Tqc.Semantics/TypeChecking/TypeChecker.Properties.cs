@@ -98,6 +98,43 @@ internal sealed partial class TypeChecker
         return (new IrCall(assign.Location, callee, new IrArgumentsList(assign.Location, [source])), type);
     }
 
+    private readonly HashSet<TqProperty> _inferringProperties = new(ReferenceEqualityComparer.Instance);
+
+    /// <summary>
+    /// `let name => value`: the property has the type of the value. It is found once, when the property is first needed
+    /// (a function may read it before the property is checked), and then it is the declared type of the property and of its getter.
+    /// </summary>
+    private void InferPropertyType(TqProperty property)
+    {
+        if (!property.InfersType || property.Type != null || !_inferringProperties.Add(property)) return;
+        if (property.GetterFunction is not { Body.Children: [IrReturnStatement { ReturnValue: { } written } statement] } getter) return;
+
+        IrExpression? value = null;
+        void Run()
+        {
+            var outer = _function;
+            _function = getter;
+            value = Visit(written);
+            _function = outer;
+        }
+
+        if (property.Owner is IMember owner) InsideOf(owner, Run);
+        else Run();
+
+        getter.Body!.Children[0] = statement with { ReturnValue = value };
+
+        var valueType = value != null ? TypeOf(value) : null;
+        var expression = valueType != null ? TypeExpressionOf(DefaultTypeOf(valueType), property.SourceLocation) : null;
+        if (expression == null)
+        {
+            Error($"The type of the property '{property.Name}' cannot be known from its value: declare it", property.SourceLocation);
+            return;
+        }
+
+        property.Type = expression;
+        getter.ReturnType = expression;
+    }
+
     /// <summary>
     /// The type declared by the property or, if it has none, the one of the functions that define it:
     /// what the getter returns or what the setter takes.
@@ -105,6 +142,7 @@ internal sealed partial class TypeChecker
     private ITypeRef? PropertyTypeOf(TqProperty property)
     {
         EnsureAccessors(property);
+        InferPropertyType(property);
 
         if (property.Type != null) return TypeFromExpression(property.Type);
         if (property.Getter != null && FunctionSignature.Of(property.Getter) is { } getter) return getter.Return;

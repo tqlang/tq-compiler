@@ -340,6 +340,35 @@ public static class TreeLower
             if (isGetter ? property.HasGetter : property.HasSetter)
                 throw Error($"The property '{name}' has more than one '{accessor.Keyword.Value}'", accessorLocation);
 
+            // `let name => value` / `let T name => { ... }`: a getter that is written right here.
+            if (accessor.IsArrow)
+            {
+                if (type == null && accessor.Body != null)
+                    throw Error($"The property '{name}' needs a type: only '=> value' can give it", location);
+
+                var getter = new TqFunction($"get_{name}", accessorLocation)
+                {
+                    Parameters = [],
+                    ReturnType = type,
+                    Attributes = [..attributes.OfType<TqBuiltinAttribute>().Where(attribute => attribute.Kind == BuiltinAttribute.Static)],
+                };
+
+                if (accessor.Body != null)
+                {
+                    getter.Body = LowerScope(ctx, accessor.Body);
+                }
+                else
+                {
+                    var value = LowerExpression(ctx, accessor.Function!);
+                    getter.Body = new IrBody(accessorLocation);
+                    getter.Body.Children.Add(new IrReturnStatement(accessorLocation, value));
+                    property.InfersType = type == null;
+                }
+
+                property.GetterFunction = getter;
+                continue;
+            }
+
             if (accessor.Function != null)
             {
                 var source = LowerExpression(ctx, accessor.Function);

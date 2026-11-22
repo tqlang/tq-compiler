@@ -269,6 +269,8 @@ struct Pessoa {
       @public let int contador { get; set }
       let string nome { get { return "tq" } }
 
+- `let nome => valor` é uma propriedade só de leitura: o `get` devolve o valor. O tipo é opcional (`let i32 dobro => x * 2`);
+  sem ele, é o tipo do valor. Com bloco (`let i32 p => { return 1 }`) o tipo é obrigatório. Não tem `set`.
 - Ainda não: `@virtual`/`@override` em propriedades, `++`/`--` sobre propriedades.
 
 ### Indexadores de tipos .NET

@@ -85,7 +85,9 @@ internal sealed partial class TypeChecker(
 
             case TqProperty property:
                 EnsureAccessors(property);
-                if (property.GetterFunction != null) CheckFunction(property.GetterFunction);
+                InferPropertyType(property);
+                // The getter of a property that infers its type was checked with it.
+                if (property.GetterFunction != null && !property.InfersType) CheckFunction(property.GetterFunction);
                 if (property.SetterFunction != null) CheckFunction(property.SetterFunction);
                 break;
 
