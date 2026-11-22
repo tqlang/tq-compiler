@@ -69,6 +69,20 @@ internal static partial class ReferenceBinder
             case IrArrayTypeModifier arrayType:
                 return arrayType with { Length = BindExpression(ctx, arrayType.Length), subtype = BindExpression(ctx, arrayType.subtype) };
 
+            case IrMatch match:
+                return match with
+                {
+                    Subject = BindExpression(ctx, match.Subject),
+                    Arms =
+                    [
+                        ..match.Arms.Select(arm => arm with
+                        {
+                            Patterns = [..arm.Patterns.Select(pattern => BindExpression(ctx, pattern))],
+                            Body = arm.Body is IrBody block ? BindBranch(ctx, block) : BindExpression(ctx, (IrExpression)arm.Body),
+                        }),
+                    ],
+                };
+
             case IrRange range:
                 return range with { From = BindExpression(ctx, range.From), To = BindExpression(ctx, range.To) };
 

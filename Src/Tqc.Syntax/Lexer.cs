@@ -111,6 +111,7 @@ internal class Lexer(string Source)
                 );
             
             case '=':
+                if (NextRuneIf('>')) return GetTokenValue(TokenKind.FatArrow);
                 return NextRuneIf('=')
                     ? GetTokenValue(NextRuneIf('=')
                         ? TokenKind.ExactEquals : TokenKind.EqualsEquals)

@@ -58,6 +58,21 @@ public record IrArrayTypeModifier(SourceLocation Location, IrExpression Length, 
 /// <summary>`a .. b` in an index: the elements from `a` to `b`, both included.</summary>
 public record IrRange(SourceLocation Location, IrExpression From, IrExpression To) : IrExpression(Location);
 
+/// <summary>
+/// An arm of `match`: no patterns is `default`. `Body` is an expression or an `IrBody`. The type checker fills `Conditions`: for each
+/// pattern, the `bool` expression that says whether the value of the match is equal to it.
+/// </summary>
+public record IrMatchArm(SourceLocation Location, IrExpression[] Patterns, IrNode Body, IrExpression[]? Conditions = null)
+{
+    public bool IsDefault => Patterns.Length == 0;
+}
+
+/// <summary>
+/// `match subject { case a, b => x  default => y }`. The type checker gives `SubjectLocal`, a hidden variable that holds the
+/// value of `Subject`, which the conditions of the arms compare.
+/// </summary>
+public record IrMatch(SourceLocation Location, IrExpression Subject, IrMatchArm[] Arms, IrLocal? SubjectLocal = null) : IrExpression(Location);
+
 /// <summary>`&x`: the slice that refers to the array `x`.</summary>
 public record IrAddressOf(SourceLocation Location, IrExpression Operand) : IrExpression(Location);
 

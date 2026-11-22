@@ -648,6 +648,7 @@ internal sealed class BodyEmitter
             case IrIndex index: return EmitIndex(index);
             case IrArray array: return EmitArray(array);
             case IrAddressOf addressOf: return EmitAddressOf(addressOf);
+            case IrMatch match: return EmitMatch(match, expected, discard);
 
             // `let T x`: the variable only exists.
             case IrLocal local:
@@ -768,6 +769,86 @@ internal sealed class BodyEmitter
 
         _il.Emit(OpCodes.Call, Library("System.String", "Concat", "System.Object[]"));
         return Core("System.String");
+    }
+
+    /// <summary>
+    /// `match`: the value is kept in a variable, each arm tests its conditions in order and jumps to its body, and `default` is the one
+    /// that runs when none fits. As a value, the result is kept in a variable too, so the stack is the same wherever the arms end.
+    /// </summary>
+    private TypeReference? EmitMatch(IrMatch match, TypeReference? expected, bool discard)
+    {
+        if (match.SubjectLocal == null || match.Arms.Any(arm => !arm.IsDefault && arm.Conditions == null))
+        {
+            Report("This match was not checked", match.Location);
+            return null;
+        }
+
+        TypeReference? resultType = null;
+        VariableDefinition? result = null;
+        if (!discard)
+        {
+            resultType = expected ?? (_types.Get(match) is { } known ? _owner.MapType(known, match.Location) : null);
+            if (resultType == null)
+            {
+                Report("The arms of this 'match' do not have a type in common, so it cannot be used as a value", match.Location);
+                return null;
+            }
+
+            if (match.Arms.Any(arm => arm.Body is IrBody))
+                Report("A 'match' used as a value cannot have an arm that is a block", match.Location);
+            if (match.Arms.All(arm => !arm.IsDefault))
+                Report("A 'match' used as a value needs a 'default' arm", match.Location);
+
+            result = NewTemp(resultType);
+        }
+
+        var subject = GetLocal(match.SubjectLocal);
+        EmitValue(match.Subject, subject.VariableType);
+        _il.Emit(OpCodes.Stloc, subject);
+
+        var end = _il.Create(OpCodes.Nop);
+        var labels = match.Arms.Select(_ => _il.Create(OpCodes.Nop)).ToArray();
+
+        for (var i = 0; i < match.Arms.Length; i++)
+        {
+            foreach (var condition in match.Arms[i].Conditions ?? [])
+            {
+                EmitValue(condition, Core("System.Boolean"));
+                _il.Emit(OpCodes.Brtrue, labels[i]);
+            }
+        }
+
+        var fallback = Array.FindIndex(match.Arms, arm => arm.IsDefault);
+        _il.Emit(OpCodes.Br, fallback >= 0 ? labels[fallback] : end);
+
+        for (var i = 0; i < match.Arms.Length; i++)
+        {
+            _il.Append(labels[i]);
+
+            switch (match.Arms[i].Body)
+            {
+                case IrBody block:
+                    EmitStatement(block);
+                    break;
+
+                case IrExpression value when discard:
+                    EmitDiscard(value);
+                    break;
+
+                case IrExpression value:
+                    EmitValue(value, resultType);
+                    _il.Emit(OpCodes.Stloc, result!);
+                    break;
+            }
+
+            _il.Emit(OpCodes.Br, end);
+        }
+
+        _il.Append(end);
+        if (result == null) return null;
+
+        _il.Emit(OpCodes.Ldloc, result);
+        return resultType;
     }
 
     /// <summary>`&array`: the slice that refers to the array.</summary>

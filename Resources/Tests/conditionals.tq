@@ -12,20 +12,28 @@ func testConditionals() {
 
     Test.assert(result, 2)
 
-    # Test.newTestUnit("conditionals - match expression returning value")
-    # let i32 matchResult = match val {
-    #     case 5  => 100
-    #     case 10 => 200
-    #     case 15 => 300
-    #     default => 0
-    # }
-    # Test.assert(matchResult, 200)
+    Test.newTestUnit("conditionals - match expression returning value")
+    let i32 matchResult = match val {
+        case 5  => 100
+        case 10 => 200
+        case 15 => 300
+        default => 0
+    }
+    Test.assert(matchResult, 200)
 
-    # Test.newTestUnit("conditionals - match with default fallback")
-    # let i32 fallbackResult = match 99 {
-    #     case 1 => 10
-    #     case 2 => 20
-    #     default => 404
-    # }
-    # Test.assert(fallbackResult, 404)
+    Test.newTestUnit("conditionals - match with default fallback")
+    let i32 fallbackResult = match 99 {
+        case 1 => 10
+        case 2 => 20
+        default => 404
+    }
+    Test.assert(fallbackResult, 404)
+
+    Test.newTestUnit("conditionals - match with several patterns and blocks")
+    let i32 blockResult = 0
+    match val {
+        case 1, 2, 3 => { blockResult = 1 }
+        case 10, 11 => { blockResult = 2 }
+    }
+    Test.assert(blockResult, 2)
 }

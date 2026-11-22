@@ -934,8 +934,69 @@ public class Parser(DiagnosticBag diagnostics)
         return left;
     }
 
+    /// <summary>
+    /// `match v { case 1, 2 => a   case 3 => { ... }   default => b }`: the arms are tried in order; `default` is the one that fits when
+    /// no other does. An arm is an expression or a block.
+    /// </summary>
+    private MatchExpressionNode ParseMatchExpression()
+    {
+        var keyword = ExpectNode("match", "'match' keyword");
+        AdvanceTrivia(_midExpressionConservativeTrivia);
+        var subject = ParseExpression();
+        AdvanceTrivia(_midExpressionTrivia);
+        var leftBrace = ExpectNode(TokenKind.LeftBrace, "'{' that opens the arms of 'match'");
+        AdvanceTrivia(_midDeclarationTrivia);
+
+        List<MatchArmNode> arms = [];
+        while (!AtEnd() && !Check(TokenKind.RightBrace))
+        {
+            TokenNode armKeyword;
+            List<(ExpressionNode, TokenNode?)> patterns = [];
+
+            if (CheckKeyword("default"))
+            {
+                armKeyword = ExpectNode("default", "'default' keyword");
+                AdvanceTrivia(_midExpressionTrivia);
+            }
+            else
+            {
+                armKeyword = ExpectNode("case", "'case' or 'default'");
+                AdvanceTrivia(_midExpressionTrivia);
+
+                while (true)
+                {
+                    var pattern = ParseExpression();
+                    AdvanceTrivia(_midExpressionTrivia);
+                    TokenNode? comma = null;
+                    if (Check(TokenKind.Comma))
+                    {
+                        comma = AdvanceNode();
+                        AdvanceTrivia(_midExpressionTrivia);
+                    }
+
+                    patterns.Add((pattern, comma));
+                    if (comma == null) break;
+                }
+            }
+
+            var arrow = ExpectNode(TokenKind.FatArrow, "'=>' after the pattern of the arm");
+            AdvanceTrivia(_midExpressionTrivia);
+
+            SyntaxNode body = Check(TokenKind.LeftBrace) ? ParseScope() : ParseExpression();
+            AdvanceTrivia(_midDeclarationTrivia);
+            if (Check(TokenKind.Semicolon)) AdvanceTrivia(TokenKind.Semicolon, TokenKind.LineFeed, TokenKind.Whitespace, TokenKind.Comment);
+
+            arms.Add(new MatchArmNode(armKeyword, [..patterns], arrow, body));
+        }
+
+        var rightBrace = ExpectNode(TokenKind.RightBrace, "'}' that closes 'match'");
+        return new MatchExpressionNode(keyword, subject, leftBrace, [..arms], rightBrace);
+    }
+
     private ExpressionNode ParsePrefix()
     {
+        if (CheckKeyword("match")) return ParseMatchExpression();
+
         switch (PeekKind())
         {
             case TokenKind.Star:

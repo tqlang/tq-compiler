@@ -79,6 +79,9 @@ internal sealed partial class TypeChecker
             case IrRange range:
                 return VisitRange(range);
 
+            case IrMatch match:
+                return VisitMatch(match);
+
             case IrAddressOf addressOf:
                 return VisitAddressOf(addressOf);
 
@@ -118,6 +121,73 @@ internal sealed partial class TypeChecker
             _ => first,
         };
         return (visited, new ArrayTypeRef(elements.Length, element));
+    }
+
+    /// <summary>
+    /// `match v { case a, b => x  default => y }`: each pattern is compared with `v` as in `v == a` (so a literal takes the type of
+    /// `v`, and the operators of its type apply). The type is the one the arms share; it is not known when they differ or when an arm
+    /// is a block, and then the match can only be a statement.
+    /// </summary>
+    private (IrExpression, ITypeRef?) VisitMatch(IrMatch match)
+    {
+        var subject = Visit(match.Subject);
+        var subjectType = TypeOf(subject);
+
+        var local = new IrLocal(match.Location, null, "$match");
+        if (subjectType != null) types.Set(local, DefaultTypeOf(subjectType));
+        var held = new IrReference(match.Location, new LocalReference(local));
+
+        List<IrMatchArm> arms = [];
+        List<ITypeRef?> values = [];
+        var blocks = false;
+        var defaults = 0;
+
+        foreach (var arm in match.Arms)
+        {
+            List<IrExpression> patterns = [];
+            List<IrExpression> conditions = [];
+            foreach (var pattern in arm.Patterns)
+            {
+                var visitedPattern = Visit(pattern);
+                var comparison = Visit(new IrBinary(pattern.Location, BinaryOperator.Equal, held, visitedPattern));
+
+                if (TypeOf(comparison) is { } comparisonType && !IsBool(comparisonType))
+                    Error($"The pattern cannot be compared with the value of 'match' ('{TypeFormatter.Format(comparisonType)}')", pattern.Location);
+
+                patterns.Add(visitedPattern);
+                conditions.Add(comparison);
+            }
+
+            if (arm.IsDefault && ++defaults > 1) Error("A 'match' has only one 'default'", arm.Location);
+
+            IrNode body;
+            if (arm.Body is IrBody block)
+            {
+                body = CheckNode(block);
+                blocks = true;
+            }
+            else
+            {
+                var value = Visit((IrExpression)arm.Body);
+                values.Add(TypeOf(value));
+                body = value;
+            }
+
+            arms.Add(arm with { Patterns = [..patterns], Conditions = [..conditions], Body = body });
+        }
+
+        ITypeRef? type = null;
+        if (!blocks && values.Count > 0 && values.All(value => value != null))
+        {
+            type = values[0];
+            foreach (var value in values.Skip(1))
+            {
+                type = type != null ? ConversionRules.Common(type, value!) : null;
+                if (type == null) break;
+            }
+        }
+
+        return (match with { Subject = subject, Arms = [..arms], SubjectLocal = local }, type);
     }
 
     /// <summary>`a .. b`: both ends are integers, and the first is not after the last.</summary>

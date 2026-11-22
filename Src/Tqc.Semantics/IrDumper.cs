@@ -503,6 +503,11 @@ public sealed class IrDumper
             case IrArrayTypeModifier arrayType:
                 return Typed($"[{Expr(arrayType.Length)}]{Expr(arrayType.subtype)}", arrayType, "array type");
 
+            case IrMatch match:
+                return Typed($"match {Expr(match.Subject)} {{ " + string.Join(" ", match.Arms.Select(arm =>
+                    (arm.IsDefault ? "default" : "case " + string.Join(", ", arm.Patterns.Select(Expr)))
+                    + " => " + (arm.Body is IrExpression value ? Expr(value) : "{ ... }"))) + " }", match, "match");
+
             case IrRange range:
                 return Typed($"{Expr(range.From)} .. {Expr(range.To)}", range, "range");
 

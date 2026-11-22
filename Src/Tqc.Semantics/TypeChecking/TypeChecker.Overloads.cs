@@ -232,6 +232,20 @@ internal sealed partial class TypeChecker
         var valueType = TypeOf(value);
         if (valueType == null || target == null) return value;
 
+        // The arms of a match whose value is a literal take the type that is asked for: `let u8 x = match v { case 1 => 10  default => 0 }`.
+        if (value is IrMatch literalMatch && valueType is ComptimeIntegerTypeRef or ComptimeDecimalTypeRef)
+        {
+            var retyped = literalMatch with
+            {
+                Arms = [..literalMatch.Arms.Select(arm => arm with
+                {
+                    Body = arm.Body is IrExpression armValue ? Coerce(armValue, target, null, where) : arm.Body,
+                })],
+            };
+            types.Set(retyped, target);
+            return retyped;
+        }
+
         // A literal takes the type it is given: `let [3]u8 x = [1, 2, 3]` has `u8` elements, and `&[1, 2]` for a `[]u8` too.
         if (target is ArrayTypeRef literalTarget && value is IrArray literal && literal.Elements.Length == literalTarget.Length)
             return RetypeLiteral(literal, literalTarget, where);

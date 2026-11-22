@@ -31,6 +31,7 @@ public enum TokenKind
     Pipe,         // |
     Ampersand,    // &
     Equals,       // =
+    FatArrow,     // =>
     Quote,        // '
     DoubleQuote,  // "
     

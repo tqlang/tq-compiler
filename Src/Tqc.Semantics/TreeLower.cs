@@ -710,6 +710,15 @@ public static class TreeLower
                 return new IrArrayTypeModifier(arrayType.GetLoc(ctx.SrcFile), length, LowerExpression(ctx, arrayType.ElementType));
             }
 
+            case MatchExpressionNode match:
+                return new IrMatch(
+                    match.GetLoc(ctx.SrcFile),
+                    LowerExpression(ctx, match.Subject),
+                    [..match.Arms.Select(arm => new IrMatchArm(
+                        arm.GetLoc(ctx.SrcFile),
+                        [..arm.Patterns.Select(pattern => LowerExpression(ctx, pattern.node))],
+                        arm.Body is ScopeNode scope ? LowerScope(ctx, scope) : LowerExpression(ctx, (ExpressionNode)arm.Body)))]);
+
             case RangeExpressionNode range:
                 return new IrRange(range.GetLoc(ctx.SrcFile), LowerExpression(ctx, range.From), LowerExpression(ctx, range.To));
 

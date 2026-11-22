@@ -102,6 +102,11 @@ Acesso (`Semantics/Access/`), verificado ao resolver nomes e `a.b`, e ao escolhe
 
 - `[a, b, c]` vira `IrArray`; o tipo é um array `[3]T` do tipo comum dos elementos (literais inteiros dão `[3]int`; numa
   declaração com tipo, `let [3]u8 x = [1, 2, 3]`, os elementos ganham o tipo dela).
+- **`match`** (`MatchExpressionNode` → `IrMatch`): `match v { case 1, 2 => a   case 3 => { ... }   default => b }`. As arm, uma expressão ou um bloco,
+  testadas em ordem; cada padrão é comparado como `v == padrão` (um literal ganha o tipo de `v`), e `default` vale quando nenhum outro serve.
+  O checker põe o valor numa variável escondida (`SubjectLocal`) e guarda em cada arm as condições (`Conditions`); o backend gera os saltos.
+  Como valor precisa de `default` e de arms que sejam expressões (não blocos); o tipo é o que as arms têm em comum. Como statement, as arms
+  podem ser blocos e não precisa de `default`. Ainda não: padrões de tipo/typedef, exaustividade, guardas.
 - **Arrays e slices.** `[N]T` (`IrArrayTypeModifier`/`ArrayTypeRef`) é memória pré-alocada com `N` fixo na compilação (hoje um literal inteiro;
   o `[` precisa estar colado a um tipo: `[5]int`). Atribuir a um array **escreve os elementos** (`numbers = [60, 70]` é um `memcpy`, não troca
   a referência); declarar com outro array (`let [2]int b = a`) faz uma cópia. `[]T` (`SliceTypeRef`) é uma referência a um array, sem tamanho
