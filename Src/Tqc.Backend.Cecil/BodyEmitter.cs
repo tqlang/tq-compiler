@@ -843,7 +843,9 @@ internal sealed class BodyEmitter
             }
         }
 
+        // Without `default` the arms cover every value (the checker saw to it), so the last one is where nothing else fits.
         var fallback = Array.FindIndex(match.Arms, arm => arm.IsDefault);
+        if (fallback < 0) fallback = match.Arms.Length - 1;
         _il.Emit(OpCodes.Br, fallback >= 0 ? labels[fallback] : end);
 
         for (var i = 0; i < match.Arms.Length; i++)

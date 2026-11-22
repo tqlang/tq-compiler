@@ -125,8 +125,8 @@ internal sealed partial class TypeChecker
 
     /// <summary>
     /// `match v { case a, b => x  default => y }`: each pattern is compared with `v` as in `v == a` (so a literal takes the type of
-    /// `v`, and the operators of its type apply). The arms mean the same in any order, and `default`, which is required, takes what no
-    /// other arm does. The type is the one the arms share; it is not known when they differ or when an arm
+    /// `v`, and the operators of its type apply). The arms mean the same in any order, and `default` takes what no
+    /// other arm does; it is required unless the arms already cover every value (`true` and `false` of a `bool`, all the values of a sized integer). The type is the one the arms share; it is not known when they differ or when an arm
     /// is a block, and then the match can only be a statement.
     /// </summary>
     private (IrExpression, ITypeRef?) VisitMatch(IrMatch match)
@@ -143,6 +143,7 @@ internal sealed partial class TypeChecker
         var blocks = false;
         var defaults = 0;
         HashSet<object> literals = [];
+        HashSet<bool> booleans = [];
 
         foreach (var arm in match.Arms)
         {
@@ -158,6 +159,8 @@ internal sealed partial class TypeChecker
                     _ => null,
                 };
                 if (literal != null && !literals.Add(literal))
+                    Error("This value is already in another arm of the 'match'", pattern.Location);
+                if (pattern is IrComptimeBool boolean && !booleans.Add(boolean.Value))
                     Error("This value is already in another arm of the 'match'", pattern.Location);
 
                 var visitedPattern = Visit(pattern);
@@ -188,8 +191,11 @@ internal sealed partial class TypeChecker
             arms.Add(arm with { Patterns = [..patterns], Conditions = [..conditions], Body = body });
         }
 
-        // What is not in any arm goes to `default`, wherever it is written: a match always has one.
-        if (defaults == 0) Error("A 'match' needs a 'default' arm", match.Location);
+        // What is not in any arm goes to `default`, wherever it is written; without one, the arms have to cover every value.
+        if (defaults == 0 && !CoversEveryValue(subjectType, literals, booleans))
+            Error(subjectType != null && (IsBool(subjectType) || ConversionRules.TryInteger(subjectType, out _, out _))
+                ? $"A 'match' needs a 'default' arm, or an arm for every value of '{TypeFormatter.Format(subjectType)}'"
+                : "A 'match' needs a 'default' arm", match.Location);
 
         ITypeRef? type = null;
         if (!blocks && values.Count > 0 && values.All(value => value != null))
@@ -203,6 +209,19 @@ internal sealed partial class TypeChecker
         }
 
         return (match with { Subject = subject, Arms = [..arms], SubjectLocal = local }, type);
+    }
+
+    /// <summary>Whether the patterns leave nothing for `default`: `true` and `false` of a `bool`, every value of a sized integer.</summary>
+    private static bool CoversEveryValue(ITypeRef? subjectType, HashSet<object> literals, HashSet<bool> booleans)
+    {
+        if (subjectType == null) return false;
+        if (IsBool(subjectType)) return booleans.Count == 2;
+
+        if (!ConversionRules.TryInteger(subjectType, out var signed, out var bits)) return false;
+
+        var low = signed ? -(BigInteger.One << (bits - 1)) : BigInteger.Zero;
+        var high = signed ? (BigInteger.One << (bits - 1)) - 1 : (BigInteger.One << bits) - 1;
+        return literals.OfType<BigInteger>().Count(value => value >= low && value <= high) == high - low + 1;
     }
 
     /// <summary>`a .. b`: both ends are integers, and the first is not after the last.</summary>

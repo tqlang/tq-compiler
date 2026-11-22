@@ -103,7 +103,7 @@ Acesso (`Semantics/Access/`), verificado ao resolver nomes e `a.b`, e ao escolhe
 - `[a, b, c]` vira `IrArray`; o tipo é um array `[3]T` do tipo comum dos elementos (literais inteiros dão `[3]int`; numa
   declaração com tipo, `let [3]u8 x = [1, 2, 3]`, os elementos ganham o tipo dela).
 - **`match`** (`MatchExpressionNode` → `IrMatch`): `match v { case 1, 2 => a   case 3 => { ... }   default => b }`. As arm, uma expressão ou um bloco,
-  cada padrão é comparado como `v == padrão` (um literal ganha o tipo de `v`). **`default` é obrigatório**, sendo valor ou statement, e vale
+  cada padrão é comparado como `v == padrão` (um literal ganha o tipo de `v`). **o `match` precisa de `default` ou ser exaustivo**, sendo valor ou statement (`true` e `false` de um `bool`, ou todos os valores de um inteiro com tamanho, como os 256 de um `u8`, dispensam o `default`); o `default` vale
   quando nenhuma outra arm serve; a ordem das arms não significa nada (o `default` pode ficar no topo ou no meio), por isso o mesmo valor
   literal em duas arms é erro.
   O checker põe o valor numa variável escondida (`SubjectLocal`) e guarda em cada arm as condições (`Conditions`); o backend gera os saltos.
