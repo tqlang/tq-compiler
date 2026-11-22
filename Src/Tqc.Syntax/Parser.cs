@@ -993,6 +993,7 @@ public class Parser(DiagnosticBag diagnostics)
         while (!AtEnd() && !Check(TokenKind.RightBrace))
         {
             TokenNode armKeyword;
+            TokenNode? binding = null;
             List<(ExpressionNode, TokenNode?)> patterns = [];
 
             if (CheckKeyword("default"))
@@ -1009,6 +1010,16 @@ public class Parser(DiagnosticBag diagnostics)
                 {
                     var pattern = ParseExpression();
                     AdvanceTrivia(_midExpressionTrivia);
+
+                    // `case Foo f`: the value, as a `Foo`, is called `f` in the arm.
+                    if (PeekKind() == TokenKind.Identifier)
+                    {
+                        binding = AdvanceNode();
+                        AdvanceTrivia(_midExpressionTrivia);
+                        patterns.Add((pattern, null));
+                        break;
+                    }
+
                     TokenNode? comma = null;
                     if (Check(TokenKind.Comma))
                     {
@@ -1028,7 +1039,7 @@ public class Parser(DiagnosticBag diagnostics)
             AdvanceTrivia(_midDeclarationTrivia);
             if (Check(TokenKind.Semicolon)) AdvanceTrivia(TokenKind.Semicolon, TokenKind.LineFeed, TokenKind.Whitespace, TokenKind.Comment);
 
-            arms.Add(new MatchArmNode(armKeyword, [..patterns], arrow, body));
+            arms.Add(new MatchArmNode(armKeyword, [..patterns], binding, arrow, body));
         }
 
         var rightBrace = ExpectNode(TokenKind.RightBrace, "'}' that closes 'match'");

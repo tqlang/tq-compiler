@@ -62,7 +62,7 @@ public record IrRange(SourceLocation Location, IrExpression From, IrExpression T
 /// An arm of `match`: no patterns is `default`. `Body` is an expression or an `IrBody`. The type checker fills `Conditions`: for each
 /// pattern, the `bool` expression that says whether the value of the match is equal to it.
 /// </summary>
-public record IrMatchArm(SourceLocation Location, IrExpression[] Patterns, IrNode Body, IrExpression[]? Conditions = null)
+public record IrMatchArm(SourceLocation Location, IrExpression[] Patterns, IrNode Body, IrExpression[]? Conditions = null, IrLocal? Binding = null)
 {
     public bool IsDefault => Patterns.Length == 0;
 }
@@ -72,6 +72,12 @@ public record IrMatchArm(SourceLocation Location, IrExpression[] Patterns, IrNod
 /// value of `Subject`, which the conditions of the arms compare.
 /// </summary>
 public record IrMatch(SourceLocation Location, IrExpression Subject, IrMatchArm[] Arms, IrLocal? SubjectLocal = null) : IrExpression(Location);
+
+/// <summary>
+/// A pattern of `match` that is a type: whether `Value` is a `Type`. When `Value` is itself a type (`SameType`: the subject of the
+/// match is a `Type`, as the parameter of a generic function), whether it is that very type.
+/// </summary>
+public record IrTypeTest(SourceLocation Location, IrExpression Value, IrExpression Type, bool SameType = false) : IrExpression(Location);
 
 /// <summary>`&x`: the slice that refers to the array `x`.</summary>
 public record IrAddressOf(SourceLocation Location, IrExpression Operand) : IrExpression(Location);

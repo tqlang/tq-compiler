@@ -134,9 +134,14 @@ internal sealed partial class TypeChecker
         var subject = Visit(match.Subject);
         var subjectType = TypeOf(subject);
 
+        // The subject can be a type (`match T { case i32 => ... }`, in a generic function): it is not kept, the patterns compare with it.
+        var subjectIsType = subjectType is StructTypeReference { Struct: var subjectStruct } && ReferenceEquals(subjectStruct, CompilerStd.Types.Type);
+
         var local = new IrLocal(match.Location, null, "$match");
-        if (subjectType != null) types.Set(local, DefaultTypeOf(subjectType));
-        var held = new IrReference(match.Location, new LocalReference(local));
+        if (subjectType != null && !subjectIsType) types.Set(local, DefaultTypeOf(subjectType));
+        IrExpression held = subjectIsType ? subject : new IrReference(match.Location, new LocalReference(local));
+
+        var subjectTypedef = (subjectType as TypedefTypeReference)?.Typedef;
 
         List<IrMatchArm> arms = [];
         List<ITypeRef?> values = [];
@@ -144,11 +149,13 @@ internal sealed partial class TypeChecker
         var defaults = 0;
         HashSet<object> literals = [];
         HashSet<bool> booleans = [];
+        HashSet<string> cases = [];
 
         foreach (var arm in match.Arms)
         {
             List<IrExpression> patterns = [];
             List<IrExpression> conditions = [];
+            var bindingType = false;
             foreach (var pattern in arm.Patterns)
             {
                 // The order of the arms means nothing, so one value cannot be in two of them.
@@ -160,18 +167,44 @@ internal sealed partial class TypeChecker
                 };
                 if (literal != null && !literals.Add(literal))
                     Error("This value is already in another arm of the 'match'", pattern.Location);
-                if (pattern is IrComptimeBool boolean && !booleans.Add(boolean.Value))
-                    Error("This value is already in another arm of the 'match'", pattern.Location);
 
                 var visitedPattern = Visit(pattern);
-                var comparison = Visit(new IrBinary(pattern.Location, BinaryOperator.Equal, held, visitedPattern));
+                if (visitedPattern is IrComptimeBool boolean && !booleans.Add(boolean.Value))
+                    Error("This value is already in another arm of the 'match'", pattern.Location);
 
-                if (TypeOf(comparison) is { } comparisonType && !IsBool(comparisonType))
-                    Error($"The pattern cannot be compared with the value of 'match' ('{TypeFormatter.Format(comparisonType)}')", pattern.Location);
+                if (subjectTypedef != null && TypeOf(visitedPattern) is TypedefTypeReference { Typedef: var patternTypedef }
+                    && ReferenceEquals(patternTypedef, subjectTypedef) && NamedCaseName(visitedPattern) is { } caseName
+                    && !cases.Add(caseName))
+                    Error("This value is already in another arm of the 'match'", pattern.Location);
+
+                IrExpression comparison;
+                if (TypeOf(visitedPattern) is StructTypeReference { Struct: var patternStruct } && ReferenceEquals(patternStruct, CompilerStd.Types.Type))
+                {
+                    // A type: `case Foo`.
+                    comparison = new IrTypeTest(pattern.Location, held, visitedPattern, subjectIsType);
+                    types.Set(comparison, BoolType()!);
+                    bindingType = !subjectIsType;
+
+                    if (arm.Binding != null && !subjectIsType && TypeFromExpression(visitedPattern) is { } narrowed)
+                        types.Set(arm.Binding, narrowed);
+                }
+                else
+                {
+                    if (subjectIsType)
+                        Error("The patterns of a 'match' on a type are types", pattern.Location);
+
+                    comparison = Visit(new IrBinary(pattern.Location, BinaryOperator.Equal, held, visitedPattern));
+
+                    if (TypeOf(comparison) is { } comparisonType && !IsBool(comparisonType))
+                        Error($"The pattern cannot be compared with the value of 'match' ('{TypeFormatter.Format(comparisonType)}')", pattern.Location);
+                }
 
                 patterns.Add(visitedPattern);
                 conditions.Add(comparison);
             }
+
+            if (arm.Binding != null && (arm.Patterns.Length != 1 || !bindingType))
+                Error($"'{arm.Binding.name}' names the value as the type of the pattern, so the pattern has to be one type", arm.Binding.Location);
 
             if (arm.IsDefault && ++defaults > 1) Error("A 'match' has only one 'default'", arm.Location);
 
@@ -192,8 +225,8 @@ internal sealed partial class TypeChecker
         }
 
         // What is not in any arm goes to `default`, wherever it is written; without one, the arms have to cover every value.
-        if (defaults == 0 && !CoversEveryValue(subjectType, literals, booleans))
-            Error(subjectType != null && (IsBool(subjectType) || ConversionRules.TryInteger(subjectType, out _, out _))
+        if (defaults == 0 && !CoversEveryValue(subjectType, literals, booleans, cases))
+            Error(subjectType != null && (IsBool(subjectType) || subjectTypedef != null || ConversionRules.TryInteger(subjectType, out _, out _))
                 ? $"A 'match' needs a 'default' arm, or an arm for every value of '{TypeFormatter.Format(subjectType)}'"
                 : "A 'match' needs a 'default' arm", match.Location);
 
@@ -211,10 +244,31 @@ internal sealed partial class TypeChecker
         return (match with { Subject = subject, Arms = [..arms], SubjectLocal = local }, type);
     }
 
-    /// <summary>Whether the patterns leave nothing for `default`: `true` and `false` of a `bool`, every value of a sized integer.</summary>
-    private static bool CoversEveryValue(ITypeRef? subjectType, HashSet<object> literals, HashSet<bool> booleans)
+    /// <summary>The name of the case a pattern like `Level.info` refers to.</summary>
+    private static string? NamedCaseName(IrExpression pattern) => (pattern switch
+    {
+        IrAccess access => access.access.Reference,
+        IrReference reference => reference.Reference,
+        _ => null,
+    }) switch
+    {
+        FieldReference { Field: TqNamedCase named } => named.Name,
+        UnsolvedRef unsolved => unsolved.Value,
+        _ => null,
+    };
+
+    /// <summary>Whether the patterns leave nothing for `default`: `true` and `false` of a `bool`, every case of a typedef, every value of a sized integer.</summary>
+    private static bool CoversEveryValue(ITypeRef? subjectType, HashSet<object> literals, HashSet<bool> booleans, HashSet<string> cases)
     {
         if (subjectType == null) return false;
+
+        // A typedef: every case it names (the numbers it takes with no name cannot be written in a pattern).
+        if (subjectType is TypedefTypeReference { Typedef: var typedef })
+        {
+            var named = typedef.Members.Values.OfType<TqNamedCase>().ToList();
+            return typedef.NumericCases.IsEmpty && named.Count > 0 && named.All(entry => cases.Contains(entry.Name));
+        }
+
         if (IsBool(subjectType)) return booleans.Count == 2;
 
         if (!ConversionRules.TryInteger(subjectType, out var signed, out var bits)) return false;

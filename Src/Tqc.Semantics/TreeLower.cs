@@ -755,7 +755,8 @@ public static class TreeLower
                     [..match.Arms.Select(arm => new IrMatchArm(
                         arm.GetLoc(ctx.SrcFile),
                         [..arm.Patterns.Select(pattern => LowerExpression(ctx, pattern.node))],
-                        arm.Body is ScopeNode scope ? LowerScope(ctx, scope) : LowerExpression(ctx, (ExpressionNode)arm.Body)))]);
+                        arm.Body is ScopeNode scope ? LowerScope(ctx, scope) : LowerExpression(ctx, (ExpressionNode)arm.Body),
+                        Binding: arm.Binding != null ? new IrLocal(arm.Binding.GetLoc(ctx.SrcFile), null, arm.Binding.Value) : null))]);
 
             case RangeExpressionNode range:
                 return new IrRange(range.GetLoc(ctx.SrcFile), LowerExpression(ctx, range.From), LowerExpression(ctx, range.To));

@@ -107,7 +107,13 @@ Acesso (`Semantics/Access/`), verificado ao resolver nomes e `a.b`, e ao escolhe
   quando nenhuma outra arm serve; a ordem das arms não significa nada (o `default` pode ficar no topo ou no meio), por isso o mesmo valor
   literal em duas arms é erro.
   O checker põe o valor numa variável escondida (`SubjectLocal`) e guarda em cada arm as condições (`Conditions`); o backend gera os saltos.
-  Como valor as arms têm de ser expressões (não blocos); o tipo é o que elas têm em comum. Como statement, as arms podem ser blocos. Ainda não: padrões de tipo/typedef, exaustividade, guardas.
+  Como valor as arms têm de ser expressões (não blocos); o tipo é o que elas têm em comum. Como statement, as arms podem ser blocos. Ainda não: guardas.
+  - **Strings** e **typedefs (enums)** são comparados com `==`: `case "a", "b" =>` e `case Nivel.info =>`. Um typedef é exaustivo quando
+    todos os seus casos nomeados aparecem (sem casos numéricos sem nome); o mesmo caso em duas arms é erro.
+  - **Tipos**: um padrão que é um tipo (`case Foo =>`, `case Foo f => f.x`) testa se o valor é um `Foo` (`isinst`; value types são
+    boxed antes) e `f` é o valor como `Foo`, visto só na arm (um nome só vale com um único tipo). Se o próprio valor do `match` é um
+    `Type` (`match T { case i32 => ... case string => ... default => ... }`, parâmetro de função genérica), compara-se o tipo
+    (`typeof(T) == typeof(X)`, via `ldtoken`): o `Type` nunca fica guardado em runtime (`IrTypeTest`). Tipos não entram na exaustividade.
 - **Arrays e slices.** `[N]T` (`IrArrayTypeModifier`/`ArrayTypeRef`) é memória pré-alocada com `N` fixo na compilação (hoje um literal inteiro;
   o `[` precisa estar colado a um tipo: `[5]int`). Atribuir a um array **escreve os elementos** (`numbers = [60, 70]` é um `memcpy`, não troca
   a referência); declarar com outro array (`let [2]int b = a`) faz uma cópia. `[]T` (`SliceTypeRef`) é uma referência a um array, sem tamanho

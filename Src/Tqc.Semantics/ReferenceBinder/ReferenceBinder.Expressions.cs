@@ -75,10 +75,15 @@ internal static partial class ReferenceBinder
                     Subject = BindExpression(ctx, match.Subject),
                     Arms =
                     [
-                        ..match.Arms.Select(arm => arm with
+                        ..match.Arms.Select(arm =>
                         {
-                            Patterns = [..arm.Patterns.Select(pattern => BindExpression(ctx, pattern))],
-                            Body = arm.Body is IrBody block ? BindBranch(ctx, block) : BindExpression(ctx, (IrExpression)arm.Body),
+                            // `case Foo f`: `f` is seen by the body of the arm only.
+                            var patterns = arm.Patterns.Select(pattern => BindExpression(ctx, pattern)).ToArray();
+                            ctx.PushFrame();
+                            if (arm.Binding != null) ctx.Add(arm.Binding.name, new LocalReference(arm.Binding));
+                            var body = arm.Body is IrBody block ? BindBranch(ctx, block) : (IrNode)BindExpression(ctx, (IrExpression)arm.Body);
+                            ctx.PopFrame();
+                            return arm with { Patterns = patterns, Body = body };
                         }),
                     ],
                 };

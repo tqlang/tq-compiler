@@ -505,8 +505,11 @@ public sealed class IrDumper
 
             case IrMatch match:
                 return Typed($"match {Expr(match.Subject)} {{ " + string.Join(" ", match.Arms.Select(arm =>
-                    (arm.IsDefault ? "default" : "case " + string.Join(", ", arm.Patterns.Select(Expr)))
+                    (arm.IsDefault ? "default" : "case " + string.Join(", ", arm.Patterns.Select(Expr)) + (arm.Binding != null ? " " + arm.Binding.name : ""))
                     + " => " + (arm.Body is IrExpression value ? Expr(value) : "{ ... }"))) + " }", match, "match");
+
+            case IrTypeTest test:
+                return Typed($"{Operand(test.Value)} {(test.SameType ? "is the type" : "is a")} {Expr(test.Type)}", test, "type test");
 
             case IrRange range:
                 return Typed($"{Expr(range.From)} .. {Expr(range.To)}", range, "range");

@@ -649,6 +649,7 @@ internal sealed class BodyEmitter
             case IrArray array: return EmitArray(array);
             case IrAddressOf addressOf: return EmitAddressOf(addressOf);
             case IrMatch match: return EmitMatch(match, expected, discard);
+            case IrTypeTest test: return EmitTypeTest(test);
 
             // `let T x`: the variable only exists.
             case IrLocal local:
@@ -827,9 +828,15 @@ internal sealed class BodyEmitter
             result = NewTemp(resultType);
         }
 
-        var subject = GetLocal(match.SubjectLocal);
-        EmitValue(match.Subject, subject.VariableType);
-        _il.Emit(OpCodes.Stloc, subject);
+        // The subject that is a type (`match T`) is not kept: the tests compare with it.
+        var typeSubject = match.Arms.Any(arm => arm.Conditions?.OfType<IrTypeTest>().Any(test => test.SameType) == true);
+        VariableDefinition? subject = null;
+        if (!typeSubject)
+        {
+            subject = GetLocal(match.SubjectLocal);
+            EmitValue(match.Subject, subject.VariableType);
+            _il.Emit(OpCodes.Stloc, subject);
+        }
 
         var end = _il.Create(OpCodes.Nop);
         var labels = match.Arms.Select(_ => _il.Create(OpCodes.Nop)).ToArray();
@@ -851,6 +858,16 @@ internal sealed class BodyEmitter
         for (var i = 0; i < match.Arms.Length; i++)
         {
             _il.Append(labels[i]);
+
+            // `case Foo f`: `f` is the value as a `Foo`.
+            if (match.Arms[i].Binding is { } binding && subject != null)
+            {
+                var named = GetLocal(binding);
+                _il.Emit(OpCodes.Ldloc, subject);
+                if (subject.VariableType.IsValueType || subject.VariableType is GenericParameter) _il.Emit(OpCodes.Box, subject.VariableType);
+                _il.Emit(OpCodes.Unbox_Any, named.VariableType);
+                _il.Emit(OpCodes.Stloc, named);
+            }
 
             switch (match.Arms[i].Body)
             {
@@ -876,6 +893,36 @@ internal sealed class BodyEmitter
 
         _il.Emit(OpCodes.Ldloc, result);
         return resultType;
+    }
+
+    /// <summary>
+    /// A pattern that is a type: whether the value is one (`isinst`; a value type is boxed first), or, when the subject of the match
+    /// is a type too, whether both are the same (`typeof(T) == typeof(X)`: a type is never kept as a value).
+    /// </summary>
+    private TypeReference EmitTypeTest(IrTypeTest test)
+    {
+        var wanted = _owner.MapExpression(test.Type);
+
+        if (test.SameType)
+        {
+            EmitTypeOf(_owner.MapExpression(test.Value));
+            EmitTypeOf(wanted);
+            _il.Emit(OpCodes.Call, Library("System.Type", "op_Equality", "System.Type", "System.Type"));
+            return Core("System.Boolean");
+        }
+
+        var actual = EmitValue(test.Value, null);
+        if (actual.IsValueType || actual is GenericParameter) _il.Emit(OpCodes.Box, actual);
+        _il.Emit(OpCodes.Isinst, wanted);
+        _il.Emit(OpCodes.Ldnull);
+        _il.Emit(OpCodes.Cgt_Un);
+        return Core("System.Boolean");
+    }
+
+    private void EmitTypeOf(TypeReference type)
+    {
+        _il.Emit(OpCodes.Ldtoken, type);
+        _il.Emit(OpCodes.Call, Library("System.Type", "GetTypeFromHandle", "System.RuntimeTypeHandle"));
     }
 
     /// <summary>`&array`: the slice that refers to the array.</summary>

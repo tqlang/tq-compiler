@@ -3,10 +3,11 @@ using Tqc.Core;
 
 namespace Tqc.Syntax.Nodes;
 
-/// <summary>`case 1, 2 => value`, `case 3 => { ... }` or `default => value`.</summary>
+/// <summary>`case 1, 2 => value`, `case 3 => { ... }`, `case Foo f => value` (a type and the name of the value as that type) or `default => value`.</summary>
 public record MatchArmNode(
     TokenNode Keyword,
     (ExpressionNode node, TokenNode? comma)[] Patterns,
+    TokenNode? Binding,
     TokenNode Arrow,
     SyntaxNode Body
 ) : SyntaxNode
@@ -17,7 +18,7 @@ public record MatchArmNode(
     {
         sb.AppendSyntaxNode(Keyword);
         foreach (var (node, comma) in Patterns) sb.AppendSyntaxNode(node).AppendSyntaxNode(comma);
-        return sb.AppendSyntaxNode(Arrow).AppendSyntaxNode(Body);
+        return sb.AppendSyntaxNode(Binding).AppendSyntaxNode(Arrow).AppendSyntaxNode(Body);
     }
 
     public override SourceSpan Span => Keyword.Span + Body.Span;
