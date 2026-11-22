@@ -114,14 +114,14 @@ Acesso (`Semantics/Access/`), verificado ao resolver nomes e `a.b`, e ao escolhe
     boxed antes) e `f` é o valor como `Foo`, visto só na arm (um nome só vale com um único tipo). Se o próprio valor do `match` é um
     `Type` (`match T { case i32 => ... case string => ... default => ... }`, parâmetro de função genérica), compara-se o tipo
     (`typeof(T) == typeof(X)`, via `ldtoken`): o `Type` nunca fica guardado em runtime (`IrTypeTest`). Tipos não entram na exaustividade.
-- **Arrays e slices.** `[N]T` (`IrArrayTypeModifier`/`ArrayTypeRef`) é memória pré-alocada com `N` fixo na compilação (hoje um literal inteiro;
-  o `[` precisa estar colado a um tipo: `[5]int`). Atribuir a um array **escreve os elementos** (`numbers = [60, 70]` é um `memcpy`, não troca
+- **Arrays e slices.** `[N]T` (`IrArrayTypeModifier`/`ArrayTypeRef`) é memória pré-alocada com `N` fixo na compilação (um literal, um `const` ou uma operação entre eles: `[2 * 4]int`, `[tamanho]int`; o binder
+  dá o valor, e um `const` precisa estar declarado antes e ter valor constante; o `[` precisa estar colado a um tipo: `[5]int`). Atribuir a um array **escreve os elementos** (`numbers = [60, 70]` é um `memcpy`, não troca
   a referência); declarar com outro array (`let [2]int b = a`) faz uma cópia. `[]T` (`SliceTypeRef`) é uma referência a um array, sem tamanho
   estático. `&array` (`IrAddressOf`) dá o slice que o enxerga, e `a[i .. j]` (`IrRange`, **os dois extremos entram**) dá um slice da parte;
   o que se escreve por um aparece no outro. Um array não vira slice sozinho: é preciso o `&` (`&[1, 2]` também vale).
-  No .NET, `[N]T` é um `T[]` e `[]T` é um `Memory<T>`; ao chamar um método .NET que pede `T[]` o slice vira o array (**uma cópia**, então
-  o .NET não escreve de volta no slice) e um `T[]` que o .NET devolve vira `Memory<T>`. Ainda não: parâmetros de array por valor (copiar ao chamar),
-  campos de array sem valor (ficam `null`), tamanho que não seja literal, extremos de range omitidos.
+  No .NET, `[N]T` é um `T[]` e `[]T` é um `Memory<T>`; ao chamar um método .NET que pede `T[]` o slice vira o array: **o próprio array** se o slice é o array inteiro
+  (`MemoryMarshal.TryGetArray`: o .NET escreve de volta no slice e nada é copiado) e **uma cópia** se é só uma parte e um `T[]` que o .NET devolve vira `Memory<T>`. Um campo de array sem valor (`let [5]int valores`) ganha a memória no construtor (de instância) ou no inicializador do tipo
+  (de namespace/`@static`). Ainda não: parâmetros de array por valor (copiar ao chamar), extremos de range omitidos.
 - Struct: campos, funções (overloads em grupo), `constructor`, `destructor` e `extends` (`TqStruct`, `TqConstructor`,
   `TqDestructor`). Dentro dele valem os parâmetros genéricos, os membros herdados, os próprios e `this`.
   `extends` aceita qualquer struct, escrito em Tq ou vindo do .NET (os membros herdados de classes .NET também são

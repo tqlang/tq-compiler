@@ -199,6 +199,18 @@ internal sealed partial class ModuleEmitter
         return BodyEmitter.OnHost(_module.ImportReference(method), host);
     }
 
+    /// <summary>A generic method of a static class of the runtime (`MemoryMarshal.TryGetArray<T>`), with its argument; null if the runtime does not have it.</summary>
+    internal MethodReference? GenericMethodOf(string typeName, string name, int parameters, TypeReference argument)
+    {
+        var method = _backend.Core.Find(typeName)?.Methods.FirstOrDefault(candidate =>
+            candidate.Name == name && candidate.Parameters.Count == parameters && candidate.HasGenericParameters);
+        if (method == null) return null;
+
+        var instance = new GenericInstanceMethod(_module.ImportReference(method));
+        instance.GenericArguments.Add(argument);
+        return instance;
+    }
+
     /// <summary>`Memory<T>`: what a slice is in .NET.</summary>
     internal static bool IsMemory(TypeReference? type, out GenericInstanceType memory)
     {

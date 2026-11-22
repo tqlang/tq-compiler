@@ -134,6 +134,14 @@ internal sealed partial class ModuleEmitter
             }
         }
 
+        // An array of a namespace or `@static` has its memory from the type initializer.
+        else if (definition.IsStatic && IsArrayField(field) && type is ArrayType && !container.Type.HasGenericParameters)
+        {
+            if (!_staticInitializers.TryGetValue(container.Type, out var pending))
+                _staticInitializers[container.Type] = pending = [];
+            pending.Add((field, definition));
+        }
+
         // The initial value of any other field takes code (a constructor), which is not emitted yet.
         container.Type.Fields.Add(definition);
         _backend.Definitions[field] = definition;
@@ -339,6 +347,10 @@ internal sealed partial class ModuleEmitter
         }));
     }
 
+    /// <summary>`let [5]i32 values`: an array has its memory as soon as it exists, with or without a value.</summary>
+    internal static bool IsArrayField(TqField field) =>
+        field.Value == null && field.Type != null && TypeExpressions.Raw(field.Type) is ArrayTypeRef;
+
     /// <summary>The instance fields that have an initial value (`let _list = new List(T)()`), in the order they are written.</summary>
     internal List<(TqField Field, FieldDefinition Definition)> InstanceInitializers(TqStruct structure)
     {
@@ -346,7 +358,7 @@ internal sealed partial class ModuleEmitter
         foreach (var member in structure.Members.Values.OrderBy(member => LocationOf(member)?.span.LineStart ?? 0)
                      .ThenBy(member => LocationOf(member)?.span.ColStart ?? 0))
         {
-            if (member is TqField { Value: not null } field
+            if (member is TqField field && (field.Value != null || IsArrayField(field))
                 && _backend.Definitions.TryGetValue(field, out var definition)
                 && definition is FieldDefinition { IsStatic: false, HasConstant: false } fieldDefinition)
                 result.Add((field, fieldDefinition));

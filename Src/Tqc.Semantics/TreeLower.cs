@@ -738,15 +738,10 @@ public static class TreeLower
                     LowerExpression(ctx, sliceTypeModifier.ElementType)
                 );
 
-            // `[5]T`: the size has to be a literal for now.
+            // `[5]T`: the size is a constant (a literal, a `const` or an operation on them), which the binder gives its value.
             case ArrayTypeModifierNode arrayType:
-            {
-                var length = LowerExpression(ctx, arrayType.Length);
-                if (length is not IrComptimeInt { BigInteger: { Sign: >= 0 } size } || size > int.MaxValue)
-                    throw Error("The size of an array must be a non-negative integer literal", arrayType.Length.GetLoc(ctx.SrcFile));
-
-                return new IrArrayTypeModifier(arrayType.GetLoc(ctx.SrcFile), length, LowerExpression(ctx, arrayType.ElementType));
-            }
+                return new IrArrayTypeModifier(
+                    arrayType.GetLoc(ctx.SrcFile), LowerExpression(ctx, arrayType.Length), LowerExpression(ctx, arrayType.ElementType));
 
             case MatchExpressionNode match:
                 return new IrMatch(

@@ -110,9 +110,25 @@ internal sealed class BodyEmitter
             if (definition.DeclaringType.IsValueType) EmitBasePath(_method.DeclaringType, definition.DeclaringType);
 
             var host = TqHost(null, definition.DeclaringType);
-            EmitValue(field.Value!, host != null ? Instantiate(definition.FieldType, [], host.GenericArguments) : definition.FieldType);
+            var fieldType = host != null ? Instantiate(definition.FieldType, [], host.GenericArguments) : definition.FieldType;
+            if (field.Value != null) EmitValue(field.Value, fieldType);
+            else EmitNewArray(field, fieldType);
             _il.Emit(OpCodes.Stfld, host != null ? OnHost(_owner.Use(definition), host) : _owner.Use(definition));
         }
+    }
+
+    /// <summary>The memory of an array field that was declared without a value: all of its elements, zeroed.</summary>
+    private void EmitNewArray(TqField field, TypeReference fieldType)
+    {
+        if (fieldType is not ArrayType array || field.Type == null || TypeExpressions.Raw(field.Type) is not ArrayTypeRef { Length: var length })
+        {
+            Report($"The field '{field.Name}' has no value", field.SourceLocation);
+            _il.Emit(OpCodes.Ldnull);
+            return;
+        }
+
+        _il.Emit(OpCodes.Ldc_I4, length);
+        _il.Emit(OpCodes.Newarr, array.ElementType);
     }
 
     /// <summary>The values of the constants that are not literals, which the type initializer gives, in the order they are written.</summary>
@@ -121,7 +137,8 @@ internal sealed class BodyEmitter
         foreach (var (field, definition) in pending.OrderBy(item => item.Field.SourceLocation.span.LineStart)
                      .ThenBy(item => item.Field.SourceLocation.span.ColStart))
         {
-            EmitValue(field.Value!, definition.FieldType);
+            if (field.Value != null) EmitValue(field.Value, definition.FieldType);
+            else EmitNewArray(field, definition.FieldType);
             _il.Emit(OpCodes.Stsfld, definition);
         }
     }
@@ -167,6 +184,61 @@ internal sealed class BodyEmitter
         var span = new GenericInstanceType(Core("System.Span`1"));
         span.GenericArguments.Add(element);
         return span;
+    }
+
+    /// <summary>
+    /// The `T[]` of the `Memory<T>` on the stack: the array itself when the slice is all of one (what .NET does with it is seen by the
+    /// slice, and nothing is copied), and a copy when it is a part of one (`MemoryMarshal.TryGetArray`, `ToArray` if the runtime has no
+    /// `MemoryMarshal` to offer).
+    /// </summary>
+    private void EmitMemoryToArray(GenericInstanceType memory)
+    {
+        var element = memory.GenericArguments[0];
+        var copy = _owner.GenericMember("System.Memory`1", memory, "ToArray", 0);
+        var tryGet = _owner.GenericMethodOf("System.Runtime.InteropServices.MemoryMarshal", "TryGetArray", 2, element);
+
+        var held = NewTemp(memory);
+        _il.Emit(OpCodes.Stloc, held);
+
+        var useCopy = _il.Create(OpCodes.Nop);
+        var end = _il.Create(OpCodes.Nop);
+
+        if (tryGet != null)
+        {
+            var readOnly = new GenericInstanceType(Core("System.ReadOnlyMemory`1"));
+            readOnly.GenericArguments.Add(element);
+            var segmentType = new GenericInstanceType(Core("System.ArraySegment`1"));
+            segmentType.GenericArguments.Add(element);
+            var segment = NewTemp(segmentType);
+
+            _il.Emit(OpCodes.Ldloc, held);
+            _il.Emit(OpCodes.Call, _owner.GenericMember("System.Memory`1", memory, "op_Implicit", 1,
+                parameter => parameter.ParameterType is GenericInstanceType { ElementType.FullName: "System.Memory`1" }));
+            _il.Emit(OpCodes.Ldloca, segment);
+            _il.Emit(OpCodes.Call, tryGet);
+            _il.Emit(OpCodes.Brfalse, useCopy);
+
+            _il.Emit(OpCodes.Ldloca, segment);
+            _il.Emit(OpCodes.Call, _owner.GenericMember("System.ArraySegment`1", segmentType, "get_Offset", 0));
+            _il.Emit(OpCodes.Brtrue, useCopy);
+
+            _il.Emit(OpCodes.Ldloca, segment);
+            _il.Emit(OpCodes.Call, _owner.GenericMember("System.ArraySegment`1", segmentType, "get_Count", 0));
+            _il.Emit(OpCodes.Ldloca, segment);
+            _il.Emit(OpCodes.Call, _owner.GenericMember("System.ArraySegment`1", segmentType, "get_Array", 0));
+            _il.Emit(OpCodes.Ldlen);
+            _il.Emit(OpCodes.Conv_I4);
+            _il.Emit(OpCodes.Bne_Un, useCopy);
+
+            _il.Emit(OpCodes.Ldloca, segment);
+            _il.Emit(OpCodes.Call, _owner.GenericMember("System.ArraySegment`1", segmentType, "get_Array", 0));
+            _il.Emit(OpCodes.Br, end);
+        }
+
+        _il.Append(useCopy);
+        _il.Emit(OpCodes.Ldloca, held);
+        _il.Emit(OpCodes.Call, copy);
+        _il.Append(end);
     }
 
     /// <summary>`Memory<T>` of the array on the stack, which it refers to.</summary>
@@ -695,10 +767,7 @@ internal sealed class BodyEmitter
 
         if (IsMemory(actual, out var viewed) && expected is ArrayType)
         {
-            var viewTemp = NewTemp(viewed);
-            _il.Emit(OpCodes.Stloc, viewTemp);
-            _il.Emit(OpCodes.Ldloca, viewTemp);
-            _il.Emit(OpCodes.Call, _owner.GenericMember("System.Memory`1", viewed, "ToArray", 0));
+            EmitMemoryToArray(viewed);
             return expected;
         }
 

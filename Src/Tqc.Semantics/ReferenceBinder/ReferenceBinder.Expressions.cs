@@ -67,7 +67,16 @@ internal static partial class ReferenceBinder
                 return slice with { subtype = BindExpression(ctx, slice.subtype) };
 
             case IrArrayTypeModifier arrayType:
-                return arrayType with { Length = BindExpression(ctx, arrayType.Length), subtype = BindExpression(ctx, arrayType.subtype) };
+            {
+                var length = FoldLength(BindExpression(ctx, arrayType.Length), 0);
+                if (length is not IrComptimeInt { BigInteger: { Sign: >= 0 } size } || size > int.MaxValue)
+                {
+                    if (length is not IrReference { Reference: UnsolvedRef })
+                        ctx.Error("The size of an array must be a constant: a literal, a 'const' or an operation on them, that is not negative", arrayType.Length.Location);
+                }
+
+                return arrayType with { Length = length, subtype = BindExpression(ctx, arrayType.subtype) };
+            }
 
             case IrMatch match:
                 return match with
@@ -101,6 +110,30 @@ internal static partial class ReferenceBinder
                 return expression;
         }
     }
+
+    /// <summary>The value of the size of an array: the constants it names are replaced by their values and the operations are done.</summary>
+    private static IrExpression FoldLength(IrExpression expression, int depth)
+    {
+        var inlined = InlineConstants(expression, depth);
+        return ComptimeEvaluator.TryEvaluate(inlined, out _) ?? inlined;
+    }
+
+    private static IrExpression InlineConstants(IrExpression expression, int depth) => expression switch
+    {
+        IrReference { Reference: Tqc.IR.References.FieldReference { Field: TqField { Value: { } value, Type: { } type } } }
+            when depth < 16 && IsConstType(type) => InlineConstants(value, depth + 1),
+        IrBinary binary => binary with { Left = InlineConstants(binary.Left, depth), Right = InlineConstants(binary.Right, depth) },
+        IrUnary { IsPostfix: false } unary => unary with { Operand = InlineConstants(unary.Operand, depth) },
+        _ => expression,
+    };
+
+    /// <summary>`Const(T)`, as written (before it is bound) or as the binder leaves it.</summary>
+    private static bool IsConstType(IrExpression type) => type switch
+    {
+        IrCall { callee: IrReference { Reference: TypeMetaReference { Type: var definition } } } => ReferenceEquals(definition, CompilerStd.Types.Const),
+        _ => TypeExpressions.Raw(type) is StructTypeReference { Struct: GenericInstance instance }
+             && ReferenceEquals(instance.Definition, CompilerStd.Types.Const),
+    };
 
     /// <summary>
     /// `!` and `?` before a type are `Failable(T)` and `Nullable(T)`; before a value they are the operators.
