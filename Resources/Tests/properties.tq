@@ -1,0 +1,60 @@
+from Std import { Test }
+
+# properties of a namespace are static
+let int counter { get; set }
+let int doubleCounter => counter * 2
+let string label { get { return "tq" } }
+
+struct Rect {
+    let int width { get; set }
+    let int height { get; set }
+    let int area => width * height
+    let int doubled { get { return field * 2 } set }
+}
+
+func testProperties() {
+    Test.newTestUnit("properties - a property of a namespace is read and written by its name")
+    {
+        counter = 3
+        Test.assert(counter, 3)
+        counter += 2
+        Test.assert(counter, 5)
+    }
+
+    Test.newTestUnit("properties - get only property with =>")
+    {
+        counter = 4
+        Test.assert(doubleCounter, 8)
+    }
+
+    Test.newTestUnit("properties - accessor written in the property")
+    {
+        Test.assert(label, "tq")
+    }
+
+    Test.newTestUnit("properties - automatic accessors of a struct")
+    {
+        let Rect rect = new Rect()
+        rect.width = 3
+        rect.height = 4
+        Test.assert(rect.width, 3)
+        Test.assert(rect.height, 4)
+    }
+
+    Test.newTestUnit("properties - get only property of a struct")
+    {
+        let Rect rect = new Rect()
+        rect.width = 3
+        rect.height = 4
+        Test.assert(rect.area, 12)
+        rect.height = 5
+        Test.assert(rect.area, 15)
+    }
+
+    Test.newTestUnit("properties - field is the storage of the property")
+    {
+        let Rect rect = new Rect()
+        rect.doubled = 6
+        Test.assert(rect.doubled, 12)
+    }
+}

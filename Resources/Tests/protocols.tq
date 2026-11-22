@@ -1,0 +1,32 @@
+from Std import { Test }
+
+protocol Named {
+    func name() string
+}
+
+protocol Aged {
+    func age() int
+}
+
+struct Person implements Named, Aged {
+    @override func name() string => "ana"
+    @override func age() int => 30
+}
+
+func nameOf(Named named) string => named.name()
+
+func ageOf(Aged aged) int => aged.age()
+
+func testProtocols() {
+    Test.newTestUnit("protocols - a struct goes where a protocol it implements is expected")
+    {
+        let Person person = new Person()
+        Test.assert(nameOf(person), "ana")
+        Test.assert(ageOf(person), 30)
+    }
+
+    Test.newTestUnit("protocols - a new value of a struct goes as a protocol")
+    {
+        Test.assert(nameOf(new Person()), "ana")
+    }
+}

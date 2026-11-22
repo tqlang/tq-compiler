@@ -15,11 +15,30 @@ func testNullables() {
         Test.assert(unwrappedVal, 100)
     }
 
-    Test.newTestUnit("nullability - unwrap operator")
+    Test.newTestUnit("nullability - chained coalescing")
     {
-        let ?int validNum = getNullableValue(55)
-        let int manualUnwrap = validNum.unwrap() #.?
-        Test.assert(manualUnwrap, 55)
+        let ?int first = null
+        let ?int second = null
+        let int value = first ?? second ?? 7
+        Test.assert(value, 7)
+    }
+
+    Test.newTestUnit("nullability - a value goes where a nullable is expected")
+    {
+        let ?int implicit = 5
+        Test.assert(implicit ?? 0, 5)
+        Test.assert(getNullableValue(8) ?? 0, 8)
+        Test.assert(orZero(9), 9)
+    }
+
+    Test.newTestUnit("nullability - null check")
+    {
+        let ?int absent = null
+        let ?int present = 3
+        Test.assert(absent == null, true)
+        Test.assert(absent != null, false)
+        Test.assert(present == null, false)
+        Test.assert(present != null, true)
     }
 
     Test.newTestUnit("nullability - explicit unwrap method")
@@ -28,6 +47,47 @@ func testNullables() {
         let int manualUnwrap = validNum.unwrap()
         Test.assert(manualUnwrap, 30)
     }
+
+    Test.newTestUnit("nullability - value of a nullable")
+    {
+        let ?int validNum = getNullableValue(55)
+        Test.assert(validNum.value, 55)
+    }
+}
+
+func testFailables() {
+    Test.newTestUnit("failability - a value goes where a failable is returned")
+    {
+        Test.assert(half(8).ignored().unwrap(), 4)
+    }
+
+    Test.newTestUnit("failability - ignored is a nullable")
+    {
+        let ?int result = half(10).ignored()
+        Test.assert(result != null, true)
+        Test.assert(result ?? -1, 5)
+    }
+
+    Test.newTestUnit("failability - ! is ignored")
+    {
+        let ?int result = half(6)!
+        Test.assert(result ?? -1, 3)
+    }
+
+    Test.newTestUnit("failability - try gives the value")
+    {
+        let ?int result = halfPlusOne(8)!
+        Test.assert(result ?? -1, 5)
+    }
 }
 
 func getNullableValue(int num) ?int => num
+
+func orZero(?int num) int => num ?? 0
+
+func half(int num) !int => num / 2
+
+func halfPlusOne(int num) !int {
+    let int h = try half(num)
+    return h + 1
+}

@@ -1,0 +1,25 @@
+from Std import { Test }
+
+func testStrings() {
+    let int number = 5
+    let string name = "tq"
+
+    Test.newTestUnit("strings - concatenation")
+    {
+        Test.assert("a" + "b", "ab")
+        Test.assert(name + "!", "tq!")
+    }
+
+    Test.newTestUnit("strings - interpolation")
+    {
+        Test.assert("n = \{number}", "n = 5")
+        Test.assert("hello \{name}", "hello tq")
+        Test.assert("\{name}\{number}", "tq5")
+    }
+
+    Test.newTestUnit("strings - interpolation of an expression")
+    {
+        Test.assert("sum: \{number + 1}", "sum: 6")
+        Test.assert("\{number * number} squared", "25 squared")
+    }
+}

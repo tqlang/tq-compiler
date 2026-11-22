@@ -1,16 +1,35 @@
 from Std import { Test }
 
+typedef Level {
+    case low
+    case mid
+    case high
+}
+
 func testConditionals() {
     let i32 val = 10
-    let i32 result = 0
 
     Test.newTestUnit("conditionals - if/elif/else")
+    {
+        let i32 result = 0
 
-    if (val == 5) result = 1
-    elif (val == 10) result = 2
-    else result = 3
+        if (val == 5) result = 1
+        elif (val == 10) result = 2
+        else result = 3
 
-    Test.assert(result, 2)
+        Test.assert(result, 2)
+    }
+
+    Test.newTestUnit("conditionals - if/elif/else falling to else")
+    {
+        let i32 result = 0
+
+        if (val == 5) result = 1
+        elif (val == 7) result = 2
+        else result = 3
+
+        Test.assert(result, 3)
+    }
 
     Test.newTestUnit("conditionals - match expression returning value")
     {
@@ -43,4 +62,78 @@ func testConditionals() {
         }
         Test.assert(blockResult, 2)
     }
+
+    Test.newTestUnit("conditionals - match arms with a block")
+    {
+        let i32 blockResult = 0
+        match val {
+            case 10 => {
+                blockResult = 1
+                blockResult += 1
+            }
+            default => blockResult = 99
+        }
+        Test.assert(blockResult, 2)
+    }
+
+    Test.newTestUnit("conditionals - match on strings")
+    {
+        let string word = "tq"
+        let i32 byWord = match word {
+            case "go", "rust" => 1
+            case "tq" => 2
+            default => 0
+        }
+        Test.assert(byWord, 2)
+
+        let i32 unknown = match "zig" {
+            case "tq" => 1
+            default => 0
+        }
+        Test.assert(unknown, 0)
+    }
+
+    Test.newTestUnit("conditionals - match on an enum covering every case needs no default")
+    {
+        let Level level = Level.mid
+        let i32 byLevel = match level {
+            case Level.low => 1
+            case Level.mid => 2
+            case Level.high => 3
+        }
+        Test.assert(byLevel, 2)
+    }
+
+    Test.newTestUnit("conditionals - match on an enum with default")
+    {
+        let Level level = Level.high
+        let i32 byLevel = match level {
+            case Level.low => 1
+            default => 0
+        }
+        Test.assert(byLevel, 0)
+    }
+
+    Test.newTestUnit("conditionals - match on a bool covering true and false needs no default")
+    {
+        let bool flag = true
+        let string name = match flag {
+            case true => "yes"
+            case false => "no"
+        }
+        Test.assert(name, "yes")
+    }
+
+    Test.newTestUnit("conditionals - match on a type")
+    {
+        Test.assert(typeName(i32), "i32")
+        Test.assert(typeName(string), "string")
+        Test.assert(typeName(bool), "other")
+    }
+}
+
+func typeName(type T) string => match T {
+    case i32 => "i32"
+    case string => "string"
+    default => "other"
 }

@@ -2,7 +2,7 @@ from Std import { Test }
 
 func testBuiltins() {
 
-	Test.newTestUnit("builtins - 8-bit min & max")
+    Test.newTestUnit("builtins - 8-bit min & max")
     {
         Test.assert(u8.min, 0)
         Test.assert(u8.max, 2 ** 8 - 1)

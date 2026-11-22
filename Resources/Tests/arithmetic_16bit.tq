@@ -1,265 +1,467 @@
 from Std import { Test }
 
 func testArithmeticU16() {
-	let u16 u16_0 = 0
-	let u16 u16_1 = 1
-	let u16 u16_2 = 2
-	let u16 u16_3 = 3
-	let u16 u16_4 = 4
-	let u16 u16_5 = 5
-	let u16 u16_6 = 6
-	let u16 u16_7 = 7
-	let u16 u16_8 = 8
-	let u16 u16_9 = 9
-	let u16 u16_100 = 100
-	let u16 u16_101 = 101
-	let u16 u16_255 = 255
-	let u16 u16_500 = 500
-	let u16 u16_min = u16.min
-	let u16 u16_max = u16.max
-	
+	let u16 zero = 0
+	let u16 one = 1
+	let u16 two = 2
+	let u16 three = 3
+	let u16 seven = 7
+	let u16 hundred = 100
+	let u16 lo = u16.min
+	let u16 hi = u16.max
+
 	Test.newTestUnit("u16 arithmetic - checked add")
-	Test.assert(u16_1 + u16_1, 2)
-	Test.assert(u16_2 + u16_2, 4)
-	Test.assert(u16_max + 0, u16_max)
-	#Test.assert(u16_max + 1, ?) #!! FATAL ERROR !!
-	#Test.assert(u16_max + 100, ?) #!! FATAL ERROR !!
+	{
+		Test.assert(one + one, 2)
+		Test.assert(two + two, 4)
+		Test.assert(hi + zero, hi)
+		Test.assert(hundred + hundred, 200)
+		Test.assert(seven + three, 10)
+		Test.assert(lo + hi, hi)
+		Test.assert(lo + one, 1)
+		#Test.assert(hi + one, ?) #!! FATAL ERROR !!
+		#Test.assert(hi + hundred, ?) #!! FATAL ERROR !!
+	}
 
 	Test.newTestUnit("u16 arithmetic - add with overflow")
-	Test.assert(u16_1 +% u16_1, 2)
-	Test.assert(u16_2 +% u16_2, 4)
-	Test.assert(u16_max +% u16_0, u16_max)
-	Test.assert(u16_max +% u16_1, u16_min)
-	Test.assert(u16_max +% u16_100, 99)
+	{
+		Test.assert(one +% one, 2)
+		Test.assert(two +% two, 4)
+		Test.assert(hi +% zero, hi)
+		Test.assert(hi +% one, 0)
+		Test.assert(hi +% hundred, 99)
+		Test.assert(hi +% hi, 65534)
+	}
 
 	Test.newTestUnit("u16 arithmetic - add saturated")
-	Test.assert(u16_1 +| u16_1, 2)
-	Test.assert(u16_2 +| u16_2, 4)
-	Test.assert(u16_max +| u16_0, u16_max)
-	Test.assert(u16_max +| u16_1, u16_max)
-	Test.assert(u16_max +| u16_100, u16_max)
-
+	{
+		Test.assert(one +| one, 2)
+		Test.assert(two +| two, 4)
+		Test.assert(hi +| zero, hi)
+		Test.assert(hi +| one, hi)
+		Test.assert(hi +| hundred, hi)
+	}
 
 	Test.newTestUnit("u16 arithmetic - checked sub")
-	Test.assert(u16_1 - u16_1, 0)
-	Test.assert(u16_2 - u16_1, 1)
-	Test.assert(u16_0 - u16_0, 0)
-	#Test.assert(u16_1 - u16_2, ?) #!! FATAL ERROR !!
-	#Test.assert(u16_0 - 100, ?) #!! FATAL ERROR !!
+	{
+		Test.assert(one - one, 0)
+		Test.assert(two - one, 1)
+		Test.assert(zero - zero, 0)
+		Test.assert(hundred - seven, 93)
+		#Test.assert(one - two, ?) #!! FATAL ERROR !!
+		#Test.assert(zero - hundred, ?) #!! FATAL ERROR !!
+		#Test.assert(lo - one, ?) #!! FATAL ERROR !!
+	}
 
 	Test.newTestUnit("u16 arithmetic - sub with overflow")
-	Test.assert(u16_1 -% u16_1, 0)
-	Test.assert(u16_2 -% u16_1, 1)
-	Test.assert(u16_0 -% u16_0, 0)
-	Test.assert(u16_1 -% u16_2, 65535)
-	Test.assert(u16_0 -% 100, 65436)
+	{
+		Test.assert(one -% one, 0)
+		Test.assert(two -% one, 1)
+		Test.assert(zero -% zero, 0)
+		Test.assert(one -% two, hi)
+		Test.assert(zero -% hundred, 65436)
+		Test.assert(zero -% one, hi)
+		Test.assert(lo -% one, hi)
+	}
 
 	Test.newTestUnit("u16 arithmetic - sub saturated")
-	Test.assert(u16_1 -| u16_1, 0)
-	Test.assert(u16_2 -| u16_1, 1)
-	Test.assert(u16_0 -| u16_0, 0)
-	Test.assert(u16_1 -| u16_2, 0)
-	Test.assert(u16_0 -| 100, 0)
+	{
+		Test.assert(one -| one, 0)
+		Test.assert(two -| one, 1)
+		Test.assert(zero -| zero, 0)
+		Test.assert(one -| two, 0)
+		Test.assert(zero -| hundred, 0)
+		Test.assert(lo -| one, 0)
+	}
 
-	Test.newTestUnit("u16 arithmetic - mul checked")
-	Test.assert(u16_1 * u16_1, 1)
-	Test.assert(u16_2 * u16_2, 4)
-	Test.assert(u16_2 * u16_100, 200)
-	Test.assert(u16_0 * u16_100, 0)
-	#Test.assert(u16_100 * u16_100, ?) #!! FATAL ERROR !!
+	Test.newTestUnit("u16 arithmetic - checked mul")
+	{
+		Test.assert(one * one, 1)
+		Test.assert(two * two, 4)
+		Test.assert(two * seven, 14)
+		Test.assert(zero * hundred, 0)
+		Test.assert(seven * seven, 49)
+		Test.assert(hundred * hundred, 10000)
+		#Test.assert(hi * two, ?) #!! FATAL ERROR !!
+	}
 
 	Test.newTestUnit("u16 arithmetic - mul with overflow")
-	Test.assert(u16_1 *% u16_1, 1)
-	Test.assert(u16_2 *% u16_2, 4)
-	Test.assert(u16_2 *% u16_100, 200)
-	Test.assert(u16_100 *% u16_100, 10000)
-	Test.assert(u16_max *% u16_2, 65534)
+	{
+		Test.assert(one *% one, 1)
+		Test.assert(two *% two, 4)
+		Test.assert(two *% hundred, 200)
+		Test.assert(hundred *% hundred, 10000)
+		Test.assert(hi *% two, 65534)
+		Test.assert(hi *% hi, 1)
+		Test.assert(lo *% two, 0)
+	}
 
 	Test.newTestUnit("u16 arithmetic - mul saturated")
-	Test.assert(u16_1 *| u16_1, 1)
-	Test.assert(u16_2 *| u16_2, 4)
-	Test.assert(u16_2 *| u16_100, 200)
-	Test.assert(u16_500 *| u16_500, 65535)
-	Test.assert(u16_max *| u16_2, u16_max)
+	{
+		Test.assert(one *| one, 1)
+		Test.assert(two *| two, 4)
+		Test.assert(two *| hundred, 200)
+		Test.assert(hundred *| hundred, 10000)
+		Test.assert(hi *| two, hi)
+		Test.assert(lo *| two, 0)
+	}
 
-	Test.newTestUnit("u16 arithmetic - div checked")
-	Test.assert(u16_2 / u16_1, 2)
-	Test.assert(u16_100 / u16_2, 50)
-	Test.assert(u16_0 / u16_100, 0)
-	#Test.assert(u16_1 / u16_2, ?) #!! FATAL ERROR !!
-	#Test.assert(u16_1 / u16_0, ?) #!! FATAL ERROR !!
+	Test.newTestUnit("u16 arithmetic - checked div (exact)")
+	{
+		Test.assert(hundred / two, 50)
+		Test.assert(zero / hundred, 0)
+		Test.assert(hundred / hundred, 1)
+		Test.assert(hi / one, hi)
+		Test.assert(hi / hi, 1)
+	}
+
+	# a division that leaves a remainder is a FATAL ERROR in `/`: use `/_` or `/^`
 
 	Test.newTestUnit("u16 arithmetic - div floor")
-	Test.assert(u16_2 /_ u16_1, 2)
-	Test.assert(u16_100 /_ u16_2, 50)
-	Test.assert(u16_1 /_ u16_2, 0)
-	Test.assert(u16_0 /_ u16_100, 0)
+	{
+		Test.assert(hundred /_ two, 50)
+		Test.assert(zero /_ hundred, 0)
+		Test.assert(hundred /_ hundred, 1)
+		Test.assert(hi /_ one, hi)
+		Test.assert(hundred /_ seven, 14)
+		Test.assert(seven /_ two, 3)
+		Test.assert(one /_ two, 0)
+		Test.assert(three /_ two, 1)
+		Test.assert(hundred /_ three, 33)
+		Test.assert(hi /_ hi, 1)
+	}
 
 	Test.newTestUnit("u16 arithmetic - div ceil")
-	Test.assert(u16_2 /^ u16_1, 2)
-	Test.assert(u16_100 /^ u16_2, 50)
-	Test.assert(u16_1 /^ u16_2, 1)
-	Test.assert(u16_3 /^ u16_2, 2)
-	Test.assert(u16_0 /^ u16_100, 0)
+	{
+		Test.assert(hundred /^ two, 50)
+		Test.assert(zero /^ hundred, 0)
+		Test.assert(hundred /^ hundred, 1)
+		Test.assert(hi /^ one, hi)
+		Test.assert(hundred /^ seven, 15)
+		Test.assert(seven /^ two, 4)
+		Test.assert(one /^ two, 1)
+		Test.assert(three /^ two, 2)
+		Test.assert(hundred /^ three, 34)
+		Test.assert(hi /^ hi, 1)
+	}
 
-	Test.newTestUnit("u16 arithmetic - reminder")
-	Test.assert(u16_2 % u16_1, 0)
-	Test.assert(u16_100 % u16_2, 0)
-	Test.assert(u16_101 % u16_2, 1)
-	Test.assert(u16_255 % u16_2, 1)
-	Test.assert(u16_0 % u16_100, 0)
-	#Test.assert(u16_1 % u16_0, ?)
-	
-	Test.newTestUnit("u16 arithmetic - pow checked")
-	Test.assert(u16_2 ** u16_1, 2)
-	Test.assert(u16_2 ** u16_2, 4)
-	Test.assert(u16_2 ** u16_3, 8)
-	Test.assert(u16_1 ** u16_100, 1)
-	Test.assert(u16_0 ** u16_1, 0)
-	Test.assert(u16_0 ** u16_0, 1)
-	# #Test.assert(u16_2 ** u16_8, ?) #!! FATAL ERROR !!
+	Test.newTestUnit("u16 arithmetic - remainder")
+	{
+		Test.assert(hundred % seven, 2)
+		Test.assert(hundred % two, 0)
+		Test.assert(seven % seven, 0)
+		Test.assert(hi % two, 1)
+		Test.assert(zero % hundred, 0)
+		Test.assert(two % hundred, 2)
+		Test.assert(hi % hundred, 35)
+		Test.assert(seven % three, 1)
+		Test.assert(one % two, 1)
+	}
+
+	Test.newTestUnit("u16 arithmetic - checked pow")
+	{
+		Test.assert(two ** 1, 2)
+		Test.assert(two ** 2, 4)
+		Test.assert(two ** 3, 8)
+		Test.assert(two ** 14, 16384)
+		Test.assert(three ** 4, 81)
+		Test.assert(one ** 100, 1)
+		Test.assert(zero ** 1, 0)
+		Test.assert(zero ** 0, 1)
+		Test.assert(two ** 15, 32768)
+		#Test.assert(two ** 16, ?) #!! FATAL ERROR !!
+	}
 
 	Test.newTestUnit("u16 arithmetic - pow with overflow")
-	Test.assert(u16_2 **% u16_8, 256)
-	Test.assert(u16_2 **% u16_9, 512)
-	Test.assert(u16_3 **% u16_5, 243)
-	Test.assert(u16_5 **% u16_4, 625)
+	{
+		Test.assert(two **% 16, 0)
+		Test.assert(two **% 15, 32768)
+		Test.assert(two **% 17, 0)
+		Test.assert(three **% 16, 55105)
+		Test.assert(seven **% 16, 32129)
+	}
 
 	Test.newTestUnit("u16 arithmetic - pow saturated")
-	Test.assert(u16_2 **| u16_3, 8)
-	Test.assert(u16_2 **| u16_7, 128)
-	Test.assert(u16_100 **| u16_8, u16_max)
-	Test.assert(u16_100 **| u16_6, u16_max)
+	{
+		Test.assert(two **| 3, 8)
+		Test.assert(two **| 14, 16384)
+		Test.assert(two **| 15, 32768)
+		Test.assert(two **| 16, hi)
+		Test.assert(three **| 16, hi)
+		Test.assert(seven **| 16, hi)
+	}
+
+	Test.newTestUnit("u16 arithmetic - comparison")
+	{
+		Test.assert(lo < hi, true)
+		Test.assert(hi > lo, true)
+		Test.assert(one <= one, true)
+		Test.assert(two >= one, true)
+		Test.assert(one == one, true)
+		Test.assert(one != two, true)
+		Test.assert(hi < lo, false)
+		Test.assert(two <= one, false)
+		Test.assert(one > two, false)
+		Test.assert(one == two, false)
+	}
 }
 
 func testArithmeticI16() {
-	let i16 i16_0 = 0
-	let i16 i16_1 = 1
-	let i16 i16_2 = 2
-	let i16 i16_3 = 3
-	let i16 i16_4 = 4
-	let i16 i16_5 = 5
-	let i16 i16_6 = 6
-	let i16 i16_7 = 7
-	let i16 i16_8 = 8
-	let i16 i16_9 = 9
-	let i16 i16_16 = 16
-	let i16 i16_100 = 100
-	let i16 i16_101 = 101
-	let i16 i16_127 = 127
-	let i16 i16_256 = 256
-	let i16 i16_min = i16.min
-	let i16 i16_max = i16.max
-	
+	let i16 zero = 0
+	let i16 one = 1
+	let i16 two = 2
+	let i16 three = 3
+	let i16 seven = 7
+	let i16 hundred = 100
+	let i16 neg_one = -1
+	let i16 neg_two = -2
+	let i16 neg_seven = -7
+	let i16 neg_hundred = -100
+	let i16 lo = i16.min
+	let i16 hi = i16.max
+
 	Test.newTestUnit("i16 arithmetic - checked add")
-	Test.assert(i16_1 + i16_1, 2)
-	Test.assert(i16_2 + i16_2, 4)
-	Test.assert(i16_max + 0, i16_max)
-	#Test.assert(i16_max + 1, ?) #!! FATAL ERROR !!
-	#Test.assert(i16_max + 100, ?) #!! FATAL ERROR !!
+	{
+		Test.assert(one + one, 2)
+		Test.assert(two + two, 4)
+		Test.assert(hi + zero, hi)
+		Test.assert(hundred + hundred, 200)
+		Test.assert(seven + three, 10)
+		Test.assert(lo + hi, -1)
+		Test.assert(neg_seven + three, -4)
+		Test.assert(neg_hundred + hundred, 0)
+		Test.assert(neg_one + neg_one, -2)
+		Test.assert(lo + one, -32767)
+		#Test.assert(hi + one, ?) #!! FATAL ERROR !!
+		#Test.assert(hi + hundred, ?) #!! FATAL ERROR !!
+	}
 
 	Test.newTestUnit("i16 arithmetic - add with overflow")
-	Test.assert(i16_1 +% i16_1, 2)
-	Test.assert(i16_2 +% i16_2, 4)
-	Test.assert(i16_max +% i16_0, i16_max)
-	Test.assert(i16_max +% i16_1, i16_min)
-	Test.assert(i16_max +% i16_100, -32669)
+	{
+		Test.assert(one +% one, 2)
+		Test.assert(two +% two, 4)
+		Test.assert(hi +% zero, hi)
+		Test.assert(hi +% one, lo)
+		Test.assert(hi +% hundred, -32669)
+		Test.assert(hi +% hi, -2)
+		Test.assert(lo +% neg_one, hi)
+		Test.assert(neg_hundred +% neg_hundred, -200)
+	}
 
 	Test.newTestUnit("i16 arithmetic - add saturated")
-	Test.assert(i16_1 +| i16_1, 2)
-	Test.assert(i16_2 +| i16_2, 4)
-	Test.assert(i16_max +| i16_0, i16_max)
-	Test.assert(i16_max +| i16_1, i16_max)
-	Test.assert(i16_max +| i16_100, i16_max)
+	{
+		Test.assert(one +| one, 2)
+		Test.assert(two +| two, 4)
+		Test.assert(hi +| zero, hi)
+		Test.assert(hi +| one, hi)
+		Test.assert(hi +| hundred, hi)
+		Test.assert(lo +| neg_one, lo)
+		Test.assert(lo +| neg_hundred, lo)
+		Test.assert(neg_one +| neg_one, -2)
+	}
 
 	Test.newTestUnit("i16 arithmetic - checked sub")
-	Test.assert(i16_1 - i16_1, 0)
-	Test.assert(i16_2 - i16_1, 1)
-	Test.assert(i16_0 - i16_0, 0)
-	#Test.assert(i16_1 - i16_2, ?) #!! FATAL ERROR !!
-	#Test.assert(i16_0 - 100, ?) #!! FATAL ERROR !!
+	{
+		Test.assert(one - one, 0)
+		Test.assert(two - one, 1)
+		Test.assert(zero - zero, 0)
+		Test.assert(hundred - seven, 93)
+		Test.assert(one - two, -1)
+		Test.assert(zero - hundred, -100)
+		Test.assert(neg_one - hi, lo)
+		Test.assert(lo - neg_one, -32767)
+		#Test.assert(hi - neg_one, ?) #!! FATAL ERROR !!
+		#Test.assert(lo - one, ?) #!! FATAL ERROR !!
+	}
 
 	Test.newTestUnit("i16 arithmetic - sub with overflow")
-	Test.assert(i16_1 -% i16_1, 0)
-	Test.assert(i16_2 -% i16_1, 1)
-	Test.assert(i16_0 -% i16_0, 0)
-	Test.assert(i16_1 -% i16_2, -1)
-	Test.assert(i16_0 -% 100, -100)
+	{
+		Test.assert(one -% one, 0)
+		Test.assert(two -% one, 1)
+		Test.assert(zero -% zero, 0)
+		Test.assert(one -% two, -1)
+		Test.assert(zero -% hundred, -100)
+		Test.assert(zero -% one, -1)
+		Test.assert(lo -% one, hi)
+		Test.assert(hi -% neg_one, lo)
+	}
 
 	Test.newTestUnit("i16 arithmetic - sub saturated")
-	Test.assert(i16_1 -| i16_1, 0)
-	Test.assert(i16_2 -| i16_1, 1)
-	Test.assert(i16_0 -| i16_0, 0)
-	Test.assert(i16_1 -| i16_2, -1)
-	Test.assert(i16_0 -| 100, -100)
+	{
+		Test.assert(one -| one, 0)
+		Test.assert(two -| one, 1)
+		Test.assert(zero -| zero, 0)
+		Test.assert(one -| two, -1)
+		Test.assert(zero -| hundred, -100)
+		Test.assert(lo -| one, lo)
+		Test.assert(hi -| neg_one, hi)
+	}
 
-	Test.newTestUnit("i16 arithmetic - mul checked")
-	Test.assert(i16_1 * i16_1, 1)
-	Test.assert(i16_2 * i16_2, 4)
-	#Test.assert(i16_2 * i16_100, 200) #!! FATAL ERROR !!
-	Test.assert(i16_0 * i16_100, 0)
-	#Test.assert(i16_100 * i16_100, ?) #!! FATAL ERROR !!
+	Test.newTestUnit("i16 arithmetic - checked mul")
+	{
+		Test.assert(one * one, 1)
+		Test.assert(two * two, 4)
+		Test.assert(two * seven, 14)
+		Test.assert(zero * hundred, 0)
+		Test.assert(seven * seven, 49)
+		Test.assert(hundred * hundred, 10000)
+		Test.assert(neg_seven * three, -21)
+		Test.assert(neg_one * hundred, -100)
+		Test.assert(neg_two * seven, -14)
+		#Test.assert(hi * two, ?) #!! FATAL ERROR !!
+		#Test.assert(lo * neg_one, ?) #!! FATAL ERROR !!
+	}
 
 	Test.newTestUnit("i16 arithmetic - mul with overflow")
-	Test.assert(i16_1 *% i16_1, 1)
-	Test.assert(i16_2 *% i16_2, 4)
-	Test.assert(i16_2 *% i16_100, 200)
-	Test.assert(i16_256 *% i16_101, 25856)
-	Test.assert(i16_max *% i16_2, -2)
+	{
+		Test.assert(one *% one, 1)
+		Test.assert(two *% two, 4)
+		Test.assert(two *% hundred, 200)
+		Test.assert(hundred *% hundred, 10000)
+		Test.assert(hi *% two, -2)
+		Test.assert(hi *% hi, 1)
+		Test.assert(lo *% neg_one, lo)
+		Test.assert(lo *% two, 0)
+	}
 
 	Test.newTestUnit("i16 arithmetic - mul saturated")
-	Test.assert(i16_1 *| i16_1, 1)
-	Test.assert(i16_2 *| i16_2, 4)
-	Test.assert(i16_2 *| i16_100, 200)
-	Test.assert(i16_100 *| i16_100, 10000)
-	Test.assert(i16_max *| i16_2, i16_max)
+	{
+		Test.assert(one *| one, 1)
+		Test.assert(two *| two, 4)
+		Test.assert(two *| hundred, 200)
+		Test.assert(hundred *| hundred, 10000)
+		Test.assert(hi *| two, hi)
+		Test.assert(lo *| two, lo)
+		Test.assert(lo *| neg_one, hi)
+		Test.assert(neg_hundred *| hundred, -10000)
+	}
 
-	Test.newTestUnit("i16 arithmetic - div checked")
-	Test.assert(i16_2 / i16_1, 2)
-	Test.assert(i16_100 / i16_2, 50)
-	Test.assert(i16_0 / i16_100, 0)
-	#Test.assert(i16_1 / i16_2, ?) #!! FATAL ERROR !!
-	#Test.assert(i16_1 / i16_0, ?) #!! FATAL ERROR !!
+	Test.newTestUnit("i16 arithmetic - checked div (exact)")
+	{
+		Test.assert(hundred / two, 50)
+		Test.assert(zero / hundred, 0)
+		Test.assert(hundred / hundred, 1)
+		Test.assert(hi / one, hi)
+		Test.assert(hi / hi, 1)
+		Test.assert(neg_hundred / two, -50)
+		Test.assert(hundred / neg_one, -100)
+	}
+
+	# a division that leaves a remainder is a FATAL ERROR in `/`: use `/_` or `/^`
 
 	Test.newTestUnit("i16 arithmetic - div floor")
-	Test.assert(i16_2 /_ i16_1, 2)
-	Test.assert(i16_100 /_ i16_2, 50)
-	Test.assert(i16_1 /_ i16_2, 0)
-	Test.assert(i16_0 /_ i16_100, 0)
+	{
+		Test.assert(hundred /_ two, 50)
+		Test.assert(zero /_ hundred, 0)
+		Test.assert(hundred /_ hundred, 1)
+		Test.assert(hi /_ one, hi)
+		Test.assert(hundred /_ seven, 14)
+		Test.assert(seven /_ two, 3)
+		Test.assert(one /_ two, 0)
+		Test.assert(three /_ two, 1)
+		Test.assert(hundred /_ three, 33)
+		Test.assert(hi /_ hi, 1)
+		Test.assert(neg_hundred /_ two, -50)
+		Test.assert(hundred /_ neg_one, -100)
+		Test.assert(neg_seven /_ two, -4)
+		Test.assert(seven /_ neg_two, -4)
+		Test.assert(neg_seven /_ neg_two, 3)
+		Test.assert(neg_hundred /_ three, -34)
+	}
 
 	Test.newTestUnit("i16 arithmetic - div ceil")
-	Test.assert(i16_2 /^ i16_1, 2)
-	Test.assert(i16_100 /^ i16_2, 50)
-	Test.assert(i16_1 /^ i16_2, 1)
-	Test.assert(i16_3 /^ i16_2, 2)
-	Test.assert(i16_0 /^ i16_100, 0)
+	{
+		Test.assert(hundred /^ two, 50)
+		Test.assert(zero /^ hundred, 0)
+		Test.assert(hundred /^ hundred, 1)
+		Test.assert(hi /^ one, hi)
+		Test.assert(hundred /^ seven, 15)
+		Test.assert(seven /^ two, 4)
+		Test.assert(one /^ two, 1)
+		Test.assert(three /^ two, 2)
+		Test.assert(hundred /^ three, 34)
+		Test.assert(hi /^ hi, 1)
+		Test.assert(neg_hundred /^ two, -50)
+		Test.assert(hundred /^ neg_one, -100)
+		Test.assert(neg_seven /^ two, -3)
+		Test.assert(seven /^ neg_two, -3)
+		Test.assert(neg_seven /^ neg_two, 4)
+		Test.assert(neg_hundred /^ three, -33)
+	}
 
-	Test.newTestUnit("i16 arithmetic - reminder")
-	Test.assert(i16_2 % i16_1, 0)
-	Test.assert(i16_100 % i16_2, 0)
-	Test.assert(i16_101 % i16_2, 1)
-	Test.assert(i16_127 % i16_2, 1)
-	Test.assert(i16_0 % i16_100, 0)
-	#Test.assert(i16_1 % i16_0, ?)
-	
-	Test.newTestUnit("i16 arithmetic - pow checked")
-	Test.assert(i16_2 ** i16_1, 2)
-	Test.assert(i16_2 ** i16_2, 4)
-	Test.assert(i16_2 ** i16_3, 8)
-	Test.assert(i16_1 ** i16_100, 1)
-	Test.assert(i16_0 ** i16_1, 0)
-	Test.assert(i16_0 ** i16_0, 1)
-	#Test.assert(i16_2 ** i16_8, ?) #!! FATAL ERROR !!
+	Test.newTestUnit("i16 arithmetic - remainder")
+	{
+		Test.assert(hundred % seven, 2)
+		Test.assert(hundred % two, 0)
+		Test.assert(seven % seven, 0)
+		Test.assert(hi % two, 1)
+		Test.assert(zero % hundred, 0)
+		Test.assert(two % hundred, 2)
+		Test.assert(hi % hundred, 67)
+		Test.assert(seven % three, 1)
+		Test.assert(one % two, 1)
+	}
+
+	Test.newTestUnit("i16 arithmetic - checked pow")
+	{
+		Test.assert(two ** 1, 2)
+		Test.assert(two ** 2, 4)
+		Test.assert(two ** 3, 8)
+		Test.assert(two ** 14, 16384)
+		Test.assert(three ** 4, 81)
+		Test.assert(one ** 100, 1)
+		Test.assert(zero ** 1, 0)
+		Test.assert(zero ** 0, 1)
+		Test.assert(neg_two ** 2, 4)
+		Test.assert(neg_two ** 3, -8)
+		#Test.assert(two ** 15, ?) #!! FATAL ERROR !!
+		#Test.assert(two ** 16, ?) #!! FATAL ERROR !!
+	}
 
 	Test.newTestUnit("i16 arithmetic - pow with overflow")
-	Test.assert(i16_2 **% i16_16, 0)
-	Test.assert(i16_2 **% i16_9, 512)
-	Test.assert(i16_3 **% i16_5, 243)
-	Test.assert(i16_5 **% i16_4, 625)
+	{
+		Test.assert(two **% 16, 0)
+		Test.assert(two **% 15, lo)
+		Test.assert(two **% 17, 0)
+		Test.assert(three **% 16, -10431)
+		Test.assert(seven **% 16, 32129)
+		Test.assert(neg_two **% 16, 0)
+		Test.assert(neg_two **% 17, 0)
+	}
 
 	Test.newTestUnit("i16 arithmetic - pow saturated")
-	Test.assert(i16_2 **| i16_3, 8)
-	Test.assert(i16_2 **| i16_7, 128)
-	Test.assert(i16_2 **| i16_16, i16_max)
-	Test.assert(i16_3 **| i16_16, i16_max)
+	{
+		Test.assert(two **| 3, 8)
+		Test.assert(two **| 14, 16384)
+		Test.assert(two **| 15, hi)
+		Test.assert(two **| 16, hi)
+		Test.assert(three **| 16, hi)
+		Test.assert(seven **| 16, hi)
+		Test.assert(neg_two **| 15, lo)
+		Test.assert(neg_two **| 16, hi)
+		Test.assert(neg_two **| 17, lo)
+	}
+
+	Test.newTestUnit("i16 arithmetic - negate")
+	{
+		Test.assert(-one, neg_one)
+		Test.assert(-neg_seven, seven)
+		Test.assert(-neg_hundred, hundred)
+		Test.assert(-zero, zero)
+		Test.assert(-hi, lo + one)
+	}
+
+	Test.newTestUnit("i16 arithmetic - comparison")
+	{
+		Test.assert(lo < hi, true)
+		Test.assert(hi > lo, true)
+		Test.assert(one <= one, true)
+		Test.assert(two >= one, true)
+		Test.assert(one == one, true)
+		Test.assert(one != two, true)
+		Test.assert(hi < lo, false)
+		Test.assert(two <= one, false)
+		Test.assert(one > two, false)
+		Test.assert(one == two, false)
+	}
 }

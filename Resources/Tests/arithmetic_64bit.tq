@@ -1,326 +1,467 @@
 from Std import { Test }
 
 func testArithmeticU64() {
-	let u64 u64_0 = 0
-	let u64 u64_1 = 1
-	let u64 u64_2 = 2
-	let u64 u64_3 = 3
-	let u64 u64_4 = 4
-	let u64 u64_5 = 5
-	let u64 u64_6 = 6
-	let u64 u64_7 = 7
-	let u64 u64_8 = 8
-	let u64 u64_9 = 9
-	let u64 u64_100 = 100
-	let u64 u64_101 = 101
-	let u64 u64_255 = 255
-	let u64 u64_min = u64.min
-	let u64 u64_max = u64.max
-	
+	let u64 zero = 0
+	let u64 one = 1
+	let u64 two = 2
+	let u64 three = 3
+	let u64 seven = 7
+	let u64 hundred = 100
+	let u64 lo = u64.min
+	let u64 hi = u64.max
+
 	Test.newTestUnit("u64 arithmetic - checked add")
 	{
-		Test.assert(u64_1 + u64_1, 2)
-		Test.assert(u64_2 + u64_2, 4)
-		Test.assert(u64_max + 0, u64_max)
-		#Test.assert(u64_max + 1, ?) #!! FATAL ERROR !!
-		#Test.assert(u64_max + 100, ?) #!! FATAL ERROR !!
+		Test.assert(one + one, 2)
+		Test.assert(two + two, 4)
+		Test.assert(hi + zero, hi)
+		Test.assert(hundred + hundred, 200)
+		Test.assert(seven + three, 10)
+		Test.assert(lo + hi, hi)
+		Test.assert(lo + one, 1)
+		#Test.assert(hi + one, ?) #!! FATAL ERROR !!
+		#Test.assert(hi + hundred, ?) #!! FATAL ERROR !!
 	}
 
 	Test.newTestUnit("u64 arithmetic - add with overflow")
 	{
-		Test.assert(u64_1 +% u64_1, 2)
-		Test.assert(u64_2 +% u64_2, 4)
-		Test.assert(u64_max +% u64_0, u64_max)
-		Test.assert(u64_max +% u64_1, u64_min)
-		Test.assert(u64_max +% u64_100, 99)
+		Test.assert(one +% one, 2)
+		Test.assert(two +% two, 4)
+		Test.assert(hi +% zero, hi)
+		Test.assert(hi +% one, 0)
+		Test.assert(hi +% hundred, 99)
+		Test.assert(hi +% hi, 18446744073709551614)
 	}
 
 	Test.newTestUnit("u64 arithmetic - add saturated")
 	{
-		Test.assert(u64_1 +| u64_1, 2)
-		Test.assert(u64_2 +| u64_2, 4)
-		Test.assert(u64_max +| u64_0, u64_max)
-		Test.assert(u64_max +| u64_1, u64_max)
-		Test.assert(u64_max +| u64_100, u64_max)
+		Test.assert(one +| one, 2)
+		Test.assert(two +| two, 4)
+		Test.assert(hi +| zero, hi)
+		Test.assert(hi +| one, hi)
+		Test.assert(hi +| hundred, hi)
 	}
-
 
 	Test.newTestUnit("u64 arithmetic - checked sub")
 	{
-		Test.assert(u64_1 - u64_1, 0)
-		Test.assert(u64_2 - u64_1, 1)
-		Test.assert(u64_0 - u64_0, 0)
-		#Test.assert(u64_1 - u64_2, ?) #!! FATAL ERROR !!
-		#Test.assert(u64_0 - 100, ?) #!! FATAL ERROR !!
+		Test.assert(one - one, 0)
+		Test.assert(two - one, 1)
+		Test.assert(zero - zero, 0)
+		Test.assert(hundred - seven, 93)
+		#Test.assert(one - two, ?) #!! FATAL ERROR !!
+		#Test.assert(zero - hundred, ?) #!! FATAL ERROR !!
+		#Test.assert(lo - one, ?) #!! FATAL ERROR !!
 	}
 
 	Test.newTestUnit("u64 arithmetic - sub with overflow")
 	{
-		Test.assert(u64_1 -% u64_1, 0)
-		Test.assert(u64_2 -% u64_1, 1)
-		Test.assert(u64_0 -% u64_0, 0)
-		Test.assert(u64_1 -% u64_2, 255)
-		Test.assert(u64_0 -% 100, 156)
+		Test.assert(one -% one, 0)
+		Test.assert(two -% one, 1)
+		Test.assert(zero -% zero, 0)
+		Test.assert(one -% two, hi)
+		Test.assert(zero -% hundred, 18446744073709551516)
+		Test.assert(zero -% one, hi)
+		Test.assert(lo -% one, hi)
 	}
 
 	Test.newTestUnit("u64 arithmetic - sub saturated")
 	{
-		Test.assert(u64_1 -| u64_1, 0)
-		Test.assert(u64_2 -| u64_1, 1)
-		Test.assert(u64_0 -| u64_0, 0)
-		Test.assert(u64_1 -| u64_2, 0)
-		Test.assert(u64_0 -| 100, 0)
+		Test.assert(one -| one, 0)
+		Test.assert(two -| one, 1)
+		Test.assert(zero -| zero, 0)
+		Test.assert(one -| two, 0)
+		Test.assert(zero -| hundred, 0)
+		Test.assert(lo -| one, 0)
 	}
 
-	Test.newTestUnit("u64 arithmetic - mul checked")
+	Test.newTestUnit("u64 arithmetic - checked mul")
 	{
-		Test.assert(u64_1 * u64_1, 1)
-		Test.assert(u64_2 * u64_2, 4)
-		Test.assert(u64_2 * u64_100, 200)
-		Test.assert(u64_0 * u64_100, 0)
-		#Test.assert(u64_100 * u64_100, ?) #!! FATAL ERROR !!
+		Test.assert(one * one, 1)
+		Test.assert(two * two, 4)
+		Test.assert(two * seven, 14)
+		Test.assert(zero * hundred, 0)
+		Test.assert(seven * seven, 49)
+		Test.assert(hundred * hundred, 10000)
+		#Test.assert(hi * two, ?) #!! FATAL ERROR !!
 	}
 
 	Test.newTestUnit("u64 arithmetic - mul with overflow")
 	{
-		Test.assert(u64_1 *% u64_1, 1)
-		Test.assert(u64_2 *% u64_2, 4)
-		Test.assert(u64_2 *% u64_100, 200)
-		Test.assert(u64_100 *% u64_100, 16)
-		Test.assert(u64_max *% u64_2, 254)
+		Test.assert(one *% one, 1)
+		Test.assert(two *% two, 4)
+		Test.assert(two *% hundred, 200)
+		Test.assert(hundred *% hundred, 10000)
+		Test.assert(hi *% two, 18446744073709551614)
+		Test.assert(hi *% hi, 1)
+		Test.assert(lo *% two, 0)
 	}
 
 	Test.newTestUnit("u64 arithmetic - mul saturated")
 	{
-		Test.assert(u64_1 *| u64_1, 1)
-		Test.assert(u64_2 *| u64_2, 4)
-		Test.assert(u64_2 *| u64_100, 200)
-		Test.assert(u64_100 *| u64_100, u64_max)
-		Test.assert(u64_max *| u64_2, u64_max)
+		Test.assert(one *| one, 1)
+		Test.assert(two *| two, 4)
+		Test.assert(two *| hundred, 200)
+		Test.assert(hundred *| hundred, 10000)
+		Test.assert(hi *| two, hi)
+		Test.assert(lo *| two, 0)
 	}
 
-	Test.newTestUnit("u64 arithmetic - div checked")
+	Test.newTestUnit("u64 arithmetic - checked div (exact)")
 	{
-		Test.assert(u64_2 / u64_1, 2)
-		Test.assert(u64_100 / u64_2, 50)
-		Test.assert(u64_0 / u64_100, 0)
-		#Test.assert(u64_1 / u64_2, ?) #!! FATAL ERROR !!
-		#Test.assert(u64_1 / u64_0, ?) #!! FATAL ERROR !!
+		Test.assert(hundred / two, 50)
+		Test.assert(zero / hundred, 0)
+		Test.assert(hundred / hundred, 1)
+		Test.assert(hi / one, hi)
+		Test.assert(hi / hi, 1)
 	}
+
+	# a division that leaves a remainder is a FATAL ERROR in `/`: use `/_` or `/^`
 
 	Test.newTestUnit("u64 arithmetic - div floor")
 	{
-		Test.assert(u64_2 /_ u64_1, 2)
-		Test.assert(u64_100 /_ u64_2, 50)
-		Test.assert(u64_1 /_ u64_2, 0)
-		Test.assert(u64_0 /_ u64_100, 0)
+		Test.assert(hundred /_ two, 50)
+		Test.assert(zero /_ hundred, 0)
+		Test.assert(hundred /_ hundred, 1)
+		Test.assert(hi /_ one, hi)
+		Test.assert(hundred /_ seven, 14)
+		Test.assert(seven /_ two, 3)
+		Test.assert(one /_ two, 0)
+		Test.assert(three /_ two, 1)
+		Test.assert(hundred /_ three, 33)
+		Test.assert(hi /_ hi, 1)
 	}
 
 	Test.newTestUnit("u64 arithmetic - div ceil")
 	{
-		Test.assert(u64_2 /^ u64_1, 2)
-		Test.assert(u64_100 /^ u64_2, 50)
-		Test.assert(u64_1 /^ u64_2, 1)
-		Test.assert(u64_3 /^ u64_2, 2)
-		Test.assert(u64_0 /^ u64_100, 0)
+		Test.assert(hundred /^ two, 50)
+		Test.assert(zero /^ hundred, 0)
+		Test.assert(hundred /^ hundred, 1)
+		Test.assert(hi /^ one, hi)
+		Test.assert(hundred /^ seven, 15)
+		Test.assert(seven /^ two, 4)
+		Test.assert(one /^ two, 1)
+		Test.assert(three /^ two, 2)
+		Test.assert(hundred /^ three, 34)
+		Test.assert(hi /^ hi, 1)
 	}
 
-	Test.newTestUnit("u64 arithmetic - reminder")
+	Test.newTestUnit("u64 arithmetic - remainder")
 	{
-		Test.assert(u64_2 % u64_1, 0)
-		Test.assert(u64_100 % u64_2, 0)
-		Test.assert(u64_101 % u64_2, 1)
-		Test.assert(u64_255 % u64_2, 1)
-		Test.assert(u64_0 % u64_100, 0)
-		#Test.assert(u64_1 % u64_0, ?)
+		Test.assert(hundred % seven, 2)
+		Test.assert(hundred % two, 0)
+		Test.assert(seven % seven, 0)
+		Test.assert(hi % two, 1)
+		Test.assert(zero % hundred, 0)
+		Test.assert(two % hundred, 2)
+		Test.assert(hi % hundred, 15)
+		Test.assert(seven % three, 1)
+		Test.assert(one % two, 1)
 	}
-	
-	Test.newTestUnit("u64 arithmetic - pow checked")
+
+	Test.newTestUnit("u64 arithmetic - checked pow")
 	{
-		Test.assert(u64_2 ** u64_1, 2)
-		Test.assert(u64_2 ** u64_2, 4)
-		Test.assert(u64_2 ** u64_3, 8)
-		Test.assert(u64_1 ** u64_100, 1)
-		Test.assert(u64_0 ** u64_1, 0)
-		Test.assert(u64_0 ** u64_0, 1)
-		# #Test.assert(u64_2 ** u64_8, ?) #!! FATAL ERROR !!
+		Test.assert(two ** 1, 2)
+		Test.assert(two ** 2, 4)
+		Test.assert(two ** 3, 8)
+		Test.assert(two ** 62, 4611686018427387904)
+		Test.assert(three ** 4, 81)
+		Test.assert(one ** 100, 1)
+		Test.assert(zero ** 1, 0)
+		Test.assert(zero ** 0, 1)
+		Test.assert(two ** 63, 9223372036854775808)
+		#Test.assert(two ** 64, ?) #!! FATAL ERROR !!
 	}
 
 	Test.newTestUnit("u64 arithmetic - pow with overflow")
 	{
-		Test.assert(u64_2 **% u64_8, 0)
-		Test.assert(u64_2 **% u64_9, 0)
-		Test.assert(u64_3 **% u64_5, 243)
-		Test.assert(u64_5 **% u64_4, 113)
+		Test.assert(two **% 64, 0)
+		Test.assert(two **% 63, 9223372036854775808)
+		Test.assert(two **% 65, 0)
+		Test.assert(three **% 64, 8733086111712066817)
+		Test.assert(seven **% 64, 1843124298495784449)
 	}
 
 	Test.newTestUnit("u64 arithmetic - pow saturated")
 	{
-		Test.assert(u64_2 **| u64_3, 8)
-		Test.assert(u64_2 **| u64_7, 128)
-		Test.assert(u64_2 **| u64_8, u64_max)
-		Test.assert(u64_3 **| u64_6, u64_max)
+		Test.assert(two **| 3, 8)
+		Test.assert(two **| 62, 4611686018427387904)
+		Test.assert(two **| 63, 9223372036854775808)
+		Test.assert(two **| 64, hi)
+		Test.assert(three **| 64, hi)
+		Test.assert(seven **| 64, hi)
+	}
+
+	Test.newTestUnit("u64 arithmetic - comparison")
+	{
+		Test.assert(lo < hi, true)
+		Test.assert(hi > lo, true)
+		Test.assert(one <= one, true)
+		Test.assert(two >= one, true)
+		Test.assert(one == one, true)
+		Test.assert(one != two, true)
+		Test.assert(hi < lo, false)
+		Test.assert(two <= one, false)
+		Test.assert(one > two, false)
+		Test.assert(one == two, false)
 	}
 }
 
 func testArithmeticI64() {
-	let i64 i64_0 = 0
-	let i64 i64_1 = 1
-	let i64 i64_2 = 2
-	let i64 i64_3 = 3
-	let i64 i64_4 = 4
-	let i64 i64_5 = 5
-	let i64 i64_6 = 6
-	let i64 i64_7 = 7
-	let i64 i64_8 = 8
-	let i64 i64_9 = 9
-	let i64 i64_100 = 100
-	let i64 i64_101 = 101
-	let i64 i64_127 = 127
-	let i64 i64_min = i64.min
-	let i64 i64_max = i64.max
-	
+	let i64 zero = 0
+	let i64 one = 1
+	let i64 two = 2
+	let i64 three = 3
+	let i64 seven = 7
+	let i64 hundred = 100
+	let i64 neg_one = -1
+	let i64 neg_two = -2
+	let i64 neg_seven = -7
+	let i64 neg_hundred = -100
+	let i64 lo = i64.min
+	let i64 hi = i64.max
+
 	Test.newTestUnit("i64 arithmetic - checked add")
 	{
-		Test.assert(i64_1 + i64_1, 2)
-		Test.assert(i64_2 + i64_2, 4)
-		Test.assert(i64_max + 0, i64_max)
-		#Test.assert(i64_max + 1, ?) #!! FATAL ERROR !!
-		#Test.assert(i64_max + 100, ?) #!! FATAL ERROR !!
+		Test.assert(one + one, 2)
+		Test.assert(two + two, 4)
+		Test.assert(hi + zero, hi)
+		Test.assert(hundred + hundred, 200)
+		Test.assert(seven + three, 10)
+		Test.assert(lo + hi, -1)
+		Test.assert(neg_seven + three, -4)
+		Test.assert(neg_hundred + hundred, 0)
+		Test.assert(neg_one + neg_one, -2)
+		Test.assert(lo + one, -9223372036854775807)
+		#Test.assert(hi + one, ?) #!! FATAL ERROR !!
+		#Test.assert(hi + hundred, ?) #!! FATAL ERROR !!
 	}
 
 	Test.newTestUnit("i64 arithmetic - add with overflow")
 	{
-		Test.assert(i64_1 +% i64_1, 2)
-		Test.assert(i64_2 +% i64_2, 4)
-		Test.assert(i64_max +% i64_0, i64_max)
-		Test.assert(i64_max +% i64_1, i64_min)
-		Test.assert(i64_max +% i64_100, -29)
+		Test.assert(one +% one, 2)
+		Test.assert(two +% two, 4)
+		Test.assert(hi +% zero, hi)
+		Test.assert(hi +% one, lo)
+		Test.assert(hi +% hundred, -9223372036854775709)
+		Test.assert(hi +% hi, -2)
+		Test.assert(lo +% neg_one, hi)
+		Test.assert(neg_hundred +% neg_hundred, -200)
 	}
 
 	Test.newTestUnit("i64 arithmetic - add saturated")
 	{
-		Test.assert(i64_1 +| i64_1, 2)
-		Test.assert(i64_2 +| i64_2, 4)
-		Test.assert(i64_max +| i64_0, i64_max)
-		Test.assert(i64_max +| i64_1, i64_max)
-		Test.assert(i64_max +| i64_100, i64_max)
+		Test.assert(one +| one, 2)
+		Test.assert(two +| two, 4)
+		Test.assert(hi +| zero, hi)
+		Test.assert(hi +| one, hi)
+		Test.assert(hi +| hundred, hi)
+		Test.assert(lo +| neg_one, lo)
+		Test.assert(lo +| neg_hundred, lo)
+		Test.assert(neg_one +| neg_one, -2)
 	}
 
 	Test.newTestUnit("i64 arithmetic - checked sub")
 	{
-		Test.assert(i64_1 - i64_1, 0)
-		Test.assert(i64_2 - i64_1, 1)
-		Test.assert(i64_0 - i64_0, 0)
-		#Test.assert(i64_1 - i64_2, ?) #!! FATAL ERROR !!
-		#Test.assert(i64_0 - 100, ?) #!! FATAL ERROR !!
+		Test.assert(one - one, 0)
+		Test.assert(two - one, 1)
+		Test.assert(zero - zero, 0)
+		Test.assert(hundred - seven, 93)
+		Test.assert(one - two, -1)
+		Test.assert(zero - hundred, -100)
+		Test.assert(neg_one - hi, lo)
+		Test.assert(lo - neg_one, -9223372036854775807)
+		#Test.assert(hi - neg_one, ?) #!! FATAL ERROR !!
+		#Test.assert(lo - one, ?) #!! FATAL ERROR !!
 	}
 
 	Test.newTestUnit("i64 arithmetic - sub with overflow")
 	{
-		Test.assert(i64_1 -% i64_1, 0)
-		Test.assert(i64_2 -% i64_1, 1)
-		Test.assert(i64_0 -% i64_0, 0)
-		Test.assert(i64_1 -% i64_2, -1)
-		Test.assert(i64_0 -% 100, -100)
+		Test.assert(one -% one, 0)
+		Test.assert(two -% one, 1)
+		Test.assert(zero -% zero, 0)
+		Test.assert(one -% two, -1)
+		Test.assert(zero -% hundred, -100)
+		Test.assert(zero -% one, -1)
+		Test.assert(lo -% one, hi)
+		Test.assert(hi -% neg_one, lo)
 	}
 
 	Test.newTestUnit("i64 arithmetic - sub saturated")
 	{
-		Test.assert(i64_1 -| i64_1, 0)
-		Test.assert(i64_2 -| i64_1, 1)
-		Test.assert(i64_0 -| i64_0, 0)
-		Test.assert(i64_1 -| i64_2, -1)
-		Test.assert(i64_0 -| 100, -100)
+		Test.assert(one -| one, 0)
+		Test.assert(two -| one, 1)
+		Test.assert(zero -| zero, 0)
+		Test.assert(one -| two, -1)
+		Test.assert(zero -| hundred, -100)
+		Test.assert(lo -| one, lo)
+		Test.assert(hi -| neg_one, hi)
 	}
 
-	Test.newTestUnit("i64 arithmetic - mul checked")
+	Test.newTestUnit("i64 arithmetic - checked mul")
 	{
-		Test.assert(i64_1 * i64_1, 1)
-		Test.assert(i64_2 * i64_2, 4)
-		#Test.assert(i64_2 * i64_100, 200) #!! FATAL ERROR !!
-		Test.assert(i64_0 * i64_100, 0)
-		#Test.assert(i64_100 * i64_100, ?) #!! FATAL ERROR !!
+		Test.assert(one * one, 1)
+		Test.assert(two * two, 4)
+		Test.assert(two * seven, 14)
+		Test.assert(zero * hundred, 0)
+		Test.assert(seven * seven, 49)
+		Test.assert(hundred * hundred, 10000)
+		Test.assert(neg_seven * three, -21)
+		Test.assert(neg_one * hundred, -100)
+		Test.assert(neg_two * seven, -14)
+		#Test.assert(hi * two, ?) #!! FATAL ERROR !!
+		#Test.assert(lo * neg_one, ?) #!! FATAL ERROR !!
 	}
 
 	Test.newTestUnit("i64 arithmetic - mul with overflow")
 	{
-		Test.assert(i64_1 *% i64_1, 1)
-		Test.assert(i64_2 *% i64_2, 4)
-		Test.assert(i64_2 *% i64_100, 200)
-		Test.assert(i64_100 *% i64_100, 16)
-		Test.assert(i64_max *% i64_2, 254)
+		Test.assert(one *% one, 1)
+		Test.assert(two *% two, 4)
+		Test.assert(two *% hundred, 200)
+		Test.assert(hundred *% hundred, 10000)
+		Test.assert(hi *% two, -2)
+		Test.assert(hi *% hi, 1)
+		Test.assert(lo *% neg_one, lo)
+		Test.assert(lo *% two, 0)
 	}
 
 	Test.newTestUnit("i64 arithmetic - mul saturated")
 	{
-		Test.assert(i64_1 *| i64_1, 1)
-		Test.assert(i64_2 *| i64_2, 4)
-		Test.assert(i64_2 *| i64_100, 200)
-		Test.assert(i64_100 *| i64_100, i64_max)
-		Test.assert(i64_max *| i64_2, i64_max)
+		Test.assert(one *| one, 1)
+		Test.assert(two *| two, 4)
+		Test.assert(two *| hundred, 200)
+		Test.assert(hundred *| hundred, 10000)
+		Test.assert(hi *| two, hi)
+		Test.assert(lo *| two, lo)
+		Test.assert(lo *| neg_one, hi)
+		Test.assert(neg_hundred *| hundred, -10000)
 	}
 
-	Test.newTestUnit("i64 arithmetic - div checked")
+	Test.newTestUnit("i64 arithmetic - checked div (exact)")
 	{
-		Test.assert(i64_2 / i64_1, 2)
-		Test.assert(i64_100 / i64_2, 50)
-		Test.assert(i64_0 / i64_100, 0)
-		#Test.assert(i64_1 / i64_2, ?) #!! FATAL ERROR !!
-		#Test.assert(i64_1 / i64_0, ?) #!! FATAL ERROR !!
+		Test.assert(hundred / two, 50)
+		Test.assert(zero / hundred, 0)
+		Test.assert(hundred / hundred, 1)
+		Test.assert(hi / one, hi)
+		Test.assert(hi / hi, 1)
+		Test.assert(neg_hundred / two, -50)
+		Test.assert(hundred / neg_one, -100)
 	}
+
+	# a division that leaves a remainder is a FATAL ERROR in `/`: use `/_` or `/^`
 
 	Test.newTestUnit("i64 arithmetic - div floor")
 	{
-		Test.assert(i64_2 /_ i64_1, 2)
-		Test.assert(i64_100 /_ i64_2, 50)
-		Test.assert(i64_1 /_ i64_2, 0)
-		Test.assert(i64_0 /_ i64_100, 0)
+		Test.assert(hundred /_ two, 50)
+		Test.assert(zero /_ hundred, 0)
+		Test.assert(hundred /_ hundred, 1)
+		Test.assert(hi /_ one, hi)
+		Test.assert(hundred /_ seven, 14)
+		Test.assert(seven /_ two, 3)
+		Test.assert(one /_ two, 0)
+		Test.assert(three /_ two, 1)
+		Test.assert(hundred /_ three, 33)
+		Test.assert(hi /_ hi, 1)
+		Test.assert(neg_hundred /_ two, -50)
+		Test.assert(hundred /_ neg_one, -100)
+		Test.assert(neg_seven /_ two, -4)
+		Test.assert(seven /_ neg_two, -4)
+		Test.assert(neg_seven /_ neg_two, 3)
+		Test.assert(neg_hundred /_ three, -34)
 	}
 
 	Test.newTestUnit("i64 arithmetic - div ceil")
 	{
-		Test.assert(i64_2 /^ i64_1, 2)
-		Test.assert(i64_100 /^ i64_2, 50)
-		Test.assert(i64_1 /^ i64_2, 1)
-		Test.assert(i64_3 /^ i64_2, 2)
-		Test.assert(i64_0 /^ i64_100, 0)
+		Test.assert(hundred /^ two, 50)
+		Test.assert(zero /^ hundred, 0)
+		Test.assert(hundred /^ hundred, 1)
+		Test.assert(hi /^ one, hi)
+		Test.assert(hundred /^ seven, 15)
+		Test.assert(seven /^ two, 4)
+		Test.assert(one /^ two, 1)
+		Test.assert(three /^ two, 2)
+		Test.assert(hundred /^ three, 34)
+		Test.assert(hi /^ hi, 1)
+		Test.assert(neg_hundred /^ two, -50)
+		Test.assert(hundred /^ neg_one, -100)
+		Test.assert(neg_seven /^ two, -3)
+		Test.assert(seven /^ neg_two, -3)
+		Test.assert(neg_seven /^ neg_two, 4)
+		Test.assert(neg_hundred /^ three, -33)
 	}
 
-	Test.newTestUnit("i64 arithmetic - reminder")
+	Test.newTestUnit("i64 arithmetic - remainder")
 	{
-		Test.assert(i64_2 % i64_1, 0)
-		Test.assert(i64_100 % i64_2, 0)
-		Test.assert(i64_101 % i64_2, 1)
-		Test.assert(i64_127 % i64_2, 1)
-		Test.assert(i64_0 % i64_100, 0)
-		#Test.assert(i64_1 % i64_0, ?)
+		Test.assert(hundred % seven, 2)
+		Test.assert(hundred % two, 0)
+		Test.assert(seven % seven, 0)
+		Test.assert(hi % two, 1)
+		Test.assert(zero % hundred, 0)
+		Test.assert(two % hundred, 2)
+		Test.assert(hi % hundred, 7)
+		Test.assert(seven % three, 1)
+		Test.assert(one % two, 1)
 	}
-	
-	Test.newTestUnit("i64 arithmetic - pow checked")
+
+	Test.newTestUnit("i64 arithmetic - checked pow")
 	{
-		Test.assert(i64_2 ** i64_1, 2)
-		Test.assert(i64_2 ** i64_2, 4)
-		Test.assert(i64_2 ** i64_3, 8)
-		Test.assert(i64_1 ** i64_100, 1)
-		Test.assert(i64_0 ** i64_1, 0)
-		Test.assert(i64_0 ** i64_0, 1)
-		#Test.assert(i64_2 ** i64_8, ?) #!! FATAL ERROR !!
+		Test.assert(two ** 1, 2)
+		Test.assert(two ** 2, 4)
+		Test.assert(two ** 3, 8)
+		Test.assert(two ** 62, 4611686018427387904)
+		Test.assert(three ** 4, 81)
+		Test.assert(one ** 100, 1)
+		Test.assert(zero ** 1, 0)
+		Test.assert(zero ** 0, 1)
+		Test.assert(neg_two ** 2, 4)
+		Test.assert(neg_two ** 3, -8)
+		#Test.assert(two ** 63, ?) #!! FATAL ERROR !!
+		#Test.assert(two ** 64, ?) #!! FATAL ERROR !!
 	}
 
 	Test.newTestUnit("i64 arithmetic - pow with overflow")
 	{
-		Test.assert(i64_2 **% i64_8, 0)
-		Test.assert(i64_2 **% i64_9, 0)
-		Test.assert(i64_3 **% i64_5, 243)
-		Test.assert(i64_5 **% i64_4, 113)
+		Test.assert(two **% 64, 0)
+		Test.assert(two **% 63, lo)
+		Test.assert(two **% 65, 0)
+		Test.assert(three **% 64, 8733086111712066817)
+		Test.assert(seven **% 64, 1843124298495784449)
+		Test.assert(neg_two **% 64, 0)
+		Test.assert(neg_two **% 65, 0)
 	}
 
 	Test.newTestUnit("i64 arithmetic - pow saturated")
 	{
-		Test.assert(i64_2 **| i64_3, 8)
-		Test.assert(i64_2 **| i64_7, 128)
-		Test.assert(i64_2 **| i64_8, i64_max)
-		Test.assert(i64_3 **| i64_6, i64_max)
+		Test.assert(two **| 3, 8)
+		Test.assert(two **| 62, 4611686018427387904)
+		Test.assert(two **| 63, hi)
+		Test.assert(two **| 64, hi)
+		Test.assert(three **| 64, hi)
+		Test.assert(seven **| 64, hi)
+		Test.assert(neg_two **| 63, lo)
+		Test.assert(neg_two **| 64, hi)
+		Test.assert(neg_two **| 65, lo)
+	}
+
+	Test.newTestUnit("i64 arithmetic - negate")
+	{
+		Test.assert(-one, neg_one)
+		Test.assert(-neg_seven, seven)
+		Test.assert(-neg_hundred, hundred)
+		Test.assert(-zero, zero)
+		Test.assert(-hi, lo + one)
+	}
+
+	Test.newTestUnit("i64 arithmetic - comparison")
+	{
+		Test.assert(lo < hi, true)
+		Test.assert(hi > lo, true)
+		Test.assert(one <= one, true)
+		Test.assert(two >= one, true)
+		Test.assert(one == one, true)
+		Test.assert(one != two, true)
+		Test.assert(hi < lo, false)
+		Test.assert(two <= one, false)
+		Test.assert(one > two, false)
+		Test.assert(one == two, false)
 	}
 }

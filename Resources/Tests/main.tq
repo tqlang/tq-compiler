@@ -1,11 +1,16 @@
-
 @public func runTests() {
     testConditionals()
+    testFunctions()
+    testProperties()
+    testConstants()
+    testStrings()
+    testProtocols()
 
     testArraysAndSlices()
 
     testBuiltins()
     testNullables()
+    testFailables()
 
     testArithmeticU8()
     testArithmeticI8()
