@@ -313,6 +313,10 @@ cada aplicação é uma `GenericInstance` da tabela compartilhada; não há nó 
   (`UnaryOperator.Nullable`). O ReferenceBinder, depois de resolver o operando, decide: se ele é um tipo, a expressão vira
   uma referência a `Failable(T)` / `Nullable(T)`; senão continua sendo o operador. `?x` com `x` valor é erro de operador.
 - Numa função `!T`, `return` é checado contra `T` (e `return` sem valor vale em `!void`); chamar a função dá `Failable(T)`.
+- `T` converte implicitamente para `?T` e para `!T` (declaração, atribuição, argumento, `return` de `?T`), inclusive depois
+  de uma conversão do próprio valor: `let ?i64 x = 5`, `let ?i32 y = soma(1, 2)`. A conversão custa um passo a mais que a
+  exata, então um overload de `T` ganha de um de `?T`. No .NET `?T` de valor é `Nullable<T>` (`newobj`), `?T` de referência
+  é a própria referência, e `!T` é `Tq.Failable<T>` com o `Value` preenchido e sem erro.
 - Ainda não existem: propagação, `.ignored()` e as regras de uso de `?T`.
 
 ## Dump da IR (`--dump-ir`)

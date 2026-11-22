@@ -744,6 +744,33 @@ internal sealed class BodyEmitter
     private TypeReference? EmitConvert(IrConvert conversion)
     {
         var target = _owner.MapExpression(conversion.toType);
+
+        // A `T` that becomes a `?T` (`Nullable<T>`, for a value) or a `!T` (`Tq.Failable<T>`, with no error).
+        if (target is GenericInstanceType { ElementType.FullName: "System.Nullable`1" } nullable)
+        {
+            var emitted = EmitValue(conversion.Expression, nullable.GenericArguments[0]);
+            if (emitted.FullName != target.FullName)
+                _il.Emit(OpCodes.Newobj, _owner.GenericMember("System.Nullable`1", nullable, ".ctor", 1));
+            return target;
+        }
+
+        if (target is GenericInstanceType { ElementType.FullName: "Tq.Failable`1" } failable)
+        {
+            var emitted = EmitValue(conversion.Expression, failable.GenericArguments[0]);
+            if (emitted.FullName == target.FullName) return target;
+
+            var wrapperValue = NewTemp(emitted);
+            _il.Emit(OpCodes.Stloc, wrapperValue);
+
+            var wrapper = NewTemp(target);
+            var field = _owner.Backend.Runtime.FailableOf.Fields.First(candidate => candidate.Name == "Value");
+            _il.Emit(OpCodes.Ldloca, wrapper);
+            _il.Emit(OpCodes.Ldloc, wrapperValue);
+            _il.Emit(OpCodes.Stfld, new CecilField(field.Name, field.FieldType, target));
+            _il.Emit(OpCodes.Ldloc, wrapper);
+            return target;
+        }
+
         EmitValue(conversion.Expression, target);
         return target;
     }

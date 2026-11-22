@@ -28,8 +28,9 @@ internal enum MatchKind
 /// <summary>
 /// How an argument fits a parameter. A lower cost is a better fit.
 /// `Via` is the function of an `@implicitConvert` that does the conversion, when that is what it takes.
+/// `Wraps` says the argument is a `T` that goes where a `?T` or a `!T` is asked (after converting it to `T`, if that takes it).
 /// </summary>
-internal readonly record struct ArgumentMatch(MatchKind Kind, int Cost, IFunction? Via = null)
+internal readonly record struct ArgumentMatch(MatchKind Kind, int Cost, IFunction? Via = null, bool Wraps = false)
 {
     public static readonly ArgumentMatch None = new(MatchKind.None, 0);
     public static readonly ArgumentMatch Exact = new(MatchKind.Exact, 0);
@@ -57,6 +58,7 @@ internal static class ConversionRules
     private const int UserConversion = 100;
     private const int GenericParameter = 1000;
     private const int NullToNullable = 1;
+    private const int Wrapping = 1;
 
     public static ArgumentMatch Classify(
         ITypeRef? argument, IrExpression argumentNode, ITypeRef? parameter,
@@ -73,6 +75,14 @@ internal static class ConversionRules
 
         // `null` is the empty `?T`.
         if (argument is NullTypeRef) return types.IsNullable(parameter, out _) ? Convert(NullToNullable) : ArgumentMatch.None;
+
+        // A `T` is a `?T` and a `!T`.
+        if (types.IsNullable(parameter, out var wrapped) || types.IsFailable(parameter, out wrapped))
+        {
+            var inner = Classify(argument, argumentNode, wrapped, conversions, accessor);
+            if (inner.Kind is MatchKind.Exact or MatchKind.Convert)
+                return new ArgumentMatch(MatchKind.Convert, inner.Cost + Wrapping, inner.Via, true);
+        }
 
         if (argument is ComptimeIntegerTypeRef) return ClassifyLiteral(argumentNode, parameter);
         if (argument is ComptimeDecimalTypeRef)

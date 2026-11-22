@@ -197,6 +197,20 @@ internal sealed partial class TypeChecker
 
         var location = value.Location;
 
+        // `T` where `?T` or `!T` is asked: the value is brought to `T` and then wrapped.
+        if (match.Wraps && (CompilerStd.Types.IsNullable(type, out var wrapped) || CompilerStd.Types.IsFailable(type, out wrapped)))
+        {
+            var innerMatch = ConversionRules.Classify(TypeOf(value), value, wrapped, conversions, _accessor);
+            var inner = ConvertTo(value, innerMatch, wrapped, null);
+
+            typeExpression ??= TypeExpressionOf(type, location);
+            if (typeExpression == null) return inner;
+
+            var wrapper = new IrConvert(location, inner, typeExpression);
+            types.Set(wrapper, type);
+            return wrapper;
+        }
+
         // `null` is not converted: it is the `null` of that `?T`.
         if (value is IrNull)
         {
