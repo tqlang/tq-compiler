@@ -8,6 +8,8 @@
     testInheritance()
     testPolymorphism()
     testReferenceConversion()
+    testValueInheritance()
+    testValuePolymorphism()
 
     testArraysAndSlices()
 

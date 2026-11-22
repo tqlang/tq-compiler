@@ -1,0 +1,183 @@
+from Std import { Test }
+
+# structs by value: no @class. The hierarchy is kept by the backend, and the polymorphism goes through `*S`.
+
+struct Vehicle {
+    let int wheels = 4
+    let string plate = "none"
+
+    @virtual func sound() string => "..."
+    @virtual func describe() string => "vehicle"
+    func wheelCount() int => wheels
+}
+
+struct Car extends Vehicle {
+    @override func sound() string => "vroom"
+}
+
+struct Pickup extends Car {
+    @override func describe() string => "pickup"
+}
+
+struct Bike extends Vehicle {
+    @override func sound() string => "ring"
+    @override func describe() string => "bike"
+}
+
+func soundOfRef(*Vehicle vehicle) string => vehicle.sound()
+
+func describeOfRef(*Vehicle vehicle) string => vehicle.describe()
+
+func renameRef(*Vehicle vehicle, string plate) { vehicle.plate = plate }
+
+func renameCopy(Vehicle vehicle, string plate) { vehicle.plate = plate }
+
+func asVehicle(*Car car) *Vehicle => car
+
+func totalWheels(*Vehicle first, *Vehicle second) int => first.wheels + second.wheels
+
+func kindOfRef(*Vehicle vehicle) string => "vehicle"
+
+func kindOfRef(*Car car) string => "car"
+
+func testValueInheritance() {
+    Test.newTestUnit("inheritance by value - a struct that extends another has its functions")
+    {
+        let Car car = new Car()
+        Test.assert(car.describe(), "vehicle")
+        Test.assert(car.wheelCount(), 4)
+    }
+
+    Test.newTestUnit("inheritance by value - the fields come from what is extended")
+    {
+        let Car car = new Car()
+        Test.assert(car.wheels, 4)
+        Test.assert(car.plate, "none")
+        car.plate = "abc"
+        car.wheels = 6
+        Test.assert(car.plate, "abc")
+        Test.assert(car.wheelCount(), 6)
+    }
+
+    Test.newTestUnit("inheritance by value - override changes what a function does")
+    {
+        Test.assert(new Vehicle().sound(), "...")
+        Test.assert(new Car().sound(), "vroom")
+        Test.assert(new Bike().sound(), "ring")
+    }
+
+    Test.newTestUnit("inheritance by value - several levels")
+    {
+        let Pickup pickup = new Pickup()
+        Test.assert(pickup.sound(), "vroom")
+        Test.assert(pickup.describe(), "pickup")
+        Test.assert(pickup.wheelCount(), 4)
+        pickup.plate = "xyz"
+        Test.assert(pickup.plate, "xyz")
+    }
+
+    Test.newTestUnit("inheritance by value - a value is copied when it is assigned")
+    {
+        let Car first = new Car()
+        let Car second = first
+        second.wheels = 8
+        second.plate = "copy"
+        Test.assert(first.wheels, 4)
+        Test.assert(first.plate, "none")
+        Test.assert(second.wheels, 8)
+    }
+}
+
+func testValuePolymorphism() {
+    Test.newTestUnit("polymorphism by value - a reference to the derived goes where the base is expected")
+    {
+        let *Car car = new Car()
+        let *Vehicle vehicle = car
+        Test.assert(vehicle.sound(), "vroom")
+        Test.assert(vehicle.wheelCount(), 4)
+    }
+
+    Test.newTestUnit("polymorphism by value - the override that runs is the one of the value")
+    {
+        let *Pickup pickup = new Pickup()
+        let *Vehicle vehicle = pickup
+        Test.assert(vehicle.sound(), "vroom")
+        Test.assert(vehicle.describe(), "pickup")
+    }
+
+    Test.newTestUnit("polymorphism by value - the same function with every derived struct")
+    {
+        let *Vehicle base = new Vehicle()
+        let *Car car = new Car()
+        let *Pickup pickup = new Pickup()
+        let *Bike bike = new Bike()
+
+        Test.assert(describeOfRef(base), "vehicle")
+        Test.assert(describeOfRef(car), "vehicle")
+        Test.assert(describeOfRef(pickup), "pickup")
+        Test.assert(describeOfRef(bike), "bike")
+        Test.assert(soundOfRef(bike), "ring")
+    }
+
+    Test.newTestUnit("polymorphism by value - the reference is the same object, not a copy")
+    {
+        let *Car car = new Car()
+        let *Vehicle vehicle = car
+        vehicle.plate = "ref"
+        Test.assert(car.plate, "ref")
+        car.wheels = 6
+        Test.assert(vehicle.wheels, 6)
+    }
+
+    Test.newTestUnit("polymorphism by value - a function that receives the reference changes the object")
+    {
+        let *Pickup pickup = new Pickup()
+        renameRef(pickup, "toy")
+        Test.assert(pickup.plate, "toy")
+    }
+
+    Test.newTestUnit("polymorphism by value - a function that receives the value changes a copy")
+    {
+        let Car car = new Car()
+        renameCopy(car, "other")
+        Test.assert(car.plate, "none")
+    }
+
+    Test.newTestUnit("polymorphism by value - a reference as the result of a function")
+    {
+        let *Car car = new Car()
+        let *Vehicle vehicle = asVehicle(car)
+        Test.assert(vehicle.sound(), "vroom")
+        vehicle.plate = "back"
+        Test.assert(car.plate, "back")
+    }
+
+    Test.newTestUnit("polymorphism by value - two references of different derived structs")
+    {
+        let *Car car = new Car()
+        let *Bike bike = new Bike()
+        bike.wheels = 2
+        Test.assert(totalWheels(car, bike), 6)
+    }
+
+    Test.newTestUnit("polymorphism by value - the overload with the nearest base is chosen")
+    {
+        Test.assert(kindOfRef(new Vehicle()), "vehicle")
+        let *Bike bike = new Bike()
+        let *Car car = new Car()
+        let *Pickup pickup = new Pickup()
+        Test.assert(kindOfRef(bike), "vehicle")
+        Test.assert(kindOfRef(car), "car")
+        Test.assert(kindOfRef(pickup), "car")
+    }
+
+    Test.newTestUnit("polymorphism by value - a reference to the base goes back to the derived with as")
+    {
+        let *Car car = new Car()
+        car.plate = "cast"
+        let *Vehicle vehicle = car
+        let *Car back = vehicle as *Car
+        Test.assert(back.plate, "cast")
+        Test.assert(back.sound(), "vroom")
+    }
+}
