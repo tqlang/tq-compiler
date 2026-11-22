@@ -524,6 +524,14 @@ internal sealed partial class ModuleEmitter
         il.Emit(OpCodes.Throw);
     }
 
+    /// <summary>The constructor of an exception of the runtime that takes a message.</summary>
+    internal MethodReference ExceptionConstructor(string typeName)
+    {
+        var exception = _backend.Core.Find(typeName) ?? throw new BackendError($"The type '{typeName}' was not found");
+        return _module.ImportReference(exception.Methods.First(method => method.IsConstructor && !method.IsStatic
+            && method.Parameters is [{ ParameterType.FullName: "System.String" }]));
+    }
+
     /// <summary>`get;` and `set;`: reads and writes the storage of the property.</summary>
     private void EmitAutomaticAccessor(ILProcessor il, TqProperty property, bool isSetter)
     {

@@ -332,6 +332,13 @@ internal sealed partial class TypeChecker
                 : (visited, TypeOfReference(access.access.Reference));
         }
 
+        // `x.value` of a `?T` is the `T`, as `x.unwrap()`.
+        if (name.Value == "value" && TypeOf(baseExpr) is { } nullableType && CompilerStd.Types.IsNullable(nullableType, out _))
+        {
+            if (asTarget) Error("The value of a '?T' cannot be assigned", access.access.Location);
+            return VisitWrapperOperator(new IrUnary(access.Location, UnaryOperator.Unwrap, baseExpr), baseExpr);
+        }
+
         // The length of a slice is an `int`; it is not a member of any struct, so it stays an unresolved name
         // and the backend knows it by the type of the value.
         if (TypeOf(baseExpr) is SliceTypeRef or ArrayTypeRef && name.Value == "len")
@@ -471,6 +478,21 @@ internal sealed partial class TypeChecker
 
     private (IrExpression, ITypeRef?) VisitCall(IrCall call)
     {
+        // `x.ignored()` of a `!T` and `x.unwrap()` of a `?T` are not functions: they are operators the backend knows.
+        if (call.callee is IrAccess { access.Reference: UnsolvedRef { Value: "ignored" or "unwrap" } intrinsic } intrinsicAccess
+            && call.ArgumentsList.arguments.Length == 0)
+        {
+            var receiver = Visit(intrinsicAccess.baseExpr);
+            var receiverType = TypeOf(receiver);
+            var ignores = intrinsic.Value == "ignored";
+
+            if (receiverType != null && (ignores
+                    ? CompilerStd.Types.IsFailable(receiverType, out _)
+                    : CompilerStd.Types.IsNullable(receiverType, out _)))
+                return VisitWrapperOperator(
+                    new IrUnary(call.Location, ignores ? UnaryOperator.Ignored : UnaryOperator.Unwrap, receiver), receiver);
+        }
+
         var visited = call with
         {
             callee = Visit(call.callee),

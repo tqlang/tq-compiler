@@ -1567,8 +1567,203 @@ internal sealed class BodyEmitter
         return a;
     }
 
+    private static bool IsNullableValue(TypeReference type, out GenericInstanceType nullable)
+    {
+        nullable = (type as GenericInstanceType)!;
+        return type is GenericInstanceType { ElementType.FullName: "System.Nullable`1" };
+    }
+
+    /// <summary>`x == null` / `x != null`: a `Nullable<T>` has a value or not; a reference is null or not.</summary>
+    private TypeReference EmitNullComparison(IrBinary binary)
+    {
+        var equal = binary.Operator == BinaryOperator.Equal;
+        var other = binary.Left is IrNull ? binary.Right : binary.Left;
+
+        if (other is IrNull)
+        {
+            _il.Emit(equal ? OpCodes.Ldc_I4_1 : OpCodes.Ldc_I4_0);
+            return Core("System.Boolean");
+        }
+
+        var type = EmitValue(other, null);
+        if (IsNullableValue(type, out var nullable))
+        {
+            var temp = NewTemp(type);
+            _il.Emit(OpCodes.Stloc, temp);
+            _il.Emit(OpCodes.Ldloca, temp);
+            _il.Emit(OpCodes.Call, _owner.GenericMember("System.Nullable`1", nullable, "get_HasValue", 0));
+            if (equal)
+            {
+                _il.Emit(OpCodes.Ldc_I4_0);
+                _il.Emit(OpCodes.Ceq);
+            }
+        }
+        else
+        {
+            _il.Emit(OpCodes.Ldnull);
+            _il.Emit(equal ? OpCodes.Ceq : OpCodes.Cgt_Un);
+        }
+
+        return Core("System.Boolean");
+    }
+
+    /// <summary>`a ?? b`: the value of `a` if it has one, `b` if not (which is only evaluated then).</summary>
+    private TypeReference EmitCoalesce(IrBinary binary)
+    {
+        var type = EmitValue(binary.Left, null);
+        var end = _il.Create(OpCodes.Nop);
+
+        if (IsNullableValue(type, out var nullable))
+        {
+            var inner = nullable.GenericArguments[0];
+            var fallback = _il.Create(OpCodes.Nop);
+            var temp = NewTemp(type);
+
+            _il.Emit(OpCodes.Stloc, temp);
+            _il.Emit(OpCodes.Ldloca, temp);
+            _il.Emit(OpCodes.Call, _owner.GenericMember("System.Nullable`1", nullable, "get_HasValue", 0));
+            _il.Emit(OpCodes.Brfalse, fallback);
+            _il.Emit(OpCodes.Ldloca, temp);
+            _il.Emit(OpCodes.Call, _owner.GenericMember("System.Nullable`1", nullable, "GetValueOrDefault", 0));
+            _il.Emit(OpCodes.Br, end);
+            _il.Append(fallback);
+            EmitValue(binary.Right, inner);
+            _il.Append(end);
+            return inner;
+        }
+
+        _il.Emit(OpCodes.Dup);
+        _il.Emit(OpCodes.Brtrue, end);
+        _il.Emit(OpCodes.Pop);
+        EmitValue(binary.Right, type);
+        _il.Append(end);
+        return type;
+    }
+
+    /// <summary>The `Error` of a `Tq.Failable` or a `Tq.Failable<T>`.</summary>
+    private CecilField FailableField(TypeReference failable, string name)
+    {
+        var definition = failable.FullName == "Tq.Failable" ? _owner.Backend.Runtime.Failable : _owner.Backend.Runtime.FailableOf;
+        var field = definition.Fields.First(candidate => candidate.Name == name);
+        return new CecilField(field.Name, field.FieldType, failable);
+    }
+
+    /// <summary>
+    /// `try x`: if the `!T` has an error, the function returns a `!U` with that error; if not, the value is the `T`.
+    /// (The return leaves the stack as it is, so `try` is meant for the start of an expression: `let x = try f()`.)
+    /// </summary>
+    private TypeReference? EmitTry(IrUnary unary)
+    {
+        var type = EmitValue(unary.Operand, null);
+        var failed = NewTemp(type);
+        var ok = _il.Create(OpCodes.Nop);
+
+        _il.Emit(OpCodes.Stloc, failed);
+        _il.Emit(OpCodes.Ldloca, failed);
+        _il.Emit(OpCodes.Ldfld, FailableField(type, "Error"));
+        _il.Emit(OpCodes.Brfalse, ok);
+
+        var returnType = _method.ReturnType;
+        if (!IsFailable(returnType, out _))
+        {
+            Report("'try' returns the error from the function, which has to return a '!T'", unary.Location);
+        }
+        else
+        {
+            var result = NewTemp(returnType);
+            _il.Emit(OpCodes.Ldloca, result);
+            _il.Emit(OpCodes.Ldloca, failed);
+            _il.Emit(OpCodes.Ldfld, FailableField(type, "Error"));
+            _il.Emit(OpCodes.Stfld, FailableField(returnType, "Error"));
+            _il.Emit(OpCodes.Ldloc, result);
+            _il.Emit(OpCodes.Ret);
+        }
+
+        _il.Append(ok);
+        if (type.FullName == "Tq.Failable") return null;
+
+        _il.Emit(OpCodes.Ldloca, failed);
+        _il.Emit(OpCodes.Ldfld, FailableField(type, "Value"));
+        return ((GenericInstanceType)type).GenericArguments[0];
+    }
+
+    /// <summary>`x.ignored()` / `x!`: the `!T` as a `?T`: the value, or null if there was an error. Nothing is left of a `!void`.</summary>
+    private TypeReference? EmitIgnored(IrUnary unary)
+    {
+        var type = EmitValue(unary.Operand, null);
+        if (type.FullName == "Tq.Failable")
+        {
+            _il.Emit(OpCodes.Pop);
+            return null;
+        }
+
+        var inner = ((GenericInstanceType)type).GenericArguments[0];
+        var failed = NewTemp(type);
+        var error = _il.Create(OpCodes.Nop);
+        var end = _il.Create(OpCodes.Nop);
+
+        _il.Emit(OpCodes.Stloc, failed);
+        _il.Emit(OpCodes.Ldloca, failed);
+        _il.Emit(OpCodes.Ldfld, FailableField(type, "Error"));
+        _il.Emit(OpCodes.Brtrue, error);
+
+        if (!inner.IsValueType)
+        {
+            _il.Emit(OpCodes.Ldloca, failed);
+            _il.Emit(OpCodes.Ldfld, FailableField(type, "Value"));
+            _il.Emit(OpCodes.Br, end);
+            _il.Append(error);
+            _il.Emit(OpCodes.Ldnull);
+            _il.Append(end);
+            return inner;
+        }
+
+        var nullable = new GenericInstanceType(Core("System.Nullable`1"));
+        nullable.GenericArguments.Add(inner);
+        var empty = NewTemp(nullable);
+
+        _il.Emit(OpCodes.Ldloca, failed);
+        _il.Emit(OpCodes.Ldfld, FailableField(type, "Value"));
+        _il.Emit(OpCodes.Newobj, _owner.GenericMember("System.Nullable`1", nullable, ".ctor", 1));
+        _il.Emit(OpCodes.Br, end);
+        _il.Append(error);
+        _il.Emit(OpCodes.Ldloca, empty);
+        _il.Emit(OpCodes.Initobj, nullable);
+        _il.Emit(OpCodes.Ldloc, empty);
+        _il.Append(end);
+        return nullable;
+    }
+
+    /// <summary>`x.unwrap()` / `x.value`: the `T` of a `?T`; if there is none, an `InvalidOperationException`.</summary>
+    private TypeReference EmitUnwrap(IrUnary unary)
+    {
+        var type = EmitValue(unary.Operand, null);
+
+        if (IsNullableValue(type, out var nullable))
+        {
+            var temp = NewTemp(type);
+            _il.Emit(OpCodes.Stloc, temp);
+            _il.Emit(OpCodes.Ldloca, temp);
+            _il.Emit(OpCodes.Call, _owner.GenericMember("System.Nullable`1", nullable, "get_Value", 0));
+            return nullable.GenericArguments[0];
+        }
+
+        var ok = _il.Create(OpCodes.Nop);
+        _il.Emit(OpCodes.Dup);
+        _il.Emit(OpCodes.Brtrue, ok);
+        _il.Emit(OpCodes.Ldstr, "The value is null");
+        _il.Emit(OpCodes.Newobj, _owner.ExceptionConstructor("System.InvalidOperationException"));
+        _il.Emit(OpCodes.Throw);
+        _il.Append(ok);
+        return type;
+    }
+
     private TypeReference? EmitBinary(IrBinary binary)
     {
+        if (binary.Operator == BinaryOperator.Coalesce) return EmitCoalesce(binary);
+        if (binary.Operator is BinaryOperator.Equal or BinaryOperator.NotEqual && (binary.Left is IrNull || binary.Right is IrNull))
+            return EmitNullComparison(binary);
+
         var common = CommonType(binary.Left, binary.Right);
         if (common == null) return null;
 
@@ -2275,6 +2470,15 @@ internal sealed class BodyEmitter
 
             case UnaryOperator.Increment or UnaryOperator.Decrement:
                 return EmitIncrement(unary, discard);
+
+            case UnaryOperator.Try:
+                return EmitTry(unary);
+
+            case UnaryOperator.Ignored:
+                return EmitIgnored(unary);
+
+            case UnaryOperator.Unwrap:
+                return EmitUnwrap(unary);
 
             default:
                 Report($"The operator '{unary.Operator}' cannot be emitted to .NET yet", unary.Location);

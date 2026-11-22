@@ -529,6 +529,9 @@ public sealed class IrDumper
                     UnaryOperator.Increment => "++",
                     UnaryOperator.Decrement => "--",
                     UnaryOperator.Nullable => "?",
+                    UnaryOperator.Try => "try ",
+                    UnaryOperator.Ignored => "!",
+                    UnaryOperator.Unwrap => ".unwrap()",
                     _ => unary.Operator.ToString(),
                 };
                 var operand = Operand(unary.Operand);

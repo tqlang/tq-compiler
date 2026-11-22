@@ -23,6 +23,8 @@ internal sealed partial class TypeChecker
         var right = Visit(binary.Right);
         var visited = binary with { Left = left, Right = right };
 
+        if (binary.Operator == BinaryOperator.Coalesce) return VisitCoalesce(visited, left, right);
+
         var isComparison = binary.Operator >= BinaryOperator.Equal;
         ITypeRef? resultOf(ITypeRef common) => isComparison ? BoolType() : common;
 
@@ -44,6 +46,16 @@ internal sealed partial class TypeChecker
         var leftType = TypeOf(left);
         var rightType = TypeOf(right);
         if (leftType == null || rightType == null) return (visited, isComparison ? BoolType() : null);
+
+        // `x == null` and `x != null`: only a `?T` can be null.
+        if (binary.Operator is BinaryOperator.Equal or BinaryOperator.NotEqual && (left is IrNull || right is IrNull))
+        {
+            var other = left is IrNull ? rightType : leftType;
+            if (!(left is IrNull && right is IrNull) && !CompilerStd.Types.IsNullable(other, out _))
+                Error($"Only a '?T' can be compared with null, not '{TypeFormatter.Format(other)}'", binary.Location);
+
+            return (visited, BoolType());
+        }
 
         var common = ConversionRules.Common(leftType, rightType);
         if (common != null && BinaryOperatorExists(binary.Operator, common))
@@ -95,7 +107,91 @@ internal sealed partial class TypeChecker
         }
     }
 
+    /// <summary>`a ?? b`: `a` is a `?T` and `b` a `T`; the value is a `T`.</summary>
+    private (IrExpression, ITypeRef?) VisitCoalesce(IrBinary visited, IrExpression left, IrExpression right)
+    {
+        var leftType = TypeOf(left);
+        if (leftType == null) return (visited, null);
+
+        if (!CompilerStd.Types.IsNullable(leftType, out var inner))
+        {
+            Error($"The left side of '??' has to be a '?T', not '{TypeFormatter.Format(leftType)}'", left.Location);
+            return (visited, null);
+        }
+
+        var value = Coerce(right, inner, TypeExpressionOf(inner, right.Location), "the right side of '??'");
+        return (visited with { Right = value }, inner);
+    }
+
     // ---- Unary operators
+
+    /// <summary>
+    /// `try x` (a `!T` is a `T`, or the error leaves the function, which has to return a `!U` itself), `x.ignored()` / `x!` (a `!T` is a `?T`
+    /// that is null if it failed) and `x.unwrap()` / `x.value` (a `?T` is a `T`; null is an error).
+    /// </summary>
+    private (IrExpression, ITypeRef?) VisitWrapperOperator(IrUnary unary, IrExpression operand)
+    {
+        var visited = unary with { Operand = operand };
+        var type = TypeOf(operand);
+        if (type == null) return (visited, null);
+
+        var shown = TypeFormatter.Format(type);
+        var failable = CompilerStd.Types.IsFailable(type, out var failed);
+        var nullable = CompilerStd.Types.IsNullable(type, out var maybe);
+        var voidResult = failable && failed != null && ConversionRules.IsStruct(failed, CompilerStd.Types.Void);
+
+        switch (unary.Operator)
+        {
+            case UnaryOperator.Try:
+            {
+                if (!failable)
+                {
+                    Error($"'try' takes a '!T', not '{shown}'", unary.Location);
+                    return (visited, null);
+                }
+
+                var returns = _function is { ReturnType: { } returnExpression } and not (TqConstructor or TqDestructor)
+                    ? TypeFromExpression(returnExpression)
+                    : null;
+                if (_function == null || returns == null || !CompilerStd.Types.IsFailable(returns, out _))
+                    Error("'try' returns the error from the function, so the function has to return a '!T'", unary.Location);
+
+                return (visited, voidResult ? failed : StructSemantics.ValueTypeOf(failed));
+            }
+
+            case UnaryOperator.Ignored:
+            {
+                if (!failable)
+                {
+                    Error($"'ignored' and '!' take a '!T', not '{shown}'", unary.Location);
+                    return (visited, null);
+                }
+
+                // `!void` has nothing to keep: ignoring it is nothing.
+                if (voidResult) return (visited, failed);
+                return (visited, failed != null ? NullableOf(StructSemantics.ValueTypeOf(failed), unary.Location) : null);
+            }
+
+            default:
+                if (!nullable)
+                {
+                    Error($"'unwrap' and 'value' take a '?T', not '{shown}'", unary.Location);
+                    return (visited, null);
+                }
+
+                return (visited, maybe);
+        }
+    }
+
+    /// <summary>`?T` for a `T`.</summary>
+    private ITypeRef? NullableOf(ITypeRef inner, SourceLocation location)
+    {
+        var expression = TypeExpressionOf(inner, location);
+        if (expression == null) return null;
+
+        var instance = GenericInstanceTable.Shared.GetOrAdd(CompilerStd.Types.Nullable, [expression]);
+        return TypeFromExpression(new IrReference(location, instance.GetReference()));
+    }
 
     private (IrExpression, ITypeRef?) VisitUnary(IrUnary unary)
     {
@@ -106,6 +202,9 @@ internal sealed partial class TypeChecker
             && TypeOf(operand) is ComptimeIntegerTypeRef or ComptimeDecimalTypeRef
             && ComptimeEvaluator.TryEvaluate(visited, out _) is { } negated)
             return Compute(negated);
+
+        if (unary.Operator is UnaryOperator.Try or UnaryOperator.Ignored or UnaryOperator.Unwrap)
+            return VisitWrapperOperator(unary, operand);
 
         var type = TypeOf(operand);
 

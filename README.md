@@ -323,7 +323,14 @@ cada aplicação é uma `GenericInstance` da tabela compartilhada; não há nó 
   de uma conversão do próprio valor: `let ?i64 x = 5`, `let ?i32 y = soma(1, 2)`. A conversão custa um passo a mais que a
   exata, então um overload de `T` ganha de um de `?T`. No .NET `?T` de valor é `Nullable<T>` (`newobj`), `?T` de referência
   é a própria referência, e `!T` é `Tq.Failable<T>` com o `Value` preenchido e sem erro.
-- Ainda não existem: propagação, `.ignored()` e as regras de uso de `?T`.
+- Uso de `!T`: `try x` dá o `T` de um `!T`, ou **devolve o erro da função** (que precisa retornar um `!U`; o `return` deixa a pilha como
+  está, então use `try` no começo da expressão: `let i32 y = try f()`). `x.ignored()` e o postfixo `x!` (que o parser baixa para o mesmo
+  operador, `UnaryOperator.Ignored`) dão um `?T`, `null` se houve erro (`!void` não deixa nada). Nenhum é função: são intrinsics da IR
+  (`UnaryOperator.Try/Ignored/Unwrap`) e o backend lê os campos de `Tq.Failable<T>` (`Error`, `Value`) direto.
+- Uso de `?T`: `x == null` / `x != null` (só `?T`), `a ?? b` (`BinaryOperator.Coalesce`; `b` é convertido a `T` e só é avaliado se
+  `a` é null), `x.unwrap()` e `x.value` (o `T`; null lança `InvalidOperationException`). Em `Nullable<T>` o backend usa
+  `HasValue`/`get_Value`/`GetValueOrDefault`; um `?T` de referência é a própria referência.
+- Ainda não existem: criar um erro (nada lança/retorna um `Error` ainda; `Error` é `object`) e a propagação dentro de expressões maiores.
 
 ## Dump da IR (`--dump-ir`)
 
@@ -372,7 +379,7 @@ um `u8`, não um literal sem tamanho), então `Test.assert(u8.max, 255)` escolhe
 `null` é um literal de tipo `null`, que só se converte para um `?T` (parâmetro, atribuição, retorno, campo: `let ?i32 x = null`).
 Para `T` de referência (`?string`) sai `ldnull`; para `T` de valor, `?T` é `System.Nullable<T>` e `null` é o valor vazio
 (`initobj`). `let x = null` é erro (não há tipo a inferir), e `null` onde não cabe diz que só um tipo `?T` pode ser `null`.
-Ainda não existem: `x == null`, `T` → `?T` implícito, `??` e `.unwrap()`.
+`x == null`, `??` e `.unwrap()` estão na seção de `Ref`/`Failable`/`Nullable`.
 
 ## Operadores de inteiros em .NET
 

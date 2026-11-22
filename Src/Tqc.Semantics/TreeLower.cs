@@ -799,6 +799,8 @@ public static class TreeLower
                 var operand = LowerExpression(ctx, prefix.Exp);
                 var location = prefix.GetLoc(ctx.SrcFile);
 
+                if (prefix.Op.Value == "try") return new IrUnary(location, UnaryOperator.Try, operand);
+
                 // A negative literal is one literal, so that it can still take the type of what it is used with.
                 if (prefix.Op.Kind == TokenKind.Minus)
                 {
@@ -812,7 +814,7 @@ public static class TreeLower
             case UnaryPostfixExpressionNode postfix:
                 return new IrUnary(
                     postfix.GetLoc(ctx.SrcFile),
-                    UnaryOperatorOf(postfix.Op.Kind),
+                    postfix.Op.Kind == TokenKind.Bang ? UnaryOperator.Ignored : UnaryOperatorOf(postfix.Op.Kind),
                     LowerExpression(ctx, postfix.Exp),
                     IsPostfix: true);
 
@@ -880,6 +882,7 @@ public static class TreeLower
         TokenKind.DivFloor => BinaryOperator.DivFloor,
         TokenKind.DivCeil => BinaryOperator.DivCeil,
         TokenKind.Rest => BinaryOperator.Rest,
+        TokenKind.Coalesce => BinaryOperator.Coalesce,
         TokenKind.Power => BinaryOperator.Pow,
         TokenKind.PowerWrap => BinaryOperator.PowWrap,
         TokenKind.PowerOnBounds => BinaryOperator.PowOnBounds,

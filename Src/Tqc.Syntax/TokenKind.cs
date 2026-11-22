@@ -21,6 +21,7 @@ public enum TokenKind
     LeftAngle, RightAngle,             // < >
     
     QuestionMark, // ?
+    Coalesce,     // ?? (two adjacent question marks, joined by the parser)
     Bang,         // !
     At,           // @
     Comma,        // ,

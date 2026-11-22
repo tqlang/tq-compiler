@@ -807,9 +807,34 @@ public class Parser(DiagnosticBag diagnostics)
     private ExpressionNode ParseExpression() => ParseAssignment();
     private ExpressionNode ParseType() => ParseAdditive();
 
-    private ExpressionNode ParseAssignment()
+    /// <summary>`a ?? b`: two adjacent question marks (a `?` before a type is also one), right associative, below `==`.</summary>
+    private ExpressionNode ParseCoalesce()
     {
         var left = ParseEquality();
+
+        var cp = SaveCheckpoint();
+        AdvanceTrivia(_midExpressionTrivia);
+
+        if (Check(TokenKind.QuestionMark))
+        {
+            var first = AdvanceNode();
+            if (Check(TokenKind.QuestionMark))
+            {
+                AdvanceNode();
+                var op = new TokenNode(first.Trivia, "??", TokenKind.Coalesce, first.Line, first.Column);
+                AdvanceTrivia(_midExpressionTrivia);
+                var right = ParseCoalesce();
+                return new BinaryExpressionNode(left, op, right);
+            }
+        }
+
+        Rollback(cp);
+        return left;
+    }
+
+    private ExpressionNode ParseAssignment()
+    {
+        var left = ParseCoalesce();
         var cp = SaveCheckpoint();
         AdvanceTrivia(_midExpressionTrivia);
         
@@ -1050,6 +1075,14 @@ public class Parser(DiagnosticBag diagnostics)
     {
         if (CheckKeyword("match")) return ParseMatchExpression();
 
+        // `try f()`: the value of a `!T`, or the error returned from the function.
+        if (CheckKeyword("try"))
+        {
+            var keyword = AdvanceNode();
+            AdvanceTrivia(_midExpressionTrivia);
+            return new UnaryPrefixExpressionNode(keyword, ParsePrefix());
+        }
+
         switch (PeekKind())
         {
             case TokenKind.Star:
@@ -1147,6 +1180,15 @@ public class Parser(DiagnosticBag diagnostics)
                 continue;
             }
             
+            // `x!`: the same as `x.ignored()`.
+            if (Check(TokenKind.Bang))
+            {
+                var bang = AdvanceNode();
+                expr = new UnaryPostfixExpressionNode(expr, bang);
+
+                continue;
+            }
+
             if (Peek() is { kind: TokenKind.Increment or TokenKind.Decrement } postOp)
             {
                 var op = AdvanceNode();
