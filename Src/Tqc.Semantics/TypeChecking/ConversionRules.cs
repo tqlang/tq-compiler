@@ -2,6 +2,7 @@ using System.Numerics;
 using Tqc.IR.Nodes;
 using Tqc.IR.ProgramMembers;
 using Tqc.IR.ProgramMembers.Primitive;
+using Tqc.IR.ProgramMembers.Tq;
 using Tqc.IR.References;
 
 namespace Tqc.Semantics;
@@ -86,6 +87,9 @@ internal static class ConversionRules
         var upcast = ClassifyUpcast(argument, parameter);
         if (upcast.Kind != MatchKind.None) return upcast;
 
+        var protocol = ClassifyProtocol(argument, parameter);
+        if (protocol.Kind != MatchKind.None) return protocol;
+
         var via = conversions.Find(argument, parameter, accessor);
         return via != null ? new ArgumentMatch(MatchKind.Convert, UserConversion, via) : ArgumentMatch.None;
     }
@@ -150,6 +154,34 @@ internal static class ConversionRules
         {
             steps++;
             if (ReferenceEquals(current, target)) return Convert(Upcast + steps);
+        }
+
+        return ArgumentMatch.None;
+    }
+
+    /// <summary>
+    /// A struct goes where a protocol it implements is expected (also one the protocols it implements extend): by value it is
+    /// boxed in .NET, a class is the same object. `*S` goes as well.
+    /// </summary>
+    private static ArgumentMatch ClassifyProtocol(ITypeRef argument, ITypeRef parameter)
+    {
+        var written = CompilerStd.Types.IsRef(argument, out var inner) ? inner : argument;
+        var wanted = CompilerStd.Types.IsRef(parameter, out var wantedInner) ? wantedInner : parameter;
+
+        if (written is not StructTypeReference { Struct: TqStruct derived }) return ArgumentMatch.None;
+
+        IMemberContainer? target = wanted switch
+        {
+            StructTypeReference { Struct: IMemberContainer container } => container,
+            ProtocolTypeReference { Protocol: IMemberContainer container } => container,
+            _ => null,
+        };
+
+        if (target is not IObjectType { IsInterface: true }) return ArgumentMatch.None;
+
+        foreach (var (reached, steps) in Ancestry.Reachable(derived, StructSemantics.IsReference(derived)))
+        {
+            if (ReferenceEquals(reached, target)) return Convert(Upcast + steps);
         }
 
         return ArgumentMatch.None;

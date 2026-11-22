@@ -8,6 +8,7 @@ public record StructDeclarationNode(
     IdentifierExpressionNode Name,
     ParametersCollectionNode? Parameters,
     (SyntaxNode extends, ExpressionNode type)? extends,
+    ImplementsClauseNode? Implements,
     BlockNode Body,
     TriviaNode[] LeadingTrivia
 ) : DeclarationNode(LeadingTrivia)
@@ -27,6 +28,7 @@ public record StructDeclarationNode(
         }
         
         return sb
+            .AppendSyntaxNode(Implements)
             .AppendSyntaxNode(Body)
             .AppendTrivia(LeadingTrivia);
     }

@@ -18,7 +18,8 @@ namespace Tqc.Semantics;
 /// <item>A function that has the signature of a method that can be overridden must say `@override`.</item>
 /// <item>A struct that is not abstract implements every abstract method it inherits.</item>
 /// </list>
-/// A struct extends an interface to implement it: the language has one `extends` per struct.
+/// A struct implements protocols with `implements` (any number); `extends` is the one struct it builds on. The functions
+/// that implement a protocol are marked `@override`, as the ones that override a function of what it extends.
 /// </summary>
 internal sealed class InheritanceChecker(DiagnosticBag diagnostics)
 {
@@ -92,6 +93,9 @@ internal sealed class InheritanceChecker(DiagnosticBag diagnostics)
 
     private void CheckExtends(TqStruct structure)
     {
+        if (structure.IsInterface && structure.Implements.Count > 0)
+            Error($"The protocol '{structure.Name}' extends the protocols it builds on with 'extends'; 'implements' is for structs", structure.SourceLocation);
+
         if (structure.Base is not IObjectType baseType) return;
         var baseName = NameOf(baseType);
 
@@ -130,12 +134,8 @@ internal sealed class InheritanceChecker(DiagnosticBag diagnostics)
         .Where(method => method.Name == name && !method.IsStatic && !method.IsConstructor);
 
     /// <summary>The ancestors of the struct, nearest first, without repeating one (a cycle was reported already).</summary>
-    private static IEnumerable<IMemberContainer> Ancestors(TqStruct structure)
-    {
-        HashSet<IMemberContainer> visited = [structure];
-        for (var current = structure.Base; current != null && visited.Add(current); current = current.Base)
-            yield return current;
-    }
+    private static IEnumerable<IMemberContainer> Ancestors(TqStruct structure) =>
+        Ancestry.Reachable(structure, throughBases: true).Select(ancestor => ancestor.Container);
 
     // ---- Overriding
 

@@ -214,6 +214,33 @@ public class Parser(DiagnosticBag diagnostics)
             AdvanceTrivia(_midDeclarationTrivia);
         }
         
+        // `implements A, B`: any number of protocols.
+        ImplementsClauseNode? implements = null;
+        if (CheckKeyword("implements"))
+        {
+            var implementsKeyword = AdvanceNode();
+            AdvanceTrivia(_midExpressionTrivia);
+
+            List<(ExpressionNode, TokenNode?)> protocols = [];
+            while (true)
+            {
+                var protocol = ParseExpression();
+                AdvanceTrivia(_midExpressionTrivia);
+                TokenNode? comma = null;
+                if (Check(TokenKind.Comma))
+                {
+                    comma = AdvanceNode();
+                    AdvanceTrivia(_midExpressionTrivia);
+                }
+
+                protocols.Add((protocol, comma));
+                if (comma == null) break;
+            }
+
+            implements = new ImplementsClauseNode(implementsKeyword, [..protocols]);
+            AdvanceTrivia(_midDeclarationTrivia);
+        }
+
         var body = ParseStructContent();
         
         return new StructDeclarationNode(
@@ -221,6 +248,7 @@ public class Parser(DiagnosticBag diagnostics)
             nameIdentifier,
             parameters,
             extends,
+            implements,
             body,
             ConsumeDeclarationsLeadingTrivia()
         );

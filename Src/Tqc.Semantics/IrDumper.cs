@@ -173,6 +173,7 @@ public sealed class IrDumper
             ? ""
             : "(" + string.Join(", ", structure.Parameters.Select(p => p.Name)) + ")";
         var extends = structure.Extends != null ? $" : {Expr(structure.Extends)}" : "";
+        if (structure.Implements.Count > 0) extends += " implements " + string.Join(", ", structure.Implements.Select(Expr));
         var (modifier, access) = AccessOf(structure);
 
         Attributes(structure.Attributes);

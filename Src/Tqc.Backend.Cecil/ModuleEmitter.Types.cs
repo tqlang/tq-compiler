@@ -201,11 +201,41 @@ internal sealed partial class ModuleEmitter
     }
 
     /// <summary>
+    /// `implements A, B`: the interfaces of .NET the type implements, which are also the ones the protocols it implements extend. A struct
+    /// by value can implement them too: a value of it is boxed where the protocol is expected.
+    /// </summary>
+    private void DeclareImplemented(Container container)
+    {
+        if (container.Struct is not { Implements.Count: > 0 } structure) return;
+
+        foreach (var (protocol, _) in Ancestry.Reachable(structure, throughBases: false))
+        {
+            if (protocol is not IObjectType { IsInterface: true }) continue;
+
+            TypeReference? reference = protocol switch
+            {
+                TqStruct tq => Defined(tq, tq.Name, structure.SourceLocation),
+                Tqc.Dotnet.ProgramMembers.DotnetInterface dotnet => _module.ImportReference(dotnet.TypeReference),
+                _ => null,
+            };
+
+            // A generic protocol is written with its arguments, which the plain definition does not have.
+            var written = structure.Implements.FirstOrDefault(expression => ReferenceEquals(Ancestry.ProtocolOf(expression), protocol));
+            if (written != null && TypeExpressions.Raw(written) != null) reference = MapExpression(written);
+
+            if (reference == null || container.Type.Interfaces.Any(existing => existing.InterfaceType.FullName == reference.FullName)) continue;
+            container.Type.Interfaces.Add(new InterfaceImplementation(reference));
+        }
+    }
+
+    /// <summary>
     /// What a struct extends: a struct that is an interface is implemented, any other is the base type. Only a
     /// class extends or implements anything.
     /// </summary>
     private void DeclareBases(Container container)
     {
+        DeclareImplemented(container);
+
         if (container.Struct is not { Extends: { } extends } structure) return;
 
         var type = container.Type;

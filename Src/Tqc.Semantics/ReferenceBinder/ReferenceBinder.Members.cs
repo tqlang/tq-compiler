@@ -81,6 +81,14 @@ internal static partial class ReferenceBinder
             CheckExtends(ctx, structure);
         }
 
+        if (structure.Implements.Count > 0)
+        {
+            // A plain name was bound with the attributes; anything else (`Protocol(T)`) may use the parameters.
+            structure.Implements = [..structure.Implements.Select(protocol =>
+                protocol is IrReference or IrAccess ? protocol : BindExpression(ctx, protocol))];
+            CheckImplements(ctx, structure);
+        }
+
         // Ancestors from the farthest, so that a member hides the one of the same name in what it extends.
         List<IMemberContainer> ancestors = [];
         for (var current = structure.Base;
@@ -144,6 +152,46 @@ internal static partial class ReferenceBinder
                 return;
             }
         }
+    }
+
+    /// <summary>
+    /// `implements` takes protocols (of Tq, or interfaces of .NET), each once, and only a struct does it: a protocol
+    /// extends the ones it builds on. A generic protocol needs its arguments.
+    /// </summary>
+    private static void CheckImplements(BindingContext ctx, TqStruct structure)
+    {
+        List<IrExpression> valid = [];
+        HashSet<IMemberContainer> seen = [];
+
+        foreach (var written in structure.Implements)
+        {
+            if (written is IrReference { Reference: UnsolvedRef }) continue;
+
+            var protocol = Ancestry.ProtocolOf(written);
+            if (written is IrReference { Reference: TypeMetaReference { Type: IStruct { Parameters.Count: > 0 } generic } })
+            {
+                ctx.Error($"'{generic.Name}' is generic and needs its arguments to be implemented", written.Location);
+                continue;
+            }
+
+            if (protocol is not IObjectType { IsInterface: true })
+            {
+                ctx.Error($"'{structure.Name}' can only implement protocols or interfaces", written.Location);
+                continue;
+            }
+
+            if (ReferenceEquals(protocol, structure) || !seen.Add(protocol))
+            {
+                ctx.Error(ReferenceEquals(protocol, structure)
+                    ? $"'{structure.Name}' implements itself"
+                    : $"'{structure.Name}' implements '{(protocol as IMember)?.Name}' twice", written.Location);
+                continue;
+            }
+
+            valid.Add(written);
+        }
+
+        structure.Implements = valid;
     }
 
     /// <summary>The underlying type, then the members. Inside, a member is reached by its name and `this` is the value.</summary>

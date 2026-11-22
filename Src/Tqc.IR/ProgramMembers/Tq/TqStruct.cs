@@ -24,6 +24,12 @@ public class TqStruct(string name, SourceLocation location) : IStruct, ITqMember
     /// <summary>The struct it extends, as written (a reference once bound); null if it extends none.</summary>
     public IrExpression? Extends { get; set; }
 
+    /// <summary>The protocols it implements (`implements A, B`), as written (references once bound).</summary>
+    public IReadOnlyList<IrExpression> Implements { get; set; } = [];
+
+    /// <summary>The protocols it implements, once bound; the ones that are not known are left out.</summary>
+    public IEnumerable<IMemberContainer> Protocols => Implements.Select(Ancestry.ProtocolOf).OfType<IMemberContainer>();
+
     /// <summary>Fields and functions by name; overloads are grouped in a TqFunctionGroup.</summary>
     public ImmutableDictionary<string, IMember> Members { get; init; } = ImmutableDictionary<string, IMember>.Empty;
 

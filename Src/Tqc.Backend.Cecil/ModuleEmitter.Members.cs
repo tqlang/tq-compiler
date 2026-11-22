@@ -232,6 +232,13 @@ internal sealed partial class ModuleEmitter
             else if (Has(function.Attributes, BuiltinAttribute.Override)) attributes |= MethodAttributes.Virtual;
         }
 
+        // What implements a function of a protocol is a public virtual method (final, for a struct by value, which has nothing to override it).
+        if (!isStatic && !isConstructor && structure != null && ImplementsProtocolMember(structure, accessorOf?.Name ?? function.Name))
+        {
+            attributes = (attributes & ~MethodAttributes.MemberAccessMask) | MethodAttributes.Public | MethodAttributes.Virtual;
+            if (!IsClass(structure) && !isAbstract) attributes |= MethodAttributes.Final | MethodAttributes.NewSlot;
+        }
+
         var name = isConstructor ? ".ctor" : function.Name;
 
         // The functions marked `@indexerGet` and `@indexerSet` are the accessors of the indexer `Item` (see DeclareIndexers); they serve `a[i]` from
@@ -292,6 +299,12 @@ internal sealed partial class ModuleEmitter
         else
             _bodies.Add((method, il => EmitStub(il, $"Tq: '{owner}' has no body")));
     }
+
+    /// <summary>Whether a member with this name is declared by a protocol that the struct implements.</summary>
+    private static bool ImplementsProtocolMember(TqStruct structure, string name) =>
+        !structure.IsInterface
+        && Ancestry.Reachable(structure, throughBases: false)
+            .Any(ancestor => ancestor.Container is IObjectType { IsInterface: true } && ancestor.Container.OwnMembers.Any(member => member.Name == name));
 
     private void DeclareDefaultConstructor(Container container, TqStruct structure)
     {

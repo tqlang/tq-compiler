@@ -442,6 +442,9 @@ public static class TreeLower
             Parameters = structNode.Parameters != null ? LowerParameters(ctx, structNode.Parameters) : [],
             Attributes = attributes,
             Extends = structNode.extends != null ? LowerExpression(ctx, structNode.extends.Value.type) : null,
+            Implements = structNode.Implements != null
+                ? [..structNode.Implements.Protocols.Select(protocol => LowerExpression(ctx, protocol.node))]
+                : [],
             Members = lowered.Members.ToImmutableDictionary(),
             Constructors = lowered.Constructors,
             Destructor = lowered.Destructor,

@@ -174,6 +174,11 @@ Acesso (`Semantics/Access/`), verificado ao resolver nomes e `a.b`, e ao escolhe
 - `protocol Nome { ... }` (funções sem corpo, como `func g() T`) (as interfaces de Tq; antes `@interface struct`, que agora é erro): sem campos,
   construtor nem destrutor; só estende protocols (ou interfaces .NET), e não aceita `@final`/`@abstract`/`@class`. Uma struct
   implementa um protocol estendendo-o (só há um `extends` por struct); as funções sem corpo precisam ser implementadas.
+  Uma struct implementa protocols com `implements`, quantos quiser (`struct Foo extends Base implements A, B(i32) { ... }`; o `extends` vem antes);
+  as funções que implementam são marcadas `@override`, e tudo o que o protocol pede (e o que os protocols que ele estende pedem) tem de ser
+  implementado, ou a struct é `@abstract`. Uma struct (por valor ou `@class`) vai onde um protocol que ela implementa é esperado; no .NET ela
+  implementa a interface, e uma struct por valor é encaixotada (uma cópia). Struct por valor que estende outra não herda os protocols da base.
+  Um protocol não usa `implements`: estende outros com `extends`.
   Internamente um protocol é um `TqStruct` com o atributo `Interface` posto pelo `TreeLower` (`StructDeclarationNode.IsProtocol`).
 - Struct `@abstract` e protocol não podem ser criados com `new`. Função sem corpo nelas é abstrata.
 - `@virtual`/`@override`: só em função de struct e nunca com `@static`. `@override` troca uma função de mesmo nome e

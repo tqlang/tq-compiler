@@ -25,6 +25,9 @@ internal static partial class ReferenceBinder
                 if (structure.Extends is IrReference or IrAccess)
                     structure.Extends = BindExpression(ctx, structure.Extends);
 
+                structure.Implements = [..structure.Implements.Select(protocol =>
+                    protocol is IrReference or IrAccess ? BindExpression(ctx, protocol) : protocol)];
+
                 InsideOf(ctx, structure, () =>
                 {
                     ctx.PushFrame();
