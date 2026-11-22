@@ -5,11 +5,11 @@ namespace Tqc.Syntax;
 
 internal class Lexer(string Source)
 {
-    private int _cursorPosition = 0;
-    private int _lastPosition = 0;
+    private int _cursorPosition;
+    private int _lastPosition;
     
-    private int _line = 0;
-    private int _column = 0;
+    private int _line;
+    private int _column;
     
     public LexerMode Mode = LexerMode.Normal;
     public enum LexerMode { Normal, String }
@@ -77,10 +77,10 @@ internal class Lexer(string Source)
             case '+':
                 return GetTokenValue(
                     NextRuneIf('=') ? TokenKind.AddAssign 
-                        : NextRuneIf('+') ? TokenKind.Increment
-                        : NextRuneIf('%') ? TokenKind.AddWrap
-                        : NextRuneIf('|') ? TokenKind.AddOnBounds
-                        : TokenKind.Plus
+                    : NextRuneIf('+') ? TokenKind.Increment
+                    : NextRuneIf('%') ? TokenKind.AddWrap
+                    : NextRuneIf('|') ? TokenKind.AddOnBounds
+                    : TokenKind.Plus
                 );
             case '-':
                 return GetTokenValue(
@@ -112,16 +112,21 @@ internal class Lexer(string Source)
             
             case '=':
                 if (NextRuneIf('>')) return GetTokenValue(TokenKind.FatArrow);
-                return NextRuneIf('=')
-                    ? GetTokenValue(NextRuneIf('=')
-                        ? TokenKind.ExactEquals : TokenKind.EqualsEquals)
-                    : GetTokenValue(TokenKind.Equals);
+                return GetTokenValue(
+                    NextRuneIf('=')
+                    ? NextRuneIf('=')
+                        ? TokenKind.ExactEquals
+                        : TokenKind.EqualsEquals
+                    : NextRuneIf('>') ? TokenKind.FatRightArrow
+                    : TokenKind.Equals);
             
             case '!':
-                return NextRuneIf('=')
-                    ? GetTokenValue(NextRuneIf('=')
-                        ? TokenKind.NotExactEquals : TokenKind.NotEqualsEquals)
-                    : GetTokenValue(TokenKind.Bang);
+                return GetTokenValue(
+                    NextRuneIf('=')
+                    ? NextRuneIf('=')
+                        ? TokenKind.NotExactEquals
+                        : TokenKind.NotEqualsEquals
+                    : TokenKind.Bang);
             
             case '⋏': return GetTokenValue(TokenKind.BitwiseAnd);
             case '⋎': return GetTokenValue(TokenKind.BitwiseOr);
@@ -202,21 +207,15 @@ internal class Lexer(string Source)
                 {
                     if (PeekRune().Value == '#')
                     {
-                        int savedPos = _cursorPosition;
                         NextRune();
-                        
-                        if (!IsEof() && PeekRune().Value == '#')
-                        {
-                            NextRune();
-                            if (!IsEof() && PeekRune().Value == '#')
-                            {
-                                NextRune();
-                                break;
-                            }
-                        }
+                        if (IsEof() || PeekRune().Value != '#') continue;
+                        NextRune();
+                        if (IsEof() || PeekRune().Value != '#') continue;
+                        NextRune();
+                        break;
                     }
                     
-                    else NextRune();
+                    NextRune();
                 }
             }
             else

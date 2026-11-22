@@ -501,7 +501,7 @@ internal sealed partial class TypeChecker
 
         // `a.f()` keeps `a` as the receiver; a function reached through a value is not static.
         // `Console.f()` and `Foo.f()` go through a namespace or a type, not a value: there the static ones apply.
-        var viaValue = visited.callee is IrAccess { baseExpr: var receiver } && !IsTypeOrNamespace(receiver);
+        var viaValue = visited.callee is IrAccess { baseExpr: var receiver2 } && !IsTypeOrNamespace(receiver2);
 
         switch (CalleeReference(visited.callee))
         {

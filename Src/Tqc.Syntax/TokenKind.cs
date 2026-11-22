@@ -46,6 +46,8 @@ public enum TokenKind
     BitShiftLeft,        // <<
     BitShiftRight,       // >>
     
+    FatRightArrow,       // =>
+    
     BitwiseAnd, // ⋏
     BitwiseOr,  // ⋎
     BitwiseXor, // ⊕
@@ -62,9 +64,9 @@ public enum TokenKind
     SubOnBounds,       // -|
     SubAssign,         // -=
     
-    Power,             // ** (two adjacent stars; the parser joins them, so that `**T` is still a reference to a reference)
-    PowerWrap,         // **% (`*` and `*%`, joined by the parser)
-    PowerOnBounds,     // **| (`*` and `*|`, joined by the parser)
+    Power,             // **
+    PowerWrap,         // **%
+    PowerOnBounds,     // **|
     Star,              // *
     MulWrap,           // *%
     MulOnBounds,       // *|
@@ -78,5 +80,5 @@ public enum TokenKind
     Rest,       // %
     RestAssign, // %=
     
-    Eof
+    Eof,
 }

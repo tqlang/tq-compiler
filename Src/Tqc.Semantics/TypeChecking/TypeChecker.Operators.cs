@@ -1,5 +1,6 @@
 using Tqc.Core;
 using Tqc.Dotnet.ProgramMembers;
+using Tqc.IR;
 using Tqc.IR.Nodes;
 using Tqc.IR.ProgramMembers;
 using Tqc.IR.ProgramMembers.Primitive;

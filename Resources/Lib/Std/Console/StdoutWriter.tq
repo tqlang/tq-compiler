@@ -1,14 +1,20 @@
-from Std.Io import { Writer }
+from Std.Io import
 from Dotnet.System import { Console }
 
-@private struct StdoutWriter extends Writer {
+@private struct StdoutWriter
+	extends Stream
+	implements TextWriter
+{
 
 	@public @override func write(string value) {
-		Console.Write(value)
+		Console.Out.Write(value)
 	}
 
-	@public @override func writeln(string value) {
-		Console.WriteLine(value)
+	@public @override func writeLine(string value) {
+		Console.Out.WriteLine(value)
 	}
 
+	@public @override func flush() {
+		Console.Out.Flush()
+	}
 }

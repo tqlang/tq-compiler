@@ -3,6 +3,7 @@ using Tqc.Dotnet.ModuleBuilder;
 using Tqc.Dotnet.ProgramMembers;
 using Tqc.IR.Nodes;
 using Tqc.IR.ProgramMembers;
+using Tqc.IR.ProgramMembers.Primitive;
 using Tqc.IR.ProgramMembers.Tq;
 using Tqc.IR.References;
 

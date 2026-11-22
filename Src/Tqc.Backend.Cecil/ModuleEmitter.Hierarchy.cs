@@ -187,7 +187,7 @@ internal sealed partial class ModuleEmitter
                 il.Emit(OpCodes.Ldflda, _backend.BaseFields[type.FullName]);
                 il.Emit(OpCodes.Ret);
                 reference.Methods.Add(override_);
-                reference.Properties.Add(new PropertyDefinition($"@base_{Depth(above)}", PropertyAttributes.None, aboveReference) { GetMethod = override_ });
+                reference.Properties.Add(new PropertyDefinition($"base_{Depth(above)}", PropertyAttributes.None, aboveReference) { GetMethod = override_ });
             }
 
             // A method for each function: it runs the function of the struct on the value. The `@override` of a struct

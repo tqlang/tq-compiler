@@ -35,6 +35,7 @@ public class Parser(DiagnosticBag diagnostics)
         {
             AdvanceTrivia(_midDeclarationTrivia);
             if (AtEnd()) break;
+            
             declarations.Add(ParseDeclaration(
                 ScopeAllowedDeclarations.Import
                 | ScopeAllowedDeclarations.Attributes
@@ -152,7 +153,7 @@ public class Parser(DiagnosticBag diagnostics)
         // `func f(string value)`: a function can end after its signature, with no body (an abstract one). The body is the
         // `{` that comes next, even on another line; anything else on a line of its own is the next declaration.
         ExpressionNode? returnType = null;
-        if (PeekKind() != TokenKind.LeftBrace && PeekKind() != TokenKind.FatArrow && !newLine && !AtEndOfSignature())
+        if (!AtEnd() && PeekKind() != TokenKind.LeftBrace && PeekKind() != TokenKind.FatArrow && !newLine && !AtEndOfSignature())
         {
             returnType = ParseExpression();
             AdvanceTriviaNoticingLines();
@@ -191,7 +192,7 @@ public class Parser(DiagnosticBag diagnostics)
         var crossed = false;
         while (!AtEnd() && _midDeclarationTrivia.Contains(PeekKind()))
         {
-            if (PeekKind() == TokenKind.LineFeed) crossed = true;
+            if (!AtEnd() && PeekKind() == TokenKind.LineFeed) crossed = true;
             AdvanceTrivia();
         }
 
@@ -201,7 +202,10 @@ public class Parser(DiagnosticBag diagnostics)
     private StructDeclarationNode ParseStructDeclaration()
     {
         // A `protocol` is declared like a struct; it is the one that has the keyword `protocol` (see `StructDeclarationNode.IsProtocol`).
-        var structKeyword = CheckKeyword("protocol") ? ExpectNode("protocol", "'protocol' keyword") : ExpectNode("struct", "'struct' keyword");
+        var structKeyword = CheckKeyword("protocol")
+            ? ExpectNode("protocol", "'protocol' keyword")
+            : ExpectNode("struct", "'struct' keyword");
+        
         AdvanceTrivia(TokenKind.Whitespace);
         var nameIdentifier = ParseSingleIdentifier();
         AdvanceTrivia(_midDeclarationTrivia);
@@ -300,20 +304,25 @@ public class Parser(DiagnosticBag diagnostics)
         ExpressionNode? firstExpression;
         IdentifierExpressionNode? secondExpression = null;
         
-        letKeyword = CheckKeyword("const") ? ExpectNode("const", "'const' keyword") : ExpectNode("let", "'let' keyword");
+        letKeyword = CheckKeyword("const")
+            ? ExpectNode("const", "'const' keyword")
+            : ExpectNode("let", "'let' keyword");
         AdvanceTrivia(TokenKind.Whitespace);
         
         firstExpression = ParseType(); // not an assignment: in `let x = 1` the `= 1` is the value of the field
+        var cp = SaveCheckpoint();
         AdvanceTrivia(_midDeclarationTrivia);
 
         if (!Check(TokenKind.Equals) && !Check(TokenKind.LeftBrace) && !Check(TokenKind.FatArrow) && !Check(TokenKind.LineFeed))
         {
             secondExpression = ParseSingleIdentifier();
+            cp               = SaveCheckpoint();
             AdvanceTrivia(_midDeclarationTrivia);
         }
         
         if (Check(TokenKind.Equals))
         {
+           
             var equals = AdvanceNode();
             AdvanceTrivia(_midDeclarationTrivia);
             var value = ParseExpression();
@@ -355,6 +364,7 @@ public class Parser(DiagnosticBag diagnostics)
             // `let name { ... }` has no type; `let T name { ... }` does.
             if (secondExpression == null && firstExpression is not IdentifierExpressionNode)
                 throw Error(Peek()!.Value, "Expected the name of the property");
+            
             if (secondExpression == null) {
                 secondExpression = (IdentifierExpressionNode)firstExpression;
                 firstExpression  = null!;
@@ -370,7 +380,8 @@ public class Parser(DiagnosticBag diagnostics)
             secondExpression = (IdentifierExpressionNode)firstExpression;
             firstExpression  = null!;
         }
-
+        
+        Rollback(cp);
         return new FieldDeclarationNode(
             letKeyword,
             firstExpression,
@@ -462,7 +473,7 @@ public class Parser(DiagnosticBag diagnostics)
         AdvanceTrivia(_midDeclarationTrivia);
 
         ExpressionNode? returnType = null;
-        if (PeekKind() != TokenKind.LeftBrace)
+        if (!AtEnd() && PeekKind() != TokenKind.LeftBrace)
         {
             returnType = ParseExpression();
             AdvanceTrivia(_midDeclarationTrivia);
@@ -488,7 +499,7 @@ public class Parser(DiagnosticBag diagnostics)
         AdvanceTrivia(_midDeclarationTrivia);
 
         ExpressionNode? returnType = null;
-        if (PeekKind() != TokenKind.LeftBrace)
+        if (!AtEnd() && PeekKind() != TokenKind.LeftBrace)
         {
             returnType = ParseExpression();
             AdvanceTrivia(_midDeclarationTrivia);
@@ -511,7 +522,7 @@ public class Parser(DiagnosticBag diagnostics)
         var caseKeyword = ExpectNode("case", "'case' keyword");
         AdvanceTrivia(_midDeclarationConservativeTrivia);
 
-        if (PeekKind() is TokenKind.IntegerNumberLiteral)
+        if (!AtEnd() && PeekKind() is TokenKind.IntegerNumberLiteral)
         {
             List<(IntegerLiteralExpressionNode, TokenNode?)> items = [];
             while (!AtEnd())
@@ -586,7 +597,7 @@ public class Parser(DiagnosticBag diagnostics)
         
         while (!AtEnd())
         {
-            if (PeekKind() == TokenKind.RightParenthesis) break;
+            if (!AtEnd() && PeekKind() == TokenKind.RightParenthesis) break;
 
             var type = ParseExpression();
             AdvanceTrivia(_midDeclarationTrivia);
@@ -594,7 +605,7 @@ public class Parser(DiagnosticBag diagnostics)
             AdvanceTrivia(_midDeclarationTrivia);
             TokenNode? comma = null;
             
-            if (PeekKind() == TokenKind.Comma)
+            if (!AtEnd() && PeekKind() == TokenKind.Comma)
             {
                 comma = AdvanceNode();
                 AdvanceTrivia(_midDeclarationTrivia);
@@ -860,10 +871,9 @@ public class Parser(DiagnosticBag diagnostics)
             var cp = SaveCheckpoint();
             AdvanceTrivia(_midExpressionTrivia);
 
-            if (!(PeekKind()
-               is TokenKind.EqualsEquals or TokenKind.ExactEquals 
-               or TokenKind.NotEqualsEquals or TokenKind.NotExactEquals)
-                  )
+            if (AtEnd() || PeekKind() is not (
+                TokenKind.EqualsEquals or TokenKind.ExactEquals 
+                or TokenKind.NotEqualsEquals or TokenKind.NotExactEquals))
             {
                 Rollback(cp);
                 break;
@@ -888,10 +898,9 @@ public class Parser(DiagnosticBag diagnostics)
             var cp = SaveCheckpoint();
             AdvanceTrivia(_midExpressionTrivia);
 
-            if (!(PeekKind()
-               is TokenKind.LeftAngle or TokenKind.RightAngle
-               or TokenKind.LessEqual or TokenKind.GreaterEqual)
-                  )
+            if (AtEnd() || PeekKind() is not (
+                TokenKind.LeftAngle or TokenKind.RightAngle
+                or TokenKind.LessEqual or TokenKind.GreaterEqual))
             {
                 Rollback(cp);
                 break;
@@ -916,11 +925,10 @@ public class Parser(DiagnosticBag diagnostics)
             var cp = SaveCheckpoint();
             AdvanceTrivia(_midExpressionTrivia);
 
-            if (!(PeekKind()
-               is TokenKind.Plus or TokenKind.Minus 
-               or TokenKind.AddWrap or TokenKind.SubWrap 
-               or TokenKind.AddOnBounds or TokenKind.SubOnBounds)
-                  )
+            if (AtEnd() || PeekKind() is not (
+                TokenKind.Plus or TokenKind.Minus 
+                or TokenKind.AddWrap or TokenKind.SubWrap 
+                or TokenKind.AddOnBounds or TokenKind.SubOnBounds))
             {
                 Rollback(cp);
                 break;
@@ -945,11 +953,10 @@ public class Parser(DiagnosticBag diagnostics)
             var cp = SaveCheckpoint();
             AdvanceTrivia(_midExpressionTrivia);
 
-            if (!(PeekKind()
-               is TokenKind.Star or TokenKind.Slash or TokenKind.Rest
-               or TokenKind.MulWrap or TokenKind.MulOnBounds
-               or TokenKind.DivFloor or TokenKind.DivCeil)
-                  )
+            if (AtEnd() || PeekKind() is not (
+                TokenKind.Star or TokenKind.Slash or TokenKind.Rest
+                or TokenKind.MulWrap or TokenKind.MulOnBounds
+                or TokenKind.DivFloor or TokenKind.DivCeil))
             {
                 Rollback(cp);
                 break;
@@ -1113,7 +1120,7 @@ public class Parser(DiagnosticBag diagnostics)
 
                     // `[5]int`: one element, no comma, and a type right after the bracket (with no space: `[a] * b` is a product).
                     if (elements is [{ Item2: null } size]
-                        && (PeekKind() is TokenKind.LeftBracket or TokenKind.Star
+                        && (!AtEnd() && PeekKind() is TokenKind.LeftBracket or TokenKind.Star
                             || (Peek() is { kind: TokenKind.Identifier } word && !_notATypeAfterBracket.Contains(word.value))))
                         return new ArrayTypeModifierNode(leftBracket, size.Item1, close, ParsePrefix());
 
@@ -1228,13 +1235,15 @@ public class Parser(DiagnosticBag diagnostics)
             AdvanceTrivia(TokenKind.Whitespace);
         
             firstExpression = ParseType();
+            var cp = SaveCheckpoint();
             AdvanceTrivia(_midDeclarationTrivia);
             
             if (!Check(TokenKind.Equals) && !Check(TokenKind.LineFeed))
             {
                 secondExpression = ParseSingleIdentifier();
-                AdvanceTrivia(_midDeclarationTrivia);
+                //AdvanceTrivia(_midDeclarationTrivia);
             }
+            else Rollback(cp);
             
             if (secondExpression == null && firstExpression is not IdentifierExpressionNode name)
                 throw new NotImplementedException();
@@ -1360,14 +1369,14 @@ public class Parser(DiagnosticBag diagnostics)
             AdvanceTrivia(_midExpressionTrivia);
             TokenNode? comma = null;
             
-            if (PeekKind() == TokenKind.Comma)
+            if (!AtEnd() && PeekKind() == TokenKind.Comma)
             {
                 comma = AdvanceNode();
                 AdvanceTrivia(_midExpressionTrivia);
             }
             
             arguments.Add((exp, comma));
-            if (alsoBreaksAt.Contains(PeekKind())) break;
+            if (!AtEnd() && alsoBreaksAt.Contains(PeekKind())) break;
         }
 
         return arguments;
@@ -1396,7 +1405,7 @@ public class Parser(DiagnosticBag diagnostics)
             }
 
             TokenNode? comma = null;
-            if (PeekKind() == TokenKind.Comma)
+            if (!AtEnd() && PeekKind() == TokenKind.Comma)
             {
                 comma = AdvanceNode();
                 AdvanceTrivia(_midExpressionTrivia);
@@ -1422,10 +1431,18 @@ public class Parser(DiagnosticBag diagnostics)
     {
         AdvanceTrivia(TokenKind.Whitespace, TokenKind.Comment);
         
-        if (Check(TokenKind.Semicolon) || Check(TokenKind.LineFeed)) AdvanceTrivia();
-        else if (Check(TokenKind.Eof)) {}
+        if (Check(TokenKind.Eof)) {}
         else if (Check(TokenKind.RightBrace)) {}
-        else Expect(TokenKind.LineFeed, "Line feed after statement");
+        
+        else
+        {
+            if (Peek() is not { kind: TokenKind.LineFeed or TokenKind.Semicolon })
+            {
+                var t = Peek()!.Value;
+                throw Error(t, $"Expected Line Feed after statement.");
+            }
+            //while (Peek() is { kind: TokenKind.LineFeed or TokenKind.Semicolon }) AdvanceTrivia();
+        }
         
         return _trivia.Dump();
     }
@@ -1524,7 +1541,7 @@ public class Parser(DiagnosticBag diagnostics)
         cp.Item3.Restore();
     }
     
-    private ParsingError Error(TokenValue tok, string message) => new (message,
+    private ParsingError Error(TokenValue tok, string message) => new ($"{message}\n({_path} @ {tok.Line+1}:{tok.Column})",
         new SourceLocation(_path, tok.Line, tok.Column, tok.Line, tok.Column + tok.value.Length));
     
     #endregion

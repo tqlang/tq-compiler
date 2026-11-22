@@ -1693,7 +1693,7 @@ internal sealed class BodyEmitter
             _il.Emit(OpCodes.Call, _owner.GenericMember("System.Nullable`1", nullable, "get_HasValue", 0));
             _il.Emit(OpCodes.Brfalse, fallback);
             _il.Emit(OpCodes.Ldloca, temp);
-            _il.Emit(OpCodes.Call, _owner.GenericMember("System.Nullable`1", nullable, "GetValueOrDefault", 0));
+            _il.Emit(OpCodes.Call, _owner.GenericMember("System.Nullable`1", nullable, "get_Value", 0));
             _il.Emit(OpCodes.Br, end);
             _il.Append(fallback);
             EmitValue(binary.Right, inner);
