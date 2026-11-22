@@ -57,7 +57,7 @@ internal sealed partial class ModuleEmitter
                     DeclareTypedef(typedef, qualified, type);
                     break;
 
-                case TqFunctionGroup or TqFunction or TqField:
+                case TqFunctionGroup or TqFunction or TqField or TqProperty:
                     statics.Add(member);
                     break;
 
