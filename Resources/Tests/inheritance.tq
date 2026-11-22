@@ -164,3 +164,139 @@ func testPolymorphism() {
         Test.assert(speaker.speak(), "moo")
     }
 }
+
+func kindOf(Animal animal) string => "animal"
+
+func kindOf(Dog dog) string => "dog"
+
+func asAnimal(Dog dog) Animal => dog
+
+func asDog(Puppy puppy) Dog => puppy
+
+func rename(Animal animal, string nickname) { animal.nickname = nickname }
+
+func relay(Animal animal) Animal => animal
+
+func relayTwice(Animal animal) Animal => relay(relay(animal))
+
+func totalLegs(Animal first, Animal second) int => first.legs + second.legs
+
+func testReferenceConversion() {
+    Test.newTestUnit("conversion - a reference to a struct becomes a reference to its base")
+    {
+        let Dog dog = new Dog()
+        let Animal animal = dog
+        Test.assert(animal.sound(), "woof")
+        Test.assert(animal.legCount(), 4)
+    }
+
+    Test.newTestUnit("conversion - it goes up more than one level")
+    {
+        let Puppy puppy = new Puppy()
+        let Dog dog = puppy
+        let Animal animal = puppy
+        Test.assert(dog.sound(), "woof")
+        Test.assert(dog.describe(), "puppy")
+        Test.assert(animal.describe(), "puppy")
+    }
+
+    Test.newTestUnit("conversion - the base is the same object, not a copy")
+    {
+        let Dog dog = new Dog()
+        let Animal animal = dog
+        animal.nickname = "rex"
+        Test.assert(dog.nickname, "rex")
+        dog.legs = 3
+        Test.assert(animal.legs, 3)
+    }
+
+    Test.newTestUnit("conversion - as an argument of a function")
+    {
+        let Dog dog = new Dog()
+        Test.assert(soundOf(dog), "woof")
+        Test.assert(describeOf(dog), "animal")
+    }
+
+    Test.newTestUnit("conversion - as an argument, from a struct two levels below")
+    {
+        let Puppy puppy = new Puppy()
+        Test.assert(soundOf(puppy), "woof")
+        Test.assert(describeOf(puppy), "puppy")
+    }
+
+    Test.newTestUnit("conversion - the function that receives the base changes the same object")
+    {
+        let Dog dog = new Dog()
+        rename(dog, "toby")
+        Test.assert(dog.nickname, "toby")
+
+        let Puppy puppy = new Puppy()
+        rename(puppy, "bit")
+        Test.assert(puppy.nickname, "bit")
+    }
+
+    Test.newTestUnit("conversion - two arguments of different derived structs")
+    {
+        let Dog dog = new Dog()
+        let Bird bird = new Bird()
+        bird.legs = 2
+        Test.assert(totalLegs(dog, bird), 6)
+    }
+
+    Test.newTestUnit("conversion - as the result of a function")
+    {
+        let Dog dog = new Dog()
+        let Animal animal = asAnimal(dog)
+        Test.assert(animal.sound(), "woof")
+        animal.nickname = "max"
+        Test.assert(dog.nickname, "max")
+
+        let Dog fromPuppy = asDog(new Puppy())
+        Test.assert(fromPuppy.describe(), "puppy")
+    }
+
+    Test.newTestUnit("conversion - passing through several functions keeps the object")
+    {
+        let Bird bird = new Bird()
+        let Animal animal = relayTwice(bird)
+        Test.assert(animal.sound(), "tweet")
+        animal.nickname = "tweety"
+        Test.assert(bird.nickname, "tweety")
+    }
+
+    Test.newTestUnit("conversion - the overload with the nearest base is chosen")
+    {
+        Test.assert(kindOf(new Animal()), "animal")
+        Test.assert(kindOf(new Bird()), "animal")
+        Test.assert(kindOf(new Dog()), "dog")
+        Test.assert(kindOf(new Puppy()), "dog")
+    }
+
+    Test.newTestUnit("conversion - the variable of the base takes another derived struct")
+    {
+        let Animal animal = new Dog()
+        let Dog dog = new Dog()
+        let Bird bird = new Bird()
+        animal = dog
+        Test.assert(animal.sound(), "woof")
+        animal = bird
+        Test.assert(animal.sound(), "tweet")
+    }
+
+    Test.newTestUnit("conversion - a reference to an abstract struct")
+    {
+        let Square square = new Square()
+        square.side = 5
+        let Shape shape = square
+        Test.assert(shape.area(), 25)
+        Test.assert(areaOf(square), 25)
+    }
+
+    Test.newTestUnit("conversion - a reference to a protocol")
+    {
+        let Cat cat = new Cat()
+        let Speaker speaker = cat
+        Test.assert(speaker.speak(), "meow")
+        Test.assert(speakOf(cat), "meow")
+    }
+}
