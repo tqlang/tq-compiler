@@ -335,37 +335,38 @@ cada aplicação é uma `GenericInstance` da tabela compartilhada; não há nó 
 ## Dump da IR (`--dump-ir`)
 
 `tqc build_toml [build.toml] --dump-ir[=pasta]` escreve a IR de cada módulo Tq em `pasta/<Módulo>.tqir` (padrão `./tqir`),
-depois da checagem de tipos e mesmo quando há erros. É escrita como a própria linguagem (`SemanticAnalyser.DumpIr` / `IrDumper`):
-o que foi escrito em Tq sai como Tq, e os comentários dizem o que o compilador sabe.
+depois da checagem de tipos e mesmo quando há erros (`SemanticAnalyser.DumpIr` / `IrDumper`). A sintaxe lembra a LLVM IR: o tipo vem
+antes do valor e toda operação é uma chamada. O controle de fluxo continua estruturado (`if`, `while`, `match`), porque a IR é uma árvore.
 
 ```
 namespace Std.Console {
-    public struct Health : Base {    // class · ns=Game · /caminho/health.tq(3,1)
-        public value: i32;    // ns=Game · /caminho/health.tq(4,5)
-        public func change(new: i32) -> void {    // ns=Game · /caminho/health.tq(6,5)
-            this.value = (new + 1) /* binary Add: i32 */ /* assign: i32 */;    // @7:9
-            Console.Write(s /* param: string */) /* call -> Write(string): void */;    // @8:9
+    %Std.Console.Health = public type class extends %Base {    ; ns=Game · /caminho/health.tq(3,1)
+        field public i32 @Std.Console.Health.value    ; ns=Game · /caminho/health.tq(4,5)
+        define public void @Std.Console.Health.change(i32 %new) {    ; ns=Game · /caminho/health.tq(6,5)
+            i32 store(i32 field(Health %this, @value), i32 add(i32 %new, i32 1))    ; @7:9
+            void call @Console.Write(string %s)    ; @8:9
+            ret void    ; @9:9
         }
     }
 }
 ```
 
-- **Toda** expressão leva `/* o que é: tipo */`. O tipo é o do type checker, escrito como nas mensagens de erro (`i32`, `ref Foo`,
-  `!i32`, `?T`, `[]string`); `?` se não tem tipo.
-- O "o que é" de um nome é a ligação do binder: `local`, `param`, `field`, `property`, `this of Tipo`, `backing field of prop`,
-  `func Nome(tipos)`, `group of overloads`, `namespace`, `type`, `struct type`, `typedef`, `protocol`, `slice type`, `UNSOLVED`.
-  Outros nós dizem `binary Add`, `unary Neg`, `convert`, `assign`, `index`, `array`, `int constant`, `decimal constant`,
-  `bool constant`, `string constant`, `string concat`, `local declaration`.
-- Uma chamada diz a sobrecarga escolhida (`call -> Write(string)`); se ainda é um grupo: `call, UNRESOLVED: Write is still a
-  group of overloads`. Um `new` diz `new -> construtor` ou `new, UNRESOLVED constructor`.
-- Um nome que o binder não conseguiu ligar sai como `?nome`.
-- Flags nos comentários dos membros: propriedades mostram `getter/setter`, `accessors resolved`, `uses field`; funções mostram
-  `owner=`, `overridable`; structs mostram `class`, `abstract`, `final`, etc.
-- Cada instrução termina em `// @linha:coluna`; membros trazem acesso (`public`, `private`...), o namespace (`ns=`), `allow=`/`deny=`
-  e a posição `arquivo(linha,coluna)` no comentário.
-- Também saem imports e declarações por arquivo, atributos (`@onset`, e `UNKNOWN attribute` para os que não existem), `extends`,
-  construtores, `typedef`s (tipo base, casos), propriedades (`get`/`set`, o que o checker resolveu, `backing field`), e operadores
-  na escrita da linguagem (`+%`, `**`, `as`).
+- **Toda** expressão é `tipo operação(argumentos)`. O tipo é o do type checker, escrito como nas mensagens de erro (`i32`, `ref Foo`,
+  `!i32`, `?T`, `[]string`); `?` se não tem tipo. Uma constante é `tipo valor` (`i32 5`, `bool true`, `string "texto"`).
+- Nomes: `%x` é local, parâmetro ou `this`; `@x` é função, campo, propriedade ou namespace; `%X` é um tipo.
+- Operações: `call`, `new`, `convert`, `store`, `field`, `prop`, `member`, `index`, `array`, `range`, `addr`, `is`/`is.exact`, `match`,
+  `concat`, `local` (declaração de variável) e uma por operador: `add`, `add.wrap`, `add.sat`, `sub*`, `mul*`, `div`, `div.floor`,
+  `div.ceil`, `rem`, `pow`, `pow.wrap`, `pow.sat`, `eq`, `eq.exact`, `ne`, `lt`, `gt`, `le`, `ge`, `coalesce`, `not`, `neg`, `inc`,
+  `inc.post`, `dec`, `dec.post`, `try`, `ignored`, `unwrap`, `nullable`.
+- Uma chamada diz a função que o checker escolheu (`call @Console.Write(...)`); se ainda é um grupo de sobrecargas:
+  `call UNRESOLVED @Write(...)`. Um `new` sem construtor resolvido é `new UNRESOLVED %Tipo(...)`.
+- Um nome que o binder não conseguiu ligar sai como `?nome`; atributos saem como `!nome(args)` (`UNKNOWN attribute` no comentário
+  para os que não existem).
+- Comentários começam com `;`. Cada instrução termina em `; @linha:coluna`; membros trazem acesso (`public`, `private`...), o
+  namespace (`ns=`), `allow=`/`deny=` e a posição `arquivo(linha,coluna)`. Propriedades mostram `getter/setter`, `accessors resolved`,
+  `uses field`; funções mostram `owner=`, `overridable`; structs mostram `class`, `abstract`, `final`.
+- Imports e declarações por arquivo, `extends`/`implements`, construtores, `typedef`s (tipo base, casos) e propriedades
+  (`get`/`set`, o que o checker resolveu, `backing field`) também saem.
 
 ## `<inteiro>.min` e `<inteiro>.max`
 

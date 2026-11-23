@@ -11,31 +11,35 @@ using Tqc.IR.References;
 namespace Tqc.Semantics;
 
 /// <summary>
-/// The IR of a module as text, for debugging, written like the language: what was written in Tq reads as Tq, and the
-/// comments say what the compiler knows about it.
+/// The IR of a module as text, for debugging, in the style of LLVM IR: the type comes before the value, an operation is
+/// a call (`add(a, b)`) and what is not a value is a statement. The control flow stays structured, as the IR is a tree.
 ///
 ///   namespace Std.Console {
-///       public struct Health : Base {            // class · file.tq(3,1)
-///           public value: i32;
-///           public func change(new: i32) -> void {
-///               this.value = (new + 1);          // @6:9
-///               write(x /* string */)            // @7:9
-///               Console.Write(s) /* -> Write(string) : void */
+///       %Std.Console.Health = type class extends %Base {    ; file.tq(3,1)
+///           field @Std.Console.Health.value: i32            ; public
+///           define public void @Std.Console.Health.change(i32 %new) {
+///               i32 store(i32 field(%Std.Console.Health %this, @value), i32 add(i32 %new, i32 1))    ; @6:9
+///               void call @Std.Console.write(string %x)    ; @7:9
+///               ret void
 ///           }
 ///       }
 ///   }
 ///
-/// - `/* T */` after an expression is the type the type checker gave it (`?` when it has none) and is written on
-///   what computes something (calls, operators, conversions, indexing); a local says its type where it is declared.
-/// - A call says the overload it chose, `/* -> name(types) : result */`; one that is still a group of overloads says
-///   `/* UNRESOLVED call */`.
-/// - A name the binder could not bind is written `?name`.
-/// - A statement ends with `// @line:column`.
+/// - Every expression is written `type operation(arguments)`; the type is the one the type checker gave it, `?` when it has none.
+/// - Values: `%name` is a local, a parameter or `this`; `@name` is a function, a field, a property or a namespace; `%Name` is a type.
+/// - A constant is `type value` (`i32 5`, `bool true`, `string "text"`, `null`).
+/// - Operations: `call`, `new`, `convert`, `store`, `field`, `prop`, `member`, `index`, `array`, `range`, `addr`, `is`, `match`,
+///   `concat`, `local` (the declaration of a variable), and one per operator (`add`, `add.wrap`, `add.sat`, `div.floor`, `eq`, `lt`,
+///   `not`, `neg`, `try`, `unwrap`...).
+/// - A call of a group of overloads that the checker did not resolve is `call UNRESOLVED @name(...)`; a name the binder could
+///   not bind is `?name`.
+/// - A statement ends with `; @line:column`. Comments start with `;`.
 /// </summary>
 public sealed class IrDumper
 {
     private readonly StringBuilder _out = new();
     private readonly TypeTable _types;
+    private readonly List<string> _path = [];
     private int _depth;
 
     private IrDumper(TypeTable types) => _types = types;
@@ -43,7 +47,7 @@ public sealed class IrDumper
     public static string Dump(TqModule module, string name)
     {
         var dumper = new IrDumper(module.Types);
-        dumper.Line($"// module {name}");
+        dumper.Line($"; module {name}");
         dumper.Namespace(module.RootNamespace);
         return dumper._out.ToString();
     }
@@ -54,7 +58,7 @@ public sealed class IrDumper
 
     private void Block(string header, Action body, string? comment = null)
     {
-        Line($"{header} {{{(comment == null ? "" : $"    // {comment}")}");
+        Line($"{header} {{{(comment == null ? "" : $"    ; {comment}")}");
         _depth++;
         body();
         _depth--;
@@ -68,21 +72,32 @@ public sealed class IrDumper
 
     private string TypeText(IrNode node) => _types.Get(node) is { } type ? TypeFormatter.Format(type) : "?";
 
+    /// <summary>The name of a member with the namespaces and the structs it is in: `Std.Console.Health.change`.</summary>
+    private string Qualified(string name) => string.Join(".", _path.Append(name));
+
+    private void Inside(string name, Action body)
+    {
+        var added = !string.IsNullOrEmpty(name);
+        if (added) _path.Add(name);
+        try { body(); }
+        finally { if (added) _path.RemoveAt(_path.Count - 1); }
+    }
+
     // ---- Members
 
     private void Namespace(TqNamespace node)
     {
-        Block($"namespace {node.Name}", () =>
+        Block($"namespace {node.Name}", () => Inside(node.Name, () =>
         {
             if (!node.FileScopes.IsDefault) foreach (var scope in node.FileScopes) FileScope(scope);
             foreach (var member in Ordered(node.Members.Values)) Member(member);
             foreach (var child in node.Namespaces.OrderBy(pair => pair.Key, StringComparer.Ordinal)) Namespace(child.Value);
-        });
+        }));
     }
 
     private void FileScope(TqFileScope scope)
     {
-        Line($"// file {scope.FilePath}");
+        Line($"; file {scope.FilePath}");
 
         foreach (var import in scope.Imports)
         {
@@ -91,11 +106,11 @@ public sealed class IrDumper
                 : " { " + string.Join(", ", import.Imports.Select(pair => pair.Key == pair.Value.Item2
                     ? pair.Key
                     : $"{pair.Key} = {pair.Value.Item2}")) + " }";
-            Line($"import {string.Join(".", import.NamespaceReference)}{names};    // {Where(import.Location)}");
+            Line($"import @{string.Join(".", import.NamespaceReference)}{names}    ; {Where(import.Location)}");
         }
 
         if (scope.Members.Count > 0)
-            Line($"// declares {string.Join(", ", scope.Members.Keys.Order(StringComparer.Ordinal))}");
+            Line($"; declares {string.Join(", ", scope.Members.Keys.Order(StringComparer.Ordinal))}");
         Line();
     }
 
@@ -128,10 +143,10 @@ public sealed class IrDumper
             case TqField field: Field(field); break;
             case TqProperty property: Property(property); break;
             case TqFunctionGroup group:
-                foreach (var function in group) Function(function, "func");
+                foreach (var function in group) Function(function, "define");
                 break;
-            case TqFunction function: Function(function, "func"); break;
-            default: Line($"// {member.GetType().Name} {member.Name}"); break;
+            case TqFunction function: Function(function, "define"); break;
+            default: Line($"; {member.GetType().Name} {member.Name}"); break;
         }
     }
 
@@ -157,7 +172,7 @@ public sealed class IrDumper
             };
 
             var list = arguments.IsDefaultOrEmpty ? "" : $"({string.Join(", ", arguments.Select(Expr))})";
-            Line($"@{name}{list}{(unknown ? "    // UNKNOWN attribute" : "")}");
+            Line($"!{name}{list}{(unknown ? "    ; UNKNOWN attribute" : "")}");
         }
     }
 
@@ -171,37 +186,37 @@ public sealed class IrDumper
 
         var parameters = structure.Parameters.Count == 0
             ? ""
-            : "(" + string.Join(", ", structure.Parameters.Select(p => p.Name)) + ")";
-        var extends = structure.Extends != null ? $" : {Expr(structure.Extends)}" : "";
-        if (structure.Implements.Count > 0) extends += " implements " + string.Join(", ", structure.Implements.Select(Expr));
+            : "(" + string.Join(", ", structure.Parameters.Select(p => "%" + p.Name)) + ")";
+        var extends = structure.Extends != null ? $" extends {TypeExpr(structure.Extends)}" : "";
+        if (structure.Implements.Count > 0) extends += " implements " + string.Join(", ", structure.Implements.Select(TypeExpr));
         var (modifier, access) = AccessOf(structure);
 
         Attributes(structure.Attributes);
-        Block($"{modifier} struct {structure.Name}{parameters}{extends}", () =>
+        Block($"%{Qualified(structure.Name)}{parameters} = {modifier} type {(flags.Count > 0 ? string.Join(" ", flags) + " " : "")}{extends}".Replace("  ", " ").TrimEnd(), () => Inside(structure.Name, () =>
         {
             foreach (var parameter in structure.Parameters)
-                Line($"// type parameter {parameter.Name}: {Expr(parameter.Type)}");
+                Line($"; type parameter %{parameter.Name}: {TypeExpr(parameter.Type)}");
 
             foreach (var constructor in structure.Constructors) Function(constructor, "constructor");
             if (structure.Destructor != null) Function(structure.Destructor, "destructor");
             foreach (var member in Ordered(structure.Members.Values)) Member(member);
-        }, $"{string.Join(" ", flags)}{(flags.Count > 0 ? " · " : "")}{access} · {WhereFile(structure.SourceLocation)}");
+        }), $"{access} · {WhereFile(structure.SourceLocation)}");
         Line();
     }
 
     private void Typedef(TqTypedef typedef)
     {
         var (modifier, access) = AccessOf(typedef);
-        var underlying = typedef.UnderlyingType != null ? $" : {Expr(typedef.UnderlyingType)}" : "";
+        var underlying = typedef.UnderlyingType != null ? $" {TypeExpr(typedef.UnderlyingType)}" : "";
 
         Attributes(typedef.Attributes);
-        Block($"{modifier} typedef {typedef.Name}{underlying}", () =>
+        Block($"%{Qualified(typedef.Name)} = {modifier} typedef{underlying}", () => Inside(typedef.Name, () =>
         {
             foreach (var numeric in typedef.NumericCases)
-                Line($"case {string.Join(", ", numeric.Values.Select(v => v.BigInteger.ToString(CultureInfo.InvariantCulture)))};    // {Where(numeric.Location)}");
+                Line($"case {string.Join(", ", numeric.Values.Select(v => v.BigInteger.ToString(CultureInfo.InvariantCulture)))}    ; {Where(numeric.Location)}");
 
             foreach (var member in Ordered(typedef.Members.Values)) Member(member);
-        }, $"{access} · {WhereFile(typedef.SourceLocation)}");
+        }), $"{access} · {WhereFile(typedef.SourceLocation)}");
         Line();
     }
 
@@ -209,38 +224,38 @@ public sealed class IrDumper
     {
         Attributes(named.Attributes);
         var value = named.Value != null ? $" = {Expr(named.Value)}" : "";
-        Line($"case {named.Name}{value};    // {AccessOf(named).Comment} · {Where(named.SourceLocation)}");
+        Line($"case @{Qualified(named.Name)}{value}    ; {AccessOf(named).Comment} · {Where(named.SourceLocation)}");
     }
 
     private void Field(TqField field)
     {
         var (modifier, access) = AccessOf(field);
-        var type = field.Type != null ? $": {Expr(field.Type)}" : "";
+        var type = field.Type != null ? TypeExpr(field.Type) : "?";
         var value = field.Value != null ? $" = {Expr(field.Value)}" : "";
 
         Attributes(field.Attributes);
-        Line($"{modifier} {field.Name}{type}{value};    // {access} · {WhereFile(field.SourceLocation)}");
+        Line($"field {modifier} {type} @{Qualified(field.Name)}{value}    ; {access} · {WhereFile(field.SourceLocation)}");
     }
 
     private void Property(TqProperty property)
     {
         var (modifier, access) = AccessOf(property);
-        var type = property.Type != null ? $": {Expr(property.Type)}" : "";
+        var type = property.Type != null ? TypeExpr(property.Type) : "?";
         var comment = $"{access} · backing field: {(property.HasBackingField ? "yes" : "no")}"
                       + $"{(property.UsesFieldKeyword ? " · uses `field`" : "")}"
                       + $" · getter: {(property.HasGetter ? "yes" : "no")} · setter: {(property.HasSetter ? "yes" : "no")}"
                       + $" · accessors resolved: {(property.AccessorsResolved ? "yes" : "no")} · {WhereFile(property.SourceLocation)}";
 
         Attributes(property.Attributes);
-        Block($"{modifier} property {property.Name}{type}", () =>
+        Block($"property {modifier} {type} @{Qualified(property.Name)}", () =>
         {
             if (property.GetterFunction != null) Function(property.GetterFunction, "get");
-            if (property.GetterSource != null) Line($"get => {Expr(property.GetterSource)};");
-            if (property.Getter != null) Line($"// get resolved to {Callable(property.Getter)}");
+            if (property.GetterSource != null) Line($"get {Expr(property.GetterSource)}");
+            if (property.Getter != null) Line($"; get resolved to @{Callable(property.Getter)}");
 
             if (property.SetterFunction != null) Function(property.SetterFunction, "set");
-            if (property.SetterSource != null) Line($"set => {Expr(property.SetterSource)};");
-            if (property.Setter != null) Line($"// set resolved to {Callable(property.Setter)}");
+            if (property.SetterSource != null) Line($"set {Expr(property.SetterSource)}");
+            if (property.Setter != null) Line($"; set resolved to @{Callable(property.Setter)}");
         }, comment);
     }
 
@@ -249,14 +264,16 @@ public sealed class IrDumper
         var flags = new List<string>();
         if (function.IsStatic) flags.Add("static");
         if (function.IsAbstract) flags.Add("abstract");
-        if (function.CanBeOverridden && !function.IsAbstract) flags.Add("overridable");
 
         var (modifier, access) = AccessOf(function);
-        var name = keyword is "get" or "set" or "constructor" or "destructor" ? "" : $" {function.Name}";
+        var returns = function.ReturnType != null ? TypeExpr(function.ReturnType) : "void";
         var parameters = string.Join(", ", (function.Parameters ?? []).Select(Parameter));
-        var returns = function.ReturnType != null ? $" -> {Expr(function.ReturnType)}" : "";
-        var header = $"{modifier} {string.Join(" ", flags.Where(flag => flag != "overridable"))} {keyword}{name}({parameters}){returns}"
-            .Replace("  ", " ").Trim();
+        var name = keyword is "constructor" or "destructor" ? keyword : function.Name;
+
+        var header = (keyword is "get" or "set"
+            ? $"{keyword} {modifier} {returns}({parameters})"
+            : $"define {modifier} {string.Join(" ", flags)} {returns} @{Qualified(name)}({parameters})").Replace("  ", " ");
+
         var comment = $"{(function.CanBeOverridden && !function.IsAbstract ? "overridable · " : "")}"
                       + $"{(function.Owner != null ? $"owner={function.Owner.Name} · " : "")}{access} · {WhereFile(function.SourceLocation)}";
 
@@ -264,11 +281,11 @@ public sealed class IrDumper
 
         if (function.Body == null)
         {
-            Line($"{header};    // {comment}");
+            Line($"{(header.StartsWith("define ") ? "declare " + header["define ".Length..] : header)}    ; {comment}");
             return;
         }
 
-        Line($"{header} {{    // {comment}");
+        Line($"{header} {{    ; {comment}");
         _depth++;
         Statements(function.Body);
         _depth--;
@@ -279,7 +296,7 @@ public sealed class IrDumper
     {
         var lazy = parameter.Lazy ? "lazy " : "";
         var value = parameter.DefaultValue != null ? $" = {Expr(parameter.DefaultValue)}" : "";
-        return $"{lazy}{parameter.Name}: {Expr(parameter.Type)}{value}";
+        return $"{lazy}{TypeExpr(parameter.Type)} %{parameter.Name}{value}";
     }
 
     // ---- References
@@ -287,34 +304,24 @@ public sealed class IrDumper
     private static string Callable(IFunction function) =>
         function is TqFunction { Owner: { } owner } ? $"{owner.Name}.{function.Name}" : function.Name;
 
-    /// <summary>The overload a call chose: `Write(string)`, written the way the checker saw its parameters.</summary>
-    private static string Signature(IFunction function)
-    {
-        var signature = FunctionSignature.Of(function);
-        var parameters = signature == null
-            ? "?"
-            : string.Join(", ", signature.Parameters.Select(type => type == null ? "?" : TypeFormatter.Format(type)));
-        return $"{Callable(function)}({parameters})";
-    }
-
-    /// <summary>A name as it is written; the binder's answer for it is in the comments of the call that uses it.</summary>
-    private static string Name(Ref reference) => reference switch
+    /// <summary>What a name is: `%x` a local, a parameter or `this`; `@x` a function, a field or a namespace; `%X` a type.</summary>
+    private static string Symbol(Ref reference) => reference switch
     {
         UnsolvedRef unsolved => $"?{unsolved.Value}",
-        LocalReference local => local.Local.name,
-        ParameterReference parameter => parameter.Parameter.Name,
-        ThisReference => "this",
-        BackingFieldReference => "field",
-        PropertyReference property => property.Property.Name,
-        FieldReference field => field.Field.Name,
-        FunctionTypeReference function => function.Function.Name,
-        FunctionGroupTypeReference group => group.FunctionGroup.Name,
-        NamespaceReference @namespace => @namespace.Namespace.Name,
-        ProtocolTypeReference protocol => protocol.Protocol.Name,
-        TypeMetaReference meta => meta.Type.Name,
-        StructTypeReference structure => TypeFormatter.Format(structure),
-        TypedefTypeReference typedef => typedef.Typedef.Name,
-        SliceTypeRef slice => TypeFormatter.Format(slice),
+        LocalReference local => $"%{local.Local.name}",
+        ParameterReference parameter => $"%{parameter.Parameter.Name}",
+        ThisReference => "%this",
+        BackingFieldReference => "%field",
+        PropertyReference property => $"@{property.Property.Name}",
+        FieldReference field => $"@{field.Field.Name}",
+        FunctionTypeReference function => $"@{Callable(function.Function)}",
+        FunctionGroupTypeReference group => $"@{group.FunctionGroup.Name}",
+        NamespaceReference @namespace => $"@{@namespace.Namespace.Name}",
+        ProtocolTypeReference protocol => $"%{protocol.Protocol.Name}",
+        TypeMetaReference meta => $"%{meta.Type.Name}",
+        StructTypeReference structure => $"%{TypeFormatter.Format(structure)}",
+        TypedefTypeReference typedef => $"%{typedef.Typedef.Name}",
+        SliceTypeRef slice => $"%{TypeFormatter.Format(slice)}",
         _ => reference.GetType().Name + " " + reference,
     };
 
@@ -346,7 +353,7 @@ public sealed class IrDumper
 
     private void Statement(IrNode node)
     {
-        var at = $"    // {Where(node.location)}";
+        var at = $"    ; {Where(node.location)}";
 
         switch (node)
         {
@@ -359,15 +366,15 @@ public sealed class IrDumper
                 break;
 
             case IrReturnStatement @return:
-                Line(@return.ReturnValue == null ? $"return;{at}" : $"return {Expr(@return.ReturnValue)};{at}");
+                Line(@return.ReturnValue == null ? $"ret void{at}" : $"ret {Expr(@return.ReturnValue)}{at}");
                 break;
 
             case IrExpressionStatement statement:
-                Line($"{Expr(statement.Expression)};{at}");
+                ExpressionStatement(statement.Expression, at);
                 break;
 
             case IrIf @if:
-                Line($"if {Expr(@if.Condition)} {{{at}");
+                Line($"if ({Expr(@if.Condition)}) {{{at}");
                 Nested(@if.Then);
                 if (@if.Else == null)
                 {
@@ -387,25 +394,58 @@ public sealed class IrDumper
                 parts.Add(Expr(@while.Condition));
                 if (@while.Step != null) parts.Add(Expr(@while.Step));
 
-                Line($"while ({string.Join(" : ", parts)}) {{{at}");
+                Line($"while ({string.Join("; ", parts)}) {{{at}");
                 Nested(@while.Body);
                 Line("}");
                 break;
             }
 
             case IrBreak:
-                Line($"break;{at}");
+                Line($"break{at}");
                 break;
 
             case IrExpression expression:
-                Line($"{Expr(expression)};{at}");
+                ExpressionStatement(expression, at);
                 break;
 
             default:
-                Line($"// {node.GetType().Name} {Where(node.location)}");
+                Line($"; {node.GetType().Name} {Where(node.location)}");
                 break;
         }
     }
+
+    /// <summary>An expression used as a statement; a `match` is written with a block for each arm.</summary>
+    private void ExpressionStatement(IrExpression expression, string at)
+    {
+        if (expression is not IrMatch match)
+        {
+            Line($"{Expr(expression)}{at}");
+            return;
+        }
+
+        Line($"{TypeText(match)} match({Expr(match.Subject)}) {{{at}");
+        _depth++;
+        foreach (var arm in match.Arms)
+        {
+            if (arm.Body is IrExpression value)
+            {
+                Line($"{ArmHead(arm)} => {Expr(value)}");
+                continue;
+            }
+
+            Line($"{ArmHead(arm)} => {{");
+            Nested(arm.Body);
+            Line("}");
+        }
+
+        _depth--;
+        Line("}");
+    }
+
+    private string ArmHead(IrMatchArm arm) => arm.IsDefault
+        ? "default"
+        : "case " + string.Join(", ", arm.Patterns.Select(Expr))
+                  + (arm.Binding != null ? " %" + arm.Binding.name : "");
 
     private void Nested(IrNode? node)
     {
@@ -416,53 +456,46 @@ public sealed class IrDumper
 
     // ---- Expressions
 
+    /// <summary>The name of the operation of an operator: `add`, `add.wrap`, `add.sat`, `div.floor`, `eq`, `lt`...</summary>
     private static readonly Dictionary<BinaryOperator, string> Operators = new()
     {
-        [BinaryOperator.Add] = "+", [BinaryOperator.AddWrap] = "+%", [BinaryOperator.AddOnBounds] = "+|",
-        [BinaryOperator.Sub] = "-", [BinaryOperator.SubWrap] = "-%", [BinaryOperator.SubOnBounds] = "-|",
-        [BinaryOperator.Mul] = "*", [BinaryOperator.MulWrap] = "*%", [BinaryOperator.MulOnBounds] = "*|",
-        [BinaryOperator.Div] = "/", [BinaryOperator.DivFloor] = "/_", [BinaryOperator.DivCeil] = "/^",
-        [BinaryOperator.Rest] = "%", [BinaryOperator.Pow] = "**",
-        [BinaryOperator.PowWrap] = "**%", [BinaryOperator.PowOnBounds] = "**|",
-        [BinaryOperator.Equal] = "==", [BinaryOperator.ExactEqual] = "===",
-        [BinaryOperator.NotEqual] = "!=", [BinaryOperator.NotExactEqual] = "!==",
-        [BinaryOperator.Less] = "<", [BinaryOperator.Greater] = ">",
-        [BinaryOperator.LessEqual] = "<=", [BinaryOperator.GreaterEqual] = ">=",
+        [BinaryOperator.Add] = "add", [BinaryOperator.AddWrap] = "add.wrap", [BinaryOperator.AddOnBounds] = "add.sat",
+        [BinaryOperator.Sub] = "sub", [BinaryOperator.SubWrap] = "sub.wrap", [BinaryOperator.SubOnBounds] = "sub.sat",
+        [BinaryOperator.Mul] = "mul", [BinaryOperator.MulWrap] = "mul.wrap", [BinaryOperator.MulOnBounds] = "mul.sat",
+        [BinaryOperator.Div] = "div", [BinaryOperator.DivFloor] = "div.floor", [BinaryOperator.DivCeil] = "div.ceil",
+        [BinaryOperator.Rest] = "rem", [BinaryOperator.Pow] = "pow",
+        [BinaryOperator.PowWrap] = "pow.wrap", [BinaryOperator.PowOnBounds] = "pow.sat",
+        [BinaryOperator.Equal] = "eq", [BinaryOperator.ExactEqual] = "eq.exact",
+        [BinaryOperator.NotEqual] = "ne", [BinaryOperator.NotExactEqual] = "ne.exact",
+        [BinaryOperator.Less] = "lt", [BinaryOperator.Greater] = "gt",
+        [BinaryOperator.LessEqual] = "le", [BinaryOperator.GreaterEqual] = "ge",
+        [BinaryOperator.Coalesce] = "coalesce",
     };
 
-    /// <summary>
-    /// `/* what: T */`: what the expression is for the compiler (what a name was bound to, the overload a call chose, the
-    /// kind of a literal) and the type the checker gave it; `?` when it has none. Every expression has one.
-    /// </summary>
-    private string Typed(string text, IrNode node, string? what = null) =>
-        $"{text} /* {(what == null ? "" : what + ": ")}{TypeText(node)} */";
+    /// <summary>`type operation`: the type the checker gave the expression (`?` when it has none), then what it does.</summary>
+    private string Typed(IrNode node, string text) => $"{TypeText(node)} {text}";
 
-    /// <summary>What a name was bound to: `local`, `param`, `field`, `func Owner.name(types)`, `UNSOLVED`...</summary>
-    private static string Kind(Ref reference) => reference switch
+    /// <summary>A type written as a type: `%Health`, `i32`, `?i32`, `[]u8`, `[4]i32`.</summary>
+    private string TypeExpr(IrNode? node)
     {
-        UnsolvedRef => "UNSOLVED",
-        LocalReference => "local",
-        ParameterReference => "param",
-        ThisReference self => $"this of {self.Owner.Name}",
-        BackingFieldReference backing => $"backing field of {backing.Property.Name}",
-        PropertyReference => "property",
-        FieldReference => "field",
-        FunctionTypeReference function => $"func {Signature(function.Function)}",
-        FunctionGroupTypeReference => "group of overloads",
-        NamespaceReference => "namespace",
-        ProtocolTypeReference => "protocol",
-        TypeMetaReference => "type",
-        StructTypeReference => "struct type",
-        TypedefTypeReference => "typedef",
-        SliceTypeRef => "slice type",
-        ArrayTypeRef => "array type",
-        _ => reference.GetType().Name,
-    };
-
-    /// <summary>An operand of an operator: parenthesized when it is one itself.</summary>
-    private string Operand(IrExpression expression) => expression is IrBinary or IrConvert or IrAssign or IrUnary
-        ? $"({Expr(expression)})"
-        : Expr(expression);
+        switch (node)
+        {
+            case null: return "?";
+            case IrReference { Reference: var reference } when reference is not (LocalReference or ParameterReference or UnsolvedRef):
+                return reference switch
+                {
+                    TypeMetaReference meta => TypeFormatter.Format(meta.Type),
+                    StructTypeReference structure => TypeFormatter.Format(structure),
+                    _ => Symbol(reference),
+                };
+            case IrIdentifier identifier: return $"?{identifier.identifier}";
+            case IrAccess access: return $"{TypeExpr(access.baseExpr)}.{Symbol(access.access.Reference).TrimStart('@', '%')}";
+            case IrSliceTypeModifier slice: return $"[]{TypeExpr(slice.subtype)}";
+            case IrArrayTypeModifier array: return $"[{Expr(array.Length)}]{TypeExpr(array.subtype)}";
+            case IrUnary { Operator: UnaryOperator.Nullable } nullable: return $"?{TypeExpr(nullable.Operand)}";
+            default: return Expr(node);
+        }
+    }
 
     private string Expr(IrNode? node)
     {
@@ -472,102 +505,99 @@ public sealed class IrDumper
                 return "<none>";
 
             case IrReference reference:
-                return Typed(Name(reference.Reference), reference, Kind(reference.Reference));
+                return Typed(reference, Symbol(reference.Reference));
 
             case IrIdentifier identifier:
-                return Typed($"?{identifier.identifier}", identifier, "UNBOUND identifier");
+                return Typed(identifier, $"?{identifier.identifier}");
 
             case IrAccess access:
-                return Typed($"{Operand(access.baseExpr)}.{Name(access.access.Reference)}", access, Kind(access.access.Reference));
+            {
+                var operation = access.access.Reference switch
+                {
+                    FieldReference => "field",
+                    PropertyReference => "prop",
+                    _ => "member",
+                };
+                return Typed(access, $"{operation}({Expr(access.baseExpr)}, {Symbol(access.access.Reference)})");
+            }
 
             case IrCall call:
-                return Typed($"{Operand(call.callee)}({Arguments(call.ArgumentsList)})", call, Resolution(call));
+                return Typed(call, $"call {Callee(call)}({Arguments(call.ArgumentsList)})");
 
             case IrNew creation:
             {
-                var constructor = creation.Constructor == null
-                    ? "new, UNRESOLVED constructor"
-                    : $"new -> {Signature(creation.Constructor)}";
-                return Typed($"new {Expr(creation.Type)}({Arguments(creation.ArgumentsList)})", creation, constructor);
+                var constructor = creation.Constructor == null ? " UNRESOLVED" : "";
+                return Typed(creation, $"new{constructor} {TypeExpr(creation.Type)}({Arguments(creation.ArgumentsList)})");
             }
 
             case IrConvert convert:
-                return Typed($"{Operand(convert.Expression)} as {Expr(convert.toType)}", convert, "convert");
+                return Typed(convert, $"convert({Expr(convert.Expression)}, {TypeExpr(convert.toType)})");
 
             case IrAssign assign:
-                return Typed($"{Expr(assign.Target)} = {Expr(assign.Source)}", assign, "assign");
+                return Typed(assign, $"store({Expr(assign.Target)}, {Expr(assign.Source)})");
 
-            case IrSliceTypeModifier slice:
-                return Typed($"[]{Expr(slice.subtype)}", slice, "slice type");
-
-            case IrArrayTypeModifier arrayType:
-                return Typed($"[{Expr(arrayType.Length)}]{Expr(arrayType.subtype)}", arrayType, "array type");
+            case IrSliceTypeModifier or IrArrayTypeModifier:
+                return Typed(node, $"type {TypeExpr(node)}");
 
             case IrMatch match:
-                return Typed($"match {Expr(match.Subject)} {{ " + string.Join(" ", match.Arms.Select(arm =>
-                    (arm.IsDefault ? "default" : "case " + string.Join(", ", arm.Patterns.Select(Expr)) + (arm.Binding != null ? " " + arm.Binding.name : ""))
-                    + " => " + (arm.Body is IrExpression value ? Expr(value) : "{ ... }"))) + " }", match, "match");
+                return Typed(match, $"match({Expr(match.Subject)}) {{ " + string.Join(" ", match.Arms.Select(arm =>
+                    ArmHead(arm) + " => " + (arm.Body is IrExpression value ? Expr(value) : "{ ... }"))) + " }");
 
             case IrTypeTest test:
-                return Typed($"{Operand(test.Value)} {(test.SameType ? "is the type" : "is a")} {Expr(test.Type)}", test, "type test");
+                return Typed(test, $"{(test.SameType ? "is.exact" : "is")}({Expr(test.Value)}, {TypeExpr(test.Type)})");
 
             case IrRange range:
-                return Typed($"{Expr(range.From)} .. {Expr(range.To)}", range, "range");
+                return Typed(range, $"range({Expr(range.From)}, {Expr(range.To)})");
 
             case IrAddressOf addressOf:
-                return Typed($"&{Operand(addressOf.Operand)}", addressOf, "address of");
+                return Typed(addressOf, $"addr({Expr(addressOf.Operand)})");
 
             case IrBinary binary:
-                return Typed($"{Operand(binary.Left)} {Operators.GetValueOrDefault(binary.Operator, binary.Operator.ToString())} {Operand(binary.Right)}", binary, $"binary {binary.Operator}");
+                return Typed(binary, $"{Operators.GetValueOrDefault(binary.Operator, binary.Operator.ToString().ToLowerInvariant())}({Expr(binary.Left)}, {Expr(binary.Right)})");
 
             case IrUnary unary:
             {
-                var symbol = unary.Operator switch
+                var name = unary.Operator switch
                 {
-                    UnaryOperator.Not => "!",
-                    UnaryOperator.Negate => "-",
-                    UnaryOperator.Increment => "++",
-                    UnaryOperator.Decrement => "--",
-                    UnaryOperator.Nullable => "?",
-                    UnaryOperator.Try => "try ",
-                    UnaryOperator.Ignored => "!",
-                    UnaryOperator.Unwrap => ".unwrap()",
-                    _ => unary.Operator.ToString(),
+                    UnaryOperator.Not => "not",
+                    UnaryOperator.Negate => "neg",
+                    UnaryOperator.Increment => unary.IsPostfix ? "inc.post" : "inc",
+                    UnaryOperator.Decrement => unary.IsPostfix ? "dec.post" : "dec",
+                    UnaryOperator.Nullable => "nullable",
+                    UnaryOperator.Try => "try",
+                    UnaryOperator.Ignored => "ignored",
+                    UnaryOperator.Unwrap => "unwrap",
+                    _ => unary.Operator.ToString().ToLowerInvariant(),
                 };
-                var operand = Operand(unary.Operand);
-                return Typed(unary.IsPostfix ? $"{operand}{symbol}" : $"{symbol}{operand}", unary,
-                    $"unary {unary.Operator}{(unary.IsPostfix ? " postfix" : "")}");
+                return Typed(unary, $"{name}({Expr(unary.Operand)})");
             }
 
             case IrIndex index:
-                return Typed($"{Operand(index.Target)}[{string.Join(", ", index.Indices.Select(Expr))}]", index, "index");
+                return Typed(index, $"index({Expr(index.Target)}{string.Concat(index.Indices.Select(i => ", " + Expr(i)))})");
 
             case IrArray array:
-                return Typed($"[{string.Join(", ", array.Elements.Select(Expr))}]", array, "array");
+                return Typed(array, $"array({string.Join(", ", array.Elements.Select(Expr))})");
 
             case IrComptimeInt integer:
-                return Typed(integer.BigInteger.ToString(CultureInfo.InvariantCulture), integer, "int constant");
+                return Typed(integer, integer.BigInteger.ToString(CultureInfo.InvariantCulture));
 
             case IrComptimeDecimal number:
-                return Typed(number.Value.ToString(CultureInfo.InvariantCulture), number, "decimal constant");
+                return Typed(number, number.Value.ToString(CultureInfo.InvariantCulture));
 
             case IrNull nothing:
-                return Typed("null", nothing, "null constant");
+                return Typed(nothing, "null");
 
             case IrComptimeBool boolean:
-                return Typed(boolean.Value ? "true" : "false", boolean, "bool constant");
+                return Typed(boolean, boolean.Value ? "true" : "false");
 
             case IrLocal local:
-            {
-                var declared = local.type != null ? $": {Expr(local.type)}" : "";
-                return Typed($"let {local.name}{declared}", local, "local declaration");
-            }
+                return Typed(local, $"local(%{local.name}{(local.type != null ? ", " + TypeExpr(local.type) : "")})");
 
             case IrStringConstant text:
-                return Typed($"\"{Escape(text.Value)}\"", text, "string constant");
+                return Typed(text, $"\"{Escape(text.Value)}\"");
 
             case IrStringConcat concat:
-                return Typed($"concat({string.Join(", ", concat.Parts.Select(Expr))})", concat, "string concat");
+                return Typed(concat, $"concat({string.Join(", ", concat.Parts.Select(Expr))})");
 
             case IrArgumentsList list:
                 return Arguments(list);
@@ -579,13 +609,12 @@ public sealed class IrDumper
 
     private string Arguments(IrArgumentsList list) => string.Join(", ", list.arguments.Select(Expr));
 
-    /// <summary>The overload the checker chose for a call, or that it did not.</summary>
-    private string Resolution(IrCall call) => ReferenceOf(call.callee) switch
+    /// <summary>What a call calls: the function the checker chose, a group it did not, or an expression.</summary>
+    private string Callee(IrCall call) => ReferenceOf(call.callee) switch
     {
-        FunctionTypeReference function => $"call -> {Signature(function.Function)}",
-        FunctionGroupTypeReference group => $"call, UNRESOLVED: {group.FunctionGroup.Name} is still a group of overloads",
-        { } other => $"call of {Kind(other)}",
-        _ => "call",
+        FunctionTypeReference function => $"@{Callable(function.Function)}",
+        FunctionGroupTypeReference group => $"UNRESOLVED @{group.FunctionGroup.Name}",
+        _ => Expr(call.callee),
     };
 
     private static string Escape(string text) => text
