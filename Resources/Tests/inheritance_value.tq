@@ -61,9 +61,12 @@ func testValueInheritance() {
 
     Test.newTestUnit("inheritance by value - override changes what a function does")
     {
-        Test.assert(new Vehicle().sound(), "...")
-        Test.assert(new Car().sound(), "vroom")
-        Test.assert(new Bike().sound(), "ring")
+        let Vehicle vehicle = new Vehicle()
+        let Car car = new Car()
+        let Bike bike = new Bike()
+        Test.assert(vehicle.sound(), "...")
+        Test.assert(car.sound(), "vroom")
+        Test.assert(bike.sound(), "ring")
     }
 
     Test.newTestUnit("inheritance by value - several levels")

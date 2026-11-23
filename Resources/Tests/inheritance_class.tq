@@ -79,15 +79,20 @@ func testInheritance() {
 
     Test.newTestUnit("inheritance - override changes what a function does")
     {
-        Test.assert(new Animal().sound(), "...")
-        Test.assert(new Dog().sound(), "woof")
-        Test.assert(new Bird().sound(), "tweet")
+        let Animal animal = new Animal()
+        let Dog dog = new Dog()
+        let Bird bird = new Bird()
+        Test.assert(animal.sound(), "...")
+        Test.assert(dog.sound(), "woof")
+        Test.assert(bird.sound(), "tweet")
     }
 
     Test.newTestUnit("inheritance - a function that is not overridden is the inherited one")
     {
-        Test.assert(new Dog().describe(), "animal")
-        Test.assert(new Bird().describe(), "bird")
+        let Dog dog = new Dog()
+        let Bird bird = new Bird()
+        Test.assert(dog.describe(), "animal")
+        Test.assert(bird.describe(), "bird")
     }
 
     Test.newTestUnit("inheritance - several levels")
