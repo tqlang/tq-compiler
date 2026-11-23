@@ -6,7 +6,7 @@ typedef Level {
     case high
 }
 
-func testConditionals() {
+@public func testConditionals() {
     let i32 val = 10
 
     Test.newTestUnit("conditionals - if/elif/else")

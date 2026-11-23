@@ -15,7 +15,7 @@ func pick(type T, T first, T second, bool useFirst) T => match useFirst {
     case false => second
 }
 
-func testFunctions() {
+@public func testFunctions() {
     Test.newTestUnit("functions - body with =>")
     {
         Test.assert(twice(21), 42)

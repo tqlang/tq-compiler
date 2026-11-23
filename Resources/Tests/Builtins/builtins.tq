@@ -1,6 +1,6 @@
 from Std import { Test }
 
-func testBuiltins() {
+@public func testBuiltins() {
 
     Test.newTestUnit("builtins - 8-bit min & max")
     {

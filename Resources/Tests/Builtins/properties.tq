@@ -13,7 +13,7 @@ struct Rect {
     let int tripled { get => field * 3; set }
 }
 
-func testProperties() {
+@public func testProperties() {
     Test.newTestUnit("properties - a property of a namespace is read and written by its name")
     {
         counter = 3

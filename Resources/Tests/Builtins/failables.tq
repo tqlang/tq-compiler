@@ -7,7 +7,7 @@ func halfPlusOne(int num) !int {
     return h + 1
 }
 
-func testFailables() {
+@public func testFailables() {
     Test.newTestUnit("failability - a value goes where a failable is returned")
     {
         Test.assert(half(8).ignored().unwrap(), 4)

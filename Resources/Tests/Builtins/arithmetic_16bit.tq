@@ -1,6 +1,6 @@
 from Std import { Test }
 
-func testArithmeticU16() {
+@public func testArithmeticU16() {
 	let u16 zero = 0
 	let u16 one = 1
 	let u16 two = 2
@@ -206,7 +206,7 @@ func testArithmeticU16() {
 	}
 }
 
-func testArithmeticI16() {
+@public func testArithmeticI16() {
 	let i16 zero = 0
 	let i16 one = 1
 	let i16 two = 2

@@ -41,7 +41,7 @@ func kindOfRef(*Vehicle vehicle) string => "vehicle"
 func kindOfRef(*Car car) string => "car"
 
 
-func testValueInheritance() {
+@public func testValueInheritance() {
     Test.newTestUnit("inheritance by value - a struct that extends another has its functions")
     {
         let Car car = new Car()
@@ -92,7 +92,7 @@ func testValueInheritance() {
     }
 }
 
-func testValuePolymorphism() {
+@public func testValuePolymorphism() {
     Test.newTestUnit("polymorphism by value - a reference to the derived goes where the base is expected")
     {
         let Car car = new Car()

@@ -1,6 +1,6 @@
 from Std import { Test }
 
-func testStrings() {
+@public func testStrings() {
     let int number = 5
     let string name = "tq"
 

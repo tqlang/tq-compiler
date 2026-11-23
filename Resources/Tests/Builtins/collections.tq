@@ -7,7 +7,7 @@ struct Holder {
     let [3]int values
 }
 
-func testArraysAndSlices() {
+@public func testArraysAndSlices() {
     let [5]int numbers = [10, 20, 30, 40, 50]
     let []int all = &numbers
     let []int middle = numbers[2 .. 3]

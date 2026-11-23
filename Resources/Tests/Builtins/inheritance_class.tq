@@ -60,7 +60,7 @@ func areaOf(Shape shape) int => shape.area()
 func speakOf(Speaker speaker) string => speaker.speak()
 
 
-func testInheritance() {
+@public func testInheritance() {
     Test.newTestUnit("inheritance - a struct that extends another has its functions")
     {
         let Dog dog = new Dog()
@@ -106,7 +106,7 @@ func testInheritance() {
     }
 }
 
-func testPolymorphism() {
+@public func testPolymorphism() {
     Test.newTestUnit("polymorphism - a derived struct goes where its base is expected")
     {
         Test.assert(soundOf(new Animal()), "...")
@@ -188,7 +188,7 @@ func relayTwice(Animal animal) Animal => relay(relay(animal))
 
 func totalLegs(Animal first, Animal second) int => first.legs + second.legs
 
-func testReferenceConversion() {
+@public func testReferenceConversion() {
     Test.newTestUnit("conversion - a reference to a struct becomes a reference to its base")
     {
         let Dog dog = new Dog()

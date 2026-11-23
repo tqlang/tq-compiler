@@ -1,7 +1,7 @@
 from Std import { Test }
 from Std.Collections import
 
-func testDynamicArray() {
+@public func testDynamicArray() {
     let list = new DynamicArray(u32)()
 
     Test.newTestUnit("DynamicArray - add elements")

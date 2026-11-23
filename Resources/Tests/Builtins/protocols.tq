@@ -17,7 +17,7 @@ func nameOf(Named named) string => named.name()
 
 func ageOf(Aged aged) int => aged.age()
 
-func testProtocols() {
+@public func testProtocols() {
     Test.newTestUnit("protocols - a struct goes where a protocol it implements is expected")
     {
         let Person person = new Person()

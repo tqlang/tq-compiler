@@ -1,6 +1,6 @@
 from Std import { Test }
 
-func testNullables() {
+@public func testNullables() {
     Test.newTestUnit("nullability - coalescing operator with null")
     {
         let ?int maybeNull = null
