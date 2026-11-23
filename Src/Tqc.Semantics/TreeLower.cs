@@ -27,7 +27,10 @@ public static class TreeLower
         foreach (var scope in scopes)
         {
             foreach (var (name, member) in scope.Members)
-                if (!members.TryAdd(name, member)) throw new NotImplementedException("Duplicate members (error here is not implemented)");
+            {
+                if (members.TryAdd(name, member)) continue;
+                throw DuplicatedNamespaceMemberError(namespaceContainer.Name, name, members[name], member, scope.FilePath);
+            }
         }
         members.TrimExcess();
         
@@ -923,6 +926,48 @@ public static class TreeLower
     }
     
     private static LoweringError Error(string message, SourceLocation loc) => new (message, loc);
+    /// <summary>
+    /// Two files of a namespace declare the same name: says what each one is and where the first is, and points at the second.
+    /// </summary>
+    private static LoweringError DuplicatedNamespaceMemberError(string namespaceName, string name, IMember first, IMember second, string secondFile)
+    {
+        var secondLocation = LocationOf(second) ?? new SourceLocation(secondFile, default(SourceSpan));
+        var where = LocationOf(first) is { } firstLocation
+            ? $" at {firstLocation.filePath}({firstLocation.span.LineStart},{firstLocation.span.ColStart})"
+            : "";
+        var namespaceText = string.IsNullOrEmpty(namespaceName) ? "the global namespace" : $"the namespace '{namespaceName}'";
+
+        var advice = KindOf(first) == "function" && KindOf(second) == "function"
+            ? "Overloads of a function must be declared in the same file"
+            : "Rename one of them";
+
+        return new LoweringError(
+            $"The name '{name}' is declared twice in {namespaceText}: the {KindOf(second)} here conflicts with the {KindOf(first)} already declared{where}. {advice}",
+            secondLocation);
+    }
+
+    private static string KindOf(IMember member) => member switch
+    {
+        TqFunction or TqFunctionGroup => "function",
+        TqStruct { IsInterface: true } => "protocol",
+        TqStruct => "struct",
+        TqTypedef => "typedef",
+        TqProperty => "property",
+        TqField => "field",
+        _ => "member",
+    };
+
+    private static SourceLocation? LocationOf(IMember member) => member switch
+    {
+        TqFunction function => function.SourceLocation,
+        TqFunctionGroup { Functions: [var function, ..] } => function.SourceLocation,
+        TqStruct structure => structure.SourceLocation,
+        TqTypedef typedef => typedef.SourceLocation,
+        TqProperty property => property.SourceLocation,
+        TqField field => field.SourceLocation,
+        _ => null,
+    };
+
     private static LoweringError DuplicatedNameError(string name, SourceLocation loc) => new ($"Member with name '{name}' already previously defined", loc);
     
     private class STContext
