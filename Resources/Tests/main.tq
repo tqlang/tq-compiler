@@ -27,8 +27,8 @@ from Tests import { Builtins, StdLib }
     Builtins.testArithmeticI32()
     Builtins.testArithmeticU64()
     Builtins.testArithmeticI64()
-    #Builtins.testArithmeticU128()
-    #Builtins.testArithmeticI128()
+    Builtins.testArithmeticU128()
+    Builtins.testArithmeticI128()
 
     # test STD lib
     StdLib.testDynamicArray()

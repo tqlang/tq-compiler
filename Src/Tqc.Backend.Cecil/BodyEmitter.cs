@@ -1954,6 +1954,9 @@ internal sealed class BodyEmitter
             return result;
         }
 
+        if (common.FullName is "System.Int128" or "System.UInt128" && TryEmitWideArithmetic(binary.Operator, common.FullName))
+            return result;
+
         var known = TryNum(common, out var number);
 
         switch (binary.Operator)
@@ -2098,7 +2101,7 @@ internal sealed class BodyEmitter
 
     /// <summary>
     /// `+|`, `-|`, `*|`, `/_`, `/^`, `**`, `**%` and `**|` of integers are calls to a helper of `Tq.Ops` (`Tq.Runtime`). Floats have
-    /// `**`, `/_` and `/^` with `Math`. The 128 bits integers have none of them yet.
+    /// `**`, `/_` and `/^` with `Math`. The 128 bits integers do it all with the operators of `Int128` and `UInt128`.
     /// </summary>
     private TypeReference? EmitHelperOperator(IrBinary binary, TypeReference common)
     {
@@ -2142,16 +2145,22 @@ internal sealed class BodyEmitter
             return common;
         }
 
-        if (bits == 128)
-        {
-            Report($"The operator '{@operator}' is not available for '{common.Name}' in .NET yet", binary.Location);
-            return common;
-        }
-
         var helper = OpsHelper(@operator.ToString(), common, () =>
         {
             switch (@operator)
             {
+                case BinaryOperator.AddOnBounds or BinaryOperator.SubOnBounds or BinaryOperator.MulOnBounds when bits == 128:
+                    EmitWideSaturated128(@operator, common.FullName, signed);
+                    break;
+
+                case BinaryOperator.DivFloor or BinaryOperator.DivCeil when bits == 128:
+                    EmitRoundedDivision128(common.FullName, @operator == BinaryOperator.DivCeil, signed);
+                    break;
+
+                case BinaryOperator.Pow or BinaryOperator.PowWrap or BinaryOperator.PowOnBounds when bits == 128:
+                    EmitPower128(@operator, common, signed);
+                    break;
+
                 case BinaryOperator.AddOnBounds or BinaryOperator.SubOnBounds or BinaryOperator.MulOnBounds:
                     if (bits <= 32) EmitSmallSaturated(@operator, signed, bits);
                     else EmitWideSaturated(@operator, signed);
@@ -2499,6 +2508,321 @@ internal sealed class BodyEmitter
         EmitNarrow(signed, bits, @operator == BinaryOperator.Pow);
     }
 
+    // ---- 128 bits: `Int128` and `UInt128` are structs, so everything is a call to their operators
+
+    /// <summary>`+ - * / %` (and the `Wrap` ones) of the 128 bits integers: the checked operators throw when the result does not fit.</summary>
+    private bool TryEmitWideArithmetic(BinaryOperator @operator, string type)
+    {
+        var name = @operator switch
+        {
+            BinaryOperator.Add => "op_CheckedAddition",
+            BinaryOperator.AddWrap => "op_Addition",
+            BinaryOperator.Sub => "op_CheckedSubtraction",
+            BinaryOperator.SubWrap => "op_Subtraction",
+            BinaryOperator.Mul => "op_CheckedMultiply",
+            BinaryOperator.MulWrap => "op_Multiply",
+            BinaryOperator.Div => "op_Division",
+            BinaryOperator.Rest => "op_Modulus",
+            _ => null,
+        };
+
+        if (name == null) return false;
+        _il.Emit(OpCodes.Call, Library(type, name, type, type));
+        return true;
+    }
+
+    /// <summary>Calls a static method of the 128 bits type that takes its own type (or none) and gives its own type or a bool.</summary>
+    private void Call128(string type, string name, params string[] parameters) =>
+        _il.Emit(OpCodes.Call, Library(type, name, parameters.Select(parameter => parameter == "T" ? type : parameter).ToArray()));
+
+    /// <summary>`+|`, `-|` and `*|` of 128 bits: compares before computing, so nothing overflows.</summary>
+    private void EmitWideSaturated128(BinaryOperator @operator, string type, bool signed)
+    {
+        var done = _il.Create(OpCodes.Nop);
+        var maximum = _il.Create(OpCodes.Nop);
+        var minimum = _il.Create(OpCodes.Nop);
+        var zero = _il.Create(OpCodes.Nop);
+        var plain = _il.Create(OpCodes.Nop);
+
+        void Arg(int index) => _il.Emit(index == 0 ? OpCodes.Ldarg_0 : OpCodes.Ldarg_1);
+        void Constant(string name) => Call128(type, name);
+        void Compare(string name) => Call128(type, name, "T", "T");
+        void Operate(string name) => Call128(type, name, "T", "T");
+
+        if (!signed)
+        {
+            switch (@operator)
+            {
+                case BinaryOperator.AddOnBounds:
+                    // it wrapped around if the sum is below one of them
+                    Arg(0); Arg(1); Operate("op_Addition");
+                    var sum = NewTemp(Core(type));
+                    _il.Emit(OpCodes.Stloc, sum);
+                    _il.Emit(OpCodes.Ldloc, sum); Arg(0); Compare("op_GreaterThanOrEqual");
+                    _il.Emit(OpCodes.Brtrue, plain);
+                    Constant("get_MaxValue");
+                    _il.Emit(OpCodes.Br, done);
+                    _il.Append(plain);
+                    _il.Emit(OpCodes.Ldloc, sum);
+                    break;
+
+                case BinaryOperator.SubOnBounds:
+                    Arg(0); Arg(1); Compare("op_LessThan");
+                    _il.Emit(OpCodes.Brtrue, zero);
+                    Arg(0); Arg(1); Operate("op_Subtraction");
+                    _il.Emit(OpCodes.Br, done);
+                    _il.Append(zero);
+                    Constant("get_Zero");
+                    break;
+
+                default:
+                    Arg(0); Constant("get_Zero"); Compare("op_Equality");
+                    _il.Emit(OpCodes.Brtrue, zero);
+                    Arg(1); Constant("get_MaxValue"); Arg(0); Operate("op_Division"); Compare("op_GreaterThan"); // b > max / a
+                    _il.Emit(OpCodes.Brtrue, maximum);
+                    Arg(0); Arg(1); Operate("op_Multiply");
+                    _il.Emit(OpCodes.Br, done);
+                    _il.Append(maximum);
+                    Constant("get_MaxValue");
+                    _il.Emit(OpCodes.Br, done);
+                    _il.Append(zero);
+                    Constant("get_Zero");
+                    break;
+            }
+
+            _il.Append(done);
+            return;
+        }
+
+        switch (@operator)
+        {
+            case BinaryOperator.AddOnBounds:
+            {
+                var nonPositive = _il.Create(OpCodes.Nop);
+                Arg(1); Constant("get_Zero"); Compare("op_GreaterThan");
+                _il.Emit(OpCodes.Brfalse, nonPositive);
+                Arg(0); Constant("get_MaxValue"); Arg(1); Operate("op_Subtraction"); Compare("op_GreaterThan"); // a > max - b
+                _il.Emit(OpCodes.Brtrue, maximum);
+                _il.Emit(OpCodes.Br, plain);
+                _il.Append(nonPositive);
+                Arg(0); Constant("get_MinValue"); Arg(1); Operate("op_Subtraction"); Compare("op_LessThan"); // a < min - b
+                _il.Emit(OpCodes.Brtrue, minimum);
+                _il.Append(plain);
+                Arg(0); Arg(1); Operate("op_Addition");
+                break;
+            }
+
+            case BinaryOperator.SubOnBounds:
+            {
+                var nonPositive = _il.Create(OpCodes.Nop);
+                Arg(1); Constant("get_Zero"); Compare("op_GreaterThan");
+                _il.Emit(OpCodes.Brfalse, nonPositive);
+                Arg(0); Constant("get_MinValue"); Arg(1); Operate("op_Addition"); Compare("op_LessThan"); // a < min + b
+                _il.Emit(OpCodes.Brtrue, minimum);
+                _il.Emit(OpCodes.Br, plain);
+                _il.Append(nonPositive);
+                Arg(0); Constant("get_MaxValue"); Arg(1); Operate("op_Addition"); Compare("op_GreaterThan"); // a > max + b
+                _il.Emit(OpCodes.Brtrue, maximum);
+                _il.Append(plain);
+                Arg(0); Arg(1); Operate("op_Subtraction");
+                break;
+            }
+
+            default:
+            {
+                var firstIsMinusOne = _il.Create(OpCodes.Nop);
+                var secondIsMinusOne = _il.Create(OpCodes.Nop);
+                var overflow = _il.Create(OpCodes.Nop);
+                var product = NewTemp(Core(type));
+
+                Arg(0); Constant("get_Zero"); Compare("op_Equality");
+                _il.Emit(OpCodes.Brtrue, zero);
+                Arg(1); Constant("get_Zero"); Compare("op_Equality");
+                _il.Emit(OpCodes.Brtrue, zero);
+
+                // `-1` is apart: `min / -1` does not exist, and `x * -1` is only `-x`
+                Arg(0); Constant("get_NegativeOne"); Compare("op_Equality");
+                _il.Emit(OpCodes.Brtrue, firstIsMinusOne);
+                Arg(1); Constant("get_NegativeOne"); Compare("op_Equality");
+                _il.Emit(OpCodes.Brtrue, secondIsMinusOne);
+
+                Arg(0); Arg(1); Operate("op_Multiply");
+                _il.Emit(OpCodes.Stloc, product);
+                _il.Emit(OpCodes.Ldloc, product); Arg(0); Operate("op_Division"); Arg(1); Compare("op_Equality"); // it did not fit if (a * b) / a is not b
+                _il.Emit(OpCodes.Brfalse, overflow);
+                _il.Emit(OpCodes.Ldloc, product);
+                _il.Emit(OpCodes.Br, done);
+
+                _il.Append(overflow);
+                Arg(0); Constant("get_Zero"); Compare("op_LessThan");
+                Arg(1); Constant("get_Zero"); Compare("op_LessThan");
+                _il.Emit(OpCodes.Ceq); // the signs are the same: the product is above the maximum
+                _il.Emit(OpCodes.Brtrue, maximum);
+                _il.Emit(OpCodes.Br, minimum);
+
+                _il.Append(firstIsMinusOne);
+                Arg(1); Constant("get_MinValue"); Compare("op_Equality");
+                _il.Emit(OpCodes.Brtrue, maximum);
+                Arg(1); Call128(type, "op_UnaryNegation", "T");
+                _il.Emit(OpCodes.Br, done);
+
+                _il.Append(secondIsMinusOne);
+                Arg(0); Constant("get_MinValue"); Compare("op_Equality");
+                _il.Emit(OpCodes.Brtrue, maximum);
+                Arg(0); Call128(type, "op_UnaryNegation", "T");
+                _il.Emit(OpCodes.Br, done);
+                break;
+            }
+        }
+
+        _il.Emit(OpCodes.Br, done);
+        _il.Append(maximum);
+        Constant("get_MaxValue");
+        _il.Emit(OpCodes.Br, done);
+        _il.Append(minimum);
+        Constant("get_MinValue");
+        _il.Emit(OpCodes.Br, done);
+        _il.Append(zero);
+        Constant("get_Zero");
+        _il.Append(done);
+    }
+
+    /// <summary>`/_` and `/^` of 128 bits: the quotient moves one step when something is left over and it was cut the wrong way.</summary>
+    private void EmitRoundedDivision128(string type, bool ceiling, bool signed)
+    {
+        var quotient = NewTemp(Core(type));
+        var rest = NewTemp(Core(type));
+        var done = _il.Create(OpCodes.Nop);
+
+        _il.Emit(OpCodes.Ldarg_0);
+        _il.Emit(OpCodes.Ldarg_1);
+        Call128(type, "op_Division", "T", "T");
+        _il.Emit(OpCodes.Stloc, quotient);
+
+        _il.Emit(OpCodes.Ldarg_0);
+        _il.Emit(OpCodes.Ldarg_1);
+        Call128(type, "op_Modulus", "T", "T");
+        _il.Emit(OpCodes.Stloc, rest);
+
+        _il.Emit(OpCodes.Ldloc, rest);
+        Call128(type, "get_Zero");
+        Call128(type, "op_Equality", "T", "T");
+        _il.Emit(OpCodes.Brtrue, done);
+
+        if (signed)
+        {
+            // the same sign in the rest and in the divisor: the true quotient is above the truncated one
+            _il.Emit(OpCodes.Ldloc, rest);
+            Call128(type, "get_Zero");
+            Call128(type, "op_LessThan", "T", "T");
+            _il.Emit(OpCodes.Ldarg_1);
+            Call128(type, "get_Zero");
+            Call128(type, "op_LessThan", "T", "T");
+            _il.Emit(OpCodes.Ceq);
+            _il.Emit(ceiling ? OpCodes.Brfalse : OpCodes.Brtrue, done);
+        }
+        else if (!ceiling)
+        {
+            _il.Emit(OpCodes.Br, done); // an unsigned division already rounds down
+        }
+
+        _il.Emit(OpCodes.Ldloc, quotient);
+        Call128(type, "get_One");
+        Call128(type, ceiling ? "op_Addition" : "op_Subtraction", "T", "T");
+        _il.Emit(OpCodes.Stloc, quotient);
+
+        _il.Append(done);
+        _il.Emit(OpCodes.Ldloc, quotient);
+    }
+
+    /// <summary>`**`, `**%` and `**|` of 128 bits, by squaring: checked throws (`op_CheckedMultiply`), wrapped does not, saturated cuts each product.</summary>
+    private void EmitPower128(BinaryOperator @operator, TypeReference type, bool signed)
+    {
+        var name = type.FullName;
+        var factor = NewTemp(Core(name));
+        var exponent = NewTemp(Core(name));
+        var result = NewTemp(Core(name));
+
+        _il.Emit(OpCodes.Ldarg_0);
+        _il.Emit(OpCodes.Stloc, factor);
+        _il.Emit(OpCodes.Ldarg_1);
+        _il.Emit(OpCodes.Stloc, exponent);
+
+        if (signed)
+        {
+            var valid = _il.Create(OpCodes.Nop);
+            _il.Emit(OpCodes.Ldloc, exponent);
+            Call128(name, "get_Zero");
+            Call128(name, "op_GreaterThanOrEqual", "T", "T");
+            _il.Emit(OpCodes.Brtrue, valid);
+            _il.Emit(OpCodes.Ldstr, "The exponent of an integer power must not be negative");
+            _il.Emit(OpCodes.Newobj, _target.ImportReference(_owner.Backend.Core.Find("System.OverflowException")!.Methods.First(
+                candidate => candidate.IsConstructor && candidate.Parameters.Count == 1 && candidate.Parameters[0].ParameterType.FullName == "System.String")));
+            _il.Emit(OpCodes.Throw);
+            _il.Append(valid);
+        }
+
+        void Multiply()
+        {
+            switch (@operator)
+            {
+                case BinaryOperator.Pow:
+                    Call128(name, "op_CheckedMultiply", "T", "T");
+                    break;
+
+                case BinaryOperator.PowWrap:
+                    Call128(name, "op_Multiply", "T", "T");
+                    break;
+
+                default:
+                    _il.Emit(OpCodes.Call, OpsHelper("MulOnBounds", type, () =>
+                    {
+                        EmitWideSaturated128(BinaryOperator.MulOnBounds, name, signed);
+                        _il.Emit(OpCodes.Ret);
+                    }));
+                    break;
+            }
+        }
+
+        Call128(name, "get_One");
+        _il.Emit(OpCodes.Stloc, result);
+
+        var loop = _il.Create(OpCodes.Nop);
+        var skip = _il.Create(OpCodes.Nop);
+        var done = _il.Create(OpCodes.Nop);
+
+        _il.Append(loop);
+        _il.Emit(OpCodes.Ldloc, exponent);
+        Call128(name, "get_One");
+        Call128(name, "op_BitwiseAnd", "T", "T");
+        Call128(name, "get_Zero");
+        Call128(name, "op_Equality", "T", "T");
+        _il.Emit(OpCodes.Brtrue, skip);
+        _il.Emit(OpCodes.Ldloc, result);
+        _il.Emit(OpCodes.Ldloc, factor);
+        Multiply();
+        _il.Emit(OpCodes.Stloc, result);
+
+        _il.Append(skip);
+        _il.Emit(OpCodes.Ldloc, exponent);
+        _il.Emit(OpCodes.Ldc_I4_1);
+        Call128(name, "op_RightShift", "T", "System.Int32");
+        _il.Emit(OpCodes.Stloc, exponent);
+        _il.Emit(OpCodes.Ldloc, exponent);
+        Call128(name, "get_Zero");
+        Call128(name, "op_Equality", "T", "T");
+        _il.Emit(OpCodes.Brtrue, done);
+
+        _il.Emit(OpCodes.Ldloc, factor);
+        _il.Emit(OpCodes.Ldloc, factor);
+        Multiply();
+        _il.Emit(OpCodes.Stloc, factor);
+        _il.Emit(OpCodes.Br, loop);
+
+        _il.Append(done);
+        _il.Emit(OpCodes.Ldloc, result);
+    }
+
     /// <summary>
     /// Checked arithmetic throws when the result does not fit; the `Wrap` operators and the floats do not. A type
     /// smaller than 32 bits is computed as 32 and then cut to its size, checking it too.
@@ -2600,7 +2924,10 @@ internal sealed class BodyEmitter
             {
                 var type = Emit(unary.Operand, expected);
                 if (type == null) return null;
-                _il.Emit(OpCodes.Neg);
+                if (type.FullName is "System.Int128" or "System.UInt128")
+                    _il.Emit(OpCodes.Call, Library(type.FullName, "op_UnaryNegation", type.FullName));
+                else
+                    _il.Emit(OpCodes.Neg);
                 return type;
             }
 

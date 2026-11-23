@@ -1,0 +1,467 @@
+from Std import { Test }
+
+@public func testArithmeticU128() {
+	let u128 zero = 0
+	let u128 one = 1
+	let u128 two = 2
+	let u128 three = 3
+	let u128 seven = 7
+	let u128 hundred = 100
+	let u128 lo = u128.min
+	let u128 hi = u128.max
+
+	Test.newTestUnit("u128 arithmetic - checked add")
+	{
+		Test.assert(one + one, 2)
+		Test.assert(two + two, 4)
+		Test.assert(hi + zero, hi)
+		Test.assert(hundred + hundred, 200)
+		Test.assert(seven + three, 10)
+		Test.assert(lo + hi, hi)
+		Test.assert(lo + one, 1)
+		#Test.assert(hi + one, ?) #!! FATAL ERROR !!
+		#Test.assert(hi + hundred, ?) #!! FATAL ERROR !!
+	}
+
+	Test.newTestUnit("u128 arithmetic - add with overflow")
+	{
+		Test.assert(one +% one, 2)
+		Test.assert(two +% two, 4)
+		Test.assert(hi +% zero, hi)
+		Test.assert(hi +% one, 0)
+		Test.assert(hi +% hundred, 99)
+		Test.assert(hi +% hi, 340282366920938463463374607431768211454)
+	}
+
+	Test.newTestUnit("u128 arithmetic - add saturated")
+	{
+		Test.assert(one +| one, 2)
+		Test.assert(two +| two, 4)
+		Test.assert(hi +| zero, hi)
+		Test.assert(hi +| one, hi)
+		Test.assert(hi +| hundred, hi)
+	}
+
+	Test.newTestUnit("u128 arithmetic - checked sub")
+	{
+		Test.assert(one - one, 0)
+		Test.assert(two - one, 1)
+		Test.assert(zero - zero, 0)
+		Test.assert(hundred - seven, 93)
+		#Test.assert(one - two, ?) #!! FATAL ERROR !!
+		#Test.assert(zero - hundred, ?) #!! FATAL ERROR !!
+		#Test.assert(lo - one, ?) #!! FATAL ERROR !!
+	}
+
+	Test.newTestUnit("u128 arithmetic - sub with overflow")
+	{
+		Test.assert(one -% one, 0)
+		Test.assert(two -% one, 1)
+		Test.assert(zero -% zero, 0)
+		Test.assert(one -% two, hi)
+		Test.assert(zero -% hundred, 340282366920938463463374607431768211356)
+		Test.assert(zero -% one, hi)
+		Test.assert(lo -% one, hi)
+	}
+
+	Test.newTestUnit("u128 arithmetic - sub saturated")
+	{
+		Test.assert(one -| one, 0)
+		Test.assert(two -| one, 1)
+		Test.assert(zero -| zero, 0)
+		Test.assert(one -| two, 0)
+		Test.assert(zero -| hundred, 0)
+		Test.assert(lo -| one, 0)
+	}
+
+	Test.newTestUnit("u128 arithmetic - checked mul")
+	{
+		Test.assert(one * one, 1)
+		Test.assert(two * two, 4)
+		Test.assert(two * seven, 14)
+		Test.assert(zero * hundred, 0)
+		Test.assert(seven * seven, 49)
+		Test.assert(hundred * hundred, 10000)
+		#Test.assert(hi * two, ?) #!! FATAL ERROR !!
+	}
+
+	Test.newTestUnit("u128 arithmetic - mul with overflow")
+	{
+		Test.assert(one *% one, 1)
+		Test.assert(two *% two, 4)
+		Test.assert(two *% hundred, 200)
+		Test.assert(hundred *% hundred, 10000)
+		Test.assert(hi *% two, 340282366920938463463374607431768211454)
+		Test.assert(hi *% hi, 1)
+		Test.assert(lo *% two, 0)
+	}
+
+	Test.newTestUnit("u128 arithmetic - mul saturated")
+	{
+		Test.assert(one *| one, 1)
+		Test.assert(two *| two, 4)
+		Test.assert(two *| hundred, 200)
+		Test.assert(hundred *| hundred, 10000)
+		Test.assert(hi *| two, hi)
+		Test.assert(lo *| two, 0)
+	}
+
+	Test.newTestUnit("u128 arithmetic - checked div (exact)")
+	{
+		Test.assert(hundred / two, 50)
+		Test.assert(zero / hundred, 0)
+		Test.assert(hundred / hundred, 1)
+		Test.assert(hi / one, hi)
+		Test.assert(hi / hi, 1)
+	}
+
+	# a division that leaves a remainder is a FATAL ERROR in `/`: use `/_` or `/^`
+
+	Test.newTestUnit("u128 arithmetic - div floor")
+	{
+		Test.assert(hundred /_ two, 50)
+		Test.assert(zero /_ hundred, 0)
+		Test.assert(hundred /_ hundred, 1)
+		Test.assert(hi /_ one, hi)
+		Test.assert(hundred /_ seven, 14)
+		Test.assert(seven /_ two, 3)
+		Test.assert(one /_ two, 0)
+		Test.assert(three /_ two, 1)
+		Test.assert(hundred /_ three, 33)
+		Test.assert(hi /_ hi, 1)
+	}
+
+	Test.newTestUnit("u128 arithmetic - div ceil")
+	{
+		Test.assert(hundred /^ two, 50)
+		Test.assert(zero /^ hundred, 0)
+		Test.assert(hundred /^ hundred, 1)
+		Test.assert(hi /^ one, hi)
+		Test.assert(hundred /^ seven, 15)
+		Test.assert(seven /^ two, 4)
+		Test.assert(one /^ two, 1)
+		Test.assert(three /^ two, 2)
+		Test.assert(hundred /^ three, 34)
+		Test.assert(hi /^ hi, 1)
+	}
+
+	Test.newTestUnit("u128 arithmetic - remainder")
+	{
+		Test.assert(hundred % seven, 2)
+		Test.assert(hundred % two, 0)
+		Test.assert(seven % seven, 0)
+		Test.assert(hi % two, 1)
+		Test.assert(zero % hundred, 0)
+		Test.assert(two % hundred, 2)
+		Test.assert(hi % hundred, 55)
+		Test.assert(seven % three, 1)
+		Test.assert(one % two, 1)
+	}
+
+	Test.newTestUnit("u128 arithmetic - checked pow")
+	{
+		Test.assert(two ** 1, 2)
+		Test.assert(two ** 2, 4)
+		Test.assert(two ** 3, 8)
+		Test.assert(two ** 126, 85070591730234615865843651857942052864)
+		Test.assert(three ** 4, 81)
+		Test.assert(one ** 100, 1)
+		Test.assert(zero ** 1, 0)
+		Test.assert(zero ** 0, 1)
+		Test.assert(two ** 127, 170141183460469231731687303715884105728)
+		#Test.assert(two ** 128, ?) #!! FATAL ERROR !!
+	}
+
+	Test.newTestUnit("u128 arithmetic - pow with overflow")
+	{
+		Test.assert(two **% 128, 0)
+		Test.assert(two **% 127, 170141183460469231731687303715884105728)
+		Test.assert(two **% 129, 0)
+		Test.assert(three **% 128, 303523815449207866983105381828026333697)
+		Test.assert(seven **% 128, 122213869728628938284579651843188780033)
+	}
+
+	Test.newTestUnit("u128 arithmetic - pow saturated")
+	{
+		Test.assert(two **| 3, 8)
+		Test.assert(two **| 126, 85070591730234615865843651857942052864)
+		Test.assert(two **| 127, 170141183460469231731687303715884105728)
+		Test.assert(two **| 128, hi)
+		Test.assert(three **| 128, hi)
+		Test.assert(seven **| 128, hi)
+	}
+
+	Test.newTestUnit("u128 arithmetic - comparison")
+	{
+		Test.assert(lo < hi, true)
+		Test.assert(hi > lo, true)
+		Test.assert(one <= one, true)
+		Test.assert(two >= one, true)
+		Test.assert(one == one, true)
+		Test.assert(one != two, true)
+		Test.assert(hi < lo, false)
+		Test.assert(two <= one, false)
+		Test.assert(one > two, false)
+		Test.assert(one == two, false)
+	}
+}
+
+@public func testArithmeticI128() {
+	let i128 zero = 0
+	let i128 one = 1
+	let i128 two = 2
+	let i128 three = 3
+	let i128 seven = 7
+	let i128 hundred = 100
+	let i128 neg_one = -1
+	let i128 neg_two = -2
+	let i128 neg_seven = -7
+	let i128 neg_hundred = -100
+	let i128 lo = i128.min
+	let i128 hi = i128.max
+
+	Test.newTestUnit("i128 arithmetic - checked add")
+	{
+		Test.assert(one + one, 2)
+		Test.assert(two + two, 4)
+		Test.assert(hi + zero, hi)
+		Test.assert(hundred + hundred, 200)
+		Test.assert(seven + three, 10)
+		Test.assert(lo + hi, -1)
+		Test.assert(neg_seven + three, -4)
+		Test.assert(neg_hundred + hundred, 0)
+		Test.assert(neg_one + neg_one, -2)
+		Test.assert(lo + one, -170141183460469231731687303715884105727)
+		#Test.assert(hi + one, ?) #!! FATAL ERROR !!
+		#Test.assert(hi + hundred, ?) #!! FATAL ERROR !!
+	}
+
+	Test.newTestUnit("i128 arithmetic - add with overflow")
+	{
+		Test.assert(one +% one, 2)
+		Test.assert(two +% two, 4)
+		Test.assert(hi +% zero, hi)
+		Test.assert(hi +% one, lo)
+		Test.assert(hi +% hundred, -170141183460469231731687303715884105629)
+		Test.assert(hi +% hi, -2)
+		Test.assert(lo +% neg_one, hi)
+		Test.assert(neg_hundred +% neg_hundred, -200)
+	}
+
+	Test.newTestUnit("i128 arithmetic - add saturated")
+	{
+		Test.assert(one +| one, 2)
+		Test.assert(two +| two, 4)
+		Test.assert(hi +| zero, hi)
+		Test.assert(hi +| one, hi)
+		Test.assert(hi +| hundred, hi)
+		Test.assert(lo +| neg_one, lo)
+		Test.assert(lo +| neg_hundred, lo)
+		Test.assert(neg_one +| neg_one, -2)
+	}
+
+	Test.newTestUnit("i128 arithmetic - checked sub")
+	{
+		Test.assert(one - one, 0)
+		Test.assert(two - one, 1)
+		Test.assert(zero - zero, 0)
+		Test.assert(hundred - seven, 93)
+		Test.assert(one - two, -1)
+		Test.assert(zero - hundred, -100)
+		Test.assert(neg_one - hi, lo)
+		Test.assert(lo - neg_one, -170141183460469231731687303715884105727)
+		#Test.assert(hi - neg_one, ?) #!! FATAL ERROR !!
+		#Test.assert(lo - one, ?) #!! FATAL ERROR !!
+	}
+
+	Test.newTestUnit("i128 arithmetic - sub with overflow")
+	{
+		Test.assert(one -% one, 0)
+		Test.assert(two -% one, 1)
+		Test.assert(zero -% zero, 0)
+		Test.assert(one -% two, -1)
+		Test.assert(zero -% hundred, -100)
+		Test.assert(zero -% one, -1)
+		Test.assert(lo -% one, hi)
+		Test.assert(hi -% neg_one, lo)
+	}
+
+	Test.newTestUnit("i128 arithmetic - sub saturated")
+	{
+		Test.assert(one -| one, 0)
+		Test.assert(two -| one, 1)
+		Test.assert(zero -| zero, 0)
+		Test.assert(one -| two, -1)
+		Test.assert(zero -| hundred, -100)
+		Test.assert(lo -| one, lo)
+		Test.assert(hi -| neg_one, hi)
+	}
+
+	Test.newTestUnit("i128 arithmetic - checked mul")
+	{
+		Test.assert(one * one, 1)
+		Test.assert(two * two, 4)
+		Test.assert(two * seven, 14)
+		Test.assert(zero * hundred, 0)
+		Test.assert(seven * seven, 49)
+		Test.assert(hundred * hundred, 10000)
+		Test.assert(neg_seven * three, -21)
+		Test.assert(neg_one * hundred, -100)
+		Test.assert(neg_two * seven, -14)
+		#Test.assert(hi * two, ?) #!! FATAL ERROR !!
+		#Test.assert(lo * neg_one, ?) #!! FATAL ERROR !!
+	}
+
+	Test.newTestUnit("i128 arithmetic - mul with overflow")
+	{
+		Test.assert(one *% one, 1)
+		Test.assert(two *% two, 4)
+		Test.assert(two *% hundred, 200)
+		Test.assert(hundred *% hundred, 10000)
+		Test.assert(hi *% two, -2)
+		Test.assert(hi *% hi, 1)
+		Test.assert(lo *% neg_one, lo)
+		Test.assert(lo *% two, 0)
+	}
+
+	Test.newTestUnit("i128 arithmetic - mul saturated")
+	{
+		Test.assert(one *| one, 1)
+		Test.assert(two *| two, 4)
+		Test.assert(two *| hundred, 200)
+		Test.assert(hundred *| hundred, 10000)
+		Test.assert(hi *| two, hi)
+		Test.assert(lo *| two, lo)
+		Test.assert(lo *| neg_one, hi)
+		Test.assert(neg_hundred *| hundred, -10000)
+	}
+
+	Test.newTestUnit("i128 arithmetic - checked div (exact)")
+	{
+		Test.assert(hundred / two, 50)
+		Test.assert(zero / hundred, 0)
+		Test.assert(hundred / hundred, 1)
+		Test.assert(hi / one, hi)
+		Test.assert(hi / hi, 1)
+		Test.assert(neg_hundred / two, -50)
+		Test.assert(hundred / neg_one, -100)
+	}
+
+	# a division that leaves a remainder is a FATAL ERROR in `/`: use `/_` or `/^`
+
+	Test.newTestUnit("i128 arithmetic - div floor")
+	{
+		Test.assert(hundred /_ two, 50)
+		Test.assert(zero /_ hundred, 0)
+		Test.assert(hundred /_ hundred, 1)
+		Test.assert(hi /_ one, hi)
+		Test.assert(hundred /_ seven, 14)
+		Test.assert(seven /_ two, 3)
+		Test.assert(one /_ two, 0)
+		Test.assert(three /_ two, 1)
+		Test.assert(hundred /_ three, 33)
+		Test.assert(hi /_ hi, 1)
+		Test.assert(neg_hundred /_ two, -50)
+		Test.assert(hundred /_ neg_one, -100)
+		Test.assert(neg_seven /_ two, -4)
+		Test.assert(seven /_ neg_two, -4)
+		Test.assert(neg_seven /_ neg_two, 3)
+		Test.assert(neg_hundred /_ three, -34)
+	}
+
+	Test.newTestUnit("i128 arithmetic - div ceil")
+	{
+		Test.assert(hundred /^ two, 50)
+		Test.assert(zero /^ hundred, 0)
+		Test.assert(hundred /^ hundred, 1)
+		Test.assert(hi /^ one, hi)
+		Test.assert(hundred /^ seven, 15)
+		Test.assert(seven /^ two, 4)
+		Test.assert(one /^ two, 1)
+		Test.assert(three /^ two, 2)
+		Test.assert(hundred /^ three, 34)
+		Test.assert(hi /^ hi, 1)
+		Test.assert(neg_hundred /^ two, -50)
+		Test.assert(hundred /^ neg_one, -100)
+		Test.assert(neg_seven /^ two, -3)
+		Test.assert(seven /^ neg_two, -3)
+		Test.assert(neg_seven /^ neg_two, 4)
+		Test.assert(neg_hundred /^ three, -33)
+	}
+
+	Test.newTestUnit("i128 arithmetic - remainder")
+	{
+		Test.assert(hundred % seven, 2)
+		Test.assert(hundred % two, 0)
+		Test.assert(seven % seven, 0)
+		Test.assert(hi % two, 1)
+		Test.assert(zero % hundred, 0)
+		Test.assert(two % hundred, 2)
+		Test.assert(hi % hundred, 27)
+		Test.assert(seven % three, 1)
+		Test.assert(one % two, 1)
+	}
+
+	Test.newTestUnit("i128 arithmetic - checked pow")
+	{
+		Test.assert(two ** 1, 2)
+		Test.assert(two ** 2, 4)
+		Test.assert(two ** 3, 8)
+		Test.assert(two ** 126, 85070591730234615865843651857942052864)
+		Test.assert(three ** 4, 81)
+		Test.assert(one ** 100, 1)
+		Test.assert(zero ** 1, 0)
+		Test.assert(zero ** 0, 1)
+		Test.assert(neg_two ** 2, 4)
+		Test.assert(neg_two ** 3, -8)
+		#Test.assert(two ** 127, ?) #!! FATAL ERROR !!
+		#Test.assert(two ** 128, ?) #!! FATAL ERROR !!
+	}
+
+	Test.newTestUnit("i128 arithmetic - pow with overflow")
+	{
+		Test.assert(two **% 128, 0)
+		Test.assert(two **% 127, lo)
+		Test.assert(two **% 129, 0)
+		Test.assert(three **% 128, -36758551471730596480269225603741877759)
+		Test.assert(seven **% 128, 122213869728628938284579651843188780033)
+		Test.assert(neg_two **% 128, 0)
+		Test.assert(neg_two **% 129, 0)
+	}
+
+	Test.newTestUnit("i128 arithmetic - pow saturated")
+	{
+		Test.assert(two **| 3, 8)
+		Test.assert(two **| 126, 85070591730234615865843651857942052864)
+		Test.assert(two **| 127, hi)
+		Test.assert(two **| 128, hi)
+		Test.assert(three **| 128, hi)
+		Test.assert(seven **| 128, hi)
+		Test.assert(neg_two **| 127, lo)
+		Test.assert(neg_two **| 128, hi)
+		Test.assert(neg_two **| 129, lo)
+	}
+
+	Test.newTestUnit("i128 arithmetic - negate")
+	{
+		Test.assert(-one, neg_one)
+		Test.assert(-neg_seven, seven)
+		Test.assert(-neg_hundred, hundred)
+		Test.assert(-zero, zero)
+		Test.assert(-hi, lo + one)
+	}
+
+	Test.newTestUnit("i128 arithmetic - comparison")
+	{
+		Test.assert(lo < hi, true)
+		Test.assert(hi > lo, true)
+		Test.assert(one <= one, true)
+		Test.assert(two >= one, true)
+		Test.assert(one == one, true)
+		Test.assert(one != two, true)
+		Test.assert(hi < lo, false)
+		Test.assert(two <= one, false)
+		Test.assert(one > two, false)
+		Test.assert(one == two, false)
+	}
+}
