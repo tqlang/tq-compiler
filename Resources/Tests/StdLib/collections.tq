@@ -1,3 +1,6 @@
+from Std import { Test }
+from Std.Collections import
+
 func testDynamicArray() {
     let list = new DynamicArray(u32)()
 

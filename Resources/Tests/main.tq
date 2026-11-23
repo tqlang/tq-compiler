@@ -1,4 +1,4 @@
-from Tests import { Builtins, Std }
+from Tests import { Builtins, StdLib }
 
 @public func runTests() {
     Builtins.testConditionals()
@@ -31,5 +31,5 @@ from Tests import { Builtins, Std }
     #Builtins.testArithmeticI128()
 
     # test STD lib
-    Std.testDynamicArray()
+    StdLib.testDynamicArray()
 }
