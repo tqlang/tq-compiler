@@ -88,12 +88,12 @@ sealed internal class TqTypeTranslator(Func<TypeReference, TypeNode?> lookup)
 
     /// <summary>
     /// `List&lt;T&gt;` with its arguments: an application of the generic struct, as `List(T)` is in Tq. A class is
-    /// by reference. Interfaces and delegates that are generic are not supported yet.
+    /// by reference, and so is a generic interface. Delegates that are generic are not supported yet.
     /// </summary>
     private ITypeRef TranslateInstance(GenericInstanceType instance, Func<GenericParameter, ITypeRef?>? generics)
     {
         var node = lookup(instance.ElementType);
-        if (node is not { Kind: TypeKind.Class or TypeKind.Struct, DotnetType: IStruct definition }
+        if (node is not { Kind: TypeKind.Class or TypeKind.Struct or TypeKind.Interface, DotnetType: IStruct definition }
             || definition.Parameters.Count != instance.GenericArguments.Count)
             return Unsupported(instance);
 
@@ -108,7 +108,7 @@ sealed internal class TqTypeTranslator(Func<TypeReference, TypeNode?> lookup)
         }
 
         var applied = new StructTypeReference(GenericInstanceTable.Shared.GetOrAdd(definition, [..arguments]));
-        return node.Kind == TypeKind.Class ? CompilerStd.Types.RefOf(applied) : applied;
+        return node.Kind is TypeKind.Class or TypeKind.Interface ? CompilerStd.Types.RefOf(applied) : applied;
     }
 
     private ITypeRef TranslateArray(ArrayType array, Func<GenericParameter, ITypeRef?>? generics)

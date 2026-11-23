@@ -1576,7 +1576,7 @@ internal sealed class BodyEmitter
         if (value == null || _types.Get(value) is not { } type) return null;
         if (CompilerStd.Types.IsRef(type, out var referred)) type = referred;
 
-        return type is StructTypeReference { Struct: GenericInstance { Definition: DotnetClass or DotnetStruct } }
+        return type is StructTypeReference { Struct: GenericInstance { Definition: DotnetClass or DotnetStruct or DotnetGenericInterface } }
             && _owner.MapType(type, value.Location) is GenericInstanceType host
             ? host
             : null;

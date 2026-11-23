@@ -60,11 +60,13 @@ sealed internal class DotnetModuleBuilder(AssemblyDefinition[] assemblies)
 
                 case DotnetClass dotnetClass:
                     dotnetClass.BaseType = node.BaseType;
+                    dotnetClass.Implements = node.Implements;
                     dotnetClass.Members = BuildMemberTable(node, includeNestedStaticClasses: true);
                     break;
 
                 case DotnetStruct dotnetStruct:
                     dotnetStruct.ObjectType = node.BaseType;
+                    dotnetStruct.Implements = node.Implements;
                     dotnetStruct.Members = BuildMemberTable(node, includeNestedStaticClasses: true);
                     break;
 
@@ -239,7 +241,7 @@ sealed internal class DotnetModuleBuilder(AssemblyDefinition[] assemblies)
     private TypeNode CreateNode(TypeDefinition definition, TypeReference reference, bool isExternal)
     {
         var kind = TypeClassifier.Classify(definition);
-        var typeParameters = kind is TypeKind.Class or TypeKind.Struct
+        var typeParameters = kind is TypeKind.Class or TypeKind.Struct or TypeKind.Interface
             ? MemberReferenceFactory.TypeParametersOf(definition.GenericParameters)
             : Array.Empty<TqParameter>();
         var node = new TypeNode(TypeClassifier.GetTypeName(definition), kind, reference, definition, isExternal)
@@ -273,7 +275,9 @@ sealed internal class DotnetModuleBuilder(AssemblyDefinition[] assemblies)
         TypeKind.Class       => new DotnetClass(reference, TypeClassifier.GetTypeName(reference)) { Parameters = typeParameters },
         TypeKind.Struct      => new DotnetStruct(reference, TypeClassifier.GetTypeName(reference)) { Parameters = typeParameters },
         TypeKind.Enum        => new DotnetEnum(reference, TypeClassifier.GetTypeName(reference)),
-        TypeKind.Interface   => new DotnetInterface(reference, TypeClassifier.GetTypeName(reference)),
+        TypeKind.Interface   => typeParameters.Count > 0
+            ? new DotnetGenericInterface(reference, TypeClassifier.GetTypeName(reference)) { Parameters = typeParameters }
+            : new DotnetInterface(reference, TypeClassifier.GetTypeName(reference)),
         TypeKind.Delegate    => null, // TODO: DotnetDelegate
 
         _ => throw new ArgumentOutOfRangeException(nameof(kind), kind, null),
@@ -302,13 +306,24 @@ sealed internal class DotnetModuleBuilder(AssemblyDefinition[] assemblies)
                 Promote(baseReference, pending);
             }
 
-            if (node.Kind != TypeKind.Interface) continue;
+            if (node.Kind is not (TypeKind.Interface or TypeKind.Class or TypeKind.Struct)) continue;
+
+            // `IEnumerable<T>` as `IEnumerable(T)`, with the `T` of the type itself. An interface that cannot be written
+            // (it has an argument that is not supported) is left out.
+            ITypeRef? OfType(GenericParameter parameter) =>
+                parameter.Type == GenericParameterType.Type && parameter.Position < node.TypeParameters.Count
+                    ? new GenericParameterTypeRef(node.TypeParameters[parameter.Position])
+                    : null;
 
             foreach (var parent in node.Definition.Interfaces)
             {
-                var element = parent.InterfaceType is GenericInstanceType generic ? generic.ElementType : parent.InterfaceType;
-                node.ParentInterfaces.Add(Translator.Translate(element));
                 Promote(parent.InterfaceType, pending);
+
+                var translated = Translator.Translate(parent.InterfaceType, OfType);
+                if (translated is UnsupportedTypeRef) continue;
+
+                if (node.Kind == TypeKind.Interface) node.ParentInterfaces.Add(translated);
+                else node.Implements.Add(translated);
             }
         }
     }

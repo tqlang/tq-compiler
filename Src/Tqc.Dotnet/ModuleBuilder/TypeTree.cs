@@ -40,6 +40,9 @@ sealed internal class TypeNode(string name, TypeKind kind, TypeReference referen
 
     /// <summary>The interfaces an interface extends.</summary>
     public List<ITypeRef> ParentInterfaces { get; } = [];
+
+    /// <summary>The interfaces a class or struct implements, with the type parameters of the type itself.</summary>
+    public List<ITypeRef> Implements { get; } = [];
     public List<TypeNode> Nested { get; } = [];
 
     /// <summary>Campos, métodos, construtores e propriedades visíveis (public/protected). Vazio em tipos externos.</summary>

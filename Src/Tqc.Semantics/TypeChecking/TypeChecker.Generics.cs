@@ -40,7 +40,7 @@ internal sealed partial class TypeChecker
     /// The type with each `T` replaced by what the call gave; null when it depends on a type that is not known
     /// (the call has not said it, or it is not a type).
     /// </summary>
-    private static ITypeRef? Substitute(ITypeRef? type, Dictionary<TqParameter, ITypeRef> bound) => type switch
+    internal static ITypeRef? Substitute(ITypeRef? type, Dictionary<TqParameter, ITypeRef> bound) => type switch
     {
         GenericParameterTypeRef generic => bound.GetValueOrDefault(generic.Parameter),
         SliceTypeRef slice => Substitute(slice.Element, bound) is { } element ? new SliceTypeRef(element) : null,
@@ -85,7 +85,7 @@ internal sealed partial class TypeChecker
     /// What the type arguments of a generic type stand for in its members: for a value of `List(i8)`, the `T` of
     /// `List` is `i8`. A reference to the type has the same ones. Empty for a type that is not an instance.
     /// </summary>
-    private static Dictionary<TqParameter, ITypeRef> BindingsOf(ITypeRef? type)
+    internal static Dictionary<TqParameter, ITypeRef> BindingsOf(ITypeRef? type)
     {
         var bound = new Dictionary<TqParameter, ITypeRef>(ReferenceEqualityComparer.Instance);
         if (type != null && CompilerStd.Types.IsRef(type, out var referred)) type = referred;

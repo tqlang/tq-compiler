@@ -277,6 +277,7 @@ internal sealed partial class ModuleEmitter
         {
             DotnetClass dotnetClass => dotnetClass.TypeReference,
             DotnetStruct dotnetStruct => dotnetStruct.TypeReference,
+            DotnetGenericInterface dotnetInterface => dotnetInterface.TypeReference,
             _ => null,
         };
         if (dotnetDefinition != null)

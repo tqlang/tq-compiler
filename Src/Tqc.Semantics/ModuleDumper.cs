@@ -76,9 +76,10 @@ public sealed class ModuleDumper
                 Namespace(@namespace);
                 break;
 
-            case DotnetClass type: Type("class", WithParameters(type.Name, type.Parameters), type.OwnMembers, type.BaseType, type); break;
-            case DotnetStruct type: Type("struct", WithParameters(type.Name, type.Parameters), type.OwnMembers, null, type); break;
+            case DotnetClass type: Type("class", WithParameters(type.Name, type.Parameters), type.OwnMembers, type.BaseType, type, null, type.Implements); break;
+            case DotnetStruct type: Type("struct", WithParameters(type.Name, type.Parameters), type.OwnMembers, null, type, null, type.Implements); break;
             case DotnetEnum type: Type("enum", type.Name, type.OwnMembers, null, type); break;
+            case DotnetGenericInterface type: Type("interface", WithParameters(type.Name, type.Parameters), type.OwnMembers, null, type, type.ParentInterfaces); break;
             case DotnetInterface type: Type("interface", type.Name, type.OwnMembers, null, type, type.ParentInterfaces); break;
 
             case PrimitiveStruct primitive:
@@ -114,11 +115,12 @@ public sealed class ModuleDumper
 
     private void Type(
         string keyword, string name, IEnumerable<IMember> members, ITypeRef? baseType, IDotnetType type,
-        IReadOnlyList<ITypeRef>? parents = null)
+        IReadOnlyList<ITypeRef>? parents = null, IReadOnlyList<ITypeRef>? implements = null)
     {
         var header = $"{keyword} {name}";
         if (baseType != null) header += $" extends {Format(baseType)}";
         if (parents is { Count: > 0 }) header += $" extends {string.Join(", ", parents.Select(Format))}";
+        if (implements is { Count: > 0 }) header += $" implements {string.Join(", ", implements.Select(Format))}";
         Line($"{header}  // {Cecil(type.TypeReference)}");
 
         Nested(() =>

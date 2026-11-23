@@ -1,4 +1,5 @@
 using System.Numerics;
+using Tqc.Dotnet.ProgramMembers;
 using Tqc.IR.Nodes;
 using Tqc.IR.ProgramMembers;
 using Tqc.IR.ProgramMembers.Primitive;
@@ -100,6 +101,9 @@ internal static class ConversionRules
         var protocol = ClassifyProtocol(argument, parameter);
         if (protocol.Kind != MatchKind.None) return protocol;
 
+        var dotnetProtocol = ClassifyDotnetInterface(argument, parameter);
+        if (dotnetProtocol.Kind != MatchKind.None) return dotnetProtocol;
+
         var via = conversions.Find(argument, parameter, accessor);
         return via != null ? new ArgumentMatch(MatchKind.Convert, UserConversion, via) : ArgumentMatch.None;
     }
@@ -195,6 +199,65 @@ internal static class ConversionRules
         }
 
         return ArgumentMatch.None;
+    }
+
+    /// <summary>
+    /// A class or interface of .NET goes where an interface it implements is expected, also a generic one:
+    /// `List(i32)` goes where `IEnumerable(i32)` is, because `List(T)` implements `IEnumerable(T)` and the `T` is `i32`.
+    /// It is the same object, so nothing is converted. A struct of .NET by value is not here: it would have to be boxed.
+    /// </summary>
+    private static ArgumentMatch ClassifyDotnetInterface(ITypeRef argument, ITypeRef parameter)
+    {
+        var written = Unwrap(argument);
+        var wanted = Unwrap(parameter);
+
+        if (DefinitionOf(wanted) is not IObjectType { IsInterface: true } || DefinitionOf(written) is not (DotnetClass or DotnetInterface))
+            return ArgumentMatch.None;
+
+        HashSet<ITypeRef> visited = [written];
+        Queue<(ITypeRef Type, int Steps)> pending = [];
+        pending.Enqueue((written, 0));
+
+        while (pending.TryDequeue(out var current))
+        {
+            foreach (var parent in ParentsOf(current.Type))
+            {
+                if (!visited.Add(parent)) continue;
+                if (parent.Equals(wanted)) return Convert(Upcast + current.Steps + 1);
+                pending.Enqueue((parent, current.Steps + 1));
+            }
+        }
+
+        return ArgumentMatch.None;
+    }
+
+    private static ITypeRef Unwrap(ITypeRef type) => CompilerStd.Types.IsRef(type, out var inner) ? inner : type;
+
+    /// <summary>The type constructor or type behind a type: `List` for `List(i32)`.</summary>
+    private static object? DefinitionOf(ITypeRef type) => type switch
+    {
+        StructTypeReference { Struct: GenericInstance { Definition: var definition } } => definition,
+        StructTypeReference { Struct: var structure } => structure,
+        ProtocolTypeReference { Protocol: var protocol } => protocol,
+        _ => null,
+    };
+
+    /// <summary>The base and interfaces of a type of .NET, with the arguments of the type in place of its own parameters.</summary>
+    private static IEnumerable<ITypeRef> ParentsOf(ITypeRef type)
+    {
+        IEnumerable<ITypeRef?> declared = DefinitionOf(type) switch
+        {
+            DotnetClass dotnet => [dotnet.BaseType, ..dotnet.Implements],
+            DotnetInterface dotnet => dotnet.ParentInterfaces,
+            _ => [],
+        };
+
+        var bound = TypeChecker.BindingsOf(type);
+        foreach (var parent in declared)
+        {
+            if (parent == null || TypeChecker.Substitute(parent, bound) is not { } substituted) continue;
+            yield return Unwrap(substituted);
+        }
     }
 
     private static ArgumentMatch ClassifyWidening(ITypeRef argument, ITypeRef parameter)

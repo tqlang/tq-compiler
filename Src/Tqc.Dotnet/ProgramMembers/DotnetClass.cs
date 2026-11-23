@@ -24,6 +24,12 @@ public class DotnetClass(TypeReference typeRef, string name) : IStruct, IDotnetT
     public ImmutableDictionary<string, IMember> Members { get; set; }
     public ITypeRef? BaseType { get; set; }
 
+    /// <summary>
+    /// The interfaces it implements, written with its own type parameters (`IEnumerable(T)` for `List(T)`): to know what
+    /// `List(i32)` goes where, the `T` is replaced by the arguments of the instance.
+    /// </summary>
+    public IReadOnlyList<ITypeRef> Implements { get; set; } = [];
+
     public IEnumerable<IMember> OwnMembers => Members?.Values ?? [];
 
     public IMemberContainer? Base => DotnetInheritance.ObjectOf(BaseType);

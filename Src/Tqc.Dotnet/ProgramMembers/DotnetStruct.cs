@@ -29,6 +29,12 @@ public class DotnetStruct(TypeReference typeRef, string name) : IStruct, IDotnet
     /// </summary>
     public ITypeRef? ObjectType { get; set; }
 
+    /// <summary>
+    /// The interfaces it implements, written with its own type parameters (`IEnumerable(T)` for `List(T)`): to know what
+    /// `List(i32)` goes where, the `T` is replaced by the arguments of the instance.
+    /// </summary>
+    public IReadOnlyList<ITypeRef> Implements { get; set; } = [];
+
     public IMember? TryGetMember(string memberName) => DotnetInheritance.Find(this, Members, memberName, DotnetInheritance.ObjectOf(ObjectType));
     public IEnumerable<IMember> OwnMembers => Members?.Values ?? [];
     

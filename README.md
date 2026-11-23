@@ -501,8 +501,10 @@ o `T` pelo tipo dado no retorno e nos parâmetros, e o backend monta um `Generic
 chamáveis; `char` do .NET sai como `System.Char`. Tipos genéricos (`Span<T>`, `List<T>`) ainda não: parte 2.
 
 **Tipos genéricos do .NET (etapa 1b, parte 2):** um tipo genérico (`List<T>`, `Span<T>`, `Dictionary<K, V>`) é um construtor de
-tipos e se usa como uma struct genérica de Tq: `List(i8)`, `Dictionary(string, i32)`. Só classes e structs (interfaces e
-delegates genéricos ainda não). Os argumentos são tipos explícitos, sem inferência, e `new List(i8)()` usa os construtores de `List`.
+tipos e se usa como uma struct genérica de Tq: `List(i8)`, `Dictionary(string, i32)`. Classes, structs e interfaces (`IEnumerable(i32)`; delegates
+genéricos ainda não). Uma classe vai onde uma interface que ela implementa é esperada, também genérica: `List(i32)` vai onde `IEnumerable(i32)` é
+esperado (`DotnetClass.Implements`, com os `T` do tipo trocados pelos argumentos). Membros herdados de interfaces-pai genéricas ainda não
+substituem os `T`. Os argumentos são tipos explícitos, sem inferência, e `new List(i8)()` usa os construtores de `List`.
 - Os `T` do tipo são parâmetros do tipo `type` (`DotnetClass.Parameters`, no dump `class List(T)`). Os membros do tipo usam esses `T`,
   e o checker os troca pelos argumentos do valor em que o membro é usado: o campo, a propriedade, o indexador e o retorno de
   `list.add(x)` de um `List(i8)` saem em termos de `i8`, e `x` é verificado como `i8`.

@@ -1,6 +1,7 @@
 using System.Collections.Immutable;
 using Mono.Cecil;
 using Tqc.IR.ProgramMembers;
+using Tqc.IR.ProgramMembers.Primitive;
 using Tqc.IR.References;
 
 namespace Tqc.Dotnet.ProgramMembers;
@@ -14,7 +15,7 @@ public class DotnetInterface(TypeReference typeRef, string name) : IProtocol, ID
     public bool IsAbstract => DotnetMetadata.Definition(typeRef) is { IsAbstract: true };
     public bool IsInterface => true;
     public bool IsFinal => DotnetMetadata.Definition(typeRef) is { IsSealed: true };
-    public bool IsReference => false;
+    public virtual bool IsReference => false;
 
     /// <summary>Set once every type exists, so that members can point to any type.</summary>
     public ImmutableDictionary<string, IMember>? Members { get; set; }
@@ -31,8 +32,16 @@ public class DotnetInterface(TypeReference typeRef, string name) : IProtocol, ID
 
         foreach (var parent in ParentInterfaces)
         {
-            if (parent is ProtocolTypeReference { Protocol: IMemberContainer container } && container.TryGetMember(memberName) is { } inherited)
-                return inherited;
+            // `IEnumerable(T)` as a parent: its members are the ones of the generic interface.
+            var written = CompilerStd.Types.IsRef(parent, out var referred) ? referred : parent;
+            IMemberContainer? container = written switch
+            {
+                ProtocolTypeReference { Protocol: IMemberContainer protocol } => protocol,
+                StructTypeReference { Struct: GenericInstance { Definition: IMemberContainer definition } } => definition,
+                _ => null,
+            };
+
+            if (container?.TryGetMember(memberName) is { } inherited) return inherited;
         }
 
         return DotnetInheritance.ObjectOf(ObjectType)?.TryGetMember(memberName);
