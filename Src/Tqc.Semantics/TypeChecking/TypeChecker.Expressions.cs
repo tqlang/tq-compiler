@@ -309,8 +309,16 @@ internal sealed partial class TypeChecker
                 Error("A slice already is a reference: '&' takes an array", addressOf.Location);
                 return (visited, null);
 
+            // A struct by value that is a variable: a reference to it (the backend checks that it is of a hierarchy).
+            case StructTypeReference { Struct: var referred } structType when !StructSemantics.IsReference(referred) && operand is IrReference { Reference: LocalReference }:
+                return (visited, CompilerStd.Types.RefOf(structType));
+
+            case StructTypeReference { Struct: var referred } when StructSemantics.IsReference(referred):
+                Error($"'{TypeFormatter.Format(TypeOf(operand)!)}' already is a reference: '&' takes an array, or a variable of a struct by value", addressOf.Location);
+                return (visited, null);
+
             case var other:
-                Error($"'&' takes an array, not '{TypeFormatter.Format(other)}'", addressOf.Location);
+                Error($"'&' takes an array or a variable of a struct by value, not '{TypeFormatter.Format(other)}'", addressOf.Location);
                 return (visited, null);
         }
     }

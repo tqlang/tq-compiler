@@ -30,7 +30,7 @@ func describeOfRef(*Vehicle vehicle) string => vehicle.describe()
 
 func renameRef(*Vehicle vehicle, string plate) { vehicle.plate = plate }
 
-func renameCopy(Vehicle vehicle, string plate) { vehicle.plate = plate }
+func renameCopy(Car car, string plate) { car.plate = plate }
 
 func asVehicle(*Car car) *Vehicle => car
 

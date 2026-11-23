@@ -32,6 +32,10 @@ internal sealed class BodyEmitter
     private readonly TypeTable _types;
 
     private readonly Dictionary<IrLocal, VariableDefinition> _locals = [];
+
+    // A variable that is a struct of a hierarchy lives in a `Box` (see ModuleEmitter.Hierarchy): `&x` is that same object, so what
+    // is written through the reference is what the variable has. The value of the variable is `box.Value`.
+    private readonly Dictionary<IrLocal, VariableDefinition> _boxedLocals = [];
     private readonly Stack<Instruction> _breakTargets = new();
 
     public BodyEmitter(ModuleEmitter owner, TqFunction function, MethodDefinition method, ILProcessor il)
@@ -362,8 +366,52 @@ internal sealed class BodyEmitter
 
         var variable = NewTemp(type);
         _locals[local] = variable;
+
+        if (type.IsValueType && _owner.Backend.RefBoxes.TryGetValue(type.FullName, out var boxType))
+            _boxedLocals[local] = NewTemp(_owner.Use(boxType));
+
         return variable;
     }
+
+    /// <summary>The variable that holds the `Box` of a local that is a struct of a hierarchy; null for any other.</summary>
+    private VariableDefinition? BoxOf(IrLocal local)
+    {
+        GetLocal(local);
+        return _boxedLocals.GetValueOrDefault(local);
+    }
+
+    /// <summary>The `Box` of a struct, with the value of its type zeroed, kept in `box`.</summary>
+    private void EmitNewBox(VariableDefinition value, VariableDefinition box)
+    {
+        var boxType = _owner.Backend.RefBoxes[value.VariableType.FullName];
+        var zero = NewTemp(value.VariableType);
+        _il.Emit(OpCodes.Ldloca, zero);
+        _il.Emit(OpCodes.Initobj, value.VariableType);
+        _il.Emit(OpCodes.Ldloc, zero);
+        _il.Emit(OpCodes.Newobj, _owner.Use(boxType.Methods.First(method => method.IsConstructor && method.HasParameters)));
+        _il.Emit(OpCodes.Stloc, box);
+    }
+
+    /// <summary>`box.Value`: the address of the struct inside the `Box`.</summary>
+    private void EmitBoxAddress(VariableDefinition value, VariableDefinition box)
+    {
+        _il.Emit(OpCodes.Ldloc, box);
+        _il.Emit(OpCodes.Callvirt, _owner.Use(_owner.Backend.RefGetters[value.VariableType.FullName]));
+    }
+
+    private Target BoxTarget(VariableDefinition value, VariableDefinition box, bool declares) => new(
+        value.VariableType, 1,
+        () =>
+        {
+            if (declares) EmitNewBox(value, box);
+            EmitBoxAddress(value, box);
+        },
+        () => _il.Emit(OpCodes.Stobj, value.VariableType),
+        () =>
+        {
+            EmitBoxAddress(value, box);
+            _il.Emit(OpCodes.Ldobj, value.VariableType);
+        });
 
     /// <summary>`const x = 1`: the type is the one of the value.</summary>
     private static bool IsUntypedConstant(IrExpression type) =>
@@ -727,6 +775,7 @@ internal sealed class BodyEmitter
             case IrLocal local:
             {
                 var variable = GetLocal(local);
+                if (BoxOf(local) is { } declaredBox) EmitNewBox(variable, declaredBox);
 
                 // An array exists as soon as it is declared: memory with room for all of its elements.
                 if (local.type != null && TypeExpressions.Raw(local.type) is ArrayTypeRef { Length: var length } && variable.VariableType is ArrayType storage)
@@ -903,6 +952,7 @@ internal sealed class BodyEmitter
         if (!typeSubject)
         {
             subject = GetLocal(match.SubjectLocal);
+            _boxedLocals.Remove(match.SubjectLocal);
             EmitValue(match.Subject, subject.VariableType);
             _il.Emit(OpCodes.Stloc, subject);
         }
@@ -932,6 +982,7 @@ internal sealed class BodyEmitter
             if (match.Arms[i].Binding is { } binding && subject != null)
             {
                 var named = GetLocal(binding);
+                _boxedLocals.Remove(binding);
                 _il.Emit(OpCodes.Ldloc, subject);
                 if (subject.VariableType.IsValueType || subject.VariableType is GenericParameter) _il.Emit(OpCodes.Box, subject.VariableType);
                 _il.Emit(OpCodes.Unbox_Any, named.VariableType);
@@ -997,10 +1048,18 @@ internal sealed class BodyEmitter
     /// <summary>`&array`: the slice that refers to the array.</summary>
     private TypeReference? EmitAddressOf(IrAddressOf addressOf)
     {
+        // `&x` of a variable that is a struct of a hierarchy: the object that has it, as a reference to the struct.
+        if (addressOf.Operand is IrReference { Reference: LocalReference named } && BoxOf(named.Local) is { } box)
+        {
+            var value = GetLocal(named.Local);
+            _il.Emit(OpCodes.Ldloc, box);
+            return _owner.Use(_owner.Backend.RefInterfaces[value.VariableType.FullName]);
+        }
+
         var actual = Emit(addressOf.Operand, null);
         if (actual is not ArrayType array)
         {
-            if (actual != null) Report("'&' takes an array", addressOf.Location);
+            if (actual != null) Report("'&' takes an array, or a variable of a struct that extends or is extended by another one (by value)", addressOf.Location);
             return actual;
         }
 
@@ -1081,6 +1140,13 @@ internal sealed class BodyEmitter
             case LocalReference local:
             {
                 var variable = GetLocal(local.Local);
+                if (BoxOf(local.Local) is { } box)
+                {
+                    EmitBoxAddress(variable, box);
+                    _il.Emit(OpCodes.Ldobj, variable.VariableType);
+                    return variable.VariableType;
+                }
+
                 _il.Emit(OpCodes.Ldloc, variable);
                 return variable.VariableType;
             }
@@ -1289,7 +1355,8 @@ internal sealed class BodyEmitter
         switch (expression)
         {
             case IrReference { Reference: LocalReference local }:
-                _il.Emit(OpCodes.Ldloca, GetLocal(local.Local));
+                if (BoxOf(local.Local) is { } box) EmitBoxAddress(GetLocal(local.Local), box);
+                else _il.Emit(OpCodes.Ldloca, GetLocal(local.Local));
                 return;
 
             case IrReference { Reference: ParameterReference parameter }:
@@ -2678,10 +2745,10 @@ internal sealed class BodyEmitter
         switch (expression)
         {
             case IrLocal local:
-                return LocalTarget(GetLocal(local));
+                return BoxOf(local) is { } declaredBox ? BoxTarget(GetLocal(local), declaredBox, true) : LocalTarget(GetLocal(local));
 
             case IrReference { Reference: LocalReference local }:
-                return LocalTarget(GetLocal(local.Local));
+                return BoxOf(local.Local) is { } box ? BoxTarget(GetLocal(local.Local), box, false) : LocalTarget(GetLocal(local.Local));
 
             case IrReference { Reference: ParameterReference parameter }:
             {
