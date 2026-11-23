@@ -45,8 +45,8 @@ typedef Level {
     Test.newTestUnit("conditionals - match with default fallback")
     {
         let i32 fallbackResult = match 99 {
-            case 1 => 10
-            case 2 => 20
+            case 1  => 10
+            case 2  => 20
             default => 404
         }
         Test.assert(fallbackResult, 404)
@@ -56,9 +56,9 @@ typedef Level {
     {
         let i32 blockResult = 0
         match val {
-            default => blockResult = 3
+            default      => blockResult = 3
             case 1, 2, 3 => blockResult = 1
-            case 10, 11 => blockResult = 2
+            case 10, 11  => blockResult = 2
         }
         Test.assert(blockResult, 2)
     }
@@ -79,6 +79,7 @@ typedef Level {
     Test.newTestUnit("conditionals - match on strings")
     {
         let string word = "tq"
+
         let i32 byWord = match word {
             case "go", "rust" => 1
             case "tq" => 2
@@ -86,8 +87,8 @@ typedef Level {
         }
         Test.assert(byWord, 2)
 
-        let i32 unknown = match "zig" {
-            case "tq" => 1
+        let i32 unknown = match word {
+            case "zig" => 1
             default => 0
         }
         Test.assert(unknown, 0)
@@ -96,6 +97,7 @@ typedef Level {
     Test.newTestUnit("conditionals - match on an enum covering every case needs no default")
     {
         let Level level = Level.mid
+
         let i32 byLevel = match level {
             case Level.low => 1
             case Level.mid => 2
@@ -107,6 +109,7 @@ typedef Level {
     Test.newTestUnit("conditionals - match on an enum with default")
     {
         let Level level = Level.high
+
         let i32 byLevel = match level {
             case Level.low => 1
             default => 0
@@ -117,6 +120,7 @@ typedef Level {
     Test.newTestUnit("conditionals - match on a bool covering true and false needs no default")
     {
         let bool flag = true
+        
         let string name = match flag {
             case true => "yes"
             case false => "no"

@@ -6,7 +6,7 @@ func twice(int number) int => number * 2
 
 func add(int a, int b) int => a + b
 
-func hit() { calls++ }
+func hit() => calls++
 
 func hitAndForget() => hit()
 

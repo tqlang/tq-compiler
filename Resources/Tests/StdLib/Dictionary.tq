@@ -1,0 +1,46 @@
+from Std import { Test }
+from Std.Collections import
+
+@public func testDictionaries() {
+	let i2s_dict = new Dictionary(int, string)()
+	let s2i_dict = new Dictionary(string, int)()
+
+	Test.newTestUnit("Dictionary - add and read elements")
+	{
+		i2s_dict.put(10, "ten")
+		i2s_dict.put(20, "twenty")
+		i2s_dict.put(30, "thirty")
+		i2s_dict.put(40, "forty")
+
+		Test.assert(i2s_dict[10], "ten")
+		Test.assert(i2s_dict[30], "thirty")
+		Test.assert(i2s_dict[20], "twenty")
+
+		s2i_dict.put("one", 1)
+		s2i_dict.put("two", 2)
+		s2i_dict.put("three", 3)
+		s2i_dict.put("four", 4)
+
+		Test.assert(s2i_dict["three"], 3)
+		Test.assert(s2i_dict["four"], 4)
+		Test.assert(s2i_dict["one"], 1)
+	}
+
+	Test.newTestUnit("Dictionary - remove elements")
+	{
+		i2s_dict.remove(20)
+		let removed = i2s_dict.remove(40)
+
+		Test.assert(i2s_dict[10], "ten")
+		Test.assert(i2s_dict[30], "thirty")
+		Test.assert(removed, "forty")
+		Test.assert(i2s_dict.len, 2)
+
+
+		s2i_dict.remove("one")
+		s2i_dict.remove("two")
+		s2i_dict.remove("three")
+		Test.assert(s2i_dict["four"], 4)
+		Test.assert(s2i_dict.len, 1)
+	}
+}

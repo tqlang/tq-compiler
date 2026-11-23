@@ -4,22 +4,15 @@ from Dotnet.System.Collections.Generic import { List }
 
 	let _list = new List(T)()
 
-	@public func append(T value) {
-		_list.Add(value)
-	}
+	@indexerGet @public func indexerGet(int index) T => _list[index]
+	@indexerSet @public func indexerSet(int index, T value) => _list[index] = value
+
+	@public func append(T value) => _list.Add(value)
 
 	@public func appendMany([]T value) {
 		while (let i = 0 : i < value.len : i++) append(value[i])
 	}
 
-	@indexerGet
-	@public func indexerGet(int index) T {
-		return _list[index]
-	}
-	
-	@indexerSet
-	@public func indexerSet(int index, T value) {
-		_list[index] = value
-	}
+	@public func removeAt(int index) => _list.RemoveAt(index)
 
 }

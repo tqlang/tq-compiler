@@ -24,6 +24,6 @@ from Std.Collections import
 
         Test.assert(list[5], 60)
         Test.assert(list[7], 80)
-        Test.assert(list[9], 90)
+        Test.assert(list[9], 100)
     }
 }

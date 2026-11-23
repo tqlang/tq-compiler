@@ -54,6 +54,7 @@ func kindOfRef(*Car car) string => "car"
         let Car car = new Car()
         Test.assert(car.wheels, 4)
         Test.assert(car.plate, "none")
+
         car.plate = "abc"
         car.wheels = 6
         Test.assert(car.plate, "abc")
@@ -65,6 +66,7 @@ func kindOfRef(*Car car) string => "car"
         let Vehicle vehicle = new Vehicle()
         let Car car = new Car()
         let Bike bike = new Bike()
+
         Test.assert(vehicle.sound(), "...")
         Test.assert(car.sound(), "vroom")
         Test.assert(bike.sound(), "ring")
@@ -73,9 +75,11 @@ func kindOfRef(*Car car) string => "car"
     Test.newTestUnit("inheritance by value - several levels")
     {
         let Pickup pickup = new Pickup()
+
         Test.assert(pickup.sound(), "vroom")
         Test.assert(pickup.describe(), "pickup")
         Test.assert(pickup.wheelCount(), 4)
+
         pickup.plate = "xyz"
         Test.assert(pickup.plate, "xyz")
     }
@@ -84,8 +88,10 @@ func kindOfRef(*Car car) string => "car"
     {
         let Car first = new Car()
         let Car second = first
+
         second.wheels = 8
         second.plate = "copy"
+
         Test.assert(first.wheels, 4)
         Test.assert(first.plate, "none")
         Test.assert(second.wheels, 8)
@@ -98,6 +104,7 @@ func kindOfRef(*Car car) string => "car"
         let Car car = new Car()
         let *Car carRef = &car
         let *Vehicle vehicle = carRef
+
         Test.assert(vehicle.sound(), "vroom")
         Test.assert(vehicle.wheelCount(), 4)
     }
@@ -107,6 +114,7 @@ func kindOfRef(*Car car) string => "car"
         let Pickup pickup = new Pickup()
         let *Pickup pickupRef = &pickup
         let *Vehicle vehicle = pickupRef
+
         Test.assert(vehicle.sound(), "vroom")
         Test.assert(vehicle.describe(), "pickup")
     }
@@ -131,7 +139,9 @@ func kindOfRef(*Car car) string => "car"
         let *Car carRef = &car
         let *Vehicle vehicle = carRef
         vehicle.plate = "ref"
+
         Test.assert(carRef.plate, "ref")
+
         carRef.wheels = 6
         Test.assert(vehicle.wheels, 6)
     }
@@ -140,6 +150,7 @@ func kindOfRef(*Car car) string => "car"
     {
         let Pickup pickup = new Pickup()
         let *Pickup pickupRef = &pickup
+
         renameRef(pickupRef, "toy")
         Test.assert(pickupRef.plate, "toy")
     }
@@ -156,7 +167,9 @@ func kindOfRef(*Car car) string => "car"
         let Car car = new Car()
         let *Car carRef = &car
         let *Vehicle vehicle = asVehicle(carRef)
+
         Test.assert(vehicle.sound(), "vroom")
+
         vehicle.plate = "back"
         Test.assert(carRef.plate, "back")
     }
@@ -166,6 +179,7 @@ func kindOfRef(*Car car) string => "car"
         let Car car = new Car()
         let Bike bike = new Bike()
         bike.wheels = 2
+
         Test.assert(totalWheels(&car, &bike), 6)
     }
 
@@ -175,6 +189,7 @@ func kindOfRef(*Car car) string => "car"
         let Bike bike = new Bike()
         let Car car = new Car()
         let Pickup pickup = new Pickup()
+
         Test.assert(kindOfRef(&vehicle), "vehicle")
         Test.assert(kindOfRef(&bike), "vehicle")
         Test.assert(kindOfRef(&car), "car")
@@ -188,6 +203,7 @@ func kindOfRef(*Car car) string => "car"
         let *Car carRef = &car
         let *Vehicle vehicle = carRef
         let *Car back = vehicle as *Car
+        
         Test.assert(back.plate, "cast")
         Test.assert(back.sound(), "vroom")
     }

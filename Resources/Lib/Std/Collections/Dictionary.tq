@@ -1,0 +1,42 @@
+from Dotnet.System.Collections.Generic import { Dictionary as CsDictionary }
+
+@public struct Dictionary(type TKey, type TValue) {
+
+	let CsDictionary(TKey, TValue) _dict
+
+	@public constructor() {
+		_dict = new CsDictionary(TKey, TValue)()
+	}
+
+	@public constructor(int capacity) {
+		_dict = new CsDictionary(TKey, TValue)(capacity)
+	}
+
+
+	@indexerGet @public func indexerGet(TKey key) TValue => _dict[key]
+	@indexerSet @public func indexerSet(TKey key, TValue value) => _dict[key] = value
+
+	@public let int len => _dict.Count
+
+	@public func hasKey(TKey key) bool => _dict.ContainsKey(key)
+
+	@public func put(TKey key, TValue value) => _dict.Add(key, value)
+	
+	@public func remove(TKey key) ?TValue {
+		let ?TValue value = null
+
+		if hasKey(key) {
+			value = _dict[key]
+			_dict.Remove(key)
+		}
+
+		return value
+	}
+	# @public func remove(TKey key) TValue {
+	# 	let TValue value
+	# 	_dict.Remove(key, &value)
+	# 	return value
+	# }
+
+	@public func clear() => _dict.Clear()
+}

@@ -64,6 +64,7 @@ func speakOf(Speaker speaker) string => speaker.speak()
     Test.newTestUnit("inheritance - a struct that extends another has its functions")
     {
         let Dog dog = new Dog()
+
         Test.assert(dog.describe(), "animal")
         Test.assert(dog.legCount(), 4)
     }
@@ -71,10 +72,13 @@ func speakOf(Speaker speaker) string => speaker.speak()
     Test.newTestUnit("inheritance - the fields come from what is extended")
     {
         let Dog dog = new Dog()
+
         Test.assert(dog.legs, 4)
         Test.assert(dog.nickname, "none")
+
         dog.nickname = "rex"
         dog.legs = 3
+
         Test.assert(dog.nickname, "rex")
         Test.assert(dog.legCount(), 3)
     }
@@ -84,6 +88,7 @@ func speakOf(Speaker speaker) string => speaker.speak()
         let Animal animal = new Animal()
         let Dog dog = new Dog()
         let Bird bird = new Bird()
+
         Test.assert(animal.sound(), "...")
         Test.assert(dog.sound(), "woof")
         Test.assert(bird.sound(), "tweet")
@@ -93,6 +98,7 @@ func speakOf(Speaker speaker) string => speaker.speak()
     {
         let Dog dog = new Dog()
         let Bird bird = new Bird()
+
         Test.assert(dog.describe(), "animal")
         Test.assert(bird.describe(), "bird")
     }
@@ -100,6 +106,7 @@ func speakOf(Speaker speaker) string => speaker.speak()
     Test.newTestUnit("inheritance - several levels")
     {
         let Puppy puppy = new Puppy()
+
         Test.assert(puppy.sound(), "woof")
         Test.assert(puppy.describe(), "puppy")
         Test.assert(puppy.legCount(), 4)
@@ -117,10 +124,12 @@ func speakOf(Speaker speaker) string => speaker.speak()
     Test.newTestUnit("polymorphism - the override of the value runs, not the one of the type of the variable")
     {
         let Animal animal = new Dog()
+
         Test.assert(animal.sound(), "woof")
         Test.assert(animal.describe(), "animal")
 
         let Animal other = new Puppy()
+
         Test.assert(other.sound(), "woof")
         Test.assert(other.describe(), "puppy")
     }
@@ -129,6 +138,7 @@ func speakOf(Speaker speaker) string => speaker.speak()
     {
         let Animal animal = new Dog()
         Test.assert(animal.sound(), "woof")
+
         animal = new Bird()
         Test.assert(animal.sound(), "tweet")
     }
@@ -144,6 +154,7 @@ func speakOf(Speaker speaker) string => speaker.speak()
     {
         let Square square = new Square()
         square.side = 3
+
         let Rectangle rectangle = new Rectangle()
         rectangle.width = 2
         rectangle.height = 5
@@ -156,7 +167,9 @@ func speakOf(Speaker speaker) string => speaker.speak()
     {
         let Square square = new Square()
         square.side = 4
+
         let Shape shape = square
+
         Test.assert(shape.twiceArea(), 32)
     }
 
@@ -167,6 +180,7 @@ func speakOf(Speaker speaker) string => speaker.speak()
 
         let Speaker speaker = new Cat()
         Test.assert(speaker.speak(), "meow")
+
         speaker = new Cow()
         Test.assert(speaker.speak(), "moo")
     }
@@ -193,6 +207,7 @@ func totalLegs(Animal first, Animal second) int => first.legs + second.legs
     {
         let Dog dog = new Dog()
         let Animal animal = dog
+
         Test.assert(animal.sound(), "woof")
         Test.assert(animal.legCount(), 4)
     }
@@ -202,6 +217,7 @@ func totalLegs(Animal first, Animal second) int => first.legs + second.legs
         let Puppy puppy = new Puppy()
         let Dog dog = puppy
         let Animal animal = puppy
+
         Test.assert(dog.sound(), "woof")
         Test.assert(dog.describe(), "puppy")
         Test.assert(animal.describe(), "puppy")
@@ -213,6 +229,7 @@ func totalLegs(Animal first, Animal second) int => first.legs + second.legs
         let Animal animal = dog
         animal.nickname = "rex"
         Test.assert(dog.nickname, "rex")
+
         dog.legs = 3
         Test.assert(animal.legs, 3)
     }
@@ -220,6 +237,7 @@ func totalLegs(Animal first, Animal second) int => first.legs + second.legs
     Test.newTestUnit("conversion - as an argument of a function")
     {
         let Dog dog = new Dog()
+
         Test.assert(soundOf(dog), "woof")
         Test.assert(describeOf(dog), "animal")
     }
@@ -227,6 +245,7 @@ func totalLegs(Animal first, Animal second) int => first.legs + second.legs
     Test.newTestUnit("conversion - as an argument, from a struct two levels below")
     {
         let Puppy puppy = new Puppy()
+
         Test.assert(soundOf(puppy), "woof")
         Test.assert(describeOf(puppy), "puppy")
     }
@@ -247,6 +266,7 @@ func totalLegs(Animal first, Animal second) int => first.legs + second.legs
         let Dog dog = new Dog()
         let Bird bird = new Bird()
         bird.legs = 2
+
         Test.assert(totalLegs(dog, bird), 6)
     }
 
@@ -255,6 +275,7 @@ func totalLegs(Animal first, Animal second) int => first.legs + second.legs
         let Dog dog = new Dog()
         let Animal animal = asAnimal(dog)
         Test.assert(animal.sound(), "woof")
+
         animal.nickname = "max"
         Test.assert(dog.nickname, "max")
 
@@ -267,6 +288,7 @@ func totalLegs(Animal first, Animal second) int => first.legs + second.legs
         let Bird bird = new Bird()
         let Animal animal = relayTwice(bird)
         Test.assert(animal.sound(), "tweet")
+
         animal.nickname = "tweety"
         Test.assert(bird.nickname, "tweety")
     }
@@ -286,6 +308,7 @@ func totalLegs(Animal first, Animal second) int => first.legs + second.legs
         let Bird bird = new Bird()
         animal = dog
         Test.assert(animal.sound(), "woof")
+
         animal = bird
         Test.assert(animal.sound(), "tweet")
     }
@@ -295,6 +318,7 @@ func totalLegs(Animal first, Animal second) int => first.legs + second.legs
         let Square square = new Square()
         square.side = 5
         let Shape shape = square
+
         Test.assert(shape.area(), 25)
         Test.assert(areaOf(square), 25)
     }
@@ -303,6 +327,7 @@ func totalLegs(Animal first, Animal second) int => first.legs + second.legs
     {
         let Cat cat = new Cat()
         let Speaker speaker = cat
+        
         Test.assert(speaker.speak(), "meow")
         Test.assert(speakOf(cat), "meow")
     }
