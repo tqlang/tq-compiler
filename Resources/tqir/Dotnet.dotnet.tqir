@@ -3530,28 +3530,12 @@ module Dotnet (dotnet)
         property Item5: T5 { get; }
         property Item6: T6 { get; }
         func ToString() -> string  // [System.Runtime]System.Tuple`6::ToString
-      class Tuple(T1, T2, T3, T4) extends ref Object  // [System.Runtime]System.Tuple`4
-        constructor .ctor(item1: T1, item2: T2, item3: T3, item4: T4) -> void  // [System.Runtime]System.Tuple`4::.ctor
-        func Equals(obj: ref Object) -> bool  // [System.Runtime]System.Tuple`4::Equals
-        func GetHashCode() -> int  // [System.Runtime]System.Tuple`4::GetHashCode
-        property Item1: T1 { get; }
-        property Item2: T2 { get; }
-        property Item3: T3 { get; }
-        property Item4: T4 { get; }
-        func ToString() -> string  // [System.Runtime]System.Tuple`4::ToString
       class Tuple(T1) extends ref Object  // [System.Runtime]System.Tuple`1
         constructor .ctor(item1: T1) -> void  // [System.Runtime]System.Tuple`1::.ctor
         func Equals(obj: ref Object) -> bool  // [System.Runtime]System.Tuple`1::Equals
         func GetHashCode() -> int  // [System.Runtime]System.Tuple`1::GetHashCode
         property Item1: T1 { get; }
         func ToString() -> string  // [System.Runtime]System.Tuple`1::ToString
-      class Tuple(T1, T2) extends ref Object  // [System.Runtime]System.Tuple`2
-        constructor .ctor(item1: T1, item2: T2) -> void  // [System.Runtime]System.Tuple`2::.ctor
-        func Equals(obj: ref Object) -> bool  // [System.Runtime]System.Tuple`2::Equals
-        func GetHashCode() -> int  // [System.Runtime]System.Tuple`2::GetHashCode
-        property Item1: T1 { get; }
-        property Item2: T2 { get; }
-        func ToString() -> string  // [System.Runtime]System.Tuple`2::ToString
       class Tuple(T1, T2, T3) extends ref Object  // [System.Runtime]System.Tuple`3
         constructor .ctor(item1: T1, item2: T2, item3: T3) -> void  // [System.Runtime]System.Tuple`3::.ctor
         func Equals(obj: ref Object) -> bool  // [System.Runtime]System.Tuple`3::Equals
@@ -3585,6 +3569,22 @@ module Dotnet (dotnet)
         property Item6: T6 { get; }
         property Item7: T7 { get; }
         func ToString() -> string  // [System.Runtime]System.Tuple`7::ToString
+      class Tuple(T1, T2, T3, T4) extends ref Object  // [System.Runtime]System.Tuple`4
+        constructor .ctor(item1: T1, item2: T2, item3: T3, item4: T4) -> void  // [System.Runtime]System.Tuple`4::.ctor
+        func Equals(obj: ref Object) -> bool  // [System.Runtime]System.Tuple`4::Equals
+        func GetHashCode() -> int  // [System.Runtime]System.Tuple`4::GetHashCode
+        property Item1: T1 { get; }
+        property Item2: T2 { get; }
+        property Item3: T3 { get; }
+        property Item4: T4 { get; }
+        func ToString() -> string  // [System.Runtime]System.Tuple`4::ToString
+      class Tuple(T1, T2) extends ref Object  // [System.Runtime]System.Tuple`2
+        constructor .ctor(item1: T1, item2: T2) -> void  // [System.Runtime]System.Tuple`2::.ctor
+        func Equals(obj: ref Object) -> bool  // [System.Runtime]System.Tuple`2::Equals
+        func GetHashCode() -> int  // [System.Runtime]System.Tuple`2::GetHashCode
+        property Item1: T1 { get; }
+        property Item2: T2 { get; }
+        func ToString() -> string  // [System.Runtime]System.Tuple`2::ToString
       class Tuple(T1, T2, T3, T4, T5) extends ref Object  // [System.Runtime]System.Tuple`5
         constructor .ctor(item1: T1, item2: T2, item3: T3, item4: T4, item5: T5) -> void  // [System.Runtime]System.Tuple`5::.ctor
         func Equals(obj: ref Object) -> bool  // [System.Runtime]System.Tuple`5::Equals
@@ -4396,18 +4396,6 @@ module Dotnet (dotnet)
         field static Path: UriPartial = 2
         field static Query: UriPartial = 3
         field static Scheme: UriPartial = 0
-      struct ValueTuple(T1, T2, T3, T4, T5)  // [System.Runtime]System.ValueTuple`5
-        constructor .ctor(item1: T1, item2: T2, item3: T3, item4: T4, item5: T5) -> void  // [System.Runtime]System.ValueTuple`5::.ctor
-        func CompareTo(other: ValueTuple(T1, T2, T3, T4, T5)) -> int  // [System.Runtime]System.ValueTuple`5::CompareTo
-        func Equals(obj: ref Object) -> bool  // [System.Runtime]System.ValueTuple`5::Equals
-        func Equals(other: ValueTuple(T1, T2, T3, T4, T5)) -> bool  // [System.Runtime]System.ValueTuple`5::Equals
-        func GetHashCode() -> int  // [System.Runtime]System.ValueTuple`5::GetHashCode
-        field Item1: T1
-        field Item2: T2
-        field Item3: T3
-        field Item4: T4
-        field Item5: T5
-        func ToString() -> string  // [System.Runtime]System.ValueTuple`5::ToString
       struct ValueTuple(T1, T2, T3, T4, T5, T6, T7)  // [System.Runtime]System.ValueTuple`7
         constructor .ctor(item1: T1, item2: T2, item3: T3, item4: T4, item5: T5, item6: T6, item7: T7) -> void  // [System.Runtime]System.ValueTuple`7::.ctor
         func CompareTo(other: ValueTuple(T1, T2, T3, T4, T5, T6, T7)) -> int  // [System.Runtime]System.ValueTuple`7::CompareTo
@@ -4441,6 +4429,33 @@ module Dotnet (dotnet)
         field Item1: T1
         field Item2: T2
         func ToString() -> string  // [System.Runtime]System.ValueTuple`2::ToString
+      struct ValueTuple(T1, T2, T3, T4, T5, T6, T7, TRest)  // [System.Runtime]System.ValueTuple`8
+        constructor .ctor(item1: T1, item2: T2, item3: T3, item4: T4, item5: T5, item6: T6, item7: T7, rest: TRest) -> void  // [System.Runtime]System.ValueTuple`8::.ctor
+        func CompareTo(other: ValueTuple(T1, T2, T3, T4, T5, T6, T7, TRest)) -> int  // [System.Runtime]System.ValueTuple`8::CompareTo
+        func Equals(obj: ref Object) -> bool  // [System.Runtime]System.ValueTuple`8::Equals
+        func Equals(other: ValueTuple(T1, T2, T3, T4, T5, T6, T7, TRest)) -> bool  // [System.Runtime]System.ValueTuple`8::Equals
+        func GetHashCode() -> int  // [System.Runtime]System.ValueTuple`8::GetHashCode
+        field Item1: T1
+        field Item2: T2
+        field Item3: T3
+        field Item4: T4
+        field Item5: T5
+        field Item6: T6
+        field Item7: T7
+        field Rest: TRest
+        func ToString() -> string  // [System.Runtime]System.ValueTuple`8::ToString
+      struct ValueTuple(T1, T2, T3, T4, T5)  // [System.Runtime]System.ValueTuple`5
+        constructor .ctor(item1: T1, item2: T2, item3: T3, item4: T4, item5: T5) -> void  // [System.Runtime]System.ValueTuple`5::.ctor
+        func CompareTo(other: ValueTuple(T1, T2, T3, T4, T5)) -> int  // [System.Runtime]System.ValueTuple`5::CompareTo
+        func Equals(obj: ref Object) -> bool  // [System.Runtime]System.ValueTuple`5::Equals
+        func Equals(other: ValueTuple(T1, T2, T3, T4, T5)) -> bool  // [System.Runtime]System.ValueTuple`5::Equals
+        func GetHashCode() -> int  // [System.Runtime]System.ValueTuple`5::GetHashCode
+        field Item1: T1
+        field Item2: T2
+        field Item3: T3
+        field Item4: T4
+        field Item5: T5
+        func ToString() -> string  // [System.Runtime]System.ValueTuple`5::ToString
       struct ValueTuple  // [System.Runtime]System.ValueTuple
         func CompareTo(other: ValueTuple) -> int  // [System.Runtime]System.ValueTuple::CompareTo
         func Create() -> ValueTuple <static>  // [System.Runtime]System.ValueTuple::Create
@@ -4467,6 +4482,14 @@ module Dotnet (dotnet)
         field Item3: T3
         field Item4: T4
         func ToString() -> string  // [System.Runtime]System.ValueTuple`4::ToString
+      struct ValueTuple(T1)  // [System.Runtime]System.ValueTuple`1
+        constructor .ctor(item1: T1) -> void  // [System.Runtime]System.ValueTuple`1::.ctor
+        func CompareTo(other: ValueTuple(T1)) -> int  // [System.Runtime]System.ValueTuple`1::CompareTo
+        func Equals(obj: ref Object) -> bool  // [System.Runtime]System.ValueTuple`1::Equals
+        func Equals(other: ValueTuple(T1)) -> bool  // [System.Runtime]System.ValueTuple`1::Equals
+        func GetHashCode() -> int  // [System.Runtime]System.ValueTuple`1::GetHashCode
+        field Item1: T1
+        func ToString() -> string  // [System.Runtime]System.ValueTuple`1::ToString
       struct ValueTuple(T1, T2, T3, T4, T5, T6)  // [System.Runtime]System.ValueTuple`6
         constructor .ctor(item1: T1, item2: T2, item3: T3, item4: T4, item5: T5, item6: T6) -> void  // [System.Runtime]System.ValueTuple`6::.ctor
         func CompareTo(other: ValueTuple(T1, T2, T3, T4, T5, T6)) -> int  // [System.Runtime]System.ValueTuple`6::CompareTo
@@ -4480,29 +4503,6 @@ module Dotnet (dotnet)
         field Item5: T5
         field Item6: T6
         func ToString() -> string  // [System.Runtime]System.ValueTuple`6::ToString
-      struct ValueTuple(T1, T2, T3, T4, T5, T6, T7, TRest)  // [System.Runtime]System.ValueTuple`8
-        constructor .ctor(item1: T1, item2: T2, item3: T3, item4: T4, item5: T5, item6: T6, item7: T7, rest: TRest) -> void  // [System.Runtime]System.ValueTuple`8::.ctor
-        func CompareTo(other: ValueTuple(T1, T2, T3, T4, T5, T6, T7, TRest)) -> int  // [System.Runtime]System.ValueTuple`8::CompareTo
-        func Equals(obj: ref Object) -> bool  // [System.Runtime]System.ValueTuple`8::Equals
-        func Equals(other: ValueTuple(T1, T2, T3, T4, T5, T6, T7, TRest)) -> bool  // [System.Runtime]System.ValueTuple`8::Equals
-        func GetHashCode() -> int  // [System.Runtime]System.ValueTuple`8::GetHashCode
-        field Item1: T1
-        field Item2: T2
-        field Item3: T3
-        field Item4: T4
-        field Item5: T5
-        field Item6: T6
-        field Item7: T7
-        field Rest: TRest
-        func ToString() -> string  // [System.Runtime]System.ValueTuple`8::ToString
-      struct ValueTuple(T1)  // [System.Runtime]System.ValueTuple`1
-        constructor .ctor(item1: T1) -> void  // [System.Runtime]System.ValueTuple`1::.ctor
-        func CompareTo(other: ValueTuple(T1)) -> int  // [System.Runtime]System.ValueTuple`1::CompareTo
-        func Equals(obj: ref Object) -> bool  // [System.Runtime]System.ValueTuple`1::Equals
-        func Equals(other: ValueTuple(T1)) -> bool  // [System.Runtime]System.ValueTuple`1::Equals
-        func GetHashCode() -> int  // [System.Runtime]System.ValueTuple`1::GetHashCode
-        field Item1: T1
-        func ToString() -> string  // [System.Runtime]System.ValueTuple`1::ToString
       class ValueType extends ref Object  // [System.Runtime]System.ValueType
         constructor .ctor() -> void  // [System.Runtime]System.ValueType::.ctor
         func Equals(obj: ref Object) -> bool  // [System.Runtime]System.ValueType::Equals
@@ -10824,15 +10824,6 @@ module Dotnet (dotnet)
             property BuilderType: ref Type { get; }
           class AsyncStateMachineAttribute extends ref StateMachineAttribute  // [System.Runtime]System.Runtime.CompilerServices.AsyncStateMachineAttribute
             constructor .ctor(stateMachineType: ref Type) -> void  // [System.Runtime]System.Runtime.CompilerServices.AsyncStateMachineAttribute::.ctor
-          struct AsyncTaskMethodBuilder(TResult)  // [System.Runtime]System.Runtime.CompilerServices.AsyncTaskMethodBuilder`1
-            func AwaitOnCompleted(type TAwaiter, type TStateMachine, awaiter: ref TAwaiter, stateMachine: ref TStateMachine) -> void  // [System.Runtime]System.Runtime.CompilerServices.AsyncTaskMethodBuilder`1::AwaitOnCompleted
-            func AwaitUnsafeOnCompleted(type TAwaiter, type TStateMachine, awaiter: ref TAwaiter, stateMachine: ref TStateMachine) -> void  // [System.Runtime]System.Runtime.CompilerServices.AsyncTaskMethodBuilder`1::AwaitUnsafeOnCompleted
-            func Create() -> AsyncTaskMethodBuilder(TResult) <static>  // [System.Runtime]System.Runtime.CompilerServices.AsyncTaskMethodBuilder`1::Create
-            func SetException(exception: ref Exception) -> void  // [System.Runtime]System.Runtime.CompilerServices.AsyncTaskMethodBuilder`1::SetException
-            func SetResult(result: TResult) -> void  // [System.Runtime]System.Runtime.CompilerServices.AsyncTaskMethodBuilder`1::SetResult
-            func SetStateMachine(stateMachine: IAsyncStateMachine) -> void  // [System.Runtime]System.Runtime.CompilerServices.AsyncTaskMethodBuilder`1::SetStateMachine
-            func Start(type TStateMachine, stateMachine: ref TStateMachine) -> void  // [System.Runtime]System.Runtime.CompilerServices.AsyncTaskMethodBuilder`1::Start
-            property Task: ref Task(TResult) { get; }
           struct AsyncTaskMethodBuilder  // [System.Runtime]System.Runtime.CompilerServices.AsyncTaskMethodBuilder
             func AwaitOnCompleted(type TAwaiter, type TStateMachine, awaiter: ref TAwaiter, stateMachine: ref TStateMachine) -> void  // [System.Runtime]System.Runtime.CompilerServices.AsyncTaskMethodBuilder::AwaitOnCompleted
             func AwaitUnsafeOnCompleted(type TAwaiter, type TStateMachine, awaiter: ref TAwaiter, stateMachine: ref TStateMachine) -> void  // [System.Runtime]System.Runtime.CompilerServices.AsyncTaskMethodBuilder::AwaitUnsafeOnCompleted
@@ -10842,15 +10833,15 @@ module Dotnet (dotnet)
             func SetStateMachine(stateMachine: IAsyncStateMachine) -> void  // [System.Runtime]System.Runtime.CompilerServices.AsyncTaskMethodBuilder::SetStateMachine
             func Start(type TStateMachine, stateMachine: ref TStateMachine) -> void  // [System.Runtime]System.Runtime.CompilerServices.AsyncTaskMethodBuilder::Start
             property Task: ref Task { get; }
-          struct AsyncValueTaskMethodBuilder  // [System.Runtime]System.Runtime.CompilerServices.AsyncValueTaskMethodBuilder
-            func AwaitOnCompleted(type TAwaiter, type TStateMachine, awaiter: ref TAwaiter, stateMachine: ref TStateMachine) -> void  // [System.Runtime]System.Runtime.CompilerServices.AsyncValueTaskMethodBuilder::AwaitOnCompleted
-            func AwaitUnsafeOnCompleted(type TAwaiter, type TStateMachine, awaiter: ref TAwaiter, stateMachine: ref TStateMachine) -> void  // [System.Runtime]System.Runtime.CompilerServices.AsyncValueTaskMethodBuilder::AwaitUnsafeOnCompleted
-            func Create() -> AsyncValueTaskMethodBuilder <static>  // [System.Runtime]System.Runtime.CompilerServices.AsyncValueTaskMethodBuilder::Create
-            func SetException(exception: ref Exception) -> void  // [System.Runtime]System.Runtime.CompilerServices.AsyncValueTaskMethodBuilder::SetException
-            func SetResult() -> void  // [System.Runtime]System.Runtime.CompilerServices.AsyncValueTaskMethodBuilder::SetResult
-            func SetStateMachine(stateMachine: IAsyncStateMachine) -> void  // [System.Runtime]System.Runtime.CompilerServices.AsyncValueTaskMethodBuilder::SetStateMachine
-            func Start(type TStateMachine, stateMachine: ref TStateMachine) -> void  // [System.Runtime]System.Runtime.CompilerServices.AsyncValueTaskMethodBuilder::Start
-            property Task: ValueTask { get; }
+          struct AsyncTaskMethodBuilder(TResult)  // [System.Runtime]System.Runtime.CompilerServices.AsyncTaskMethodBuilder`1
+            func AwaitOnCompleted(type TAwaiter, type TStateMachine, awaiter: ref TAwaiter, stateMachine: ref TStateMachine) -> void  // [System.Runtime]System.Runtime.CompilerServices.AsyncTaskMethodBuilder`1::AwaitOnCompleted
+            func AwaitUnsafeOnCompleted(type TAwaiter, type TStateMachine, awaiter: ref TAwaiter, stateMachine: ref TStateMachine) -> void  // [System.Runtime]System.Runtime.CompilerServices.AsyncTaskMethodBuilder`1::AwaitUnsafeOnCompleted
+            func Create() -> AsyncTaskMethodBuilder(TResult) <static>  // [System.Runtime]System.Runtime.CompilerServices.AsyncTaskMethodBuilder`1::Create
+            func SetException(exception: ref Exception) -> void  // [System.Runtime]System.Runtime.CompilerServices.AsyncTaskMethodBuilder`1::SetException
+            func SetResult(result: TResult) -> void  // [System.Runtime]System.Runtime.CompilerServices.AsyncTaskMethodBuilder`1::SetResult
+            func SetStateMachine(stateMachine: IAsyncStateMachine) -> void  // [System.Runtime]System.Runtime.CompilerServices.AsyncTaskMethodBuilder`1::SetStateMachine
+            func Start(type TStateMachine, stateMachine: ref TStateMachine) -> void  // [System.Runtime]System.Runtime.CompilerServices.AsyncTaskMethodBuilder`1::Start
+            property Task: ref Task(TResult) { get; }
           struct AsyncValueTaskMethodBuilder(TResult)  // [System.Runtime]System.Runtime.CompilerServices.AsyncValueTaskMethodBuilder`1
             func AwaitOnCompleted(type TAwaiter, type TStateMachine, awaiter: ref TAwaiter, stateMachine: ref TStateMachine) -> void  // [System.Runtime]System.Runtime.CompilerServices.AsyncValueTaskMethodBuilder`1::AwaitOnCompleted
             func AwaitUnsafeOnCompleted(type TAwaiter, type TStateMachine, awaiter: ref TAwaiter, stateMachine: ref TStateMachine) -> void  // [System.Runtime]System.Runtime.CompilerServices.AsyncValueTaskMethodBuilder`1::AwaitUnsafeOnCompleted
@@ -10860,6 +10851,15 @@ module Dotnet (dotnet)
             func SetStateMachine(stateMachine: IAsyncStateMachine) -> void  // [System.Runtime]System.Runtime.CompilerServices.AsyncValueTaskMethodBuilder`1::SetStateMachine
             func Start(type TStateMachine, stateMachine: ref TStateMachine) -> void  // [System.Runtime]System.Runtime.CompilerServices.AsyncValueTaskMethodBuilder`1::Start
             property Task: ValueTask(TResult) { get; }
+          struct AsyncValueTaskMethodBuilder  // [System.Runtime]System.Runtime.CompilerServices.AsyncValueTaskMethodBuilder
+            func AwaitOnCompleted(type TAwaiter, type TStateMachine, awaiter: ref TAwaiter, stateMachine: ref TStateMachine) -> void  // [System.Runtime]System.Runtime.CompilerServices.AsyncValueTaskMethodBuilder::AwaitOnCompleted
+            func AwaitUnsafeOnCompleted(type TAwaiter, type TStateMachine, awaiter: ref TAwaiter, stateMachine: ref TStateMachine) -> void  // [System.Runtime]System.Runtime.CompilerServices.AsyncValueTaskMethodBuilder::AwaitUnsafeOnCompleted
+            func Create() -> AsyncValueTaskMethodBuilder <static>  // [System.Runtime]System.Runtime.CompilerServices.AsyncValueTaskMethodBuilder::Create
+            func SetException(exception: ref Exception) -> void  // [System.Runtime]System.Runtime.CompilerServices.AsyncValueTaskMethodBuilder::SetException
+            func SetResult() -> void  // [System.Runtime]System.Runtime.CompilerServices.AsyncValueTaskMethodBuilder::SetResult
+            func SetStateMachine(stateMachine: IAsyncStateMachine) -> void  // [System.Runtime]System.Runtime.CompilerServices.AsyncValueTaskMethodBuilder::SetStateMachine
+            func Start(type TStateMachine, stateMachine: ref TStateMachine) -> void  // [System.Runtime]System.Runtime.CompilerServices.AsyncValueTaskMethodBuilder::Start
+            property Task: ValueTask { get; }
           struct AsyncVoidMethodBuilder  // [System.Runtime]System.Runtime.CompilerServices.AsyncVoidMethodBuilder
             func AwaitOnCompleted(type TAwaiter, type TStateMachine, awaiter: ref TAwaiter, stateMachine: ref TStateMachine) -> void  // [System.Runtime]System.Runtime.CompilerServices.AsyncVoidMethodBuilder::AwaitOnCompleted
             func AwaitUnsafeOnCompleted(type TAwaiter, type TStateMachine, awaiter: ref TAwaiter, stateMachine: ref TStateMachine) -> void  // [System.Runtime]System.Runtime.CompilerServices.AsyncVoidMethodBuilder::AwaitUnsafeOnCompleted
@@ -10937,13 +10937,6 @@ module Dotnet (dotnet)
               func MoveNextAsync() -> ConfiguredValueTaskAwaitable(Bool)  // [System.Runtime]System.Runtime.CompilerServices.ConfiguredCancelableAsyncEnumerable`1/Enumerator::MoveNextAsync
             func GetAsyncEnumerator() -> Enumerator(T)  // [System.Runtime]System.Runtime.CompilerServices.ConfiguredCancelableAsyncEnumerable`1::GetAsyncEnumerator
             func WithCancellation(cancellationToken: CancellationToken) -> ConfiguredCancelableAsyncEnumerable(T)  // [System.Runtime]System.Runtime.CompilerServices.ConfiguredCancelableAsyncEnumerable`1::WithCancellation
-          struct ConfiguredTaskAwaitable(TResult)  // [System.Runtime]System.Runtime.CompilerServices.ConfiguredTaskAwaitable`1
-            struct ConfiguredTaskAwaiter(TResult)  // [System.Runtime]System.Runtime.CompilerServices.ConfiguredTaskAwaitable`1/ConfiguredTaskAwaiter
-              func GetResult() -> TResult  // [System.Runtime]System.Runtime.CompilerServices.ConfiguredTaskAwaitable`1/ConfiguredTaskAwaiter::GetResult
-              property IsCompleted: bool { get; }
-              func OnCompleted(continuation: UNSUPPORTED(System.Action)) -> void  // [System.Runtime]System.Runtime.CompilerServices.ConfiguredTaskAwaitable`1/ConfiguredTaskAwaiter::OnCompleted
-              func UnsafeOnCompleted(continuation: UNSUPPORTED(System.Action)) -> void  // [System.Runtime]System.Runtime.CompilerServices.ConfiguredTaskAwaitable`1/ConfiguredTaskAwaiter::UnsafeOnCompleted
-            func GetAwaiter() -> ConfiguredTaskAwaiter(TResult)  // [System.Runtime]System.Runtime.CompilerServices.ConfiguredTaskAwaitable`1::GetAwaiter
           struct ConfiguredTaskAwaitable  // [System.Runtime]System.Runtime.CompilerServices.ConfiguredTaskAwaitable
             struct ConfiguredTaskAwaiter  // [System.Runtime]System.Runtime.CompilerServices.ConfiguredTaskAwaitable/ConfiguredTaskAwaiter
               func GetResult() -> void  // [System.Runtime]System.Runtime.CompilerServices.ConfiguredTaskAwaitable/ConfiguredTaskAwaiter::GetResult
@@ -10951,6 +10944,13 @@ module Dotnet (dotnet)
               func OnCompleted(continuation: UNSUPPORTED(System.Action)) -> void  // [System.Runtime]System.Runtime.CompilerServices.ConfiguredTaskAwaitable/ConfiguredTaskAwaiter::OnCompleted
               func UnsafeOnCompleted(continuation: UNSUPPORTED(System.Action)) -> void  // [System.Runtime]System.Runtime.CompilerServices.ConfiguredTaskAwaitable/ConfiguredTaskAwaiter::UnsafeOnCompleted
             func GetAwaiter() -> ConfiguredTaskAwaiter  // [System.Runtime]System.Runtime.CompilerServices.ConfiguredTaskAwaitable::GetAwaiter
+          struct ConfiguredTaskAwaitable(TResult)  // [System.Runtime]System.Runtime.CompilerServices.ConfiguredTaskAwaitable`1
+            struct ConfiguredTaskAwaiter(TResult)  // [System.Runtime]System.Runtime.CompilerServices.ConfiguredTaskAwaitable`1/ConfiguredTaskAwaiter
+              func GetResult() -> TResult  // [System.Runtime]System.Runtime.CompilerServices.ConfiguredTaskAwaitable`1/ConfiguredTaskAwaiter::GetResult
+              property IsCompleted: bool { get; }
+              func OnCompleted(continuation: UNSUPPORTED(System.Action)) -> void  // [System.Runtime]System.Runtime.CompilerServices.ConfiguredTaskAwaitable`1/ConfiguredTaskAwaiter::OnCompleted
+              func UnsafeOnCompleted(continuation: UNSUPPORTED(System.Action)) -> void  // [System.Runtime]System.Runtime.CompilerServices.ConfiguredTaskAwaitable`1/ConfiguredTaskAwaiter::UnsafeOnCompleted
+            func GetAwaiter() -> ConfiguredTaskAwaiter(TResult)  // [System.Runtime]System.Runtime.CompilerServices.ConfiguredTaskAwaitable`1::GetAwaiter
           struct ConfiguredValueTaskAwaitable  // [System.Runtime]System.Runtime.CompilerServices.ConfiguredValueTaskAwaitable
             struct ConfiguredValueTaskAwaiter  // [System.Runtime]System.Runtime.CompilerServices.ConfiguredValueTaskAwaitable/ConfiguredValueTaskAwaiter
               func GetResult() -> void  // [System.Runtime]System.Runtime.CompilerServices.ConfiguredValueTaskAwaitable/ConfiguredValueTaskAwaiter::GetResult
@@ -11220,16 +11220,16 @@ module Dotnet (dotnet)
             property TypeName: string { get; }
           class UnsafeValueTypeAttribute extends ref Attribute  // [System.Runtime]System.Runtime.CompilerServices.UnsafeValueTypeAttribute
             constructor .ctor() -> void  // [System.Runtime]System.Runtime.CompilerServices.UnsafeValueTypeAttribute::.ctor
-          struct ValueTaskAwaiter  // [System.Runtime]System.Runtime.CompilerServices.ValueTaskAwaiter
-            func GetResult() -> void  // [System.Runtime]System.Runtime.CompilerServices.ValueTaskAwaiter::GetResult
-            property IsCompleted: bool { get; }
-            func OnCompleted(continuation: UNSUPPORTED(System.Action)) -> void  // [System.Runtime]System.Runtime.CompilerServices.ValueTaskAwaiter::OnCompleted
-            func UnsafeOnCompleted(continuation: UNSUPPORTED(System.Action)) -> void  // [System.Runtime]System.Runtime.CompilerServices.ValueTaskAwaiter::UnsafeOnCompleted
           struct ValueTaskAwaiter(TResult)  // [System.Runtime]System.Runtime.CompilerServices.ValueTaskAwaiter`1
             func GetResult() -> TResult  // [System.Runtime]System.Runtime.CompilerServices.ValueTaskAwaiter`1::GetResult
             property IsCompleted: bool { get; }
             func OnCompleted(continuation: UNSUPPORTED(System.Action)) -> void  // [System.Runtime]System.Runtime.CompilerServices.ValueTaskAwaiter`1::OnCompleted
             func UnsafeOnCompleted(continuation: UNSUPPORTED(System.Action)) -> void  // [System.Runtime]System.Runtime.CompilerServices.ValueTaskAwaiter`1::UnsafeOnCompleted
+          struct ValueTaskAwaiter  // [System.Runtime]System.Runtime.CompilerServices.ValueTaskAwaiter
+            func GetResult() -> void  // [System.Runtime]System.Runtime.CompilerServices.ValueTaskAwaiter::GetResult
+            property IsCompleted: bool { get; }
+            func OnCompleted(continuation: UNSUPPORTED(System.Action)) -> void  // [System.Runtime]System.Runtime.CompilerServices.ValueTaskAwaiter::OnCompleted
+            func UnsafeOnCompleted(continuation: UNSUPPORTED(System.Action)) -> void  // [System.Runtime]System.Runtime.CompilerServices.ValueTaskAwaiter::UnsafeOnCompleted
           struct YieldAwaitable  // [System.Runtime]System.Runtime.CompilerServices.YieldAwaitable
             func GetAwaiter() -> YieldAwaiter  // [System.Runtime]System.Runtime.CompilerServices.YieldAwaitable::GetAwaiter
             struct YieldAwaiter  // [System.Runtime]System.Runtime.CompilerServices.YieldAwaitable/YieldAwaiter
@@ -11701,12 +11701,12 @@ module Dotnet (dotnet)
             struct SwiftIndirectResult  // [System.Runtime]System.Runtime.InteropServices.Swift.SwiftIndirectResult
               constructor .ctor(value: UNSUPPORTED(System.Void*)) -> void  // [System.Runtime]System.Runtime.InteropServices.Swift.SwiftIndirectResult::.ctor
               property Value: UNSUPPORTED(System.Void*) { get; }
-            struct SwiftSelf(T)  // [System.Runtime]System.Runtime.InteropServices.Swift.SwiftSelf`1
-              constructor .ctor(value: T) -> void  // [System.Runtime]System.Runtime.InteropServices.Swift.SwiftSelf`1::.ctor
-              property Value: T { get; }
             struct SwiftSelf  // [System.Runtime]System.Runtime.InteropServices.Swift.SwiftSelf
               constructor .ctor(value: UNSUPPORTED(System.Void*)) -> void  // [System.Runtime]System.Runtime.InteropServices.Swift.SwiftSelf::.ctor
               property Value: UNSUPPORTED(System.Void*) { get; }
+            struct SwiftSelf(T)  // [System.Runtime]System.Runtime.InteropServices.Swift.SwiftSelf`1
+              constructor .ctor(value: T) -> void  // [System.Runtime]System.Runtime.InteropServices.Swift.SwiftSelf`1::.ctor
+              property Value: T { get; }
         static class JitInfo
           func GetCompilationTime(currentThread: bool) -> TimeSpan <static>  // [System.Runtime]System.Runtime.JitInfo::GetCompilationTime
           func GetCompiledILBytes(currentThread: bool) -> i64 <static>  // [System.Runtime]System.Runtime.JitInfo::GetCompiledILBytes
@@ -13137,45 +13137,6 @@ module Dotnet (dotnet)
             field static ForceYielding: ConfigureAwaitOptions = 4
             field static None: ConfigureAwaitOptions = 0
             field static SuppressThrowing: ConfigureAwaitOptions = 2
-          class Task(TResult) extends ref Task  // [System.Runtime]System.Threading.Tasks.Task`1
-            constructor .ctor(function: UNSUPPORTED(System.Func`2<System.Object,TResult>), state: ref Object) -> void  // [System.Runtime]System.Threading.Tasks.Task`1::.ctor
-            constructor .ctor(function: UNSUPPORTED(System.Func`2<System.Object,TResult>), state: ref Object, cancellationToken: CancellationToken) -> void  // [System.Runtime]System.Threading.Tasks.Task`1::.ctor
-            constructor .ctor(function: UNSUPPORTED(System.Func`2<System.Object,TResult>), state: ref Object, cancellationToken: CancellationToken, creationOptions: TaskCreationOptions) -> void  // [System.Runtime]System.Threading.Tasks.Task`1::.ctor
-            constructor .ctor(function: UNSUPPORTED(System.Func`2<System.Object,TResult>), state: ref Object, creationOptions: TaskCreationOptions) -> void  // [System.Runtime]System.Threading.Tasks.Task`1::.ctor
-            constructor .ctor(function: UNSUPPORTED(System.Func`1<TResult>)) -> void  // [System.Runtime]System.Threading.Tasks.Task`1::.ctor
-            constructor .ctor(function: UNSUPPORTED(System.Func`1<TResult>), cancellationToken: CancellationToken) -> void  // [System.Runtime]System.Threading.Tasks.Task`1::.ctor
-            constructor .ctor(function: UNSUPPORTED(System.Func`1<TResult>), cancellationToken: CancellationToken, creationOptions: TaskCreationOptions) -> void  // [System.Runtime]System.Threading.Tasks.Task`1::.ctor
-            constructor .ctor(function: UNSUPPORTED(System.Func`1<TResult>), creationOptions: TaskCreationOptions) -> void  // [System.Runtime]System.Threading.Tasks.Task`1::.ctor
-            func ConfigureAwait(continueOnCapturedContext: bool) -> ConfiguredTaskAwaitable(TResult)  // [System.Runtime]System.Threading.Tasks.Task`1::ConfigureAwait
-            func ConfigureAwait(options: ConfigureAwaitOptions) -> ConfiguredTaskAwaitable(TResult)  // [System.Runtime]System.Threading.Tasks.Task`1::ConfigureAwait
-            func ContinueWith(continuationAction: UNSUPPORTED(System.Action`2<System.Threading.Tasks.Task`1<TResult>,System.Object>), state: ref Object) -> ref Task  // [System.Runtime]System.Threading.Tasks.Task`1::ContinueWith
-            func ContinueWith(continuationAction: UNSUPPORTED(System.Action`2<System.Threading.Tasks.Task`1<TResult>,System.Object>), state: ref Object, cancellationToken: CancellationToken) -> ref Task  // [System.Runtime]System.Threading.Tasks.Task`1::ContinueWith
-            func ContinueWith(continuationAction: UNSUPPORTED(System.Action`2<System.Threading.Tasks.Task`1<TResult>,System.Object>), state: ref Object, cancellationToken: CancellationToken, continuationOptions: TaskContinuationOptions, scheduler: ref TaskScheduler) -> ref Task  // [System.Runtime]System.Threading.Tasks.Task`1::ContinueWith
-            func ContinueWith(continuationAction: UNSUPPORTED(System.Action`2<System.Threading.Tasks.Task`1<TResult>,System.Object>), state: ref Object, continuationOptions: TaskContinuationOptions) -> ref Task  // [System.Runtime]System.Threading.Tasks.Task`1::ContinueWith
-            func ContinueWith(continuationAction: UNSUPPORTED(System.Action`2<System.Threading.Tasks.Task`1<TResult>,System.Object>), state: ref Object, scheduler: ref TaskScheduler) -> ref Task  // [System.Runtime]System.Threading.Tasks.Task`1::ContinueWith
-            func ContinueWith(continuationAction: UNSUPPORTED(System.Action`1<System.Threading.Tasks.Task`1<TResult>>)) -> ref Task  // [System.Runtime]System.Threading.Tasks.Task`1::ContinueWith
-            func ContinueWith(continuationAction: UNSUPPORTED(System.Action`1<System.Threading.Tasks.Task`1<TResult>>), cancellationToken: CancellationToken) -> ref Task  // [System.Runtime]System.Threading.Tasks.Task`1::ContinueWith
-            func ContinueWith(continuationAction: UNSUPPORTED(System.Action`1<System.Threading.Tasks.Task`1<TResult>>), cancellationToken: CancellationToken, continuationOptions: TaskContinuationOptions, scheduler: ref TaskScheduler) -> ref Task  // [System.Runtime]System.Threading.Tasks.Task`1::ContinueWith
-            func ContinueWith(continuationAction: UNSUPPORTED(System.Action`1<System.Threading.Tasks.Task`1<TResult>>), continuationOptions: TaskContinuationOptions) -> ref Task  // [System.Runtime]System.Threading.Tasks.Task`1::ContinueWith
-            func ContinueWith(continuationAction: UNSUPPORTED(System.Action`1<System.Threading.Tasks.Task`1<TResult>>), scheduler: ref TaskScheduler) -> ref Task  // [System.Runtime]System.Threading.Tasks.Task`1::ContinueWith
-            func ContinueWith(type TNewResult, continuationFunction: UNSUPPORTED(System.Func`3<System.Threading.Tasks.Task`1<TResult>,System.Object,TNewResult>), state: ref Object) -> ref Task(TNewResult)  // [System.Runtime]System.Threading.Tasks.Task`1::ContinueWith
-            func ContinueWith(type TNewResult, continuationFunction: UNSUPPORTED(System.Func`3<System.Threading.Tasks.Task`1<TResult>,System.Object,TNewResult>), state: ref Object, cancellationToken: CancellationToken) -> ref Task(TNewResult)  // [System.Runtime]System.Threading.Tasks.Task`1::ContinueWith
-            func ContinueWith(type TNewResult, continuationFunction: UNSUPPORTED(System.Func`3<System.Threading.Tasks.Task`1<TResult>,System.Object,TNewResult>), state: ref Object, cancellationToken: CancellationToken, continuationOptions: TaskContinuationOptions, scheduler: ref TaskScheduler) -> ref Task(TNewResult)  // [System.Runtime]System.Threading.Tasks.Task`1::ContinueWith
-            func ContinueWith(type TNewResult, continuationFunction: UNSUPPORTED(System.Func`3<System.Threading.Tasks.Task`1<TResult>,System.Object,TNewResult>), state: ref Object, continuationOptions: TaskContinuationOptions) -> ref Task(TNewResult)  // [System.Runtime]System.Threading.Tasks.Task`1::ContinueWith
-            func ContinueWith(type TNewResult, continuationFunction: UNSUPPORTED(System.Func`3<System.Threading.Tasks.Task`1<TResult>,System.Object,TNewResult>), state: ref Object, scheduler: ref TaskScheduler) -> ref Task(TNewResult)  // [System.Runtime]System.Threading.Tasks.Task`1::ContinueWith
-            func ContinueWith(type TNewResult, continuationFunction: UNSUPPORTED(System.Func`2<System.Threading.Tasks.Task`1<TResult>,TNewResult>)) -> ref Task(TNewResult)  // [System.Runtime]System.Threading.Tasks.Task`1::ContinueWith
-            func ContinueWith(type TNewResult, continuationFunction: UNSUPPORTED(System.Func`2<System.Threading.Tasks.Task`1<TResult>,TNewResult>), cancellationToken: CancellationToken) -> ref Task(TNewResult)  // [System.Runtime]System.Threading.Tasks.Task`1::ContinueWith
-            func ContinueWith(type TNewResult, continuationFunction: UNSUPPORTED(System.Func`2<System.Threading.Tasks.Task`1<TResult>,TNewResult>), cancellationToken: CancellationToken, continuationOptions: TaskContinuationOptions, scheduler: ref TaskScheduler) -> ref Task(TNewResult)  // [System.Runtime]System.Threading.Tasks.Task`1::ContinueWith
-            func ContinueWith(type TNewResult, continuationFunction: UNSUPPORTED(System.Func`2<System.Threading.Tasks.Task`1<TResult>,TNewResult>), continuationOptions: TaskContinuationOptions) -> ref Task(TNewResult)  // [System.Runtime]System.Threading.Tasks.Task`1::ContinueWith
-            func ContinueWith(type TNewResult, continuationFunction: UNSUPPORTED(System.Func`2<System.Threading.Tasks.Task`1<TResult>,TNewResult>), scheduler: ref TaskScheduler) -> ref Task(TNewResult)  // [System.Runtime]System.Threading.Tasks.Task`1::ContinueWith
-            property Factory: ref TaskFactory(TResult) { get; }
-            func GetAwaiter() -> TaskAwaiter(TResult)  // [System.Runtime]System.Threading.Tasks.Task`1::GetAwaiter
-            property Result: TResult { get; }
-            func WaitAsync(cancellationToken: CancellationToken) -> ref Task(TResult)  // [System.Runtime]System.Threading.Tasks.Task`1::WaitAsync
-            func WaitAsync(timeout: TimeSpan) -> ref Task(TResult)  // [System.Runtime]System.Threading.Tasks.Task`1::WaitAsync
-            func WaitAsync(timeout: TimeSpan, cancellationToken: CancellationToken) -> ref Task(TResult)  // [System.Runtime]System.Threading.Tasks.Task`1::WaitAsync
-            func WaitAsync(timeout: TimeSpan, timeProvider: ref TimeProvider) -> ref Task(TResult)  // [System.Runtime]System.Threading.Tasks.Task`1::WaitAsync
-            func WaitAsync(timeout: TimeSpan, timeProvider: ref TimeProvider, cancellationToken: CancellationToken) -> ref Task(TResult)  // [System.Runtime]System.Threading.Tasks.Task`1::WaitAsync
           class Task extends ref Object  // [System.Runtime]System.Threading.Tasks.Task
             constructor .ctor(action: UNSUPPORTED(System.Action)) -> void  // [System.Runtime]System.Threading.Tasks.Task::.ctor
             constructor .ctor(action: UNSUPPORTED(System.Action), cancellationToken: CancellationToken) -> void  // [System.Runtime]System.Threading.Tasks.Task::.ctor
@@ -13289,6 +13250,45 @@ module Dotnet (dotnet)
             func WhenEach(type TResult, tasks: []ref Task(TResult)) -> UNSUPPORTED(System.Collections.Generic.IAsyncEnumerable`1<System.Threading.Tasks.Task`1<TResult>>) <static>  // [System.Runtime]System.Threading.Tasks.Task::WhenEach
             func WhenEach(type TResult, tasks: ReadOnlySpan(Ref(Task(TResult)))) -> UNSUPPORTED(System.Collections.Generic.IAsyncEnumerable`1<System.Threading.Tasks.Task`1<TResult>>) <static>  // [System.Runtime]System.Threading.Tasks.Task::WhenEach
             func Yield() -> YieldAwaitable <static>  // [System.Runtime]System.Threading.Tasks.Task::Yield
+          class Task(TResult) extends ref Task  // [System.Runtime]System.Threading.Tasks.Task`1
+            constructor .ctor(function: UNSUPPORTED(System.Func`2<System.Object,TResult>), state: ref Object) -> void  // [System.Runtime]System.Threading.Tasks.Task`1::.ctor
+            constructor .ctor(function: UNSUPPORTED(System.Func`2<System.Object,TResult>), state: ref Object, cancellationToken: CancellationToken) -> void  // [System.Runtime]System.Threading.Tasks.Task`1::.ctor
+            constructor .ctor(function: UNSUPPORTED(System.Func`2<System.Object,TResult>), state: ref Object, cancellationToken: CancellationToken, creationOptions: TaskCreationOptions) -> void  // [System.Runtime]System.Threading.Tasks.Task`1::.ctor
+            constructor .ctor(function: UNSUPPORTED(System.Func`2<System.Object,TResult>), state: ref Object, creationOptions: TaskCreationOptions) -> void  // [System.Runtime]System.Threading.Tasks.Task`1::.ctor
+            constructor .ctor(function: UNSUPPORTED(System.Func`1<TResult>)) -> void  // [System.Runtime]System.Threading.Tasks.Task`1::.ctor
+            constructor .ctor(function: UNSUPPORTED(System.Func`1<TResult>), cancellationToken: CancellationToken) -> void  // [System.Runtime]System.Threading.Tasks.Task`1::.ctor
+            constructor .ctor(function: UNSUPPORTED(System.Func`1<TResult>), cancellationToken: CancellationToken, creationOptions: TaskCreationOptions) -> void  // [System.Runtime]System.Threading.Tasks.Task`1::.ctor
+            constructor .ctor(function: UNSUPPORTED(System.Func`1<TResult>), creationOptions: TaskCreationOptions) -> void  // [System.Runtime]System.Threading.Tasks.Task`1::.ctor
+            func ConfigureAwait(continueOnCapturedContext: bool) -> ConfiguredTaskAwaitable(TResult)  // [System.Runtime]System.Threading.Tasks.Task`1::ConfigureAwait
+            func ConfigureAwait(options: ConfigureAwaitOptions) -> ConfiguredTaskAwaitable(TResult)  // [System.Runtime]System.Threading.Tasks.Task`1::ConfigureAwait
+            func ContinueWith(continuationAction: UNSUPPORTED(System.Action`2<System.Threading.Tasks.Task`1<TResult>,System.Object>), state: ref Object) -> ref Task  // [System.Runtime]System.Threading.Tasks.Task`1::ContinueWith
+            func ContinueWith(continuationAction: UNSUPPORTED(System.Action`2<System.Threading.Tasks.Task`1<TResult>,System.Object>), state: ref Object, cancellationToken: CancellationToken) -> ref Task  // [System.Runtime]System.Threading.Tasks.Task`1::ContinueWith
+            func ContinueWith(continuationAction: UNSUPPORTED(System.Action`2<System.Threading.Tasks.Task`1<TResult>,System.Object>), state: ref Object, cancellationToken: CancellationToken, continuationOptions: TaskContinuationOptions, scheduler: ref TaskScheduler) -> ref Task  // [System.Runtime]System.Threading.Tasks.Task`1::ContinueWith
+            func ContinueWith(continuationAction: UNSUPPORTED(System.Action`2<System.Threading.Tasks.Task`1<TResult>,System.Object>), state: ref Object, continuationOptions: TaskContinuationOptions) -> ref Task  // [System.Runtime]System.Threading.Tasks.Task`1::ContinueWith
+            func ContinueWith(continuationAction: UNSUPPORTED(System.Action`2<System.Threading.Tasks.Task`1<TResult>,System.Object>), state: ref Object, scheduler: ref TaskScheduler) -> ref Task  // [System.Runtime]System.Threading.Tasks.Task`1::ContinueWith
+            func ContinueWith(continuationAction: UNSUPPORTED(System.Action`1<System.Threading.Tasks.Task`1<TResult>>)) -> ref Task  // [System.Runtime]System.Threading.Tasks.Task`1::ContinueWith
+            func ContinueWith(continuationAction: UNSUPPORTED(System.Action`1<System.Threading.Tasks.Task`1<TResult>>), cancellationToken: CancellationToken) -> ref Task  // [System.Runtime]System.Threading.Tasks.Task`1::ContinueWith
+            func ContinueWith(continuationAction: UNSUPPORTED(System.Action`1<System.Threading.Tasks.Task`1<TResult>>), cancellationToken: CancellationToken, continuationOptions: TaskContinuationOptions, scheduler: ref TaskScheduler) -> ref Task  // [System.Runtime]System.Threading.Tasks.Task`1::ContinueWith
+            func ContinueWith(continuationAction: UNSUPPORTED(System.Action`1<System.Threading.Tasks.Task`1<TResult>>), continuationOptions: TaskContinuationOptions) -> ref Task  // [System.Runtime]System.Threading.Tasks.Task`1::ContinueWith
+            func ContinueWith(continuationAction: UNSUPPORTED(System.Action`1<System.Threading.Tasks.Task`1<TResult>>), scheduler: ref TaskScheduler) -> ref Task  // [System.Runtime]System.Threading.Tasks.Task`1::ContinueWith
+            func ContinueWith(type TNewResult, continuationFunction: UNSUPPORTED(System.Func`3<System.Threading.Tasks.Task`1<TResult>,System.Object,TNewResult>), state: ref Object) -> ref Task(TNewResult)  // [System.Runtime]System.Threading.Tasks.Task`1::ContinueWith
+            func ContinueWith(type TNewResult, continuationFunction: UNSUPPORTED(System.Func`3<System.Threading.Tasks.Task`1<TResult>,System.Object,TNewResult>), state: ref Object, cancellationToken: CancellationToken) -> ref Task(TNewResult)  // [System.Runtime]System.Threading.Tasks.Task`1::ContinueWith
+            func ContinueWith(type TNewResult, continuationFunction: UNSUPPORTED(System.Func`3<System.Threading.Tasks.Task`1<TResult>,System.Object,TNewResult>), state: ref Object, cancellationToken: CancellationToken, continuationOptions: TaskContinuationOptions, scheduler: ref TaskScheduler) -> ref Task(TNewResult)  // [System.Runtime]System.Threading.Tasks.Task`1::ContinueWith
+            func ContinueWith(type TNewResult, continuationFunction: UNSUPPORTED(System.Func`3<System.Threading.Tasks.Task`1<TResult>,System.Object,TNewResult>), state: ref Object, continuationOptions: TaskContinuationOptions) -> ref Task(TNewResult)  // [System.Runtime]System.Threading.Tasks.Task`1::ContinueWith
+            func ContinueWith(type TNewResult, continuationFunction: UNSUPPORTED(System.Func`3<System.Threading.Tasks.Task`1<TResult>,System.Object,TNewResult>), state: ref Object, scheduler: ref TaskScheduler) -> ref Task(TNewResult)  // [System.Runtime]System.Threading.Tasks.Task`1::ContinueWith
+            func ContinueWith(type TNewResult, continuationFunction: UNSUPPORTED(System.Func`2<System.Threading.Tasks.Task`1<TResult>,TNewResult>)) -> ref Task(TNewResult)  // [System.Runtime]System.Threading.Tasks.Task`1::ContinueWith
+            func ContinueWith(type TNewResult, continuationFunction: UNSUPPORTED(System.Func`2<System.Threading.Tasks.Task`1<TResult>,TNewResult>), cancellationToken: CancellationToken) -> ref Task(TNewResult)  // [System.Runtime]System.Threading.Tasks.Task`1::ContinueWith
+            func ContinueWith(type TNewResult, continuationFunction: UNSUPPORTED(System.Func`2<System.Threading.Tasks.Task`1<TResult>,TNewResult>), cancellationToken: CancellationToken, continuationOptions: TaskContinuationOptions, scheduler: ref TaskScheduler) -> ref Task(TNewResult)  // [System.Runtime]System.Threading.Tasks.Task`1::ContinueWith
+            func ContinueWith(type TNewResult, continuationFunction: UNSUPPORTED(System.Func`2<System.Threading.Tasks.Task`1<TResult>,TNewResult>), continuationOptions: TaskContinuationOptions) -> ref Task(TNewResult)  // [System.Runtime]System.Threading.Tasks.Task`1::ContinueWith
+            func ContinueWith(type TNewResult, continuationFunction: UNSUPPORTED(System.Func`2<System.Threading.Tasks.Task`1<TResult>,TNewResult>), scheduler: ref TaskScheduler) -> ref Task(TNewResult)  // [System.Runtime]System.Threading.Tasks.Task`1::ContinueWith
+            property Factory: ref TaskFactory(TResult) { get; }
+            func GetAwaiter() -> TaskAwaiter(TResult)  // [System.Runtime]System.Threading.Tasks.Task`1::GetAwaiter
+            property Result: TResult { get; }
+            func WaitAsync(cancellationToken: CancellationToken) -> ref Task(TResult)  // [System.Runtime]System.Threading.Tasks.Task`1::WaitAsync
+            func WaitAsync(timeout: TimeSpan) -> ref Task(TResult)  // [System.Runtime]System.Threading.Tasks.Task`1::WaitAsync
+            func WaitAsync(timeout: TimeSpan, cancellationToken: CancellationToken) -> ref Task(TResult)  // [System.Runtime]System.Threading.Tasks.Task`1::WaitAsync
+            func WaitAsync(timeout: TimeSpan, timeProvider: ref TimeProvider) -> ref Task(TResult)  // [System.Runtime]System.Threading.Tasks.Task`1::WaitAsync
+            func WaitAsync(timeout: TimeSpan, timeProvider: ref TimeProvider, cancellationToken: CancellationToken) -> ref Task(TResult)  // [System.Runtime]System.Threading.Tasks.Task`1::WaitAsync
           class TaskCanceledException extends ref OperationCanceledException  // [System.Runtime]System.Threading.Tasks.TaskCanceledException
             constructor .ctor() -> void  // [System.Runtime]System.Threading.Tasks.TaskCanceledException::.ctor
             constructor .ctor(info: ref SerializationInfo, context: StreamingContext) -> void  // [System.Runtime]System.Threading.Tasks.TaskCanceledException::.ctor
@@ -13357,51 +13357,6 @@ module Dotnet (dotnet)
             field static None: TaskCreationOptions = 0
             field static PreferFairness: TaskCreationOptions = 1
             field static RunContinuationsAsynchronously: TaskCreationOptions = 64
-          class TaskFactory(TResult) extends ref Object  // [System.Runtime]System.Threading.Tasks.TaskFactory`1
-            constructor .ctor() -> void  // [System.Runtime]System.Threading.Tasks.TaskFactory`1::.ctor
-            constructor .ctor(cancellationToken: CancellationToken) -> void  // [System.Runtime]System.Threading.Tasks.TaskFactory`1::.ctor
-            constructor .ctor(cancellationToken: CancellationToken, creationOptions: TaskCreationOptions, continuationOptions: TaskContinuationOptions, scheduler: ref TaskScheduler) -> void  // [System.Runtime]System.Threading.Tasks.TaskFactory`1::.ctor
-            constructor .ctor(creationOptions: TaskCreationOptions, continuationOptions: TaskContinuationOptions) -> void  // [System.Runtime]System.Threading.Tasks.TaskFactory`1::.ctor
-            constructor .ctor(scheduler: ref TaskScheduler) -> void  // [System.Runtime]System.Threading.Tasks.TaskFactory`1::.ctor
-            property CancellationToken: CancellationToken { get; }
-            property ContinuationOptions: TaskContinuationOptions { get; }
-            func ContinueWhenAll(tasks: []ref Task, continuationFunction: UNSUPPORTED(System.Func`2<System.Threading.Tasks.Task[],TResult>)) -> ref Task(TResult)  // [System.Runtime]System.Threading.Tasks.TaskFactory`1::ContinueWhenAll
-            func ContinueWhenAll(tasks: []ref Task, continuationFunction: UNSUPPORTED(System.Func`2<System.Threading.Tasks.Task[],TResult>), cancellationToken: CancellationToken) -> ref Task(TResult)  // [System.Runtime]System.Threading.Tasks.TaskFactory`1::ContinueWhenAll
-            func ContinueWhenAll(tasks: []ref Task, continuationFunction: UNSUPPORTED(System.Func`2<System.Threading.Tasks.Task[],TResult>), cancellationToken: CancellationToken, continuationOptions: TaskContinuationOptions, scheduler: ref TaskScheduler) -> ref Task(TResult)  // [System.Runtime]System.Threading.Tasks.TaskFactory`1::ContinueWhenAll
-            func ContinueWhenAll(tasks: []ref Task, continuationFunction: UNSUPPORTED(System.Func`2<System.Threading.Tasks.Task[],TResult>), continuationOptions: TaskContinuationOptions) -> ref Task(TResult)  // [System.Runtime]System.Threading.Tasks.TaskFactory`1::ContinueWhenAll
-            func ContinueWhenAll(type TAntecedentResult, tasks: []ref Task(TAntecedentResult), continuationFunction: UNSUPPORTED(System.Func`2<System.Threading.Tasks.Task`1<TAntecedentResult>[],TResult>)) -> ref Task(TResult)  // [System.Runtime]System.Threading.Tasks.TaskFactory`1::ContinueWhenAll
-            func ContinueWhenAll(type TAntecedentResult, tasks: []ref Task(TAntecedentResult), continuationFunction: UNSUPPORTED(System.Func`2<System.Threading.Tasks.Task`1<TAntecedentResult>[],TResult>), cancellationToken: CancellationToken) -> ref Task(TResult)  // [System.Runtime]System.Threading.Tasks.TaskFactory`1::ContinueWhenAll
-            func ContinueWhenAll(type TAntecedentResult, tasks: []ref Task(TAntecedentResult), continuationFunction: UNSUPPORTED(System.Func`2<System.Threading.Tasks.Task`1<TAntecedentResult>[],TResult>), cancellationToken: CancellationToken, continuationOptions: TaskContinuationOptions, scheduler: ref TaskScheduler) -> ref Task(TResult)  // [System.Runtime]System.Threading.Tasks.TaskFactory`1::ContinueWhenAll
-            func ContinueWhenAll(type TAntecedentResult, tasks: []ref Task(TAntecedentResult), continuationFunction: UNSUPPORTED(System.Func`2<System.Threading.Tasks.Task`1<TAntecedentResult>[],TResult>), continuationOptions: TaskContinuationOptions) -> ref Task(TResult)  // [System.Runtime]System.Threading.Tasks.TaskFactory`1::ContinueWhenAll
-            func ContinueWhenAny(tasks: []ref Task, continuationFunction: UNSUPPORTED(System.Func`2<System.Threading.Tasks.Task,TResult>)) -> ref Task(TResult)  // [System.Runtime]System.Threading.Tasks.TaskFactory`1::ContinueWhenAny
-            func ContinueWhenAny(tasks: []ref Task, continuationFunction: UNSUPPORTED(System.Func`2<System.Threading.Tasks.Task,TResult>), cancellationToken: CancellationToken) -> ref Task(TResult)  // [System.Runtime]System.Threading.Tasks.TaskFactory`1::ContinueWhenAny
-            func ContinueWhenAny(tasks: []ref Task, continuationFunction: UNSUPPORTED(System.Func`2<System.Threading.Tasks.Task,TResult>), cancellationToken: CancellationToken, continuationOptions: TaskContinuationOptions, scheduler: ref TaskScheduler) -> ref Task(TResult)  // [System.Runtime]System.Threading.Tasks.TaskFactory`1::ContinueWhenAny
-            func ContinueWhenAny(tasks: []ref Task, continuationFunction: UNSUPPORTED(System.Func`2<System.Threading.Tasks.Task,TResult>), continuationOptions: TaskContinuationOptions) -> ref Task(TResult)  // [System.Runtime]System.Threading.Tasks.TaskFactory`1::ContinueWhenAny
-            func ContinueWhenAny(type TAntecedentResult, tasks: []ref Task(TAntecedentResult), continuationFunction: UNSUPPORTED(System.Func`2<System.Threading.Tasks.Task`1<TAntecedentResult>,TResult>)) -> ref Task(TResult)  // [System.Runtime]System.Threading.Tasks.TaskFactory`1::ContinueWhenAny
-            func ContinueWhenAny(type TAntecedentResult, tasks: []ref Task(TAntecedentResult), continuationFunction: UNSUPPORTED(System.Func`2<System.Threading.Tasks.Task`1<TAntecedentResult>,TResult>), cancellationToken: CancellationToken) -> ref Task(TResult)  // [System.Runtime]System.Threading.Tasks.TaskFactory`1::ContinueWhenAny
-            func ContinueWhenAny(type TAntecedentResult, tasks: []ref Task(TAntecedentResult), continuationFunction: UNSUPPORTED(System.Func`2<System.Threading.Tasks.Task`1<TAntecedentResult>,TResult>), cancellationToken: CancellationToken, continuationOptions: TaskContinuationOptions, scheduler: ref TaskScheduler) -> ref Task(TResult)  // [System.Runtime]System.Threading.Tasks.TaskFactory`1::ContinueWhenAny
-            func ContinueWhenAny(type TAntecedentResult, tasks: []ref Task(TAntecedentResult), continuationFunction: UNSUPPORTED(System.Func`2<System.Threading.Tasks.Task`1<TAntecedentResult>,TResult>), continuationOptions: TaskContinuationOptions) -> ref Task(TResult)  // [System.Runtime]System.Threading.Tasks.TaskFactory`1::ContinueWhenAny
-            property CreationOptions: TaskCreationOptions { get; }
-            func FromAsync(beginMethod: UNSUPPORTED(System.Func`3<System.AsyncCallback,System.Object,System.IAsyncResult>), endMethod: UNSUPPORTED(System.Func`2<System.IAsyncResult,TResult>), state: ref Object) -> ref Task(TResult)  // [System.Runtime]System.Threading.Tasks.TaskFactory`1::FromAsync
-            func FromAsync(beginMethod: UNSUPPORTED(System.Func`3<System.AsyncCallback,System.Object,System.IAsyncResult>), endMethod: UNSUPPORTED(System.Func`2<System.IAsyncResult,TResult>), state: ref Object, creationOptions: TaskCreationOptions) -> ref Task(TResult)  // [System.Runtime]System.Threading.Tasks.TaskFactory`1::FromAsync
-            func FromAsync(asyncResult: IAsyncResult, endMethod: UNSUPPORTED(System.Func`2<System.IAsyncResult,TResult>)) -> ref Task(TResult)  // [System.Runtime]System.Threading.Tasks.TaskFactory`1::FromAsync
-            func FromAsync(asyncResult: IAsyncResult, endMethod: UNSUPPORTED(System.Func`2<System.IAsyncResult,TResult>), creationOptions: TaskCreationOptions) -> ref Task(TResult)  // [System.Runtime]System.Threading.Tasks.TaskFactory`1::FromAsync
-            func FromAsync(asyncResult: IAsyncResult, endMethod: UNSUPPORTED(System.Func`2<System.IAsyncResult,TResult>), creationOptions: TaskCreationOptions, scheduler: ref TaskScheduler) -> ref Task(TResult)  // [System.Runtime]System.Threading.Tasks.TaskFactory`1::FromAsync
-            func FromAsync(type TArg1, beginMethod: UNSUPPORTED(System.Func`4<TArg1,System.AsyncCallback,System.Object,System.IAsyncResult>), endMethod: UNSUPPORTED(System.Func`2<System.IAsyncResult,TResult>), arg1: TArg1, state: ref Object) -> ref Task(TResult)  // [System.Runtime]System.Threading.Tasks.TaskFactory`1::FromAsync
-            func FromAsync(type TArg1, beginMethod: UNSUPPORTED(System.Func`4<TArg1,System.AsyncCallback,System.Object,System.IAsyncResult>), endMethod: UNSUPPORTED(System.Func`2<System.IAsyncResult,TResult>), arg1: TArg1, state: ref Object, creationOptions: TaskCreationOptions) -> ref Task(TResult)  // [System.Runtime]System.Threading.Tasks.TaskFactory`1::FromAsync
-            func FromAsync(type TArg1, type TArg2, beginMethod: UNSUPPORTED(System.Func`5<TArg1,TArg2,System.AsyncCallback,System.Object,System.IAsyncResult>), endMethod: UNSUPPORTED(System.Func`2<System.IAsyncResult,TResult>), arg1: TArg1, arg2: TArg2, state: ref Object) -> ref Task(TResult)  // [System.Runtime]System.Threading.Tasks.TaskFactory`1::FromAsync
-            func FromAsync(type TArg1, type TArg2, beginMethod: UNSUPPORTED(System.Func`5<TArg1,TArg2,System.AsyncCallback,System.Object,System.IAsyncResult>), endMethod: UNSUPPORTED(System.Func`2<System.IAsyncResult,TResult>), arg1: TArg1, arg2: TArg2, state: ref Object, creationOptions: TaskCreationOptions) -> ref Task(TResult)  // [System.Runtime]System.Threading.Tasks.TaskFactory`1::FromAsync
-            func FromAsync(type TArg1, type TArg2, type TArg3, beginMethod: UNSUPPORTED(System.Func`6<TArg1,TArg2,TArg3,System.AsyncCallback,System.Object,System.IAsyncResult>), endMethod: UNSUPPORTED(System.Func`2<System.IAsyncResult,TResult>), arg1: TArg1, arg2: TArg2, arg3: TArg3, state: ref Object) -> ref Task(TResult)  // [System.Runtime]System.Threading.Tasks.TaskFactory`1::FromAsync
-            func FromAsync(type TArg1, type TArg2, type TArg3, beginMethod: UNSUPPORTED(System.Func`6<TArg1,TArg2,TArg3,System.AsyncCallback,System.Object,System.IAsyncResult>), endMethod: UNSUPPORTED(System.Func`2<System.IAsyncResult,TResult>), arg1: TArg1, arg2: TArg2, arg3: TArg3, state: ref Object, creationOptions: TaskCreationOptions) -> ref Task(TResult)  // [System.Runtime]System.Threading.Tasks.TaskFactory`1::FromAsync
-            property Scheduler: ref TaskScheduler { get; }
-            func StartNew(function: UNSUPPORTED(System.Func`2<System.Object,TResult>), state: ref Object) -> ref Task(TResult)  // [System.Runtime]System.Threading.Tasks.TaskFactory`1::StartNew
-            func StartNew(function: UNSUPPORTED(System.Func`2<System.Object,TResult>), state: ref Object, cancellationToken: CancellationToken) -> ref Task(TResult)  // [System.Runtime]System.Threading.Tasks.TaskFactory`1::StartNew
-            func StartNew(function: UNSUPPORTED(System.Func`2<System.Object,TResult>), state: ref Object, cancellationToken: CancellationToken, creationOptions: TaskCreationOptions, scheduler: ref TaskScheduler) -> ref Task(TResult)  // [System.Runtime]System.Threading.Tasks.TaskFactory`1::StartNew
-            func StartNew(function: UNSUPPORTED(System.Func`2<System.Object,TResult>), state: ref Object, creationOptions: TaskCreationOptions) -> ref Task(TResult)  // [System.Runtime]System.Threading.Tasks.TaskFactory`1::StartNew
-            func StartNew(function: UNSUPPORTED(System.Func`1<TResult>)) -> ref Task(TResult)  // [System.Runtime]System.Threading.Tasks.TaskFactory`1::StartNew
-            func StartNew(function: UNSUPPORTED(System.Func`1<TResult>), cancellationToken: CancellationToken) -> ref Task(TResult)  // [System.Runtime]System.Threading.Tasks.TaskFactory`1::StartNew
-            func StartNew(function: UNSUPPORTED(System.Func`1<TResult>), cancellationToken: CancellationToken, creationOptions: TaskCreationOptions, scheduler: ref TaskScheduler) -> ref Task(TResult)  // [System.Runtime]System.Threading.Tasks.TaskFactory`1::StartNew
-            func StartNew(function: UNSUPPORTED(System.Func`1<TResult>), creationOptions: TaskCreationOptions) -> ref Task(TResult)  // [System.Runtime]System.Threading.Tasks.TaskFactory`1::StartNew
           class TaskFactory extends ref Object  // [System.Runtime]System.Threading.Tasks.TaskFactory
             constructor .ctor() -> void  // [System.Runtime]System.Threading.Tasks.TaskFactory::.ctor
             constructor .ctor(cancellationToken: CancellationToken) -> void  // [System.Runtime]System.Threading.Tasks.TaskFactory::.ctor
@@ -13482,6 +13437,51 @@ module Dotnet (dotnet)
             func StartNew(type TResult, function: UNSUPPORTED(System.Func`1<TResult>), cancellationToken: CancellationToken) -> ref Task(TResult)  // [System.Runtime]System.Threading.Tasks.TaskFactory::StartNew
             func StartNew(type TResult, function: UNSUPPORTED(System.Func`1<TResult>), cancellationToken: CancellationToken, creationOptions: TaskCreationOptions, scheduler: ref TaskScheduler) -> ref Task(TResult)  // [System.Runtime]System.Threading.Tasks.TaskFactory::StartNew
             func StartNew(type TResult, function: UNSUPPORTED(System.Func`1<TResult>), creationOptions: TaskCreationOptions) -> ref Task(TResult)  // [System.Runtime]System.Threading.Tasks.TaskFactory::StartNew
+          class TaskFactory(TResult) extends ref Object  // [System.Runtime]System.Threading.Tasks.TaskFactory`1
+            constructor .ctor() -> void  // [System.Runtime]System.Threading.Tasks.TaskFactory`1::.ctor
+            constructor .ctor(cancellationToken: CancellationToken) -> void  // [System.Runtime]System.Threading.Tasks.TaskFactory`1::.ctor
+            constructor .ctor(cancellationToken: CancellationToken, creationOptions: TaskCreationOptions, continuationOptions: TaskContinuationOptions, scheduler: ref TaskScheduler) -> void  // [System.Runtime]System.Threading.Tasks.TaskFactory`1::.ctor
+            constructor .ctor(creationOptions: TaskCreationOptions, continuationOptions: TaskContinuationOptions) -> void  // [System.Runtime]System.Threading.Tasks.TaskFactory`1::.ctor
+            constructor .ctor(scheduler: ref TaskScheduler) -> void  // [System.Runtime]System.Threading.Tasks.TaskFactory`1::.ctor
+            property CancellationToken: CancellationToken { get; }
+            property ContinuationOptions: TaskContinuationOptions { get; }
+            func ContinueWhenAll(tasks: []ref Task, continuationFunction: UNSUPPORTED(System.Func`2<System.Threading.Tasks.Task[],TResult>)) -> ref Task(TResult)  // [System.Runtime]System.Threading.Tasks.TaskFactory`1::ContinueWhenAll
+            func ContinueWhenAll(tasks: []ref Task, continuationFunction: UNSUPPORTED(System.Func`2<System.Threading.Tasks.Task[],TResult>), cancellationToken: CancellationToken) -> ref Task(TResult)  // [System.Runtime]System.Threading.Tasks.TaskFactory`1::ContinueWhenAll
+            func ContinueWhenAll(tasks: []ref Task, continuationFunction: UNSUPPORTED(System.Func`2<System.Threading.Tasks.Task[],TResult>), cancellationToken: CancellationToken, continuationOptions: TaskContinuationOptions, scheduler: ref TaskScheduler) -> ref Task(TResult)  // [System.Runtime]System.Threading.Tasks.TaskFactory`1::ContinueWhenAll
+            func ContinueWhenAll(tasks: []ref Task, continuationFunction: UNSUPPORTED(System.Func`2<System.Threading.Tasks.Task[],TResult>), continuationOptions: TaskContinuationOptions) -> ref Task(TResult)  // [System.Runtime]System.Threading.Tasks.TaskFactory`1::ContinueWhenAll
+            func ContinueWhenAll(type TAntecedentResult, tasks: []ref Task(TAntecedentResult), continuationFunction: UNSUPPORTED(System.Func`2<System.Threading.Tasks.Task`1<TAntecedentResult>[],TResult>)) -> ref Task(TResult)  // [System.Runtime]System.Threading.Tasks.TaskFactory`1::ContinueWhenAll
+            func ContinueWhenAll(type TAntecedentResult, tasks: []ref Task(TAntecedentResult), continuationFunction: UNSUPPORTED(System.Func`2<System.Threading.Tasks.Task`1<TAntecedentResult>[],TResult>), cancellationToken: CancellationToken) -> ref Task(TResult)  // [System.Runtime]System.Threading.Tasks.TaskFactory`1::ContinueWhenAll
+            func ContinueWhenAll(type TAntecedentResult, tasks: []ref Task(TAntecedentResult), continuationFunction: UNSUPPORTED(System.Func`2<System.Threading.Tasks.Task`1<TAntecedentResult>[],TResult>), cancellationToken: CancellationToken, continuationOptions: TaskContinuationOptions, scheduler: ref TaskScheduler) -> ref Task(TResult)  // [System.Runtime]System.Threading.Tasks.TaskFactory`1::ContinueWhenAll
+            func ContinueWhenAll(type TAntecedentResult, tasks: []ref Task(TAntecedentResult), continuationFunction: UNSUPPORTED(System.Func`2<System.Threading.Tasks.Task`1<TAntecedentResult>[],TResult>), continuationOptions: TaskContinuationOptions) -> ref Task(TResult)  // [System.Runtime]System.Threading.Tasks.TaskFactory`1::ContinueWhenAll
+            func ContinueWhenAny(tasks: []ref Task, continuationFunction: UNSUPPORTED(System.Func`2<System.Threading.Tasks.Task,TResult>)) -> ref Task(TResult)  // [System.Runtime]System.Threading.Tasks.TaskFactory`1::ContinueWhenAny
+            func ContinueWhenAny(tasks: []ref Task, continuationFunction: UNSUPPORTED(System.Func`2<System.Threading.Tasks.Task,TResult>), cancellationToken: CancellationToken) -> ref Task(TResult)  // [System.Runtime]System.Threading.Tasks.TaskFactory`1::ContinueWhenAny
+            func ContinueWhenAny(tasks: []ref Task, continuationFunction: UNSUPPORTED(System.Func`2<System.Threading.Tasks.Task,TResult>), cancellationToken: CancellationToken, continuationOptions: TaskContinuationOptions, scheduler: ref TaskScheduler) -> ref Task(TResult)  // [System.Runtime]System.Threading.Tasks.TaskFactory`1::ContinueWhenAny
+            func ContinueWhenAny(tasks: []ref Task, continuationFunction: UNSUPPORTED(System.Func`2<System.Threading.Tasks.Task,TResult>), continuationOptions: TaskContinuationOptions) -> ref Task(TResult)  // [System.Runtime]System.Threading.Tasks.TaskFactory`1::ContinueWhenAny
+            func ContinueWhenAny(type TAntecedentResult, tasks: []ref Task(TAntecedentResult), continuationFunction: UNSUPPORTED(System.Func`2<System.Threading.Tasks.Task`1<TAntecedentResult>,TResult>)) -> ref Task(TResult)  // [System.Runtime]System.Threading.Tasks.TaskFactory`1::ContinueWhenAny
+            func ContinueWhenAny(type TAntecedentResult, tasks: []ref Task(TAntecedentResult), continuationFunction: UNSUPPORTED(System.Func`2<System.Threading.Tasks.Task`1<TAntecedentResult>,TResult>), cancellationToken: CancellationToken) -> ref Task(TResult)  // [System.Runtime]System.Threading.Tasks.TaskFactory`1::ContinueWhenAny
+            func ContinueWhenAny(type TAntecedentResult, tasks: []ref Task(TAntecedentResult), continuationFunction: UNSUPPORTED(System.Func`2<System.Threading.Tasks.Task`1<TAntecedentResult>,TResult>), cancellationToken: CancellationToken, continuationOptions: TaskContinuationOptions, scheduler: ref TaskScheduler) -> ref Task(TResult)  // [System.Runtime]System.Threading.Tasks.TaskFactory`1::ContinueWhenAny
+            func ContinueWhenAny(type TAntecedentResult, tasks: []ref Task(TAntecedentResult), continuationFunction: UNSUPPORTED(System.Func`2<System.Threading.Tasks.Task`1<TAntecedentResult>,TResult>), continuationOptions: TaskContinuationOptions) -> ref Task(TResult)  // [System.Runtime]System.Threading.Tasks.TaskFactory`1::ContinueWhenAny
+            property CreationOptions: TaskCreationOptions { get; }
+            func FromAsync(beginMethod: UNSUPPORTED(System.Func`3<System.AsyncCallback,System.Object,System.IAsyncResult>), endMethod: UNSUPPORTED(System.Func`2<System.IAsyncResult,TResult>), state: ref Object) -> ref Task(TResult)  // [System.Runtime]System.Threading.Tasks.TaskFactory`1::FromAsync
+            func FromAsync(beginMethod: UNSUPPORTED(System.Func`3<System.AsyncCallback,System.Object,System.IAsyncResult>), endMethod: UNSUPPORTED(System.Func`2<System.IAsyncResult,TResult>), state: ref Object, creationOptions: TaskCreationOptions) -> ref Task(TResult)  // [System.Runtime]System.Threading.Tasks.TaskFactory`1::FromAsync
+            func FromAsync(asyncResult: IAsyncResult, endMethod: UNSUPPORTED(System.Func`2<System.IAsyncResult,TResult>)) -> ref Task(TResult)  // [System.Runtime]System.Threading.Tasks.TaskFactory`1::FromAsync
+            func FromAsync(asyncResult: IAsyncResult, endMethod: UNSUPPORTED(System.Func`2<System.IAsyncResult,TResult>), creationOptions: TaskCreationOptions) -> ref Task(TResult)  // [System.Runtime]System.Threading.Tasks.TaskFactory`1::FromAsync
+            func FromAsync(asyncResult: IAsyncResult, endMethod: UNSUPPORTED(System.Func`2<System.IAsyncResult,TResult>), creationOptions: TaskCreationOptions, scheduler: ref TaskScheduler) -> ref Task(TResult)  // [System.Runtime]System.Threading.Tasks.TaskFactory`1::FromAsync
+            func FromAsync(type TArg1, beginMethod: UNSUPPORTED(System.Func`4<TArg1,System.AsyncCallback,System.Object,System.IAsyncResult>), endMethod: UNSUPPORTED(System.Func`2<System.IAsyncResult,TResult>), arg1: TArg1, state: ref Object) -> ref Task(TResult)  // [System.Runtime]System.Threading.Tasks.TaskFactory`1::FromAsync
+            func FromAsync(type TArg1, beginMethod: UNSUPPORTED(System.Func`4<TArg1,System.AsyncCallback,System.Object,System.IAsyncResult>), endMethod: UNSUPPORTED(System.Func`2<System.IAsyncResult,TResult>), arg1: TArg1, state: ref Object, creationOptions: TaskCreationOptions) -> ref Task(TResult)  // [System.Runtime]System.Threading.Tasks.TaskFactory`1::FromAsync
+            func FromAsync(type TArg1, type TArg2, beginMethod: UNSUPPORTED(System.Func`5<TArg1,TArg2,System.AsyncCallback,System.Object,System.IAsyncResult>), endMethod: UNSUPPORTED(System.Func`2<System.IAsyncResult,TResult>), arg1: TArg1, arg2: TArg2, state: ref Object) -> ref Task(TResult)  // [System.Runtime]System.Threading.Tasks.TaskFactory`1::FromAsync
+            func FromAsync(type TArg1, type TArg2, beginMethod: UNSUPPORTED(System.Func`5<TArg1,TArg2,System.AsyncCallback,System.Object,System.IAsyncResult>), endMethod: UNSUPPORTED(System.Func`2<System.IAsyncResult,TResult>), arg1: TArg1, arg2: TArg2, state: ref Object, creationOptions: TaskCreationOptions) -> ref Task(TResult)  // [System.Runtime]System.Threading.Tasks.TaskFactory`1::FromAsync
+            func FromAsync(type TArg1, type TArg2, type TArg3, beginMethod: UNSUPPORTED(System.Func`6<TArg1,TArg2,TArg3,System.AsyncCallback,System.Object,System.IAsyncResult>), endMethod: UNSUPPORTED(System.Func`2<System.IAsyncResult,TResult>), arg1: TArg1, arg2: TArg2, arg3: TArg3, state: ref Object) -> ref Task(TResult)  // [System.Runtime]System.Threading.Tasks.TaskFactory`1::FromAsync
+            func FromAsync(type TArg1, type TArg2, type TArg3, beginMethod: UNSUPPORTED(System.Func`6<TArg1,TArg2,TArg3,System.AsyncCallback,System.Object,System.IAsyncResult>), endMethod: UNSUPPORTED(System.Func`2<System.IAsyncResult,TResult>), arg1: TArg1, arg2: TArg2, arg3: TArg3, state: ref Object, creationOptions: TaskCreationOptions) -> ref Task(TResult)  // [System.Runtime]System.Threading.Tasks.TaskFactory`1::FromAsync
+            property Scheduler: ref TaskScheduler { get; }
+            func StartNew(function: UNSUPPORTED(System.Func`2<System.Object,TResult>), state: ref Object) -> ref Task(TResult)  // [System.Runtime]System.Threading.Tasks.TaskFactory`1::StartNew
+            func StartNew(function: UNSUPPORTED(System.Func`2<System.Object,TResult>), state: ref Object, cancellationToken: CancellationToken) -> ref Task(TResult)  // [System.Runtime]System.Threading.Tasks.TaskFactory`1::StartNew
+            func StartNew(function: UNSUPPORTED(System.Func`2<System.Object,TResult>), state: ref Object, cancellationToken: CancellationToken, creationOptions: TaskCreationOptions, scheduler: ref TaskScheduler) -> ref Task(TResult)  // [System.Runtime]System.Threading.Tasks.TaskFactory`1::StartNew
+            func StartNew(function: UNSUPPORTED(System.Func`2<System.Object,TResult>), state: ref Object, creationOptions: TaskCreationOptions) -> ref Task(TResult)  // [System.Runtime]System.Threading.Tasks.TaskFactory`1::StartNew
+            func StartNew(function: UNSUPPORTED(System.Func`1<TResult>)) -> ref Task(TResult)  // [System.Runtime]System.Threading.Tasks.TaskFactory`1::StartNew
+            func StartNew(function: UNSUPPORTED(System.Func`1<TResult>), cancellationToken: CancellationToken) -> ref Task(TResult)  // [System.Runtime]System.Threading.Tasks.TaskFactory`1::StartNew
+            func StartNew(function: UNSUPPORTED(System.Func`1<TResult>), cancellationToken: CancellationToken, creationOptions: TaskCreationOptions, scheduler: ref TaskScheduler) -> ref Task(TResult)  // [System.Runtime]System.Threading.Tasks.TaskFactory`1::StartNew
+            func StartNew(function: UNSUPPORTED(System.Func`1<TResult>), creationOptions: TaskCreationOptions) -> ref Task(TResult)  // [System.Runtime]System.Threading.Tasks.TaskFactory`1::StartNew
           class TaskScheduler extends ref Object  // [System.Runtime]System.Threading.Tasks.TaskScheduler
             constructor .ctor() -> void  // [System.Runtime]System.Threading.Tasks.TaskScheduler::.ctor
             property Current: ref TaskScheduler { get; }

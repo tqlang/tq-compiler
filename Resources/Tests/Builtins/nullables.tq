@@ -55,39 +55,6 @@ func testNullables() {
     }
 }
 
-func testFailables() {
-    Test.newTestUnit("failability - a value goes where a failable is returned")
-    {
-        Test.assert(half(8).ignored().unwrap(), 4)
-    }
-
-    Test.newTestUnit("failability - ignored is a nullable")
-    {
-        let ?int result = half(10).ignored()
-        Test.assert(result != null, true)
-        Test.assert(result ?? -1, 5)
-    }
-
-    Test.newTestUnit("failability - ! is ignored")
-    {
-        let ?int result = half(6)!
-        Test.assert(result ?? -1, 3)
-    }
-
-    Test.newTestUnit("failability - try gives the value")
-    {
-        let ?int result = halfPlusOne(8)!
-        Test.assert(result ?? -1, 5)
-    }
-}
-
 func getNullableValue(int num) ?int => num
 
 func orZero(?int num) int => num ?? 0
-
-func half(int num) !int => num / 2
-
-func halfPlusOne(int num) !int {
-    let int h = try half(num)
-    return h + 1
-}

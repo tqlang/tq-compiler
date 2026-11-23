@@ -40,6 +40,7 @@ func kindOfRef(*Vehicle vehicle) string => "vehicle"
 
 func kindOfRef(*Car car) string => "car"
 
+
 func testValueInheritance() {
     Test.newTestUnit("inheritance by value - a struct that extends another has its functions")
     {

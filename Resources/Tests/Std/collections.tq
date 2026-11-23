@@ -1,0 +1,26 @@
+func testDynamicArray() {
+    let list = new DynamicArray(u32)()
+
+    Test.newTestUnit("DynamicArray - add elements")
+    {
+        list.append(10)
+        list.append(20)
+        list.append(30)
+        list.append(40)
+        list.append(50)
+
+        Test.assert(list[0], 10)
+        Test.assert(list[2], 30)
+        Test.assert(list[4], 50)
+    }
+
+    Test.newTestUnit("DynamicArray - appendMany")
+    {
+        let [5]u32 many = [60, 70, 80, 90, 100]
+        list.appendMany(&many)
+
+        Test.assert(list[5], 60)
+        Test.assert(list[7], 80)
+        Test.assert(list[9], 90)
+    }
+}

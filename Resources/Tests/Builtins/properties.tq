@@ -3,7 +3,7 @@ from Std import { Test }
 # properties of a namespace are static
 let int counter { get; set }
 let int doubleCounter => counter * 2
-let string label { get { return "tq" } }
+let string name { get { return "tq" } }
 
 struct Rect {
     let int width { get; set }
@@ -30,7 +30,7 @@ func testProperties() {
 
     Test.newTestUnit("properties - accessor written in the property")
     {
-        Test.assert(label, "tq")
+        Test.assert(name, "tq")
     }
 
     Test.newTestUnit("properties - automatic accessors of a struct")

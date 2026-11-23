@@ -43,7 +43,7 @@ namespace Std {
         
         // file /home/leo/Documentos/repos/tq-compiler-2/tq-compiler-vibes/Resources/Lib/Std/Console/Console.tq
         import Std.Io;    // @0:0
-        // declares _in, _out, in, out, write, writeln
+        // declares _in, _out, getIn, getOut, write, writeln
         
         // file /home/leo/Documentos/repos/tq-compiler-2/tq-compiler-vibes/Resources/Lib/Std/Console/StdoutWriter.tq
         import Std.Io;    // @0:0
@@ -86,71 +86,65 @@ namespace Std {
         public style_reset: Const(String) /* type: ? */ = "[0m" /* string constant: string */;    // ns=Std.Console · /home/leo/Documentos/repos/tq-compiler-2/tq-compiler-vibes/Resources/Lib/Std/Console/AnsiColors.tq(18,8)
         private _out: Const(AnyType) /* type: ? */ = new StdoutWriter /* type: ? */() /* new, UNRESOLVED constructor: StdoutWriter */;    // ns=Std.Console · /home/leo/Documentos/repos/tq-compiler-2/tq-compiler-vibes/Resources/Lib/Std/Console/Console.tq(2,0)
         @public
-        public property out: StdoutWriter /* type: ? */ {    // ns=Std.Console · backing field: no · getter: yes · setter: no · accessors resolved: yes · /home/leo/Documentos/repos/tq-compiler-2/tq-compiler-vibes/Resources/Lib/Std/Console/Console.tq(3,8)
-            public get() -> StdoutWriter /* type: ? */ {    // ns=Std.Console · /home/leo/Documentos/repos/tq-compiler-2/tq-compiler-vibes/Resources/Lib/Std/Console/Console.tq(3,19)
-                return _out /* field: StdoutWriter */;    // @3:19
-            }
-            // get resolved to get_out
+        public func getOut() -> Ref(TextWriter) /* type: ? */ {    // ns=Std.Console · /home/leo/Documentos/repos/tq-compiler-2/tq-compiler-vibes/Resources/Lib/Std/Console/Console.tq(4,8)
+            return _out /* field: StdoutWriter */ as Ref(TextWriter) /* type: ? */ /* convert: ref TextWriter */;    // @4:36
         }
-        private _in: Const(AnyType) /* type: ? */ = new StdinReader /* type: ? */() /* new, UNRESOLVED constructor: StdinReader */;    // ns=Std.Console · /home/leo/Documentos/repos/tq-compiler-2/tq-compiler-vibes/Resources/Lib/Std/Console/Console.tq(5,0)
+        private _in: Const(AnyType) /* type: ? */ = new StdinReader /* type: ? */() /* new, UNRESOLVED constructor: StdinReader */;    // ns=Std.Console · /home/leo/Documentos/repos/tq-compiler-2/tq-compiler-vibes/Resources/Lib/Std/Console/Console.tq(6,0)
         @public
-        public property in: StdinReader /* type: ? */ {    // ns=Std.Console · backing field: no · getter: yes · setter: no · accessors resolved: yes · /home/leo/Documentos/repos/tq-compiler-2/tq-compiler-vibes/Resources/Lib/Std/Console/Console.tq(6,8)
-            public get() -> StdinReader /* type: ? */ {    // ns=Std.Console · /home/leo/Documentos/repos/tq-compiler-2/tq-compiler-vibes/Resources/Lib/Std/Console/Console.tq(6,18)
-                return _in /* field: StdinReader */;    // @6:18
-            }
-            // get resolved to get_in
+        public func getIn() -> Ref(TextReader) /* type: ? */ {    // ns=Std.Console · /home/leo/Documentos/repos/tq-compiler-2/tq-compiler-vibes/Resources/Lib/Std/Console/Console.tq(8,8)
+            return _in /* field: StdinReader */ as Ref(TextReader) /* type: ? */ /* convert: ref TextReader */;    // @8:35
         }
         @public
-        public func write(value: Integer(true, 64) /* type: ? */) {    // ns=Std.Console · /home/leo/Documentos/repos/tq-compiler-2/tq-compiler-vibes/Resources/Lib/Std/Console/Console.tq(8,8)
-            _out /* field: StdoutWriter */.write /* func StdoutWriter.write(string): ? */(value /* param: i64 */ as String /* type: ? */ /* convert: string */) /* call -> StdoutWriter.write(string): void */;    // @8:33
+        public func write(value: Integer(true, 64) /* type: ? */) {    // ns=Std.Console · /home/leo/Documentos/repos/tq-compiler-2/tq-compiler-vibes/Resources/Lib/Std/Console/Console.tq(10,8)
+            _out /* field: StdoutWriter */.write /* func StdoutWriter.write(string): ? */(value /* param: i64 */ as String /* type: ? */ /* convert: string */) /* call -> StdoutWriter.write(string): void */;    // @10:32
         }
         @public
-        public func write(value: Integer(false, 64) /* type: ? */) {    // ns=Std.Console · /home/leo/Documentos/repos/tq-compiler-2/tq-compiler-vibes/Resources/Lib/Std/Console/Console.tq(9,8)
-            _out /* field: StdoutWriter */.write /* func StdoutWriter.write(string): ? */(value /* param: u64 */ as String /* type: ? */ /* convert: string */) /* call -> StdoutWriter.write(string): void */;    // @9:33
+        public func write(value: Integer(false, 64) /* type: ? */) {    // ns=Std.Console · /home/leo/Documentos/repos/tq-compiler-2/tq-compiler-vibes/Resources/Lib/Std/Console/Console.tq(11,8)
+            _out /* field: StdoutWriter */.write /* func StdoutWriter.write(string): ? */(value /* param: u64 */ as String /* type: ? */ /* convert: string */) /* call -> StdoutWriter.write(string): void */;    // @11:32
         }
         @public
-        public func write(value: Integer(true, 128) /* type: ? */) {    // ns=Std.Console · /home/leo/Documentos/repos/tq-compiler-2/tq-compiler-vibes/Resources/Lib/Std/Console/Console.tq(10,8)
-            _out /* field: StdoutWriter */.write /* func StdoutWriter.write(string): ? */(value /* param: i128 */ as String /* type: ? */ /* convert: string */) /* call -> StdoutWriter.write(string): void */;    // @10:34
+        public func write(value: Integer(true, 128) /* type: ? */) {    // ns=Std.Console · /home/leo/Documentos/repos/tq-compiler-2/tq-compiler-vibes/Resources/Lib/Std/Console/Console.tq(12,8)
+            _out /* field: StdoutWriter */.write /* func StdoutWriter.write(string): ? */(value /* param: i128 */ as String /* type: ? */ /* convert: string */) /* call -> StdoutWriter.write(string): void */;    // @12:33
         }
         @public
-        public func write(value: Integer(false, 128) /* type: ? */) {    // ns=Std.Console · /home/leo/Documentos/repos/tq-compiler-2/tq-compiler-vibes/Resources/Lib/Std/Console/Console.tq(11,8)
-            _out /* field: StdoutWriter */.write /* func StdoutWriter.write(string): ? */(value /* param: u128 */ as String /* type: ? */ /* convert: string */) /* call -> StdoutWriter.write(string): void */;    // @11:34
+        public func write(value: Integer(false, 128) /* type: ? */) {    // ns=Std.Console · /home/leo/Documentos/repos/tq-compiler-2/tq-compiler-vibes/Resources/Lib/Std/Console/Console.tq(13,8)
+            _out /* field: StdoutWriter */.write /* func StdoutWriter.write(string): ? */(value /* param: u128 */ as String /* type: ? */ /* convert: string */) /* call -> StdoutWriter.write(string): void */;    // @13:33
         }
         @public
-        public func write(value: []AnyType /* type: ? */ /* slice type: ? */) {    // ns=Std.Console · /home/leo/Documentos/repos/tq-compiler-2/tq-compiler-vibes/Resources/Lib/Std/Console/Console.tq(12,8)
-            _out /* field: StdoutWriter */.write /* func StdoutWriter.write(string): ? */(value /* param: []anytype */ as String /* type: ? */ /* convert: string */) /* call -> StdoutWriter.write(string): void */;    // @12:39
+        public func write(value: []AnyType /* type: ? */ /* slice type: ? */) {    // ns=Std.Console · /home/leo/Documentos/repos/tq-compiler-2/tq-compiler-vibes/Resources/Lib/Std/Console/Console.tq(14,8)
+            _out /* field: StdoutWriter */.write /* func StdoutWriter.write(string): ? */(value /* param: []anytype */ as String /* type: ? */ /* convert: string */) /* call -> StdoutWriter.write(string): void */;    // @14:38
         }
         @public
-        public func write(value: String /* type: ? */) {    // ns=Std.Console · /home/leo/Documentos/repos/tq-compiler-2/tq-compiler-vibes/Resources/Lib/Std/Console/Console.tq(13,8)
-            _out /* field: StdoutWriter */.write /* func StdoutWriter.write(string): ? */(value /* param: string */) /* call -> StdoutWriter.write(string): void */;    // @13:36
+        public func write(value: String /* type: ? */) {    // ns=Std.Console · /home/leo/Documentos/repos/tq-compiler-2/tq-compiler-vibes/Resources/Lib/Std/Console/Console.tq(15,8)
+            _out /* field: StdoutWriter */.write /* func StdoutWriter.write(string): ? */(value /* param: string */) /* call -> StdoutWriter.write(string): void */;    // @15:35
         }
         @public
-        public func writeln(value: Integer(true, 64) /* type: ? */) {    // ns=Std.Console · /home/leo/Documentos/repos/tq-compiler-2/tq-compiler-vibes/Resources/Lib/Std/Console/Console.tq(15,8)
-            _out /* field: StdoutWriter */.writeLine /* func StdoutWriter.writeLine(string): ? */(value /* param: i64 */ as String /* type: ? */ /* convert: string */) /* call -> StdoutWriter.writeLine(string): void */;    // @15:35
+        public func writeln(value: Integer(true, 64) /* type: ? */) {    // ns=Std.Console · /home/leo/Documentos/repos/tq-compiler-2/tq-compiler-vibes/Resources/Lib/Std/Console/Console.tq(17,8)
+            _out /* field: StdoutWriter */.writeLine /* func StdoutWriter.writeLine(string): ? */(value /* param: i64 */ as String /* type: ? */ /* convert: string */) /* call -> StdoutWriter.writeLine(string): void */;    // @17:34
         }
         @public
-        public func writeln(value: Integer(false, 64) /* type: ? */) {    // ns=Std.Console · /home/leo/Documentos/repos/tq-compiler-2/tq-compiler-vibes/Resources/Lib/Std/Console/Console.tq(16,8)
-            _out /* field: StdoutWriter */.writeLine /* func StdoutWriter.writeLine(string): ? */(value /* param: u64 */ as String /* type: ? */ /* convert: string */) /* call -> StdoutWriter.writeLine(string): void */;    // @16:35
+        public func writeln(value: Integer(false, 64) /* type: ? */) {    // ns=Std.Console · /home/leo/Documentos/repos/tq-compiler-2/tq-compiler-vibes/Resources/Lib/Std/Console/Console.tq(18,8)
+            _out /* field: StdoutWriter */.writeLine /* func StdoutWriter.writeLine(string): ? */(value /* param: u64 */ as String /* type: ? */ /* convert: string */) /* call -> StdoutWriter.writeLine(string): void */;    // @18:34
         }
         @public
-        public func writeln(value: Integer(true, 128) /* type: ? */) {    // ns=Std.Console · /home/leo/Documentos/repos/tq-compiler-2/tq-compiler-vibes/Resources/Lib/Std/Console/Console.tq(17,8)
-            _out /* field: StdoutWriter */.writeLine /* func StdoutWriter.writeLine(string): ? */(value /* param: i128 */ as String /* type: ? */ /* convert: string */) /* call -> StdoutWriter.writeLine(string): void */;    // @17:36
+        public func writeln(value: Integer(true, 128) /* type: ? */) {    // ns=Std.Console · /home/leo/Documentos/repos/tq-compiler-2/tq-compiler-vibes/Resources/Lib/Std/Console/Console.tq(19,8)
+            _out /* field: StdoutWriter */.writeLine /* func StdoutWriter.writeLine(string): ? */(value /* param: i128 */ as String /* type: ? */ /* convert: string */) /* call -> StdoutWriter.writeLine(string): void */;    // @19:35
         }
         @public
-        public func writeln(value: Integer(false, 128) /* type: ? */) {    // ns=Std.Console · /home/leo/Documentos/repos/tq-compiler-2/tq-compiler-vibes/Resources/Lib/Std/Console/Console.tq(18,8)
-            _out /* field: StdoutWriter */.writeLine /* func StdoutWriter.writeLine(string): ? */(value /* param: u128 */ as String /* type: ? */ /* convert: string */) /* call -> StdoutWriter.writeLine(string): void */;    // @18:36
+        public func writeln(value: Integer(false, 128) /* type: ? */) {    // ns=Std.Console · /home/leo/Documentos/repos/tq-compiler-2/tq-compiler-vibes/Resources/Lib/Std/Console/Console.tq(20,8)
+            _out /* field: StdoutWriter */.writeLine /* func StdoutWriter.writeLine(string): ? */(value /* param: u128 */ as String /* type: ? */ /* convert: string */) /* call -> StdoutWriter.writeLine(string): void */;    // @20:35
         }
         @public
-        public func writeln(value: []AnyType /* type: ? */ /* slice type: ? */) {    // ns=Std.Console · /home/leo/Documentos/repos/tq-compiler-2/tq-compiler-vibes/Resources/Lib/Std/Console/Console.tq(19,8)
-            _out /* field: StdoutWriter */.writeLine /* func StdoutWriter.writeLine(string): ? */(value /* param: []anytype */ as String /* type: ? */ /* convert: string */) /* call -> StdoutWriter.writeLine(string): void */;    // @19:41
+        public func writeln(value: []AnyType /* type: ? */ /* slice type: ? */) {    // ns=Std.Console · /home/leo/Documentos/repos/tq-compiler-2/tq-compiler-vibes/Resources/Lib/Std/Console/Console.tq(21,8)
+            _out /* field: StdoutWriter */.writeLine /* func StdoutWriter.writeLine(string): ? */(value /* param: []anytype */ as String /* type: ? */ /* convert: string */) /* call -> StdoutWriter.writeLine(string): void */;    // @21:40
         }
         @public
-        public func writeln(value: String /* type: ? */) {    // ns=Std.Console · /home/leo/Documentos/repos/tq-compiler-2/tq-compiler-vibes/Resources/Lib/Std/Console/Console.tq(20,8)
-            _out /* field: StdoutWriter */.writeLine /* func StdoutWriter.writeLine(string): ? */(value /* param: string */) /* call -> StdoutWriter.writeLine(string): void */;    // @20:38
+        public func writeln(value: String /* type: ? */) {    // ns=Std.Console · /home/leo/Documentos/repos/tq-compiler-2/tq-compiler-vibes/Resources/Lib/Std/Console/Console.tq(22,8)
+            _out /* field: StdoutWriter */.writeLine /* func StdoutWriter.writeLine(string): ? */(value /* param: string */) /* call -> StdoutWriter.writeLine(string): void */;    // @22:37
         }
         @public
-        public func writeln() {    // ns=Std.Console · /home/leo/Documentos/repos/tq-compiler-2/tq-compiler-vibes/Resources/Lib/Std/Console/Console.tq(21,8)
-            _out /* field: StdoutWriter */.writeLine /* func StdoutWriter.writeLine(string): ? */("" /* string constant: string */) /* call -> StdoutWriter.writeLine(string): void */;    // @21:26
+        public func writeln() {    // ns=Std.Console · /home/leo/Documentos/repos/tq-compiler-2/tq-compiler-vibes/Resources/Lib/Std/Console/Console.tq(23,8)
+            _out /* field: StdoutWriter */.writeLine /* func StdoutWriter.writeLine(string): ? */("" /* string constant: string */) /* call -> StdoutWriter.writeLine(string): void */;    // @23:25
         }
         @private
         private struct StdinReader : Stream /* type: ? */ implements TextReader /* type: ? */ {    // ns=Std.Console · /home/leo/Documentos/repos/tq-compiler-2/tq-compiler-vibes/Resources/Lib/Std/Console/StdinReader.tq(3,0)
@@ -174,18 +168,18 @@ namespace Std {
         private struct StdoutWriter : Stream /* type: ? */ implements TextWriter /* type: ? */ {    // ns=Std.Console · /home/leo/Documentos/repos/tq-compiler-2/tq-compiler-vibes/Resources/Lib/Std/Console/StdoutWriter.tq(3,0)
             @public
             @override
-            public func write(value: String /* type: ? */) {    // overridable · owner=StdoutWriter · ns=Std.Console · /home/leo/Documentos/repos/tq-compiler-2/tq-compiler-vibes/Resources/Lib/Std/Console/StdoutWriter.tq(8,19)
-                Out /* field: ref TextWriter */.Write /* func Write(string): ? */(value /* param: string */) /* call -> Write(string): void */;    // @8:47
+            public func write(value: String /* type: ? */) {    // overridable · owner=StdoutWriter · ns=Std.Console · /home/leo/Documentos/repos/tq-compiler-2/tq-compiler-vibes/Resources/Lib/Std/Console/StdoutWriter.tq(8,1)
+                Out /* field: ref TextWriter */.Write /* func Write(string): ? */(value /* param: string */) /* call -> Write(string): void */;    // @9:2
             }
             @public
             @override
-            public func writeLine(value: String /* type: ? */) {    // overridable · owner=StdoutWriter · ns=Std.Console · /home/leo/Documentos/repos/tq-compiler-2/tq-compiler-vibes/Resources/Lib/Std/Console/StdoutWriter.tq(9,19)
-                Out /* field: ref TextWriter */.WriteLine /* func WriteLine(string): ? */(value /* param: string */) /* call -> WriteLine(string): void */;    // @9:51
+            public func writeLine(value: String /* type: ? */) {    // overridable · owner=StdoutWriter · ns=Std.Console · /home/leo/Documentos/repos/tq-compiler-2/tq-compiler-vibes/Resources/Lib/Std/Console/StdoutWriter.tq(12,1)
+                Out /* field: ref TextWriter */.WriteLine /* func WriteLine(string): ? */(value /* param: string */) /* call -> WriteLine(string): void */;    // @13:2
             }
             @public
             @override
-            public func flush() {    // overridable · owner=StdoutWriter · ns=Std.Console · /home/leo/Documentos/repos/tq-compiler-2/tq-compiler-vibes/Resources/Lib/Std/Console/StdoutWriter.tq(11,19)
-                Out /* field: ref TextWriter */.Flush /* func Flush(): ? */() /* call -> Flush(): void */;    // @11:35
+            public func flush() {    // overridable · owner=StdoutWriter · ns=Std.Console · /home/leo/Documentos/repos/tq-compiler-2/tq-compiler-vibes/Resources/Lib/Std/Console/StdoutWriter.tq(16,1)
+                Out /* field: ref TextWriter */.Flush /* func Flush(): ? */() /* call -> Flush(): void */;    // @17:2
             }
         }
         
@@ -214,7 +208,7 @@ namespace Std {
             }
             private _filestream: Ref(FileStream) /* type: ? */;    // ns=Std.Fs · /home/leo/Documentos/repos/tq-compiler-2/tq-compiler-vibes/Resources/Lib/Std/Fs/File.tq(9,1)
             private func close() -> Void /* type: ? */ {    // owner=File · ns=Std.Fs · /home/leo/Documentos/repos/tq-compiler-2/tq-compiler-vibes/Resources/Lib/Std/Fs/File.tq(15,1)
-                return _filestream /* field: ref FileStream */.Close /* func Close(): ? */() /* call -> Close(): void */;    // @15:22
+                _filestream /* field: ref FileStream */.Close /* func Close(): ? */() /* call -> Close(): void */;    // @16:2
             }
         }
         
@@ -389,11 +383,26 @@ namespace Std {
         }
         
         private func log_raw(level: LogLevel /* type: ? */, scope: String /* type: ? */, message: String /* type: ? */) {    // ns=Std.Log · /home/leo/Documentos/repos/tq-compiler-2/tq-compiler-vibes/Resources/Lib/Std/Log/Logger.tq(17,0)
-            let value /* local declaration: string */ = match level /* param: LogLevel */ { case debug /* field: LogLevel */ => color_black /* field: string */ + "[DEBUG] " /* string constant: string */ /* binary Add: string */ case warn /* field: LogLevel */ => color_yellow /* field: string */ + "[WARN ] " /* string constant: string */ /* binary Add: string */ case info /* field: LogLevel */ => color_white /* field: string */ + "[INFO ] " /* string constant: string */ /* binary Add: string */ case error /* field: LogLevel */ => color_red /* field: string */ + "[ERROR] " /* string constant: string */ /* binary Add: string */ } /* match: string */ /* assign: string */;    // @19:1
-            value /* local: string */ = value /* local: string */ + (scope /* param: string */ + ": " /* string constant: string */ /* binary Add: string */) /* binary Add: string */ /* assign: string */;    // @26:1
-            value /* local: string */ = value /* local: string */ + message /* param: string */ /* binary Add: string */ /* assign: string */;    // @27:1
-            value /* local: string */ = value /* local: string */ + style_reset /* field: string */ /* binary Add: string */ /* assign: string */;    // @28:1
-            writeln /* func writeln(string): ? */(value /* local: string */) /* call -> writeln(string): void */;    // @30:1
+            let value /* local declaration: string */ = "" /* string constant: string */ /* assign: string */;    // @18:1
+            if level /* param: LogLevel */ == debug /* field: LogLevel */ /* binary Equal: bool */ {    // @20:1
+                value /* local: string */ = value /* local: string */ + (color_black /* field: string */ + "[DEBUG] " /* string constant: string */ /* binary Add: string */) /* binary Add: string */ /* assign: string */;    // @20:32
+            } else {
+                if level /* param: LogLevel */ == warn /* field: LogLevel */ /* binary Equal: bool */ {    // @21:1
+                    value /* local: string */ = value /* local: string */ + (color_yellow /* field: string */ + "[WARN ] " /* string constant: string */ /* binary Add: string */) /* binary Add: string */ /* assign: string */;    // @21:32
+                } else {
+                    if level /* param: LogLevel */ == info /* field: LogLevel */ /* binary Equal: bool */ {    // @22:1
+                        value /* local: string */ = value /* local: string */ + (color_white /* field: string */ + "[INFO ] " /* string constant: string */ /* binary Add: string */) /* binary Add: string */ /* assign: string */;    // @22:32
+                    } else {
+                        if level /* param: LogLevel */ == error /* field: LogLevel */ /* binary Equal: bool */ {    // @23:1
+                            value /* local: string */ = value /* local: string */ + (color_red /* field: string */ + "[ERROR] " /* string constant: string */ /* binary Add: string */) /* binary Add: string */ /* assign: string */;    // @23:32
+                        }
+                    }
+                }
+            }
+            value /* local: string */ = value /* local: string */ + (scope /* param: string */ + ": " /* string constant: string */ /* binary Add: string */) /* binary Add: string */ /* assign: string */;    // @25:1
+            value /* local: string */ = value /* local: string */ + message /* param: string */ /* binary Add: string */ /* assign: string */;    // @26:1
+            value /* local: string */ = value /* local: string */ + style_reset /* field: string */ /* binary Add: string */ /* assign: string */;    // @27:1
+            writeln /* func writeln(string): ? */(value /* local: string */) /* call -> writeln(string): void */;    // @29:1
         }
     }
     namespace Memory {

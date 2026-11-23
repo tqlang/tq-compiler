@@ -55,5 +55,5 @@ public record PropertyAccessorNode(
         .AppendSyntaxNode(Body)
         .AppendTrivia(LeadingTrivia);
 
-    public override SourceSpan Span => Keyword.Span + SourceSpan.FirstAndLastNotNull(Function, Body);
+    public override SourceSpan Span => SourceSpan.FirstAndLastNotNull(Keyword, Function, Body);
 }

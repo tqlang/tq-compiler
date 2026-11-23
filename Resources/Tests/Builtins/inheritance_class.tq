@@ -50,6 +50,7 @@ protocol Speaker {
     @override func speak() string => "moo"
 }
 
+
 func soundOf(Animal animal) string => animal.sound()
 
 func describeOf(Animal animal) string => animal.describe()
@@ -57,6 +58,7 @@ func describeOf(Animal animal) string => animal.describe()
 func areaOf(Shape shape) int => shape.area()
 
 func speakOf(Speaker speaker) string => speaker.speak()
+
 
 func testInheritance() {
     Test.newTestUnit("inheritance - a struct that extends another has its functions")
