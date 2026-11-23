@@ -1,0 +1,6 @@
+@public protocol TextReader {
+
+	@public func readLine() string
+	@public func readAll() string
+
+}

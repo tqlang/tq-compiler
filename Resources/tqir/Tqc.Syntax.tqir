@@ -1,0 +1,146 @@
+// module Tqc.Syntax
+namespace Tqc.Syntax {
+    // file /home/leo/Documentos/repos/tq-compiler-2/tq-compiler-vibes/Resources/Bootstrap/Tqc.Syntax/Token.tq
+    // declares Token
+    
+    // file /home/leo/Documentos/repos/tq-compiler-2/tq-compiler-vibes/Resources/Bootstrap/Tqc.Syntax/TokenKind.tq
+    // declares TokenKind
+    
+    // file /home/leo/Documentos/repos/tq-compiler-2/tq-compiler-vibes/Resources/Bootstrap/Tqc.Syntax/headers.tq
+    
+    // file /home/leo/Documentos/repos/tq-compiler-2/tq-compiler-vibes/Resources/Bootstrap/Tqc.Syntax/syntaxNode.tq
+    // declares SyntaxNode, TokenNode
+    
+    @public
+    @readonly    // UNKNOWN attribute
+    public struct Token {    // ns=Tqc.Syntax · /home/leo/Documentos/repos/tq-compiler-2/tq-compiler-vibes/Resources/Bootstrap/Tqc.Syntax/Token.tq(0,0)
+        @public
+        public kind: TokenKind /* type: ? */;    // ns=Tqc.Syntax · /home/leo/Documentos/repos/tq-compiler-2/tq-compiler-vibes/Resources/Bootstrap/Tqc.Syntax/Token.tq(2,9)
+        @public
+        public line: NaturalInteger(false) /* type: ? */;    // ns=Tqc.Syntax · /home/leo/Documentos/repos/tq-compiler-2/tq-compiler-vibes/Resources/Bootstrap/Tqc.Syntax/Token.tq(3,9)
+        @public
+        public collumn: NaturalInteger(false) /* type: ? */;    // ns=Tqc.Syntax · /home/leo/Documentos/repos/tq-compiler-2/tq-compiler-vibes/Resources/Bootstrap/Tqc.Syntax/Token.tq(4,9)
+        @public
+        public value: Nullable(String) /* type: ? */;    // ns=Tqc.Syntax · /home/leo/Documentos/repos/tq-compiler-2/tq-compiler-vibes/Resources/Bootstrap/Tqc.Syntax/Token.tq(5,9)
+    }
+    
+    @public
+    public typedef TokenKind {    // ns=Tqc.Syntax · /home/leo/Documentos/repos/tq-compiler-2/tq-compiler-vibes/Resources/Bootstrap/Tqc.Syntax/TokenKind.tq(0,0)
+        case undefined;    // ns=Tqc.Syntax · @1:4
+        case integerNumberLiteral;    // ns=Tqc.Syntax · @3:4
+        case floatingNumberLiteral;    // ns=Tqc.Syntax · @4:4
+        case stringLiteral;    // ns=Tqc.Syntax · @6:4
+        case characterLiteral;    // ns=Tqc.Syntax · @7:4
+        case identifier;    // ns=Tqc.Syntax · @8:4
+        case fromKeyword;    // ns=Tqc.Syntax · @10:4
+        case importKeyword;    // ns=Tqc.Syntax · @11:4
+        case typeKeyword;    // ns=Tqc.Syntax · @12:4
+        case letKeyword;    // ns=Tqc.Syntax · @13:4
+        case constKeyword;    // ns=Tqc.Syntax · @14:4
+        case funcKeyword;    // ns=Tqc.Syntax · @15:4
+        case structKeyword;    // ns=Tqc.Syntax · @16:4
+        case extendsKeyword;    // ns=Tqc.Syntax · @17:4
+        case packetKeyword;    // ns=Tqc.Syntax · @18:4
+        case typedefKeyword;    // ns=Tqc.Syntax · @19:4
+        case caseKeyword;    // ns=Tqc.Syntax · @20:4
+        case constructorKeyword;    // ns=Tqc.Syntax · @21:4
+        case destructorKeyword;    // ns=Tqc.Syntax · @22:4
+        case matchKeyword;    // ns=Tqc.Syntax · @24:4
+        case ifKeyword;    // ns=Tqc.Syntax · @25:4
+        case elifKeyword;    // ns=Tqc.Syntax · @26:4
+        case elseKeyword;    // ns=Tqc.Syntax · @27:4
+        case whileKeyword;    // ns=Tqc.Syntax · @28:4
+        case forKeyword;    // ns=Tqc.Syntax · @29:4
+        case doKeyword;    // ns=Tqc.Syntax · @30:4
+        case inKeyword;    // ns=Tqc.Syntax · @31:4
+        case breakKeyword;    // ns=Tqc.Syntax · @32:4
+        case unreachableKeyword;    // ns=Tqc.Syntax · @33:4
+        case asKeyword;    // ns=Tqc.Syntax · @35:4
+        case newKeyword;    // ns=Tqc.Syntax · @36:4
+        case returnKeyword;    // ns=Tqc.Syntax · @38:4
+        case nullKeyword;    // ns=Tqc.Syntax · @40:4
+        case trueKeyword;    // ns=Tqc.Syntax · @41:4
+        case falseKeyword;    // ns=Tqc.Syntax · @42:4
+        case bitwiseAndKeyword;    // ns=Tqc.Syntax · @44:4
+        case bitwiseOrKeyword;    // ns=Tqc.Syntax · @45:4
+        case bitwiseXorKeyword;    // ns=Tqc.Syntax · @46:4
+        case leftParenthesisChar;    // ns=Tqc.Syntax · @48:4
+        case rightParenthesisChar;    // ns=Tqc.Syntax · @49:4
+        case leftBracketChar;    // ns=Tqc.Syntax · @51:4
+        case rightBracketChar;    // ns=Tqc.Syntax · @52:4
+        case leftSquareBracketChar;    // ns=Tqc.Syntax · @54:4
+        case rightSquareBracketChar;    // ns=Tqc.Syntax · @55:4
+        case leftAngleChar;    // ns=Tqc.Syntax · @57:4
+        case rightAngleChar;    // ns=Tqc.Syntax · @58:4
+        case escapedLeftBracket;    // ns=Tqc.Syntax · @60:4
+        case crossChar;    // ns=Tqc.Syntax · @62:4
+        case minusChar;    // ns=Tqc.Syntax · @63:4
+        case starChar;    // ns=Tqc.Syntax · @64:4
+        case slashChar;    // ns=Tqc.Syntax · @65:4
+        case percentChar;    // ns=Tqc.Syntax · @66:4
+        case equalsChar;    // ns=Tqc.Syntax · @67:4
+        case circumflexChar;    // ns=Tqc.Syntax · @68:4
+        case tildeChar;    // ns=Tqc.Syntax · @69:4
+        case ampersandChar;    // ns=Tqc.Syntax · @70:4
+        case questionChar;    // ns=Tqc.Syntax · @71:4
+        case bangChar;    // ns=Tqc.Syntax · @72:4
+        case pipeChar;    // ns=Tqc.Syntax · @73:4
+        case colonChar;    // ns=Tqc.Syntax · @74:4
+        case addWrapOperator;    // ns=Tqc.Syntax · @76:4
+        case addOnBoundsOperator;    // ns=Tqc.Syntax · @77:4
+        case subWrapOperator;    // ns=Tqc.Syntax · @78:4
+        case subOnBoundsOperator;    // ns=Tqc.Syntax · @79:4
+        case mulWrapOperator;    // ns=Tqc.Syntax · @80:4
+        case mulOnBoundsOperator;    // ns=Tqc.Syntax · @81:4
+        case divideFloorOperator;    // ns=Tqc.Syntax · @83:4
+        case divideCeilOperator;    // ns=Tqc.Syntax · @84:4
+        case atSignChar;    // ns=Tqc.Syntax · @86:4
+        case rightArrowOperator;    // ns=Tqc.Syntax · @88:4
+        case equalOperator;    // ns=Tqc.Syntax · @90:4
+        case unequalOperator;    // ns=Tqc.Syntax · @91:4
+        case exactEqualOperator;    // ns=Tqc.Syntax · @92:4
+        case exactUnequalOperator;    // ns=Tqc.Syntax · @93:4
+        case lessEqualsOperator;    // ns=Tqc.Syntax · @94:4
+        case greatEqualsOperator;    // ns=Tqc.Syntax · @95:4
+        case andOperator;    // ns=Tqc.Syntax · @97:4
+        case orOperator;    // ns=Tqc.Syntax · @98:4
+        case bitShiftLeftOperator;    // ns=Tqc.Syntax · @100:4
+        case bitShiftRightOperator;    // ns=Tqc.Syntax · @101:4
+        case powerOperator;    // ns=Tqc.Syntax · @103:4
+        case addAssign;    // ns=Tqc.Syntax · @105:4
+        case subAssign;    // ns=Tqc.Syntax · @106:4
+        case mulAssign;    // ns=Tqc.Syntax · @107:4
+        case divAssign;    // ns=Tqc.Syntax · @108:4
+        case restAssign;    // ns=Tqc.Syntax · @109:4
+        case bitwiseXorAssign;    // ns=Tqc.Syntax · @110:4
+        case bitwiseAndAssign;    // ns=Tqc.Syntax · @111:4
+        case bitwiseOrAssign;    // ns=Tqc.Syntax · @112:4
+        case bitShiftLeftAssign;    // ns=Tqc.Syntax · @113:4
+        case bitShiftRightAssign;    // ns=Tqc.Syntax · @114:4
+        case incrementOperator;    // ns=Tqc.Syntax · @116:4
+        case decrementOperator;    // ns=Tqc.Syntax · @117:4
+        case intervalOperator;    // ns=Tqc.Syntax · @119:4
+        case singleQuotes;    // ns=Tqc.Syntax · @121:4
+        case doubleQuotes;    // ns=Tqc.Syntax · @122:4
+        case commaChar;    // ns=Tqc.Syntax · @124:4
+        case dotChar;    // ns=Tqc.Syntax · @125:4
+        case eofChar;    // ns=Tqc.Syntax · @127:4
+        case endOfStatement;    // ns=Tqc.Syntax · @128:4
+        case spaceChar;    // ns=Tqc.Syntax · @129:4
+    }
+    
+    @public
+    public struct SyntaxNode {    // ns=Tqc.Syntax · /home/leo/Documentos/repos/tq-compiler-2/tq-compiler-vibes/Resources/Bootstrap/Tqc.Syntax/syntaxNode.tq(0,0)
+    }
+    
+    @public
+    @readonly    // UNKNOWN attribute
+    public struct TokenNode : SyntaxNode /* type: ? */ {    // ns=Tqc.Syntax · /home/leo/Documentos/repos/tq-compiler-2/tq-compiler-vibes/Resources/Bootstrap/Tqc.Syntax/syntaxNode.tq(3,0)
+        private constructor(tkn: Token /* type: ? */) {    // owner=TokenNode · ns=Tqc.Syntax · /home/leo/Documentos/repos/tq-compiler-2/tq-compiler-vibes/Resources/Bootstrap/Tqc.Syntax/syntaxNode.tq(8,1)
+            token /* field: Token */ = tkn /* param: Token */ /* assign: Token */;    // @9:2
+        }
+        @public
+        public token: Token /* type: ? */;    // ns=Tqc.Syntax · /home/leo/Documentos/repos/tq-compiler-2/tq-compiler-vibes/Resources/Bootstrap/Tqc.Syntax/syntaxNode.tq(5,9)
+    }
+    
+}

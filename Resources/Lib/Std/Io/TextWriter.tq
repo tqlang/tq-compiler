@@ -1,0 +1,6 @@
+@public protocol TextWriter {
+
+	@public func write(string text)
+	@public func writeLine(string text)
+
+}

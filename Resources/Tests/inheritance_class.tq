@@ -1,0 +1,302 @@
+from Std import { Test }
+
+@class struct Animal {
+    let int legs = 4
+    let string nickname = "none"
+
+    @virtual func sound() string => "..."
+    @virtual func describe() string => "animal"
+    func legCount() int => legs
+}
+
+@class struct Dog extends Animal {
+    @override func sound() string => "woof"
+}
+
+@class struct Puppy extends Dog {
+    @override func describe() string => "puppy"
+}
+
+@class struct Bird extends Animal {
+    @override func sound() string => "tweet"
+    @override func describe() string => "bird"
+}
+
+@abstract @class struct Shape {
+    func area() int
+    func twiceArea() int => area() * 2
+}
+
+@class struct Square extends Shape {
+    let int side = 0
+    @override func area() int => side * side
+}
+
+@class struct Rectangle extends Shape {
+    let int width = 0
+    let int height = 0
+    @override func area() int => width * height
+}
+
+protocol Speaker {
+    func speak() string
+}
+
+@class struct Cat implements Speaker {
+    @override func speak() string => "meow"
+}
+
+@class struct Cow implements Speaker {
+    @override func speak() string => "moo"
+}
+
+func soundOf(Animal animal) string => animal.sound()
+
+func describeOf(Animal animal) string => animal.describe()
+
+func areaOf(Shape shape) int => shape.area()
+
+func speakOf(Speaker speaker) string => speaker.speak()
+
+func testInheritance() {
+    Test.newTestUnit("inheritance - a struct that extends another has its functions")
+    {
+        let Dog dog = new Dog()
+        Test.assert(dog.describe(), "animal")
+        Test.assert(dog.legCount(), 4)
+    }
+
+    Test.newTestUnit("inheritance - the fields come from what is extended")
+    {
+        let Dog dog = new Dog()
+        Test.assert(dog.legs, 4)
+        Test.assert(dog.nickname, "none")
+        dog.nickname = "rex"
+        dog.legs = 3
+        Test.assert(dog.nickname, "rex")
+        Test.assert(dog.legCount(), 3)
+    }
+
+    Test.newTestUnit("inheritance - override changes what a function does")
+    {
+        Test.assert(new Animal().sound(), "...")
+        Test.assert(new Dog().sound(), "woof")
+        Test.assert(new Bird().sound(), "tweet")
+    }
+
+    Test.newTestUnit("inheritance - a function that is not overridden is the inherited one")
+    {
+        Test.assert(new Dog().describe(), "animal")
+        Test.assert(new Bird().describe(), "bird")
+    }
+
+    Test.newTestUnit("inheritance - several levels")
+    {
+        let Puppy puppy = new Puppy()
+        Test.assert(puppy.sound(), "woof")
+        Test.assert(puppy.describe(), "puppy")
+        Test.assert(puppy.legCount(), 4)
+    }
+}
+
+func testPolymorphism() {
+    Test.newTestUnit("polymorphism - a derived struct goes where its base is expected")
+    {
+        Test.assert(soundOf(new Animal()), "...")
+        Test.assert(soundOf(new Dog()), "woof")
+        Test.assert(soundOf(new Bird()), "tweet")
+    }
+
+    Test.newTestUnit("polymorphism - the override of the value runs, not the one of the type of the variable")
+    {
+        let Animal animal = new Dog()
+        Test.assert(animal.sound(), "woof")
+        Test.assert(animal.describe(), "animal")
+
+        let Animal other = new Puppy()
+        Test.assert(other.sound(), "woof")
+        Test.assert(other.describe(), "puppy")
+    }
+
+    Test.newTestUnit("polymorphism - a variable can hold another derived struct later")
+    {
+        let Animal animal = new Dog()
+        Test.assert(animal.sound(), "woof")
+        animal = new Bird()
+        Test.assert(animal.sound(), "tweet")
+    }
+
+    Test.newTestUnit("polymorphism - the same function with every derived struct")
+    {
+        Test.assert(describeOf(new Animal()), "animal")
+        Test.assert(describeOf(new Puppy()), "puppy")
+        Test.assert(describeOf(new Bird()), "bird")
+    }
+
+    Test.newTestUnit("polymorphism - abstract struct with the function implemented by the derived ones")
+    {
+        let Square square = new Square()
+        square.side = 3
+        let Rectangle rectangle = new Rectangle()
+        rectangle.width = 2
+        rectangle.height = 5
+
+        Test.assert(areaOf(square), 9)
+        Test.assert(areaOf(rectangle), 10)
+    }
+
+    Test.newTestUnit("polymorphism - a function of the abstract struct calls the abstract function")
+    {
+        let Square square = new Square()
+        square.side = 4
+        let Shape shape = square
+        Test.assert(shape.twiceArea(), 32)
+    }
+
+    Test.newTestUnit("polymorphism - structs that implement the same protocol")
+    {
+        Test.assert(speakOf(new Cat()), "meow")
+        Test.assert(speakOf(new Cow()), "moo")
+
+        let Speaker speaker = new Cat()
+        Test.assert(speaker.speak(), "meow")
+        speaker = new Cow()
+        Test.assert(speaker.speak(), "moo")
+    }
+}
+
+func kindOf(Animal animal) string => "animal"
+
+func kindOf(Dog dog) string => "dog"
+
+func asAnimal(Dog dog) Animal => dog
+
+func asDog(Puppy puppy) Dog => puppy
+
+func rename(Animal animal, string nickname) { animal.nickname = nickname }
+
+func relay(Animal animal) Animal => animal
+
+func relayTwice(Animal animal) Animal => relay(relay(animal))
+
+func totalLegs(Animal first, Animal second) int => first.legs + second.legs
+
+func testReferenceConversion() {
+    Test.newTestUnit("conversion - a reference to a struct becomes a reference to its base")
+    {
+        let Dog dog = new Dog()
+        let Animal animal = dog
+        Test.assert(animal.sound(), "woof")
+        Test.assert(animal.legCount(), 4)
+    }
+
+    Test.newTestUnit("conversion - it goes up more than one level")
+    {
+        let Puppy puppy = new Puppy()
+        let Dog dog = puppy
+        let Animal animal = puppy
+        Test.assert(dog.sound(), "woof")
+        Test.assert(dog.describe(), "puppy")
+        Test.assert(animal.describe(), "puppy")
+    }
+
+    Test.newTestUnit("conversion - the base is the same object, not a copy")
+    {
+        let Dog dog = new Dog()
+        let Animal animal = dog
+        animal.nickname = "rex"
+        Test.assert(dog.nickname, "rex")
+        dog.legs = 3
+        Test.assert(animal.legs, 3)
+    }
+
+    Test.newTestUnit("conversion - as an argument of a function")
+    {
+        let Dog dog = new Dog()
+        Test.assert(soundOf(dog), "woof")
+        Test.assert(describeOf(dog), "animal")
+    }
+
+    Test.newTestUnit("conversion - as an argument, from a struct two levels below")
+    {
+        let Puppy puppy = new Puppy()
+        Test.assert(soundOf(puppy), "woof")
+        Test.assert(describeOf(puppy), "puppy")
+    }
+
+    Test.newTestUnit("conversion - the function that receives the base changes the same object")
+    {
+        let Dog dog = new Dog()
+        rename(dog, "toby")
+        Test.assert(dog.nickname, "toby")
+
+        let Puppy puppy = new Puppy()
+        rename(puppy, "bit")
+        Test.assert(puppy.nickname, "bit")
+    }
+
+    Test.newTestUnit("conversion - two arguments of different derived structs")
+    {
+        let Dog dog = new Dog()
+        let Bird bird = new Bird()
+        bird.legs = 2
+        Test.assert(totalLegs(dog, bird), 6)
+    }
+
+    Test.newTestUnit("conversion - as the result of a function")
+    {
+        let Dog dog = new Dog()
+        let Animal animal = asAnimal(dog)
+        Test.assert(animal.sound(), "woof")
+        animal.nickname = "max"
+        Test.assert(dog.nickname, "max")
+
+        let Dog fromPuppy = asDog(new Puppy())
+        Test.assert(fromPuppy.describe(), "puppy")
+    }
+
+    Test.newTestUnit("conversion - passing through several functions keeps the object")
+    {
+        let Bird bird = new Bird()
+        let Animal animal = relayTwice(bird)
+        Test.assert(animal.sound(), "tweet")
+        animal.nickname = "tweety"
+        Test.assert(bird.nickname, "tweety")
+    }
+
+    Test.newTestUnit("conversion - the overload with the nearest base is chosen")
+    {
+        Test.assert(kindOf(new Animal()), "animal")
+        Test.assert(kindOf(new Bird()), "animal")
+        Test.assert(kindOf(new Dog()), "dog")
+        Test.assert(kindOf(new Puppy()), "dog")
+    }
+
+    Test.newTestUnit("conversion - the variable of the base takes another derived struct")
+    {
+        let Animal animal = new Dog()
+        let Dog dog = new Dog()
+        let Bird bird = new Bird()
+        animal = dog
+        Test.assert(animal.sound(), "woof")
+        animal = bird
+        Test.assert(animal.sound(), "tweet")
+    }
+
+    Test.newTestUnit("conversion - a reference to an abstract struct")
+    {
+        let Square square = new Square()
+        square.side = 5
+        let Shape shape = square
+        Test.assert(shape.area(), 25)
+        Test.assert(areaOf(square), 25)
+    }
+
+    Test.newTestUnit("conversion - a reference to a protocol")
+    {
+        let Cat cat = new Cat()
+        let Speaker speaker = cat
+        Test.assert(speaker.speak(), "meow")
+        Test.assert(speakOf(cat), "meow")
+    }
+}

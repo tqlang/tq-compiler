@@ -1,0 +1,22 @@
+from Std.Io import
+
+@public struct FileStream
+	extends Stream
+	implements TextWriter, TextReader, BinaryWriter
+{
+
+	@public @override func write(string value) {
+		
+	}
+
+	@public @override func writeLine(string value) {
+		
+	}
+
+	@public @override func readLine() string => "TODO"
+	@public @override func readAll() string => "TODO"
+
+	@public @override func flush() {
+		
+	}
+}

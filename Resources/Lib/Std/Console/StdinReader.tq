@@ -1,0 +1,15 @@
+from Std.Io import
+from Dotnet.System import { Console }
+
+@private struct StdinReader
+	extends Stream
+	implements TextReader
+{
+
+	@public @override func readLine() string => "TODO"
+	@public @override func readAll() string => "TODO"
+
+	@public @override func flush() {
+
+	}
+}
