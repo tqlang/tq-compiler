@@ -59,6 +59,9 @@ internal sealed partial class TypeChecker(
 
     private void CheckMember(IMember member)
     {
+        if (member is TqField { Type: { } fieldType }) CheckValueType(fieldType);
+        if (member is TqProperty { Type: { } propertyType }) CheckValueType(propertyType);
+
         switch (member)
         {
             case TqField { Value: not null } field:
@@ -136,6 +139,9 @@ internal sealed partial class TypeChecker(
 
     private void CheckFunction(TqFunction function)
     {
+        foreach (var parameter in function.Parameters) CheckValueType(parameter.Type);
+        CheckValueType(function.ReturnType);
+
         // A default value is of the type of its parameter.
         foreach (var parameter in function.Parameters.Where(parameter => parameter.DefaultValue != null))
         {

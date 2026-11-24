@@ -2,7 +2,7 @@ from Dotnet.System.Collections.Generic import { Dictionary as CsDictionary }
 
 @public struct Dictionary(type TKey, type TValue) {
 
-	let CsDictionary(TKey, TValue) _dict
+	let *CsDictionary(TKey, TValue) _dict
 
 	@public constructor() {
 		_dict = new CsDictionary(TKey, TValue)()

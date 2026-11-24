@@ -51,11 +51,11 @@ protocol Speaker {
 }
 
 
-func soundOf(Animal animal) string => animal.sound()
+func soundOf(*Animal animal) string => animal.sound()
 
-func describeOf(Animal animal) string => animal.describe()
+func describeOf(*Animal animal) string => animal.describe()
 
-func areaOf(Shape shape) int => shape.area()
+func areaOf(*Shape shape) int => shape.area()
 
 func speakOf(Speaker speaker) string => speaker.speak()
 
@@ -63,7 +63,7 @@ func speakOf(Speaker speaker) string => speaker.speak()
 @public func testInheritance() {
     Test.newTestUnit("Builtins - inheritance - a struct that extends another has its functions")
     {
-        let Dog dog = new Dog()
+        let *Dog dog = new Dog()
 
         Test.assert(dog.describe(), "animal")
         Test.assert(dog.legCount(), 4)
@@ -71,7 +71,7 @@ func speakOf(Speaker speaker) string => speaker.speak()
 
     Test.newTestUnit("Builtins - inheritance - the fields come from what is extended")
     {
-        let Dog dog = new Dog()
+        let *Dog dog = new Dog()
 
         Test.assert(dog.legs, 4)
         Test.assert(dog.nickname, "none")
@@ -85,9 +85,9 @@ func speakOf(Speaker speaker) string => speaker.speak()
 
     Test.newTestUnit("Builtins - inheritance - override changes what a function does")
     {
-        let Animal animal = new Animal()
-        let Dog dog = new Dog()
-        let Bird bird = new Bird()
+        let *Animal animal = new Animal()
+        let *Dog dog = new Dog()
+        let *Bird bird = new Bird()
 
         Test.assert(animal.sound(), "...")
         Test.assert(dog.sound(), "woof")
@@ -96,8 +96,8 @@ func speakOf(Speaker speaker) string => speaker.speak()
 
     Test.newTestUnit("Builtins - inheritance - a function that is not overridden is the inherited one")
     {
-        let Dog dog = new Dog()
-        let Bird bird = new Bird()
+        let *Dog dog = new Dog()
+        let *Bird bird = new Bird()
 
         Test.assert(dog.describe(), "animal")
         Test.assert(bird.describe(), "bird")
@@ -105,7 +105,7 @@ func speakOf(Speaker speaker) string => speaker.speak()
 
     Test.newTestUnit("Builtins - inheritance - several levels")
     {
-        let Puppy puppy = new Puppy()
+        let *Puppy puppy = new Puppy()
 
         Test.assert(puppy.sound(), "woof")
         Test.assert(puppy.describe(), "puppy")
@@ -123,12 +123,12 @@ func speakOf(Speaker speaker) string => speaker.speak()
 
     Test.newTestUnit("Builtins - polymorphism - the override of the value runs, not the one of the type of the variable")
     {
-        let Animal animal = new Dog()
+        let *Animal animal = new Dog()
 
         Test.assert(animal.sound(), "woof")
         Test.assert(animal.describe(), "animal")
 
-        let Animal other = new Puppy()
+        let *Animal other = new Puppy()
 
         Test.assert(other.sound(), "woof")
         Test.assert(other.describe(), "puppy")
@@ -136,7 +136,7 @@ func speakOf(Speaker speaker) string => speaker.speak()
 
     Test.newTestUnit("Builtins - polymorphism - a variable can hold another derived struct later")
     {
-        let Animal animal = new Dog()
+        let *Animal animal = new Dog()
         Test.assert(animal.sound(), "woof")
 
         animal = new Bird()
@@ -152,10 +152,10 @@ func speakOf(Speaker speaker) string => speaker.speak()
 
     Test.newTestUnit("Builtins - polymorphism - abstract struct with the function implemented by the derived ones")
     {
-        let Square square = new Square()
+        let *Square square = new Square()
         square.side = 3
 
-        let Rectangle rectangle = new Rectangle()
+        let *Rectangle rectangle = new Rectangle()
         rectangle.width = 2
         rectangle.height = 5
 
@@ -165,10 +165,10 @@ func speakOf(Speaker speaker) string => speaker.speak()
 
     Test.newTestUnit("Builtins - polymorphism - a function of the abstract struct calls the abstract function")
     {
-        let Square square = new Square()
+        let *Square square = new Square()
         square.side = 4
 
-        let Shape shape = square
+        let *Shape shape = square
 
         Test.assert(shape.twiceArea(), 32)
     }
@@ -186,27 +186,27 @@ func speakOf(Speaker speaker) string => speaker.speak()
     }
 }
 
-func kindOf(Animal animal) string => "animal"
+func kindOf(*Animal animal) string => "animal"
 
-func kindOf(Dog dog) string => "dog"
+func kindOf(*Dog dog) string => "dog"
 
-func asAnimal(Dog dog) Animal => dog
+func asAnimal(*Dog dog) *Animal => dog
 
-func asDog(Puppy puppy) Dog => puppy
+func asDog(*Puppy puppy) *Dog => puppy
 
-func rename(Animal animal, string nickname) { animal.nickname = nickname }
+func rename(*Animal animal, string nickname) { animal.nickname = nickname }
 
-func relay(Animal animal) Animal => animal
+func relay(*Animal animal) *Animal => animal
 
-func relayTwice(Animal animal) Animal => relay(relay(animal))
+func relayTwice(*Animal animal) *Animal => relay(relay(animal))
 
-func totalLegs(Animal first, Animal second) int => first.legs + second.legs
+func totalLegs(*Animal first, *Animal second) int => first.legs + second.legs
 
 @public func testReferenceConversion() {
     Test.newTestUnit("Builtins - conversion - a reference to a struct becomes a reference to its base")
     {
-        let Dog dog = new Dog()
-        let Animal animal = dog
+        let *Dog dog = new Dog()
+        let *Animal animal = dog
 
         Test.assert(animal.sound(), "woof")
         Test.assert(animal.legCount(), 4)
@@ -214,9 +214,9 @@ func totalLegs(Animal first, Animal second) int => first.legs + second.legs
 
     Test.newTestUnit("Builtins - conversion - it goes up more than one level")
     {
-        let Puppy puppy = new Puppy()
-        let Dog dog = puppy
-        let Animal animal = puppy
+        let *Puppy puppy = new Puppy()
+        let *Dog dog = puppy
+        let *Animal animal = puppy
 
         Test.assert(dog.sound(), "woof")
         Test.assert(dog.describe(), "puppy")
@@ -225,8 +225,8 @@ func totalLegs(Animal first, Animal second) int => first.legs + second.legs
 
     Test.newTestUnit("Builtins - conversion - the base is the same object, not a copy")
     {
-        let Dog dog = new Dog()
-        let Animal animal = dog
+        let *Dog dog = new Dog()
+        let *Animal animal = dog
         animal.nickname = "rex"
         Test.assert(dog.nickname, "rex")
 
@@ -236,7 +236,7 @@ func totalLegs(Animal first, Animal second) int => first.legs + second.legs
 
     Test.newTestUnit("Builtins - conversion - as an argument of a function")
     {
-        let Dog dog = new Dog()
+        let *Dog dog = new Dog()
 
         Test.assert(soundOf(dog), "woof")
         Test.assert(describeOf(dog), "animal")
@@ -244,7 +244,7 @@ func totalLegs(Animal first, Animal second) int => first.legs + second.legs
 
     Test.newTestUnit("Builtins - conversion - as an argument, from a struct two levels below")
     {
-        let Puppy puppy = new Puppy()
+        let *Puppy puppy = new Puppy()
 
         Test.assert(soundOf(puppy), "woof")
         Test.assert(describeOf(puppy), "puppy")
@@ -252,19 +252,19 @@ func totalLegs(Animal first, Animal second) int => first.legs + second.legs
 
     Test.newTestUnit("Builtins - conversion - the function that receives the base changes the same object")
     {
-        let Dog dog = new Dog()
+        let *Dog dog = new Dog()
         rename(dog, "toby")
         Test.assert(dog.nickname, "toby")
 
-        let Puppy puppy = new Puppy()
+        let *Puppy puppy = new Puppy()
         rename(puppy, "bit")
         Test.assert(puppy.nickname, "bit")
     }
 
     Test.newTestUnit("Builtins - conversion - two arguments of different derived structs")
     {
-        let Dog dog = new Dog()
-        let Bird bird = new Bird()
+        let *Dog dog = new Dog()
+        let *Bird bird = new Bird()
         bird.legs = 2
 
         Test.assert(totalLegs(dog, bird), 6)
@@ -272,21 +272,21 @@ func totalLegs(Animal first, Animal second) int => first.legs + second.legs
 
     Test.newTestUnit("Builtins - conversion - as the result of a function")
     {
-        let Dog dog = new Dog()
-        let Animal animal = asAnimal(dog)
+        let *Dog dog = new Dog()
+        let *Animal animal = asAnimal(dog)
         Test.assert(animal.sound(), "woof")
 
         animal.nickname = "max"
         Test.assert(dog.nickname, "max")
 
-        let Dog fromPuppy = asDog(new Puppy())
+        let *Dog fromPuppy = asDog(new Puppy())
         Test.assert(fromPuppy.describe(), "puppy")
     }
 
     Test.newTestUnit("Builtins - conversion - passing through several functions keeps the object")
     {
-        let Bird bird = new Bird()
-        let Animal animal = relayTwice(bird)
+        let *Bird bird = new Bird()
+        let *Animal animal = relayTwice(bird)
         Test.assert(animal.sound(), "tweet")
 
         animal.nickname = "tweety"
@@ -303,9 +303,9 @@ func totalLegs(Animal first, Animal second) int => first.legs + second.legs
 
     Test.newTestUnit("Builtins - conversion - the variable of the base takes another derived struct")
     {
-        let Animal animal = new Dog()
-        let Dog dog = new Dog()
-        let Bird bird = new Bird()
+        let *Animal animal = new Dog()
+        let *Dog dog = new Dog()
+        let *Bird bird = new Bird()
         animal = dog
         Test.assert(animal.sound(), "woof")
 
@@ -315,9 +315,9 @@ func totalLegs(Animal first, Animal second) int => first.legs + second.legs
 
     Test.newTestUnit("Builtins - conversion - a reference to an abstract struct")
     {
-        let Square square = new Square()
+        let *Square square = new Square()
         square.side = 5
-        let Shape shape = square
+        let *Shape shape = square
 
         Test.assert(shape.area(), 25)
         Test.assert(areaOf(square), 25)
@@ -325,7 +325,7 @@ func totalLegs(Animal first, Animal second) int => first.legs + second.legs
 
     Test.newTestUnit("Builtins - conversion - a reference to a protocol")
     {
-        let Cat cat = new Cat()
+        let *Cat cat = new Cat()
         let Speaker speaker = cat
         
         Test.assert(speaker.speak(), "meow")

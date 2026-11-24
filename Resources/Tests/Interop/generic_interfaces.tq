@@ -6,7 +6,7 @@ from Dotnet.System.Collections.Generic import {
 }
 
 # A List(i32) goes where an IEnumerable(i32) is expected: List(T) implements IEnumerable(T).
-func sum(IEnumerable(i32) items) i32 {
+func sum(*IEnumerable(i32) items) i32 {
     let i32 total = 0
     let enumerator = items.GetEnumerator()
 
@@ -25,7 +25,7 @@ func sum(IEnumerable(i32) items) i32 {
         list.Add(20)
         list.Add(30)
 
-        Test.assert(sum(list as IEnumerable(i32)), 60)
+        Test.assert(sum(list as *IEnumerable(i32)), 60)
     }
 
     Test.newTestUnit("Interop - generic interfaces - a variable of the interface")
@@ -34,7 +34,7 @@ func sum(IEnumerable(i32) items) i32 {
         list.Add(1)
         list.Add(2)
 
-        let IEnumerable(i32) items = list as IEnumerable(i32)
+        let *IEnumerable(i32) items = list as *IEnumerable(i32)
         Test.assert(sum(items), 3)
     }
 }

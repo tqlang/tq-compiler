@@ -318,7 +318,10 @@ Como `Const(T)`, são structs genéricas primitivas (`Std.Types.Ref`, `Failable`
 cada aplicação é uma `GenericInstance` da tabela compartilhada; não há nó nem tipo próprio na IR.
 
 - `*T` é `Ref(T)`. Uma struct por referência (`@class`, classe .NET, ou que estende uma) tem como tipo de valor `Ref(S)`,
-  então `*Foo` e `Foo` são o mesmo tipo quando `Foo` é uma classe. Membros de `Ref(T)` são os de `T`; o upcast entre
+  e uma classe nunca é lida fora de um nó `Ref`. Regra semântica (`TypeChecker.ReferenceOnly.cs`), não de sintaxe: um tipo escrito
+  que denota uma classe sem `Ref` (`List(i32) x`, `[]Foo`, `?Foo`, argumento de genérico) é erro em parâmetros, retornos, campos,
+  propriedades, locais com tipo e `as`; escreve-se `*List(i32)`. Não vale para `new X()`, `extends`/`implements` nem para o operando
+  do próprio `*`. Protocols (`ProtocolTypeReference`) não entram. Membros de `Ref(T)` são os de `T`; o upcast entre
   referências e a mensagem de erro (`ref T`) usam `Std.Types.IsRef`.
 - Parâmetros `ref`/`out` do .NET são `Ref(T)` (um ponteiro gerenciado). `&x` de uma variável ou parâmetro que é valor (`i32`, uma
   struct) dá o endereço dele: `dict.TryGetValue("k", &value)`. Só variáveis e parâmetros; campos e elementos de array ainda não.

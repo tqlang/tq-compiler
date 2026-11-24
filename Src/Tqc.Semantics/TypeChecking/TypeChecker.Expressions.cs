@@ -59,6 +59,7 @@ internal sealed partial class TypeChecker
                 return VisitReference(reference);
 
             case IrLocal local:
+                CheckValueType(local.type);
                 return (local, LocalValueType(local));
 
             case IrAssign assign:
@@ -86,6 +87,7 @@ internal sealed partial class TypeChecker
                 return VisitAddressOf(addressOf);
 
             case IrConvert conversion:
+                CheckValueType(conversion.toType);
                 return (conversion with { Expression = Visit(conversion.Expression) },
                     TypeFromExpression(conversion.toType));
 
@@ -442,6 +444,8 @@ internal sealed partial class TypeChecker
     private (IrExpression, ITypeRef?) VisitAssign(IrAssign assign)
     {
         if (assign.Target is IrIndex indexTarget) return VisitIndexAssign(assign, indexTarget);
+
+        if (assign.Target is IrLocal { type: { } writtenType }) CheckValueType(writtenType);
 
         // A call whose value goes to a variable declared with a type is chosen by what it returns: `let i32 x = f()`.
         var declaredType = assign.Target is IrLocal { type: { } typeWritten } declaring && !NeedsInferredType(declaring)
