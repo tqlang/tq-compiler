@@ -315,6 +315,8 @@ cada aplicação é uma `GenericInstance` da tabela compartilhada; não há nó 
 - `*T` é `Ref(T)`. Uma struct por referência (`@class`, classe .NET, ou que estende uma) tem como tipo de valor `Ref(S)`,
   então `*Foo` e `Foo` são o mesmo tipo quando `Foo` é uma classe. Membros de `Ref(T)` são os de `T`; o upcast entre
   referências e a mensagem de erro (`ref T`) usam `Std.Types.IsRef`.
+- Parâmetros `ref`/`out` do .NET são `Ref(T)` (um ponteiro gerenciado). `&x` de uma variável ou parâmetro que é valor (`i32`, uma
+  struct) dá o endereço dele: `dict.TryGetValue("k", &value)`. Só variáveis e parâmetros; campos e elementos de array ainda não.
 - `!T` e `?T` valem como expressão: o parser e o lowering os tratam como os operadores unários `!` (não lógico) e `?`
   (`UnaryOperator.Nullable`). O ReferenceBinder, depois de resolver o operando, decide: se ele é um tipo, a expressão vira
   uma referência a `Failable(T)` / `Nullable(T)`; senão continua sendo o operador. `?x` com `x` valor é erro de operador.

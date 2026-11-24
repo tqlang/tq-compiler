@@ -1,0 +1,20 @@
+from Std import { Test }
+from Dotnet.System.Collections.Generic import { Dictionary }
+
+# `out` and `ref` parameters of .NET are `Ref(T)`: `&x` of a variable is the address that they take.
+@public func testRefParameters() {
+    Test.newTestUnit("ref parameters - out of TryGetValue")
+    {
+        let dict = new Dictionary(string, i32)()
+        dict.Add("one", 1)
+        dict.Add("two", 2)
+
+        let i32 value = 0
+        Test.assert(dict.TryGetValue("two", &value), true)
+        Test.assert(value, 2)
+
+        let i32 missing = 7
+        Test.assert(dict.TryGetValue("three", &missing), false)
+        Test.assert(missing, 0)
+    }
+}

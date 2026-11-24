@@ -1056,6 +1056,14 @@ internal sealed class BodyEmitter
             return _owner.Use(_owner.Backend.RefInterfaces[value.VariableType.FullName]);
         }
 
+        // `&x` of a variable or parameter that is a value (`i32`, a struct): its address, a managed pointer. It is what a
+        // `ref` or `out` parameter of .NET takes (`dictionary.TryGetValue(key, &value)`).
+        if (addressOf.Operand is IrReference { Reference: LocalReference or ParameterReference } && TypeOfNode(addressOf.Operand) is { IsValueType: true } valueType)
+        {
+            EmitAddress(addressOf.Operand);
+            return new ByReferenceType(valueType);
+        }
+
         var actual = Emit(addressOf.Operand, null);
         if (actual is not ArrayType array)
         {

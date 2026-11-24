@@ -37,4 +37,5 @@ from Tests import {
     StdLib.testDynamicArray()
     StdLib.testDictionaries()
     StdLib.testGenericInterfaces()
+    StdLib.testRefParameters()
 }

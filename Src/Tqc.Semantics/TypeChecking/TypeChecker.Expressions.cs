@@ -310,7 +310,7 @@ internal sealed partial class TypeChecker
                 return (visited, null);
 
             // A struct by value that is a variable: a reference to it (the backend checks that it is of a hierarchy).
-            case StructTypeReference { Struct: var referred } structType when !StructSemantics.IsReference(referred) && operand is IrReference { Reference: LocalReference }:
+            case StructTypeReference { Struct: var referred } structType when !StructSemantics.IsReference(referred) && operand is IrReference { Reference: LocalReference or ParameterReference }:
                 return (visited, CompilerStd.Types.RefOf(structType));
 
             case StructTypeReference { Struct: var referred } when StructSemantics.IsReference(referred):
