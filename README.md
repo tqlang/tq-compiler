@@ -325,6 +325,13 @@ cada aplicação é uma `GenericInstance` da tabela compartilhada; não há nó 
   referências e a mensagem de erro (`ref T`) usam `Std.Types.IsRef`.
 - Parâmetros `ref`/`out` do .NET são `Ref(T)` (um ponteiro gerenciado). `&x` de uma variável ou parâmetro que é valor (`i32`, uma
   struct) dá o endereço dele: `dict.TryGetValue("k", &value)`. Só variáveis e parâmetros; campos e elementos de array ainda não.
+- Delegates do .NET sem parâmetros genéricos (`Action`, `EventHandler`) são `DotnetDelegate`: classes (logo `*Action`) cuja assinatura é a
+  do `Invoke`. Eventos (`DotnetEvent`, lidos de `definition.Events`; os acessores `add_X`/`remove_X` continuam métodos) não têm valor:
+  `x.Evento += f` e `x.Evento -= f` viram a chamada de `add`/`remove` com `f` como delegate. Em uma variável, parâmetro ou campo de
+  delegate, `d += f` é `Delegate.Combine` e `d -= f` é `Delegate.Remove` (`IrDelegateChain`). `f` é o nome de uma função estática
+  (de namespace ou `@static`) cuja assinatura é igual à do `Invoke` (`IrFunctionDelegate`: `ldnull`, `ldftn`, `newobj`); a conversão
+  também vale em declaração/atribuição (`let *Action a = f`). Reconhece-se `+=`/`-=` pela localização: o lowering dá ao `a + b` a do
+  `a += b` inteiro. Ainda não: delegates genéricos, eventos estáticos, métodos de instância, função como argumento de chamada.
 - `!T` e `?T` valem como expressão: o parser e o lowering os tratam como os operadores unários `!` (não lógico) e `?`
   (`UnaryOperator.Nullable`). O ReferenceBinder, depois de resolver o operando, decide: se ele é um tipo, a expressão vira
   uma referência a `Failable(T)` / `Nullable(T)`; senão continua sendo o operador. `?x` com `x` valor é erro de operador.

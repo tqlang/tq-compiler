@@ -1,0 +1,70 @@
+from Std import { Test }
+from Dotnet.System import { Action, Object, EventArgs }
+from Dotnet.System.ComponentModel import { Component }
+
+let int hits = 0
+let int disposals = 0
+
+func hitOnce() { hits = hits + 1 }
+
+func hitTen() { hits = hits + 10 }
+
+# The signature of `EventHandler`: (object, EventArgs).
+func onDisposed(*Object sender, *EventArgs args) { disposals = disposals + 1 }
+
+func onDisposedAgain(*Object sender, *EventArgs args) { disposals = disposals + 100 }
+
+@public func testDelegates() {
+    Test.newTestUnit("Interop - delegates - a function becomes the delegate where one is expected")
+    {
+        hits = 0
+
+        let *Action action = hitOnce
+        action.Invoke()
+
+        Test.assert(hits, 1)
+    }
+
+    Test.newTestUnit("Interop - delegates - += adds a function to a delegate and -= removes it")
+    {
+        hits = 0
+
+        let *Action action = hitOnce
+        action += hitTen
+        Test.assert(action.GetInvocationList().len, 2)
+
+        action.Invoke()
+        Test.assert(hits, 11)
+
+        action -= hitOnce
+        Test.assert(action.GetInvocationList().len, 1)
+
+        action.Invoke()
+        Test.assert(hits, 21)
+    }
+
+    Test.newTestUnit("Interop - delegates - += on an event runs the function when the event is raised")
+    {
+        disposals = 0
+
+        let component = new Component()
+        component.Disposed += onDisposed
+        component.Disposed += onDisposedAgain
+
+        component.Dispose()
+        Test.assert(disposals, 101)
+    }
+
+    Test.newTestUnit("Interop - delegates - -= on an event removes the function")
+    {
+        disposals = 0
+
+        let component = new Component()
+        component.Disposed += onDisposed
+        component.Disposed += onDisposedAgain
+        component.Disposed -= onDisposedAgain
+
+        component.Dispose()
+        Test.assert(disposals, 1)
+    }
+}

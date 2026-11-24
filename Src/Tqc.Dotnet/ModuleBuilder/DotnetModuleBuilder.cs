@@ -113,6 +113,10 @@ sealed internal class DotnetModuleBuilder(AssemblyDefinition[] assemblies)
                     AddFirst(table, property.Name, property);
                     break;
 
+                case DotnetEvent @event:
+                    AddFirst(table, @event.Name, @event);
+                    break;
+
                 case DotnetMethod method:
                     if (!methods.TryGetValue(method.Name, out var overloads))
                     {
@@ -129,7 +133,7 @@ sealed internal class DotnetModuleBuilder(AssemblyDefinition[] assemblies)
 
         foreach (var nested in node.Nested)
         {
-            // Delegates ainda não têm DotnetType (null).
+            // Delegates genéricos ainda não têm DotnetType (null).
             if (nested.DotnetType is not { } nestedType) continue;
             if (nestedType is DotnetStaticClass && !includeNestedStaticClasses) continue;
 
@@ -241,12 +245,16 @@ sealed internal class DotnetModuleBuilder(AssemblyDefinition[] assemblies)
     private TypeNode CreateNode(TypeDefinition definition, TypeReference reference, bool isExternal)
     {
         var kind = TypeClassifier.Classify(definition);
+
+        // A delegate is only useful with its `Invoke` (what a function has to look like to become it), so its members are always read.
+        if (kind == TypeKind.Delegate && !definition.HasGenericParameters) isExternal = false;
+
         var typeParameters = kind is TypeKind.Class or TypeKind.Struct or TypeKind.Interface
             ? MemberReferenceFactory.TypeParametersOf(definition.GenericParameters)
             : Array.Empty<TqParameter>();
         var node = new TypeNode(TypeClassifier.GetTypeName(definition), kind, reference, definition, isExternal)
         {
-            DotnetType = CreateDotnetType(kind, reference, typeParameters),
+            DotnetType = CreateDotnetType(kind, reference, typeParameters, definition.HasGenericParameters),
             TypeParameters = typeParameters,
         };
         _nodes.Add(TypeKey.Of(definition), node);
@@ -269,7 +277,8 @@ sealed internal class DotnetModuleBuilder(AssemblyDefinition[] assemblies)
         type.IsNestedPublic || type.IsNestedFamily || type.IsNestedFamilyOrAssembly;
 
     // O Dotnet* guarda a Reference (como o tipo é endereçado), nunca a Definition.
-    private static IDotnetType? CreateDotnetType(TypeKind kind, TypeReference reference, IReadOnlyList<TqParameter> typeParameters) => kind switch
+    private static IDotnetType? CreateDotnetType(
+        TypeKind kind, TypeReference reference, IReadOnlyList<TqParameter> typeParameters, bool generic) => kind switch
     {
         TypeKind.StaticClass => new DotnetStaticClass(reference, TypeClassifier.GetTypeName(reference)),
         TypeKind.Class       => new DotnetClass(reference, TypeClassifier.GetTypeName(reference)) { Parameters = typeParameters },
@@ -278,7 +287,7 @@ sealed internal class DotnetModuleBuilder(AssemblyDefinition[] assemblies)
         TypeKind.Interface   => typeParameters.Count > 0
             ? new DotnetGenericInterface(reference, TypeClassifier.GetTypeName(reference)) { Parameters = typeParameters }
             : new DotnetInterface(reference, TypeClassifier.GetTypeName(reference)),
-        TypeKind.Delegate    => null, // TODO: DotnetDelegate
+        TypeKind.Delegate    => generic ? null : new DotnetDelegate(reference, TypeClassifier.GetTypeName(reference)), // generic delegates: not yet
 
         _ => throw new ArgumentOutOfRangeException(nameof(kind), kind, null),
     };
@@ -362,9 +371,20 @@ sealed internal class DotnetModuleBuilder(AssemblyDefinition[] assemblies)
 
     private void BuildMembers()
     {
-        // Snapshot: remapear assinaturas pode criar nós externos em _nodes.
-        foreach (var node in _nodes.Values.Where(n => !n.IsExternal && n.Kind != TypeKind.Delegate).ToArray())
-            BuildMembers(node);
+        // Snapshot: remapear assinaturas pode criar nós em _nodes. Os externos ficam como estão, mas um delegate
+        // sempre tem os membros lidos: o que um membro cria é lido na volta seguinte.
+        var built = new HashSet<TypeNode>(ReferenceEqualityComparer.Instance);
+        while (true)
+        {
+            var next = _nodes.Values.Where(n => !n.IsExternal && n.DotnetType != null && !built.Contains(n)).ToArray();
+            if (next.Length == 0) break;
+
+            foreach (var node in next)
+            {
+                built.Add(node);
+                BuildMembers(node);
+            }
+        }
     }
 
     private void BuildMembers(TypeNode node)
@@ -388,6 +408,15 @@ sealed internal class DotnetModuleBuilder(AssemblyDefinition[] assemblies)
 
             if (MemberVisibility.IsVisible(property))
                 node.Members.Add(Members.Property(property, declaring, node.TypeParameters));
+        }
+
+        // An event with a delegate that is not supported (a generic one) is left out; its accessors are still methods.
+        foreach (var @event in definition.Events)
+        {
+            if (@event.AddMethod is not { } add || !MemberVisibility.IsVisible(add)) continue;
+
+            var built = Members.Event(@event, declaring, node.TypeParameters);
+            if (built.Type is not UnsupportedTypeRef) node.Members.Add(built);
         }
 
         foreach (var method in definition.Methods)

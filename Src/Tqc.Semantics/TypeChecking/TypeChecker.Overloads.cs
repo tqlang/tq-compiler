@@ -312,6 +312,10 @@ internal sealed partial class TypeChecker
     /// </summary>
     private IrExpression Coerce(IrExpression value, ITypeRef? target, IrExpression? targetExpression, string where)
     {
+        // The name of a static function where a delegate of .NET is expected: `let *Action a = f`.
+        if (DelegateOf(target) is { } delegateInfo && FunctionsNamed(value) != null)
+            return FunctionAsDelegate(value, target!, delegateInfo, where) ?? value;
+
         var valueType = TypeOf(value);
         if (valueType == null || target == null) return value;
 

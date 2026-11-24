@@ -763,6 +763,8 @@ internal sealed class BodyEmitter
             case IrNew creation: return EmitNew(creation);
             case IrConvert conversion: return EmitConvert(conversion);
             case IrAssign assign: return EmitAssign(assign, discard);
+            case IrFunctionDelegate function: return EmitFunctionDelegate(function);
+            case IrDelegateChain chain: return EmitDelegateChain(chain);
             case IrBinary binary: return EmitBinary(binary);
             case IrUnary unary: return EmitUnary(unary, expected, discard);
             case IrIndex index: return EmitIndex(index);
@@ -3009,6 +3011,42 @@ internal sealed class BodyEmitter
 
     /// <summary>Something that can be written (and read): what comes before the value, and how it is stored and loaded.</summary>
     private sealed record Target(TypeReference Type, int Slots, Action Prefix, Action Store, Action Load);
+
+    /// <summary>`new D(null, &f)`: the delegate of a static function. D has the one constructor `(object, native int)`.</summary>
+    private TypeReference EmitFunctionDelegate(IrFunctionDelegate function)
+    {
+        var delegateType = _owner.MapType(function.DelegateType, function.Location);
+
+        if (function.Function is not TqFunction tq
+            || !_owner.Backend.Definitions.TryGetValue(tq, out var definition) || definition is not MethodDefinition { IsStatic: true } method)
+        {
+            Report($"The function '{function.Function.Name}' is not a static function that is emitted, so it cannot be a '{delegateType.Name}'", function.Location);
+            _il.Emit(OpCodes.Ldnull);
+            return delegateType;
+        }
+
+        // The constructor of the type as it is named in the reference, so that it is found where the type is.
+        var target = new MethodReference(".ctor", _owner.Module.TypeSystem.Void, delegateType) { HasThis = true };
+        target.Parameters.Add(new ParameterDefinition(_owner.Module.TypeSystem.Object));
+        target.Parameters.Add(new ParameterDefinition(_owner.Module.TypeSystem.IntPtr));
+
+        _il.Emit(OpCodes.Ldnull);
+        _il.Emit(OpCodes.Ldftn, _owner.Use(method));
+        _il.Emit(OpCodes.Newobj, target);
+        return delegateType;
+    }
+
+    /// <summary>`Delegate.Combine(d, f)` or `Delegate.Remove(d, f)`, cast back to the delegate (they give a `Delegate`).</summary>
+    private TypeReference EmitDelegateChain(IrDelegateChain chain)
+    {
+        var delegateType = _owner.MapType(chain.DelegateType, chain.Location);
+
+        EmitValue(chain.Current, delegateType);
+        EmitValue(chain.Handler, delegateType);
+        _il.Emit(OpCodes.Call, Library("System.Delegate", chain.Remove ? "Remove" : "Combine", "System.Delegate", "System.Delegate"));
+        _il.Emit(OpCodes.Castclass, delegateType);
+        return delegateType;
+    }
 
     private TypeReference? EmitAssign(IrAssign assign, bool discard)
     {

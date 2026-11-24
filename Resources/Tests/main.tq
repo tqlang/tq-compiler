@@ -1,5 +1,6 @@
 from Tests import {
     Builtins
+    Interop
     StdLib
 }
 
@@ -38,6 +39,7 @@ from Tests import {
     Builtins.testConstants()
     Interop.testGenericInterfaces()
     Interop.testRefParameters()
+    Interop.testDelegates()
 
     StdLib.testDynamicArray()
     StdLib.testDictionaries()

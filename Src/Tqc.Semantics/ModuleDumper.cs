@@ -76,6 +76,7 @@ public sealed class ModuleDumper
                 Namespace(@namespace);
                 break;
 
+            case DotnetDelegate type: Type("delegate", type.Name, type.OwnMembers, null, type); break;
             case DotnetClass type: Type("class", WithParameters(type.Name, type.Parameters), type.OwnMembers, type.BaseType, type, null, type.Implements); break;
             case DotnetStruct type: Type("struct", WithParameters(type.Name, type.Parameters), type.OwnMembers, null, type, null, type.Implements); break;
             case DotnetEnum type: Type("enum", type.Name, type.OwnMembers, null, type); break;
@@ -103,6 +104,7 @@ public sealed class ModuleDumper
 
             case DotnetMethod method: Method(method); break;
             case DotnetProperty property: Property(property); break;
+            case DotnetEvent @event: Line($"event {@event.Name}: {Format(@event.Type)}{(@event.IsStatic ? " <static>" : "")}"); break;
             case DotnetField field: Field(field); break;
 
             default: Line($"{member.GetType().Name} {member.Name}"); break;

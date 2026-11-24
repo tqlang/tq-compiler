@@ -447,6 +447,9 @@ internal sealed partial class TypeChecker
 
         if (assign.Target is IrLocal { type: { } writtenType }) CheckValueType(writtenType);
 
+        // `x.Event += f`, `d += f`: adds a function to what a delegate calls.
+        if (VisitDelegateAssign(assign) is { } delegated) return delegated;
+
         // A call whose value goes to a variable declared with a type is chosen by what it returns: `let i32 x = f()`.
         var declaredType = assign.Target is IrLocal { type: { } typeWritten } declaring && !NeedsInferredType(declaring)
             ? TypeFromExpression(WithoutConst(typeWritten)!)
@@ -599,6 +602,7 @@ internal sealed partial class TypeChecker
         FieldReference { Field: TqField field } => FieldValueType(field),
         FieldReference { Field: DotnetField field } => field.Type,
         FieldReference { Field: DotnetProperty property } => property.Type,
+        FieldReference { Field: DotnetEvent @event } => @event.Type,
         ThisReference { Owner: TqTypedef typedef } => new TypedefTypeReference(typedef),
         ThisReference { Owner: IStruct owner } => StructSemantics.TypeOf(owner),
         FieldReference { Field: TqNamedCase { Typedef: { } typedef } } => new TypedefTypeReference(typedef),

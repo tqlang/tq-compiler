@@ -537,6 +537,12 @@ public sealed class IrDumper
             case IrAssign assign:
                 return Typed(assign, $"store({Expr(assign.Target)}, {Expr(assign.Source)})");
 
+            case IrFunctionDelegate function:
+                return Typed(function, $"delegate {TypeFormatter.Format(function.DelegateType)} @{Callable(function.Function)}");
+
+            case IrDelegateChain chain:
+                return Typed(chain, $"{(chain.Remove ? "remove" : "combine")}({Expr(chain.Current)}, {Expr(chain.Handler)})");
+
             case IrSliceTypeModifier or IrArrayTypeModifier:
                 return Typed(node, $"type {TypeExpr(node)}");
 

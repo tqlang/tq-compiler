@@ -50,6 +50,19 @@ public record IrNew(SourceLocation Location, IrExpression Type, IrArgumentsList 
 public record IrConvert(SourceLocation Location, IrExpression Expression, IrExpression toType) : IrExpression(Location);
 public record IrAssign(SourceLocation Location, IrExpression Target, IrExpression Source) : IrExpression(Location);
 
+/// <summary>
+/// A function of Tq as the delegate of .NET that is expected (`DelegateType` is `*Action`): `ldftn` of the function and the
+/// constructor of the delegate. The type checker makes it from the name of a static function.
+/// </summary>
+public record IrFunctionDelegate(SourceLocation Location, IFunction Function, ITypeRef DelegateType) : IrExpression(Location);
+
+/// <summary>
+/// `d += f` and `d -= f` of a variable of a delegate: the delegate `d` with `f` added (`Delegate.Combine`) or removed
+/// (`Delegate.Remove`), as the type of `d`. `Handler` is a delegate already.
+/// </summary>
+public record IrDelegateChain(SourceLocation Location, IrExpression Current, IrExpression Handler, bool Remove, ITypeRef DelegateType)
+    : IrExpression(Location);
+
 public record IrSliceTypeModifier(SourceLocation Location, IrExpression subtype) : IrExpression(Location);
 
 /// <summary>`[5]T`: `Length` is the expression between the brackets (an integer literal).</summary>

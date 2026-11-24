@@ -81,6 +81,13 @@ sealed internal class MemberReferenceFactory(SignatureRemapper remapper, TqTypeT
         property.GetMethod is { } getDefinition && MemberVisibility.IsVisible(getDefinition) ? Method(getDefinition, declaring, typeParameters) : null,
         property.SetMethod is { } setDefinition && MemberVisibility.IsVisible(setDefinition) ? Method(setDefinition, declaring, typeParameters) : null);
 
+    /// <summary>An event: the delegate it takes and its accessors, as methods.</summary>
+    public DotnetEvent Event(EventDefinition definition, TypeReference declaring, IReadOnlyList<TqParameter>? typeParameters = null) => new(
+        definition.Name,
+        translator.Translate(remapper.Map(definition.EventType, declaring, null), TypeGenerics(typeParameters)),
+        definition.AddMethod is { } add && MemberVisibility.IsVisible(add) ? Method(add, declaring, typeParameters) : null,
+        definition.RemoveMethod is { } remove && MemberVisibility.IsVisible(remove) ? Method(remove, declaring, typeParameters) : null);
+
     public MethodReference MethodReference(MethodDefinition method, TypeReference declaring)
     {
         // O retorno é só um placeholder: precisa existir antes para que os generics de método sejam copiados

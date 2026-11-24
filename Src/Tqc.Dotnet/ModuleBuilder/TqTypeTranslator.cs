@@ -130,8 +130,9 @@ sealed internal class TqTypeTranslator(Func<TypeReference, TypeNode?> lookup)
             TypeKind.Struct    => new StructTypeReference((IStruct)dotnetType),
             TypeKind.Enum      => new StructTypeReference((IStruct)dotnetType),
             TypeKind.Interface => new ProtocolTypeReference((IProtocol)dotnetType),
+            TypeKind.Delegate  => CompilerStd.Types.RefOf(new StructTypeReference((IStruct)dotnetType)),
 
-            _ => Unsupported(type), // StaticClass e Delegate não são tipos de valor
+            _ => Unsupported(type), // StaticClass não é tipo de valor
         };
     }
 
