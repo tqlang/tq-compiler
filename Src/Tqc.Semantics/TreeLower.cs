@@ -24,12 +24,15 @@ public static class TreeLower
         var scopes = namespaceContainer.Trees.Select(e => ParseTreeMembers(ctx, e)).ToArray();
 
         Dictionary<string, IMember> members = [];
-        foreach (var scope in scopes)
+        for (var i = 0; i < scopes.Length; i++)
         {
-            foreach (var (name, member) in scope.Members)
+            foreach (var (name, member) in scopes[i].Members)
             {
                 if (members.TryAdd(name, member)) continue;
-                throw DuplicatedNamespaceMemberError(namespaceContainer.Name, name, members[name], member, scope.FilePath);
+
+                // Reported like any other error (with its place), not thrown: the rest of the files are still read.
+                namespaceContainer.Trees[i].Diagnostics.ReportError(
+                    DuplicatedNamespaceMemberError(namespaceContainer.Name, name, members[name], member, scopes[i].FilePath));
             }
         }
         members.TrimExcess();
@@ -935,14 +938,15 @@ public static class TreeLower
         var where = LocationOf(first) is { } firstLocation
             ? $" at {firstLocation.filePath}({firstLocation.span.LineStart},{firstLocation.span.ColStart})"
             : "";
+        var here = $" at {secondLocation.filePath}({secondLocation.span.LineStart},{secondLocation.span.ColStart})";
         var namespaceText = string.IsNullOrEmpty(namespaceName) ? "the global namespace" : $"the namespace '{namespaceName}'";
 
         var advice = KindOf(first) == "function" && KindOf(second) == "function"
-            ? "Overloads of a function must be declared in the same file"
+            ? $"Overloads of a function must be declared in the same file (move one of them, or give '{name}' another name)"
             : "Rename one of them";
 
         return new LoweringError(
-            $"The name '{name}' is declared twice in {namespaceText}: the {KindOf(second)} here conflicts with the {KindOf(first)} already declared{where}. {advice}",
+            $"The name '{name}' is declared twice in {namespaceText}: the {KindOf(second)}{here} conflicts with the {KindOf(first)} already declared{where}. {advice}",
             secondLocation);
     }
 
