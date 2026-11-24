@@ -185,7 +185,7 @@ internal sealed partial class TypeChecker
             if (byReturn.Count > 1) open = byReturn;
         }
 
-        ReportAmbiguity(name, noun, open.Count > 1 ? open : candidates, arguments, location);
+        ReportAmbiguity(name, noun, open.Count > 1 ? open : candidates, arguments, location, expected);
         return null;
     }
 
@@ -363,11 +363,20 @@ internal sealed partial class TypeChecker
     }
 
     private void ReportAmbiguity(
-        string name, string noun, List<Candidate> candidates, IrExpression[] arguments, SourceLocation location)
+        string name, string noun, List<Candidate> candidates, IrExpression[] arguments, SourceLocation location, Expectation? expected = null)
     {
         // Two that only differ in what they return are told apart by what is done with the value.
-        var sameParameters = candidates.All(candidate => candidate.Overload.ParameterTypes.SequenceEqual(candidates[0].Overload.ParameterTypes));
-        var tied = string.Join(", ", candidates.Select(candidate => Signature(name, candidate.Overload, withReturn: sameParameters)));
+        var written = candidates.Select(candidate => Signature(name, candidate.Overload)).ToList();
+        var sameParameters = written.Distinct().Count() == 1;
+        var tied = string.Join(", ", candidates.Select(candidate => Signature(name, candidate.Overload, withReturn: true)));
+
+        var context = expected switch
+        {
+            null => "the value is used where no type is asked (an argument, an operand, an assignment to a variable that exists)",
+            { Discarded: true } => "the value is thrown away",
+            { Type: { } wanted } => $"a '{TypeFormatter.Format(wanted)}' is wanted",
+            _ => "the type that is wanted is not known",
+        };
 
         var hint = sameParameters
             ? " They only differ in what they return, and nothing here says which one is wanted: use the value where its type is known"
@@ -376,7 +385,7 @@ internal sealed partial class TypeChecker
                 ? " Give the literal an explicit type, for example `5 as i32`."
                 : "";
 
-        Error($"The call to the {noun}s of '{name}' is ambiguous between: {tied}.{hint}", location);
+        Error($"The call to the {noun}s of '{name}' is ambiguous between: {tied}.{hint} [here: {context}]", location);
     }
 
     /// <param name="viaValue">The call goes through a value (`a.f()`): methods of instances, not static ones.</param>
