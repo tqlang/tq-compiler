@@ -406,8 +406,7 @@ sealed internal class DotnetModuleBuilder(AssemblyDefinition[] assemblies)
 
     // ───────────────────────── Resolução de nós ─────────────────────────
 
-    private TypeNode? LookupNode(TypeReference reference) =>
-        TryGetOrCreateNode(reference, out var node) ? node : null;
+    private TypeNode? LookupNode(TypeReference reference) => TryGetOrCreateNode(reference, out var node) ? node : null;
 
     /// <summary>
     /// Devolve o nó do tipo. Se ele não pertence ao módulo, cria um nó externo cuja Reference é
@@ -418,7 +417,21 @@ sealed internal class DotnetModuleBuilder(AssemblyDefinition[] assemblies)
         // List<int> -> List<>: os argumentos genéricos não mudam qual tipo é referenciado.
         var element = reference is GenericInstanceType generic ? generic.ElementType : reference;
 
-        var definition = element.Resolve();
+        TypeDefinition? definition = null;
+        try
+        {
+            definition = element.Resolve();
+        }
+        catch (AssemblyResolutionException)
+        {
+            // Fallback: Procura manualmente nos assemblies passados no construtor se o Cecil se perder
+            foreach (var asm in assemblies)
+            {
+                definition = asm.MainModule.Types.FirstOrDefault(t => t.FullName == element.FullName);
+                if (definition != null) break;
+            }
+        }
+
         if (definition == null)
         {
             node = null!;

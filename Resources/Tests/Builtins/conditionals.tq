@@ -9,7 +9,7 @@ typedef Level {
 @public func testConditionals() {
     let i32 val = 10
 
-    Test.newTestUnit("conditionals - if/elif/else")
+    Test.newTestUnit("Builtins - conditionals - if/elif/else")
     {
         let i32 result = 0
 
@@ -20,7 +20,7 @@ typedef Level {
         Test.assert(result, 2)
     }
 
-    Test.newTestUnit("conditionals - if/elif/else falling to else")
+    Test.newTestUnit("Builtins - conditionals - if/elif/else falling to else")
     {
         let i32 result = 0
 
@@ -31,7 +31,7 @@ typedef Level {
         Test.assert(result, 3)
     }
 
-    Test.newTestUnit("conditionals - match expression returning value")
+    Test.newTestUnit("Builtins - conditionals - match expression returning value")
     {
         let i32 matchResult = match val {
             case 5  => 100
@@ -42,7 +42,7 @@ typedef Level {
         Test.assert(matchResult, 200)
     }
 
-    Test.newTestUnit("conditionals - match with default fallback")
+    Test.newTestUnit("Builtins - conditionals - match with default fallback")
     {
         let i32 fallbackResult = match 99 {
             case 1  => 10
@@ -52,7 +52,7 @@ typedef Level {
         Test.assert(fallbackResult, 404)
     }
 
-    Test.newTestUnit("conditionals - match with several patterns and blocks")
+    Test.newTestUnit("Builtins - conditionals - match with several patterns and blocks")
     {
         let i32 blockResult = 0
         match val {
@@ -63,7 +63,7 @@ typedef Level {
         Test.assert(blockResult, 2)
     }
 
-    Test.newTestUnit("conditionals - match arms with a block")
+    Test.newTestUnit("Builtins - conditionals - match arms with a block")
     {
         let i32 blockResult = 0
         match val {
@@ -76,7 +76,7 @@ typedef Level {
         Test.assert(blockResult, 2)
     }
 
-    Test.newTestUnit("conditionals - match on strings")
+    Test.newTestUnit("Builtins - conditionals - match on strings")
     {
         let string word = "tq"
 
@@ -94,7 +94,7 @@ typedef Level {
         Test.assert(unknown, 0)
     }
 
-    Test.newTestUnit("conditionals - match on an enum covering every case needs no default")
+    Test.newTestUnit("Builtins - conditionals - match on an enum covering every case needs no default")
     {
         let Level level = Level.mid
 
@@ -106,7 +106,7 @@ typedef Level {
         Test.assert(byLevel, 2)
     }
 
-    Test.newTestUnit("conditionals - match on an enum with default")
+    Test.newTestUnit("Builtins - conditionals - match on an enum with default")
     {
         let Level level = Level.high
 
@@ -117,7 +117,7 @@ typedef Level {
         Test.assert(byLevel, 0)
     }
 
-    Test.newTestUnit("conditionals - match on a bool covering true and false needs no default")
+    Test.newTestUnit("Builtins - conditionals - match on a bool covering true and false needs no default")
     {
         let bool flag = true
         
@@ -128,7 +128,7 @@ typedef Level {
         Test.assert(name, "yes")
     }
 
-    Test.newTestUnit("conditionals - match on a type")
+    Test.newTestUnit("Builtins - conditionals - match on a type")
     {
         Test.assert(typeName(i32), "i32")
         Test.assert(typeName(string), "string")

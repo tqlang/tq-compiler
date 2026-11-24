@@ -2,34 +2,18 @@ out-dir = ".tq-out"
 cache-dir = ".tq-cache"
 
 [project]
-    name = "myapp"
+    name = "silkTest"
     target = "dotnet"
-    root = "Tqc"
+    root = "SilkTest"
 
 [[module]]
-    name = "Tqc"
-    path = "./Bootstrap/Tqc"
-    dependencies = [
-        "module : Tests",
-        "module : Tqc.Syntax",
-        "module : Std",
-    ]
-
-[[module]]
-   name = "Tqc.Syntax"
-   path = "./Bootstrap/Tqc.Syntax"
-   dependencies = [
-       "module : Tqc.Syntax",
-       "module : Std"
-   ]
-
-[[module]]
-    name = "Tests"
-    path = "./Tests"
+    name = "SilkTest"
+    path = "./SilkTest"
     dependencies = [
         "module : Std",
-        "module : Dotnet",
+        "module : Silk",
     ]
+
 
 [[module]]
     name = "Std"
@@ -37,6 +21,21 @@ cache-dir = ".tq-cache"
     dependencies = [
         "module : Dotnet",
     ]
+
+[[module]]
+type = "dotnet"
+name = "Silk"
+dependencies = [
+    "dotnet : Extern/Silk.NET.Core.dll : 2.22.0.0",
+    "dotnet : Extern/Silk.NET.GLFW.dll : 2.22.0.0",
+    "dotnet : Extern/Silk.NET.Input.Common.dll : 2.22.0.0",
+    "dotnet : Extern/Silk.NET.Input.Extensions.dll : 2.22.0.0",
+    "dotnet : Extern/Silk.NET.Input.Glfw.dll : 2.22.0.0",
+    "dotnet : Extern/Silk.NET.Maths.dll : 2.22.0.0",
+    "dotnet : Extern/Silk.NET.OpenGL.dll : 2.22.0.0",
+    "dotnet : Extern/Silk.NET.Windowing.Common.dll : 2.22.0.0",
+    "dotnet : Extern/Silk.NET.Windowing.Glfw.dll : 2.22.0.0",
+]
 
 [[module]]
     type = "dotnet"

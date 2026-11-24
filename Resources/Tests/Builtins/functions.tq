@@ -16,13 +16,13 @@ func pick(type T, T first, T second, bool useFirst) T => match useFirst {
 }
 
 @public func testFunctions() {
-    Test.newTestUnit("functions - body with =>")
+    Test.newTestUnit("Builtins - functions - body with =>")
     {
         Test.assert(twice(21), 42)
         Test.assert(add(2, 3), 5)
     }
 
-    Test.newTestUnit("functions - => without a return type runs the expression")
+    Test.newTestUnit("Builtins - functions - => without a return type runs the expression")
     {
         calls = 0
         hitAndForget()
@@ -30,7 +30,7 @@ func pick(type T, T first, T second, bool useFirst) T => match useFirst {
         Test.assert(calls, 2)
     }
 
-    Test.newTestUnit("functions - generic function with => and explicit type")
+    Test.newTestUnit("Builtins - functions - generic function with => and explicit type")
     {
         Test.assert(pick(int, 1, 2, true), 1)
         Test.assert(pick(int, 1, 2, false), 2)

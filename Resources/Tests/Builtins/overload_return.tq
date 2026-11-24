@@ -11,7 +11,7 @@ func chosenAsInt() int => choose(5)
 func chosenAsString() string => choose(5)
 
 @public func testOverloadReturn() {
-    Test.newTestUnit("overload by return type - the declared type of a variable")
+    Test.newTestUnit("Builtins - overload by return type - the declared type of a variable")
     {
         let int number = choose(21)
         let string text = choose(1)
@@ -20,7 +20,7 @@ func chosenAsString() string => choose(5)
         Test.assert(text, "text")
     }
 
-    Test.newTestUnit("overload by return type - a discarded value prefers void")
+    Test.newTestUnit("Builtins - overload by return type - a discarded value prefers void")
     {
         chooseEffects = 0
         choose(1)
@@ -29,7 +29,7 @@ func chosenAsString() string => choose(5)
         Test.assert(chooseEffects, 2)
     }
 
-    Test.newTestUnit("overload by return type - return")
+    Test.newTestUnit("Builtins - overload by return type - return")
     {
         Test.assert(chosenAsInt(), 10)
         Test.assert(chosenAsString(), "text")

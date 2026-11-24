@@ -3,6 +3,8 @@ from Tests import {
     StdLib
 }
 
+@public func main() => runTests()
+
 @public func runTests() {
     Builtins.testConditionals()
     Builtins.testFunctions()
@@ -19,7 +21,6 @@ from Tests import {
 
     Builtins.testArraysAndSlices()
 
-    Builtins.testBuiltins()
     Builtins.testNullables()
     Builtins.testFailables()
 
@@ -34,9 +35,10 @@ from Tests import {
     Builtins.testArithmeticU128()
     Builtins.testArithmeticI128()
 
-    # test STD lib
+    Builtins.testConstants()
+    Interop.testGenericInterfaces()
+    Interop.testRefParameters()
+
     StdLib.testDynamicArray()
     StdLib.testDictionaries()
-    StdLib.testGenericInterfaces()
-    StdLib.testRefParameters()
 }

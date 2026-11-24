@@ -3,7 +3,7 @@ from Dotnet.System.Collections.Generic import { Dictionary }
 
 # `out` and `ref` parameters of .NET are `Ref(T)`: `&x` of a variable is the address that they take.
 @public func testRefParameters() {
-    Test.newTestUnit("ref parameters - out of TryGetValue")
+    Test.newTestUnit("Interop - ref parameters - out of TryGetValue")
     {
         let dict = new Dictionary(string, i32)()
         dict.Add("one", 1)

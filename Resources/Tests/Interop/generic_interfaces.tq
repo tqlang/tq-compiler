@@ -1,5 +1,9 @@
 from Std import { Test }
-from Dotnet.System.Collections.Generic import { List, IEnumerable, IEnumerator }
+from Dotnet.System.Collections.Generic import {
+    List,
+    IEnumerable,
+    IEnumerator
+}
 
 # A List(i32) goes where an IEnumerable(i32) is expected: List(T) implements IEnumerable(T).
 func sum(IEnumerable(i32) items) i32 {
@@ -14,23 +18,23 @@ func sum(IEnumerable(i32) items) i32 {
 }
 
 @public func testGenericInterfaces() {
-    Test.newTestUnit("generic interfaces - a class goes where an interface it implements is expected")
+    Test.newTestUnit("Interop - generic interfaces - a class goes where an interface it implements is expected")
     {
         let list = new List(i32)()
         list.Add(10)
         list.Add(20)
         list.Add(30)
 
-        Test.assert(sum(list), 60)
+        Test.assert(sum(list as IEnumerable(i32)), 60)
     }
 
-    Test.newTestUnit("generic interfaces - a variable of the interface")
+    Test.newTestUnit("Interop - generic interfaces - a variable of the interface")
     {
         let list = new List(i32)()
         list.Add(1)
         list.Add(2)
 
-        let IEnumerable(i32) items = list
+        let IEnumerable(i32) items = list as IEnumerable(i32)
         Test.assert(sum(items), 3)
     }
 }

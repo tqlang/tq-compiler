@@ -1,13 +1,12 @@
 from Std.Io import
 
 const _out = new StdoutWriter()
-#@public let out => _out
-@public func getOut() *TextWriter { return _out }
+@public let out => _out
 
 const _in = new StdinReader()
-#@public let in => _in
-@public func getIn() *TextReader { return _in }
+@public let in => _in
 
+@public func write(int value) { _out.write(value as string) }
 @public func write(i64 value) { _out.write(value as string) }
 @public func write(u64 value) { _out.write(value as string) }
 @public func write(i128 value) { _out.write(value as string) }
@@ -15,6 +14,7 @@ const _in = new StdinReader()
 @public func write([]anytype value) { _out.write(value as string) }
 @public func write(string value) { _out.write(value) }
 
+@public func writeln(int value) { _out.writeLine(value as string) }
 @public func writeln(i64 value) { _out.writeLine(value as string) }
 @public func writeln(u64 value) { _out.writeLine(value as string) }
 @public func writeln(i128 value) { _out.writeLine(value as string) }

@@ -10,7 +10,7 @@ from Std import { Test }
 	let u16 lo = u16.min
 	let u16 hi = u16.max
 
-	Test.newTestUnit("u16 arithmetic - checked add")
+	Test.newTestUnit("Builtins - u16 arithmetic - checked add")
 	{
 		Test.assert(one + one, 2)
 		Test.assert(two + two, 4)
@@ -23,7 +23,7 @@ from Std import { Test }
 		#Test.assert(hi + hundred, ?) #!! FATAL ERROR !!
 	}
 
-	Test.newTestUnit("u16 arithmetic - add with overflow")
+	Test.newTestUnit("Builtins - u16 arithmetic - add with overflow")
 	{
 		Test.assert(one +% one, 2)
 		Test.assert(two +% two, 4)
@@ -33,7 +33,7 @@ from Std import { Test }
 		Test.assert(hi +% hi, 65534)
 	}
 
-	Test.newTestUnit("u16 arithmetic - add saturated")
+	Test.newTestUnit("Builtins - u16 arithmetic - add saturated")
 	{
 		Test.assert(one +| one, 2)
 		Test.assert(two +| two, 4)
@@ -42,7 +42,7 @@ from Std import { Test }
 		Test.assert(hi +| hundred, hi)
 	}
 
-	Test.newTestUnit("u16 arithmetic - checked sub")
+	Test.newTestUnit("Builtins - u16 arithmetic - checked sub")
 	{
 		Test.assert(one - one, 0)
 		Test.assert(two - one, 1)
@@ -53,7 +53,7 @@ from Std import { Test }
 		#Test.assert(lo - one, ?) #!! FATAL ERROR !!
 	}
 
-	Test.newTestUnit("u16 arithmetic - sub with overflow")
+	Test.newTestUnit("Builtins - u16 arithmetic - sub with overflow")
 	{
 		Test.assert(one -% one, 0)
 		Test.assert(two -% one, 1)
@@ -64,7 +64,7 @@ from Std import { Test }
 		Test.assert(lo -% one, hi)
 	}
 
-	Test.newTestUnit("u16 arithmetic - sub saturated")
+	Test.newTestUnit("Builtins - u16 arithmetic - sub saturated")
 	{
 		Test.assert(one -| one, 0)
 		Test.assert(two -| one, 1)
@@ -74,7 +74,7 @@ from Std import { Test }
 		Test.assert(lo -| one, 0)
 	}
 
-	Test.newTestUnit("u16 arithmetic - checked mul")
+	Test.newTestUnit("Builtins - u16 arithmetic - checked mul")
 	{
 		Test.assert(one * one, 1)
 		Test.assert(two * two, 4)
@@ -85,7 +85,7 @@ from Std import { Test }
 		#Test.assert(hi * two, ?) #!! FATAL ERROR !!
 	}
 
-	Test.newTestUnit("u16 arithmetic - mul with overflow")
+	Test.newTestUnit("Builtins - u16 arithmetic - mul with overflow")
 	{
 		Test.assert(one *% one, 1)
 		Test.assert(two *% two, 4)
@@ -96,7 +96,7 @@ from Std import { Test }
 		Test.assert(lo *% two, 0)
 	}
 
-	Test.newTestUnit("u16 arithmetic - mul saturated")
+	Test.newTestUnit("Builtins - u16 arithmetic - mul saturated")
 	{
 		Test.assert(one *| one, 1)
 		Test.assert(two *| two, 4)
@@ -106,7 +106,7 @@ from Std import { Test }
 		Test.assert(lo *| two, 0)
 	}
 
-	Test.newTestUnit("u16 arithmetic - checked div (exact)")
+	Test.newTestUnit("Builtins - u16 arithmetic - checked div (exact)")
 	{
 		Test.assert(hundred / two, 50)
 		Test.assert(zero / hundred, 0)
@@ -117,7 +117,7 @@ from Std import { Test }
 
 	# a division that leaves a remainder is a FATAL ERROR in `/`: use `/_` or `/^`
 
-	Test.newTestUnit("u16 arithmetic - div floor")
+	Test.newTestUnit("Builtins - u16 arithmetic - div floor")
 	{
 		Test.assert(hundred /_ two, 50)
 		Test.assert(zero /_ hundred, 0)
@@ -131,7 +131,7 @@ from Std import { Test }
 		Test.assert(hi /_ hi, 1)
 	}
 
-	Test.newTestUnit("u16 arithmetic - div ceil")
+	Test.newTestUnit("Builtins - u16 arithmetic - div ceil")
 	{
 		Test.assert(hundred /^ two, 50)
 		Test.assert(zero /^ hundred, 0)
@@ -145,7 +145,7 @@ from Std import { Test }
 		Test.assert(hi /^ hi, 1)
 	}
 
-	Test.newTestUnit("u16 arithmetic - remainder")
+	Test.newTestUnit("Builtins - u16 arithmetic - remainder")
 	{
 		Test.assert(hundred % seven, 2)
 		Test.assert(hundred % two, 0)
@@ -158,7 +158,7 @@ from Std import { Test }
 		Test.assert(one % two, 1)
 	}
 
-	Test.newTestUnit("u16 arithmetic - checked pow")
+	Test.newTestUnit("Builtins - u16 arithmetic - checked pow")
 	{
 		Test.assert(two ** 1, 2)
 		Test.assert(two ** 2, 4)
@@ -172,7 +172,7 @@ from Std import { Test }
 		#Test.assert(two ** 16, ?) #!! FATAL ERROR !!
 	}
 
-	Test.newTestUnit("u16 arithmetic - pow with overflow")
+	Test.newTestUnit("Builtins - u16 arithmetic - pow with overflow")
 	{
 		Test.assert(two **% 16, 0)
 		Test.assert(two **% 15, 32768)
@@ -181,7 +181,7 @@ from Std import { Test }
 		Test.assert(seven **% 16, 32129)
 	}
 
-	Test.newTestUnit("u16 arithmetic - pow saturated")
+	Test.newTestUnit("Builtins - u16 arithmetic - pow saturated")
 	{
 		Test.assert(two **| 3, 8)
 		Test.assert(two **| 14, 16384)
@@ -191,7 +191,7 @@ from Std import { Test }
 		Test.assert(seven **| 16, hi)
 	}
 
-	Test.newTestUnit("u16 arithmetic - comparison")
+	Test.newTestUnit("Builtins - u16 arithmetic - comparison")
 	{
 		Test.assert(lo < hi, true)
 		Test.assert(hi > lo, true)
@@ -220,7 +220,7 @@ from Std import { Test }
 	let i16 lo = i16.min
 	let i16 hi = i16.max
 
-	Test.newTestUnit("i16 arithmetic - checked add")
+	Test.newTestUnit("Builtins - i16 arithmetic - checked add")
 	{
 		Test.assert(one + one, 2)
 		Test.assert(two + two, 4)
@@ -236,7 +236,7 @@ from Std import { Test }
 		#Test.assert(hi + hundred, ?) #!! FATAL ERROR !!
 	}
 
-	Test.newTestUnit("i16 arithmetic - add with overflow")
+	Test.newTestUnit("Builtins - i16 arithmetic - add with overflow")
 	{
 		Test.assert(one +% one, 2)
 		Test.assert(two +% two, 4)
@@ -248,7 +248,7 @@ from Std import { Test }
 		Test.assert(neg_hundred +% neg_hundred, -200)
 	}
 
-	Test.newTestUnit("i16 arithmetic - add saturated")
+	Test.newTestUnit("Builtins - i16 arithmetic - add saturated")
 	{
 		Test.assert(one +| one, 2)
 		Test.assert(two +| two, 4)
@@ -260,7 +260,7 @@ from Std import { Test }
 		Test.assert(neg_one +| neg_one, -2)
 	}
 
-	Test.newTestUnit("i16 arithmetic - checked sub")
+	Test.newTestUnit("Builtins - i16 arithmetic - checked sub")
 	{
 		Test.assert(one - one, 0)
 		Test.assert(two - one, 1)
@@ -274,7 +274,7 @@ from Std import { Test }
 		#Test.assert(lo - one, ?) #!! FATAL ERROR !!
 	}
 
-	Test.newTestUnit("i16 arithmetic - sub with overflow")
+	Test.newTestUnit("Builtins - i16 arithmetic - sub with overflow")
 	{
 		Test.assert(one -% one, 0)
 		Test.assert(two -% one, 1)
@@ -286,7 +286,7 @@ from Std import { Test }
 		Test.assert(hi -% neg_one, lo)
 	}
 
-	Test.newTestUnit("i16 arithmetic - sub saturated")
+	Test.newTestUnit("Builtins - i16 arithmetic - sub saturated")
 	{
 		Test.assert(one -| one, 0)
 		Test.assert(two -| one, 1)
@@ -297,7 +297,7 @@ from Std import { Test }
 		Test.assert(hi -| neg_one, hi)
 	}
 
-	Test.newTestUnit("i16 arithmetic - checked mul")
+	Test.newTestUnit("Builtins - i16 arithmetic - checked mul")
 	{
 		Test.assert(one * one, 1)
 		Test.assert(two * two, 4)
@@ -312,7 +312,7 @@ from Std import { Test }
 		#Test.assert(lo * neg_one, ?) #!! FATAL ERROR !!
 	}
 
-	Test.newTestUnit("i16 arithmetic - mul with overflow")
+	Test.newTestUnit("Builtins - i16 arithmetic - mul with overflow")
 	{
 		Test.assert(one *% one, 1)
 		Test.assert(two *% two, 4)
@@ -324,7 +324,7 @@ from Std import { Test }
 		Test.assert(lo *% two, 0)
 	}
 
-	Test.newTestUnit("i16 arithmetic - mul saturated")
+	Test.newTestUnit("Builtins - i16 arithmetic - mul saturated")
 	{
 		Test.assert(one *| one, 1)
 		Test.assert(two *| two, 4)
@@ -336,7 +336,7 @@ from Std import { Test }
 		Test.assert(neg_hundred *| hundred, -10000)
 	}
 
-	Test.newTestUnit("i16 arithmetic - checked div (exact)")
+	Test.newTestUnit("Builtins - i16 arithmetic - checked div (exact)")
 	{
 		Test.assert(hundred / two, 50)
 		Test.assert(zero / hundred, 0)
@@ -349,7 +349,7 @@ from Std import { Test }
 
 	# a division that leaves a remainder is a FATAL ERROR in `/`: use `/_` or `/^`
 
-	Test.newTestUnit("i16 arithmetic - div floor")
+	Test.newTestUnit("Builtins - i16 arithmetic - div floor")
 	{
 		Test.assert(hundred /_ two, 50)
 		Test.assert(zero /_ hundred, 0)
@@ -369,7 +369,7 @@ from Std import { Test }
 		Test.assert(neg_hundred /_ three, -34)
 	}
 
-	Test.newTestUnit("i16 arithmetic - div ceil")
+	Test.newTestUnit("Builtins - i16 arithmetic - div ceil")
 	{
 		Test.assert(hundred /^ two, 50)
 		Test.assert(zero /^ hundred, 0)
@@ -389,7 +389,7 @@ from Std import { Test }
 		Test.assert(neg_hundred /^ three, -33)
 	}
 
-	Test.newTestUnit("i16 arithmetic - remainder")
+	Test.newTestUnit("Builtins - i16 arithmetic - remainder")
 	{
 		Test.assert(hundred % seven, 2)
 		Test.assert(hundred % two, 0)
@@ -402,7 +402,7 @@ from Std import { Test }
 		Test.assert(one % two, 1)
 	}
 
-	Test.newTestUnit("i16 arithmetic - checked pow")
+	Test.newTestUnit("Builtins - i16 arithmetic - checked pow")
 	{
 		Test.assert(two ** 1, 2)
 		Test.assert(two ** 2, 4)
@@ -418,7 +418,7 @@ from Std import { Test }
 		#Test.assert(two ** 16, ?) #!! FATAL ERROR !!
 	}
 
-	Test.newTestUnit("i16 arithmetic - pow with overflow")
+	Test.newTestUnit("Builtins - i16 arithmetic - pow with overflow")
 	{
 		Test.assert(two **% 16, 0)
 		Test.assert(two **% 15, lo)
@@ -429,7 +429,7 @@ from Std import { Test }
 		Test.assert(neg_two **% 17, 0)
 	}
 
-	Test.newTestUnit("i16 arithmetic - pow saturated")
+	Test.newTestUnit("Builtins - i16 arithmetic - pow saturated")
 	{
 		Test.assert(two **| 3, 8)
 		Test.assert(two **| 14, 16384)
@@ -442,7 +442,7 @@ from Std import { Test }
 		Test.assert(neg_two **| 17, lo)
 	}
 
-	Test.newTestUnit("i16 arithmetic - negate")
+	Test.newTestUnit("Builtins - i16 arithmetic - negate")
 	{
 		Test.assert(-one, neg_one)
 		Test.assert(-neg_seven, seven)
@@ -451,7 +451,7 @@ from Std import { Test }
 		Test.assert(-hi, lo + one)
 	}
 
-	Test.newTestUnit("i16 arithmetic - comparison")
+	Test.newTestUnit("Builtins - i16 arithmetic - comparison")
 	{
 		Test.assert(lo < hi, true)
 		Test.assert(hi > lo, true)

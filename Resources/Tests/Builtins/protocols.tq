@@ -18,14 +18,14 @@ func nameOf(Named named) string => named.name()
 func ageOf(Aged aged) int => aged.age()
 
 @public func testProtocols() {
-    Test.newTestUnit("protocols - a struct goes where a protocol it implements is expected")
+    Test.newTestUnit("Builtins - protocols - a struct goes where a protocol it implements is expected")
     {
         let Person person = new Person()
         Test.assert(nameOf(person), "ana")
         Test.assert(ageOf(person), 30)
     }
 
-    Test.newTestUnit("protocols - a new value of a struct goes as a protocol")
+    Test.newTestUnit("Builtins - protocols - a new value of a struct goes as a protocol")
     {
         Test.assert(nameOf(new Person()), "ana")
     }

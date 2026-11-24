@@ -14,7 +14,7 @@ struct Rect {
 }
 
 @public func testProperties() {
-    Test.newTestUnit("properties - a property of a namespace is read and written by its name")
+    Test.newTestUnit("Builtins - properties - a property of a namespace is read and written by its name")
     {
         counter = 3
         Test.assert(counter, 3)
@@ -22,18 +22,18 @@ struct Rect {
         Test.assert(counter, 5)
     }
 
-    Test.newTestUnit("properties - get only property with =>")
+    Test.newTestUnit("Builtins - properties - get only property with =>")
     {
         counter = 4
         Test.assert(doubleCounter, 8)
     }
 
-    Test.newTestUnit("properties - accessor written in the property")
+    Test.newTestUnit("Builtins - properties - accessor written in the property")
     {
         Test.assert(name, "tq")
     }
 
-    Test.newTestUnit("properties - automatic accessors of a struct")
+    Test.newTestUnit("Builtins - properties - automatic accessors of a struct")
     {
         let Rect rect = new Rect()
         rect.width = 3
@@ -42,7 +42,7 @@ struct Rect {
         Test.assert(rect.height, 4)
     }
 
-    Test.newTestUnit("properties - get only property of a struct")
+    Test.newTestUnit("Builtins - properties - get only property of a struct")
     {
         let Rect rect = new Rect()
         rect.width = 3
@@ -52,14 +52,14 @@ struct Rect {
         Test.assert(rect.area, 15)
     }
 
-    Test.newTestUnit("properties - field is the storage of the property")
+    Test.newTestUnit("Builtins - properties - field is the storage of the property")
     {
         let Rect rect = new Rect()
         rect.doubled = 6
         Test.assert(rect.doubled, 12)
     }
 
-    Test.newTestUnit("properties - get => with field and an automatic set")
+    Test.newTestUnit("Builtins - properties - get => with field and an automatic set")
     {
         let Rect rect = new Rect()
         rect.tripled = 5

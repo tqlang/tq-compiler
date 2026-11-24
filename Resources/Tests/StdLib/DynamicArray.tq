@@ -4,7 +4,7 @@ from Std.Collections import
 @public func testDynamicArray() {
     let list = new DynamicArray(u32)()
 
-    Test.newTestUnit("DynamicArray - add elements")
+    Test.newTestUnit("Std.Collections.DynamicArray - add elements")
     {
         list.append(10)
         list.append(20)
@@ -17,7 +17,7 @@ from Std.Collections import
         Test.assert(list[4], 50)
     }
 
-    Test.newTestUnit("DynamicArray - appendMany")
+    Test.newTestUnit("Std.Collections.DynamicArray - appendMany")
     {
         let [5]u32 many = [60, 70, 80, 90, 100]
         list.appendMany(&many)

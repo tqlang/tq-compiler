@@ -481,12 +481,13 @@ public sealed class IrDumper
         switch (node)
         {
             case null: return "?";
-            case IrReference { Reference: var reference } when reference is not (LocalReference or ParameterReference or UnsolvedRef):
+            case IrReference { Reference: var reference and not (LocalReference or ParameterReference or UnsolvedRef) }:
                 return reference switch
                 {
-                    TypeMetaReference meta => TypeFormatter.Format(meta.Type),
-                    StructTypeReference structure => TypeFormatter.Format(structure),
-                    _ => Symbol(reference),
+                    TypeMetaReference { Type: IStruct s } => TypeFormatter.Format(new StructTypeReference(s)),
+                    TypeMetaReference meta                => meta.Type.ToString() ?? "?",
+                    StructTypeReference structure         => TypeFormatter.Format(structure),
+                    _                                     => Symbol(reference),
                 };
             case IrIdentifier identifier: return $"?{identifier.identifier}";
             case IrAccess access: return $"{TypeExpr(access.baseExpr)}.{Symbol(access.access.Reference).TrimStart('@', '%')}";

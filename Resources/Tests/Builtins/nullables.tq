@@ -1,21 +1,21 @@
 from Std import { Test }
 
 @public func testNullables() {
-    Test.newTestUnit("nullability - coalescing operator with null")
+    Test.newTestUnit("Builtins - nullability - coalescing operator with null")
     {
         let ?int maybeNull = null
         let int safeVal = maybeNull ?? 42
         Test.assert(safeVal, 42)
     }
 
-    Test.newTestUnit("nullability - coalescing operator with valid value")
+    Test.newTestUnit("Builtins - nullability - coalescing operator with valid value")
     {
         let ?int maybeNull = getNullableValue(100)
         let int unwrappedVal = maybeNull ?? 0
         Test.assert(unwrappedVal, 100)
     }
 
-    Test.newTestUnit("nullability - chained coalescing")
+    Test.newTestUnit("Builtins - nullability - chained coalescing")
     {
         let ?int first = null
         let ?int second = null
@@ -23,7 +23,7 @@ from Std import { Test }
         Test.assert(value, 7)
     }
 
-    Test.newTestUnit("nullability - a value goes where a nullable is expected")
+    Test.newTestUnit("Builtins - nullability - a value goes where a nullable is expected")
     {
         let ?int implicit = 5
         Test.assert(implicit ?? 0, 5)
@@ -31,7 +31,7 @@ from Std import { Test }
         Test.assert(orZero(9), 9)
     }
 
-    Test.newTestUnit("nullability - null check")
+    Test.newTestUnit("Builtins - nullability - null check")
     {
         let ?int absent = null
         let ?int present = 3
@@ -41,14 +41,14 @@ from Std import { Test }
         Test.assert(present != null, true)
     }
 
-    Test.newTestUnit("nullability - explicit unwrap method")
+    Test.newTestUnit("Builtins - nullability - explicit unwrap method")
     {
         let ?int validNum = getNullableValue(30)
         let int manualUnwrap = validNum.unwrap()
         Test.assert(manualUnwrap, 30)
     }
 
-    Test.newTestUnit("nullability - value of a nullable")
+    Test.newTestUnit("Builtins - nullability - value of a nullable")
     {
         let ?int validNum = getNullableValue(55)
         Test.assert(validNum.value, 55)

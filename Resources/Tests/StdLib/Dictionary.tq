@@ -5,7 +5,7 @@ from Std.Collections import
 	let i2s_dict = new Dictionary(int, string)()
 	let s2i_dict = new Dictionary(string, int)()
 
-	Test.newTestUnit("Dictionary - add and read elements")
+	Test.newTestUnit("Std.Collections.Dictionary - add and read elements")
 	{
 		i2s_dict.put(10, "ten")
 		i2s_dict.put(20, "twenty")
@@ -26,10 +26,10 @@ from Std.Collections import
 		Test.assert(s2i_dict["one"], 1)
 	}
 
-	Test.newTestUnit("Dictionary - remove elements")
+	Test.newTestUnit("Std.Collections.Dictionary - remove elements")
 	{
 		i2s_dict.remove(20)
-		let removed = i2s_dict.remove(40)
+		let removed = i2s_dict.remove(40).unwrap()
 
 		Test.assert(i2s_dict[10], "ten")
 		Test.assert(i2s_dict[30], "thirty")

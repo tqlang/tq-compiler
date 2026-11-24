@@ -8,9 +8,9 @@ from Dotnet.System.Collections.Generic import { Dictionary as CsDictionary }
 		_dict = new CsDictionary(TKey, TValue)()
 	}
 
-	@public constructor(int capacity) {
-		_dict = new CsDictionary(TKey, TValue)(capacity)
-	}
+	# @public constructor(int capacity) {
+	# 	_dict = new CsDictionary(TKey, TValue)(capacity)
+	# }
 
 
 	@indexerGet @public func indexerGet(TKey key) TValue => _dict[key]
@@ -32,11 +32,7 @@ from Dotnet.System.Collections.Generic import { Dictionary as CsDictionary }
 
 		return value
 	}
-	# @public func remove(TKey key) TValue {
-	# 	let TValue value
-	# 	_dict.Remove(key, &value)
-	# 	return value
-	# }
+	#@public func remove(TKey key) => _dict.Remove(key)
 
 	@public func clear() => _dict.Clear()
 }

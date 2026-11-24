@@ -204,7 +204,7 @@ internal sealed partial class ModuleEmitter
 
         // A class that declares no constructor can be created without arguments; so can a struct by value whose fields
         // have initial values, because those take code.
-        if (structure.Constructors.Count == 0 && (IsClass(structure) || InstanceInitializers(structure).Count > 0))
+        if (structure.Constructors.Count == 0 && (IsClass(structure) || InstanceInitializers(structure).Count > 0) || structure.BaseStruct != null)
             DeclareDefaultConstructor(container, structure);
         if (structure.Destructor != null) DeclareDestructor(container, structure, structure.Destructor);
     }

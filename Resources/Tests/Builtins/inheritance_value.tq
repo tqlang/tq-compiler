@@ -42,14 +42,14 @@ func kindOfRef(*Car car) string => "car"
 
 
 @public func testValueInheritance() {
-    Test.newTestUnit("inheritance by value - a struct that extends another has its functions")
+    Test.newTestUnit("Builtins - inheritance by value - a struct that extends another has its functions")
     {
         let Car car = new Car()
         Test.assert(car.describe(), "vehicle")
         Test.assert(car.wheelCount(), 4)
     }
 
-    Test.newTestUnit("inheritance by value - the fields come from what is extended")
+    Test.newTestUnit("Builtins - inheritance by value - the fields come from what is extended")
     {
         let Car car = new Car()
         Test.assert(car.wheels, 4)
@@ -61,7 +61,7 @@ func kindOfRef(*Car car) string => "car"
         Test.assert(car.wheelCount(), 6)
     }
 
-    Test.newTestUnit("inheritance by value - override changes what a function does")
+    Test.newTestUnit("Builtins - inheritance by value - override changes what a function does")
     {
         let Vehicle vehicle = new Vehicle()
         let Car car = new Car()
@@ -72,7 +72,7 @@ func kindOfRef(*Car car) string => "car"
         Test.assert(bike.sound(), "ring")
     }
 
-    Test.newTestUnit("inheritance by value - several levels")
+    Test.newTestUnit("Builtins - inheritance by value - several levels")
     {
         let Pickup pickup = new Pickup()
 
@@ -84,7 +84,7 @@ func kindOfRef(*Car car) string => "car"
         Test.assert(pickup.plate, "xyz")
     }
 
-    Test.newTestUnit("inheritance by value - a value is copied when it is assigned")
+    Test.newTestUnit("Builtins - inheritance by value - a value is copied when it is assigned")
     {
         let Car first = new Car()
         let Car second = first
@@ -99,7 +99,7 @@ func kindOfRef(*Car car) string => "car"
 }
 
 @public func testValuePolymorphism() {
-    Test.newTestUnit("polymorphism by value - a reference to the derived goes where the base is expected")
+    Test.newTestUnit("Builtins - polymorphism by value - a reference to the derived goes where the base is expected")
     {
         let Car car = new Car()
         let *Car carRef = &car
@@ -109,7 +109,7 @@ func kindOfRef(*Car car) string => "car"
         Test.assert(vehicle.wheelCount(), 4)
     }
 
-    Test.newTestUnit("polymorphism by value - the override that runs is the one of the value")
+    Test.newTestUnit("Builtins - polymorphism by value - the override that runs is the one of the value")
     {
         let Pickup pickup = new Pickup()
         let *Pickup pickupRef = &pickup
@@ -119,7 +119,7 @@ func kindOfRef(*Car car) string => "car"
         Test.assert(vehicle.describe(), "pickup")
     }
 
-    Test.newTestUnit("polymorphism by value - the same function with every derived struct")
+    Test.newTestUnit("Builtins - polymorphism by value - the same function with every derived struct")
     {
         let Vehicle base = new Vehicle()
         let Car car = new Car()
@@ -133,7 +133,7 @@ func kindOfRef(*Car car) string => "car"
         Test.assert(soundOfRef(&bike), "ring")
     }
 
-    Test.newTestUnit("polymorphism by value - the reference to the base is the same object as the one to the derived")
+    Test.newTestUnit("Builtins - polymorphism by value - the reference to the base is the same object as the one to the derived")
     {
         let Car car = new Car()
         let *Car carRef = &car
@@ -146,7 +146,7 @@ func kindOfRef(*Car car) string => "car"
         Test.assert(vehicle.wheels, 6)
     }
 
-    Test.newTestUnit("polymorphism by value - a function that receives the reference changes the object")
+    Test.newTestUnit("Builtins - polymorphism by value - a function that receives the reference changes the object")
     {
         let Pickup pickup = new Pickup()
         let *Pickup pickupRef = &pickup
@@ -155,14 +155,14 @@ func kindOfRef(*Car car) string => "car"
         Test.assert(pickupRef.plate, "toy")
     }
 
-    Test.newTestUnit("polymorphism by value - a function that receives the value changes a copy")
+    Test.newTestUnit("Builtins - polymorphism by value - a function that receives the value changes a copy")
     {
         let Car car = new Car()
         renameCopy(car, "other")
         Test.assert(car.plate, "none")
     }
 
-    Test.newTestUnit("polymorphism by value - a reference as the result of a function")
+    Test.newTestUnit("Builtins - polymorphism by value - a reference as the result of a function")
     {
         let Car car = new Car()
         let *Car carRef = &car
@@ -174,7 +174,7 @@ func kindOfRef(*Car car) string => "car"
         Test.assert(carRef.plate, "back")
     }
 
-    Test.newTestUnit("polymorphism by value - two references of different derived structs")
+    Test.newTestUnit("Builtins - polymorphism by value - two references of different derived structs")
     {
         let Car car = new Car()
         let Bike bike = new Bike()
@@ -183,7 +183,7 @@ func kindOfRef(*Car car) string => "car"
         Test.assert(totalWheels(&car, &bike), 6)
     }
 
-    Test.newTestUnit("polymorphism by value - the overload with the nearest base is chosen")
+    Test.newTestUnit("Builtins - polymorphism by value - the overload with the nearest base is chosen")
     {
         let Vehicle vehicle = new Vehicle()
         let Bike bike = new Bike()
@@ -196,7 +196,7 @@ func kindOfRef(*Car car) string => "car"
         Test.assert(kindOfRef(&pickup), "car")
     }
 
-    Test.newTestUnit("polymorphism by value - a reference to the base goes back to the derived with as")
+    Test.newTestUnit("Builtins - polymorphism by value - a reference to the base goes back to the derived with as")
     {
         let Car car = new Car()
         car.plate = "cast"
