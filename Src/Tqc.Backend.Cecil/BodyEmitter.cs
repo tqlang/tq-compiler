@@ -1537,7 +1537,9 @@ internal sealed class BodyEmitter
                 continue;
             }
 
-            if (type is ByReferenceType) EmitAddress(argument);
+            // `&x` already is the address that a `ref` or `out` parameter takes; anything else is addressed (or copied first).
+            if (type is ByReferenceType && argument is IrAddressOf) EmitValue(argument, null);
+            else if (type is ByReferenceType) EmitAddress(argument);
             else EmitValue(argument, type);
         }
 
