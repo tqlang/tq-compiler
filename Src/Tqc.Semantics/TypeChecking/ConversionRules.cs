@@ -223,12 +223,34 @@ internal static class ConversionRules
             foreach (var parent in ParentsOf(current.Type))
             {
                 if (!visited.Add(parent)) continue;
-                if (parent.Equals(wanted)) return Convert(Upcast + current.Steps + 1);
+                if (SameType(parent, wanted)) return Convert(Upcast + current.Steps + 1);
                 pending.Enqueue((parent, current.Steps + 1));
             }
         }
 
         return ArgumentMatch.None;
+    }
+
+    /// <summary>
+    /// The same type, also when two applications of a generic type were not given the same entry of the instance table
+    /// (`IEnumerable(i32)` written by hand and the one found in the metadata of .NET): same definition, same arguments.
+    /// </summary>
+    private static bool SameType(ITypeRef a, ITypeRef b)
+    {
+        if (a.Equals(b)) return true;
+
+        if (a is not StructTypeReference { Struct: GenericInstance first } || b is not StructTypeReference { Struct: GenericInstance second })
+            return false;
+        if (!ReferenceEquals(first.Definition, second.Definition) || first.Arguments.Length != second.Arguments.Length) return false;
+
+        for (var i = 0; i < first.Arguments.Length; i++)
+        {
+            var left = TypeExpressions.Raw(first.Arguments[i]);
+            var right = TypeExpressions.Raw(second.Arguments[i]);
+            if (left == null || right == null || !SameType(left, right)) return false;
+        }
+
+        return true;
     }
 
     private static ITypeRef Unwrap(ITypeRef type) => CompilerStd.Types.IsRef(type, out var inner) ? inner : type;
