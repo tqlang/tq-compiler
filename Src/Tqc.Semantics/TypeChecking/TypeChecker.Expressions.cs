@@ -535,7 +535,23 @@ internal sealed partial class TypeChecker
                 break;
         }
 
-        return (visited, ReturnTypeOf(visited.callee, visited.ArgumentsList.arguments));
+        var returnType = ReturnTypeOf(visited.callee, visited.ArgumentsList.arguments);
+
+        // A function that was chosen but whose `T` could not be replaced: say which, instead of leaving a call without a type.
+        if (returnType == null
+            && CalleeReference(visited.callee) is FunctionTypeReference { Function: var chosen }
+            && FunctionSignature.Of(chosen)?.Return is { } declared && DependsOnTypeParameter(declared))
+        {
+            var receiverType = visited.callee is IrAccess access ? TypeOf(access.baseExpr) : null;
+            var bound = BindingsOf(receiverType);
+            var known = bound.Count == 0 ? "none" : string.Join(", ", bound.Select(pair => $"{pair.Key.Name} = {TypeFormatter.Format(pair.Value)}"));
+
+            Error($"Cannot tell the type this call returns: '{chosen.Name}' returns '{TypeFormatter.Format(declared)}', " +
+                  $"and the type arguments known here are: {known} (the value it is called on has the type '{TypeFormatter.Format(receiverType)}')",
+                visited.Location);
+        }
+
+        return (visited, returnType);
     }
 
     /// <summary>Whether an expression names a namespace (a static class of .NET is one) or a type, rather than being a value.</summary>
