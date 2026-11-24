@@ -1285,7 +1285,7 @@ internal sealed class BodyEmitter
             case DotnetProperty { Getter: { } getter }:
             {
                 var reference = _owner.Module.ImportReference(getter);
-                var host = reference.HasThis ? HostOf(baseExpr) : null;
+                var host = reference.HasThis ? HostOf(baseExpr, reference.DeclaringType) : null;
                 if (host != null) reference = OnHost(reference, host);
 
                 if (reference.HasThis) EmitFieldReceiver(baseExpr, reference.DeclaringType);
@@ -1461,7 +1461,7 @@ internal sealed class BodyEmitter
                 var method = _owner.Module.ImportReference(dotnet.Reference);
 
                 // A method of `List(i8)` is called through that type: its signature says `T`, the type says `i8`.
-                var host = method.HasThis ? HostOf(receiver) : null;
+                var host = method.HasThis ? HostOf(receiver, method.DeclaringType) : null;
                 if (host != null) method = OnHost(method, host);
                 var hostArguments = host?.GenericArguments;
 
@@ -1579,13 +1579,16 @@ internal sealed class BodyEmitter
     /// The generic type that a value is of, when it is one of .NET (`List(i8)`): what a member of it is called through.
     /// Null for anything else, and for no value.
     /// </summary>
-    private GenericInstanceType? HostOf(IrExpression? value)
+    private GenericInstanceType? HostOf(IrExpression? value, TypeReference? declaring = null)
     {
         if (value == null || _types.Get(value) is not { } type) return null;
         if (CompilerStd.Types.IsRef(type, out var referred)) type = referred;
 
         return type is StructTypeReference { Struct: GenericInstance { Definition: DotnetClass or DotnetStruct or DotnetGenericInterface } }
             && _owner.MapType(type, value.Location) is GenericInstanceType host
+            // A member the type inherits is called through the type that declares it (`MoveNext` is of `IEnumerator`, not of
+            // `IEnumerator<T>`), so only a member declared by the generic type itself goes through it.
+            && (declaring == null || host.ElementType.FullName == declaring.GetElementType().FullName)
             ? host
             : null;
     }
@@ -3191,7 +3194,7 @@ internal sealed class BodyEmitter
                 var set = _owner.Module.ImportReference(setter);
                 var isInstance = set.HasThis;
 
-                var host = isInstance ? HostOf(baseExpr) : null;
+                var host = isInstance ? HostOf(baseExpr, get.DeclaringType) : null;
                 if (host != null)
                 {
                     get = OnHost(get, host);
