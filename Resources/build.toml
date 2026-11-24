@@ -28,6 +28,7 @@ cache-dir = ".tq-cache"
     path = "./Tests"
     dependencies = [
         "module : Std",
+        "module : Dotnet",
     ]
 
 [[module]]

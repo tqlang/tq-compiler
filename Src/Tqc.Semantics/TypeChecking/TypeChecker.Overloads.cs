@@ -365,10 +365,16 @@ internal sealed partial class TypeChecker
     private void ReportAmbiguity(
         string name, string noun, List<Candidate> candidates, IrExpression[] arguments, SourceLocation location)
     {
-        var tied = string.Join(", ", candidates.Select(candidate => Signature(name, candidate.Overload)));
-        var hint = arguments.Any(argument => argument is IrComptimeInt)
-            ? " Give the literal an explicit type, for example `5 as i32`."
-            : "";
+        // Two that only differ in what they return are told apart by what is done with the value.
+        var sameParameters = candidates.All(candidate => candidate.Overload.ParameterTypes.SequenceEqual(candidates[0].Overload.ParameterTypes));
+        var tied = string.Join(", ", candidates.Select(candidate => Signature(name, candidate.Overload, withReturn: sameParameters)));
+
+        var hint = sameParameters
+            ? " They only differ in what they return, and nothing here says which one is wanted: use the value where its type is known"
+                + " (`let T x = ...`, `return ...`), or call it as a statement to run the one that returns nothing."
+            : arguments.Any(argument => argument is IrComptimeInt)
+                ? " Give the literal an explicit type, for example `5 as i32`."
+                : "";
 
         Error($"The call to the {noun}s of '{name}' is ambiguous between: {tied}.{hint}", location);
     }
@@ -438,6 +444,7 @@ internal sealed partial class TypeChecker
     private static string Candidates(string name, List<Overload> overloads) =>
         "Candidates: " + string.Join(", ", overloads.Select(overload => Signature(name, overload)));
 
-    private static string Signature(string name, Overload overload) =>
-        $"{name}({string.Join(", ", overload.ParameterTypes.Select(TypeFormatter.Format))})";
+    private static string Signature(string name, Overload overload, bool withReturn = false) =>
+        $"{name}({string.Join(", ", overload.ParameterTypes.Select(TypeFormatter.Format))})"
+        + (withReturn ? $" -> {(overload.Return == null ? "?" : TypeFormatter.Format(overload.Return))}" : "");
 }
