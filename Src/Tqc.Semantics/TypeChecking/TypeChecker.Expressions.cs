@@ -443,7 +443,11 @@ internal sealed partial class TypeChecker
     {
         if (assign.Target is IrIndex indexTarget) return VisitIndexAssign(assign, indexTarget);
 
-        var source = Visit(assign.Source);
+        // A call whose value goes to a variable declared with a type is chosen by what it returns: `let i32 x = f()`.
+        var declaredType = assign.Target is IrLocal { type: { } typeWritten } declaring && !NeedsInferredType(declaring)
+            ? TypeFromExpression(WithoutConst(typeWritten)!)
+            : null;
+        var source = declaredType != null ? VisitExpecting(assign.Source, Expectation.Of(declaredType)) : Visit(assign.Source);
         var sourceType = TypeOf(source);
 
         // `let a = 1`: a local without a declared type takes the type of its value.
@@ -486,6 +490,10 @@ internal sealed partial class TypeChecker
 
     private (IrExpression, ITypeRef?) VisitCall(IrCall call)
     {
+        // Taken before anything inside the call is visited: it is about this call only.
+        var expected = _expected;
+        _expected = null;
+
         // `x.ignored()` of a `!T` and `x.unwrap()` of a `?T` are not functions: they are operators the backend knows.
         if (call.callee is IrAccess { access.Reference: UnsolvedRef { Value: "ignored" or "unwrap" } intrinsic } intrinsicAccess
             && call.ArgumentsList.arguments.Length == 0)
@@ -514,16 +522,16 @@ internal sealed partial class TypeChecker
         switch (CalleeReference(visited.callee))
         {
             case FunctionGroupTypeReference group:
-                visited = ResolveOverload(visited, group.FunctionGroup.Name, OverloadsOf(group.FunctionGroup, viaValue)) ?? visited;
+                visited = ResolveOverload(visited, group.FunctionGroup.Name, OverloadsOf(group.FunctionGroup, viaValue), expected) ?? visited;
                 break;
 
             // A single function is a group of one: its arguments are checked and converted all the same.
             case FunctionTypeReference { Function: TqFunction function }:
-                visited = ResolveOverload(visited, function.Name, [ToOverload(function)]) ?? visited;
+                visited = ResolveOverload(visited, function.Name, [ToOverload(function)], expected) ?? visited;
                 break;
 
             case FunctionTypeReference { Function: DotnetMethod { IsConstructor: false } method }:
-                visited = ResolveOverload(visited, method.Name, [ToOverload(method)]) ?? visited;
+                visited = ResolveOverload(visited, method.Name, [ToOverload(method)], expected) ?? visited;
                 break;
         }
 

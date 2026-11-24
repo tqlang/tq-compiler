@@ -155,7 +155,17 @@ internal sealed partial class TypeChecker(
     /// </summary>
     private IrStatement CheckReturn(IrReturnStatement returnStatement)
     {
-        var value = returnStatement.ReturnValue != null ? Visit(returnStatement.ReturnValue) : null;
+        // `return f()`: a call is chosen by what it returns, which has to be what the function returns.
+        ITypeRef? expectedReturn = null;
+        if (returnStatement.ReturnValue is IrCall && _function is { } current && current is not (TqConstructor or TqDestructor))
+        {
+            expectedReturn = current.ReturnType == null ? new StructTypeReference(CompilerStd.Types.Void) : TypeFromExpression(current.ReturnType);
+            if (CompilerStd.Types.IsFailable(expectedReturn, out var inside)) expectedReturn = StructSemantics.ValueTypeOf(inside);
+        }
+
+        var value = returnStatement.ReturnValue != null
+            ? expectedReturn != null ? VisitExpecting(returnStatement.ReturnValue, Expectation.Of(expectedReturn)) : Visit(returnStatement.ReturnValue)
+            : null;
         var function = _function;
         if (function == null) return returnStatement with { ReturnValue = value };
 
@@ -208,7 +218,7 @@ internal sealed partial class TypeChecker(
                 return CheckReturn(returnStatement);
 
             case IrExpressionStatement expressionStatement:
-                return expressionStatement with { Expression = Visit(expressionStatement.Expression) };
+                return expressionStatement with { Expression = VisitExpecting(expressionStatement.Expression, Expectation.Discard) };
 
             case IrIf ifStatement:
             {

@@ -70,6 +70,11 @@ funções por uma chamada a uma única função (`FunctionTypeReference`), conve
   literal precisa de tipo explícito (`5 as i32`).
 - Se faltar informação de tipo (de um argumento ou parâmetro), a chamada fica sem resolver, sem erro.
 - Sem overload aplicável, ou com mais de um empatado, é erro de compilação.
+- O tipo de retorno desempata, só entre overloads que aceitam os argumentos igualmente bem (os argumentos vêm primeiro). O
+  contexto da chamada diz o que se faz com o valor: um statement que o descarta prefere o overload que retorna `void`; `let T x = f()`
+  e `return f()` preferem os que retornam `T` (exato antes de com conversão) e descartam os que retornam outra coisa. Retorno
+  desconhecido (genérico) serve, mas não é o melhor. Nos demais lugares (argumento de outra chamada, atribuição a variável
+  existente, operandos) não há contexto, e o empate continua sendo ambiguidade.
 - Funções com `@implicitConvert` (um parâmetro, um retorno) registram uma conversão implícita; o argumento passa por
   uma chamada a elas, com custo maior que o alargamento. Só valem para código que alcança a função.
 - `@onset` torna um tipo observável: se o tipo de `a` tem uma função `@onset` (um parâmetro) que aceita `v`, então

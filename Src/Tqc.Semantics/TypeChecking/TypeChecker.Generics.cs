@@ -142,7 +142,10 @@ internal sealed partial class TypeChecker
             expressions[i] = types[i] is { } substituted ? TypeExpressionOf(substituted, location) : null;
         }
 
-        return overload with { ParameterTypes = types, ParameterTypeExpressions = expressions };
+        // What it returns takes the same types; one that is not known stays null (it fits whatever is asked).
+        var returned = DependsOnTypeParameter(overload.Return) ? Substitute(overload.Return, bound) : overload.Return;
+
+        return overload with { ParameterTypes = types, ParameterTypeExpressions = expressions, Return = returned };
     }
 
     /// <summary>What a call to the function returns: its return type, with the types the call gave in place of `T`.</summary>

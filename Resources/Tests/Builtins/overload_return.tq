@@ -1,0 +1,37 @@
+from Std import { Test }
+
+let int effects = 0
+
+# Same parameters, different return type: what is done with the value picks one.
+func pick(int number) int => number * 2
+func pick(int number) { effects = effects + 1 }
+func pick(int number) string => "text"
+
+func asInt() int => pick(5)
+func asString() string => pick(5)
+
+@public func testOverloadReturn() {
+    Test.newTestUnit("overload by return type - the declared type of a variable")
+    {
+        let int number = pick(21)
+        let string text = pick(1)
+
+        Test.assert(number, 42)
+        Test.assert(text, "text")
+    }
+
+    Test.newTestUnit("overload by return type - a discarded value prefers void")
+    {
+        effects = 0
+        pick(1)
+        pick(2)
+
+        Test.assert(effects, 2)
+    }
+
+    Test.newTestUnit("overload by return type - return")
+    {
+        Test.assert(asInt(), 10)
+        Test.assert(asString(), "text")
+    }
+}

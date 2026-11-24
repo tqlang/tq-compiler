@@ -14,7 +14,8 @@ internal sealed record Overload(
     IFunction Function,
     IReadOnlyList<ITypeRef?> ParameterTypes,
     IReadOnlyList<IrExpression?> ParameterTypeExpressions,
-    int RequiredCount)
+    int RequiredCount,
+    ITypeRef? Return = null)
 {
     public bool Accepts(int argumentCount) => argumentCount >= RequiredCount && argumentCount <= ParameterTypes.Count;
 }
@@ -23,15 +24,36 @@ internal sealed partial class TypeChecker
 {
     private sealed record Candidate(Overload Overload, ArgumentMatch[] Matches);
 
+    /// <summary>What the place a call is in does with its value: nothing (a statement), or it has to be of a type.</summary>
+    private readonly record struct Expectation(bool Discarded, ITypeRef? Type)
+    {
+        public static Expectation Discard => new(true, null);
+        public static Expectation Of(ITypeRef? type) => new(false, type);
+    }
+
+    /// <summary>
+    /// Set for the call that is about to be visited, by whoever knows what is done with its value; the call takes it first
+    /// thing, so that the calls inside its arguments do not see it. It only breaks ties between overloads that take the
+    /// arguments equally well: the types of the arguments come first.
+    /// </summary>
+    private Expectation? _expected;
+
+    private IrExpression VisitExpecting(IrExpression expression, Expectation expectation)
+    {
+        if (expression is IrCall) _expected = expectation;
+        try { return Visit(expression); }
+        finally { _expected = null; }
+    }
+
     /// <summary>
     /// Picks the function of the overloads that a call uses and returns the call pointing at it, with the
     /// arguments converted to the parameter types. Null when the call stays unresolved: either no overload
     /// fits (an error was reported) or there is not enough type information yet.
     /// </summary>
-    private IrCall? ResolveOverload(IrCall call, string name, List<Overload> overloads)
+    private IrCall? ResolveOverload(IrCall call, string name, List<Overload> overloads, Expectation? expected = null)
     {
         var arguments = call.ArgumentsList.arguments;
-        var winner = ChooseOverload(name, "overload", overloads, arguments, call.Location, ReceiverBindings(call.callee));
+        var winner = ChooseOverload(name, "overload", overloads, arguments, call.Location, ReceiverBindings(call.callee), expected);
         if (winner == null) return null;
 
         var function = new FunctionTypeReference(winner.Overload.Function);
@@ -107,7 +129,7 @@ internal sealed partial class TypeChecker
     /// <summary>The best of the overloads for these arguments; null if none, or if it cannot be told yet.</summary>
     private Candidate? ChooseOverload(
         string name, string noun, List<Overload> overloads, IrExpression[] arguments, SourceLocation location,
-        Dictionary<TqParameter, ITypeRef>? receiver = null)
+        Dictionary<TqParameter, ITypeRef>? receiver = null, Expectation? expected = null)
     {
         var argumentTypes = arguments.Select(TypeOf).ToArray();
         var allOverloads = overloads;
@@ -151,13 +173,59 @@ internal sealed partial class TypeChecker
         if (candidates.Any(candidate => candidate.Matches.Any(match => match.Kind == MatchKind.Unknown))) return null;
 
         var best = candidates.Where(candidate => candidates.All(other => ReferenceEquals(other, candidate) || Dominates(candidate, other))).ToList();
-        if (best.Count != 1)
+        if (best.Count == 1) return best[0];
+
+        // The arguments do not decide: what is done with the value of the call does. Only candidates that fit the arguments
+        // exactly as well as each other are left to it.
+        var open = candidates.Where(candidate => !candidates.Any(other => Dominates(other, candidate))).ToList();
+        if (expected is { } expectation && open.Count > 1 && open.All(candidate => SameCosts(candidate, open[0])))
         {
-            ReportAmbiguity(name, noun, candidates, arguments, location);
-            return null;
+            var byReturn = ChooseByReturn(open, expectation);
+            if (byReturn.Count == 1) return byReturn[0];
+            if (byReturn.Count > 1) open = byReturn;
         }
 
-        return best[0];
+        ReportAmbiguity(name, noun, open.Count > 1 ? open : candidates, arguments, location);
+        return null;
+    }
+
+    private static bool SameCosts(Candidate a, Candidate b) =>
+        a.Matches.Zip(b.Matches).All(pair => pair.First.Cost == pair.Second.Cost);
+
+    /// <summary>
+    /// The candidates whose return type suits what the call is for, the best fit only. A statement that throws the value away
+    /// prefers a function that returns nothing; a place that needs a type takes the ones that return it (exactly before with a
+    /// conversion), and not the ones that return something else. A return type that is not known fits, but not best.
+    /// </summary>
+    private List<Candidate> ChooseByReturn(List<Candidate> candidates, Expectation expected)
+    {
+        var ranked = new List<(Candidate Candidate, int Rank)>();
+
+        foreach (var candidate in candidates)
+        {
+            var returned = candidate.Overload.Return;
+            var isVoid = returned != null && ConversionRules.IsStruct(returned, CompilerStd.Types.Void);
+
+            int? rank;
+            if (expected.Discarded) rank = isVoid ? 0 : 1;
+            else if (returned == null || expected.Type == null) rank = 1;
+            else
+            {
+                var fit = ConversionRules.Classify(returned, new IrNull(default), expected.Type, conversions, _accessor);
+                rank = fit.Kind switch
+                {
+                    MatchKind.Exact => 0,
+                    MatchKind.Convert => 1 + fit.Cost,
+                    _ => null,
+                };
+            }
+
+            if (rank is { } value) ranked.Add((candidate, value));
+        }
+
+        if (ranked.Count == 0) return [];
+        var lowest = ranked.Min(entry => entry.Rank);
+        return [..ranked.Where(entry => entry.Rank == lowest).Select(entry => entry.Candidate)];
     }
 
     /// <summary>`a` is better when it fits every argument at least as well as `b` and one of them better.</summary>
@@ -344,7 +412,8 @@ internal sealed partial class TypeChecker
             function,
             FunctionSignature.Of(function)!.Parameters,
             [..parameters.Select(parameter => (IrExpression?)parameter.Type)],
-            parameters.Count(parameter => parameter.DefaultValue == null));
+            parameters.Count(parameter => parameter.DefaultValue == null),
+            FunctionSignature.Of(function)!.Return);
     }
 
     /// <summary>
@@ -362,7 +431,8 @@ internal sealed partial class TypeChecker
             method,
             parameterTypes,
             [..parameterTypes.Select(_ => (IrExpression?)null)],
-            parameterTypes.Count);
+            parameterTypes.Count,
+            FunctionSignature.Of(method)!.Return);
     }
 
     private static string Candidates(string name, List<Overload> overloads) =>

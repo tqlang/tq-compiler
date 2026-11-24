@@ -6,6 +6,7 @@ from Tests import {
 @public func runTests() {
     Builtins.testConditionals()
     Builtins.testFunctions()
+    Builtins.testOverloadReturn()
     Builtins.testProperties()
     Builtins.testConstants()
     Builtins.testStrings()
