@@ -39,8 +39,21 @@ internal sealed partial class TypeChecker(
             .CheckNamespace(module.RootNamespace, []);
     }
 
-    private void Error(string message, SourceLocation location) =>
-        diagnostics.ReportError(new TypeError(message, location));
+    /// <summary>Above zero while something is tried that may fail without it being an error (see Quietly).</summary>
+    private int _silenced;
+
+    private void Error(string message, SourceLocation location)
+    {
+        if (_silenced == 0) diagnostics.ReportError(new TypeError(message, location));
+    }
+
+    /// <summary>What `action` gives, with the errors it finds not reported: to try one way and then another.</summary>
+    private T Quietly<T>(Func<T> action)
+    {
+        _silenced++;
+        try { return action(); }
+        finally { _silenced--; }
+    }
 
     private void CheckNamespace(TqNamespace namespaceNode, List<TqNamespace> path)
     {

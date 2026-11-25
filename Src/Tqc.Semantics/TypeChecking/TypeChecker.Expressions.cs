@@ -536,6 +536,9 @@ internal sealed partial class TypeChecker
         switch (CalleeReference(visited.callee))
         {
             case FunctionGroupTypeReference group:
+                if (viaValue && visited.callee is IrAccess memberAccess && ExtensionWhenMembersFail(visited, memberAccess, group, expected) is { } extension2)
+                    return extension2;
+
                 visited = ResolveOverload(visited, group.FunctionGroup.Name, OverloadsOf(group.FunctionGroup, viaValue), expected) ?? visited;
                 break;
 

@@ -65,6 +65,23 @@ internal sealed partial class TypeChecker
     }
 
     /// <summary>
+    /// `x.f(args)` where the type of `x` has an `f` but none of its overloads takes these arguments, and an extension method `f` does
+    /// (`window.Run()`: `IView` has `Run(Action)`, `WindowExtensions` has `Run(IView)`): the call of the extension, as in C#, where
+    /// the members of the type come first and the extensions only when none of them fits. Null when a member fits, or no extension does.
+    /// </summary>
+    private (IrExpression, ITypeRef?)? ExtensionWhenMembersFail(IrCall call, IrAccess callee, FunctionGroupTypeReference group, Expectation? expected)
+    {
+        var name = group.FunctionGroup.Name;
+        if (extensions.Named(name) is not { } extensionGroup) return null;
+
+        var members = OverloadsOf(group.FunctionGroup, viaValue: true);
+        if (Quietly(() => ResolveOverload(call, name, members, expected)) != null) return null;
+
+        var attempt = Quietly(() => VisitExtensionCall(call, callee.baseExpr, new ExtensionReference(extensionGroup), expected));
+        return ReferenceEquals(attempt.Item1, call) ? null : attempt;
+    }
+
+    /// <summary>
     /// `x.f(args)` where the type of `x` has no `f`: the extension methods `f` of .NET with `x` as the first argument,
     /// chosen as any overload is. The call becomes a call of the static method.
     /// </summary>
