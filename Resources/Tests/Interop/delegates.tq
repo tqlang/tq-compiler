@@ -4,10 +4,15 @@ from Dotnet.System.ComponentModel import { Component }
 
 let int hits = 0
 let int disposals = 0
+let int total = 0
 
 func hitOnce() { hits = hits + 1 }
 
 func hitTen() { hits = hits + 10 }
+
+func addToTotal(i32 amount) { total = total + amount }
+
+func doubleToTotal(i32 amount) { total = total + amount * 2 }
 
 # The signature of `EventHandler`: (object, EventArgs).
 func onDisposed(*Object sender, *EventArgs args) { disposals = disposals + 1 }
@@ -66,5 +71,21 @@ func onDisposedAgain(*Object sender, *EventArgs args) { disposals = disposals + 
 
         component.Dispose()
         Test.assert(disposals, 1)
+    }
+
+    Test.newTestUnit("Interop - delegates - a generic delegate takes the function whose parameters are its arguments")
+    {
+        total = 0
+
+        let *Action(i32) action = addToTotal
+        action += doubleToTotal
+        Test.assert(action.GetInvocationList().len, 2)
+
+        action.Invoke(5)
+        Test.assert(total, 15)
+
+        action -= addToTotal
+        action.Invoke(5)
+        Test.assert(total, 25)
     }
 }

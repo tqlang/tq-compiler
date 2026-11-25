@@ -247,14 +247,14 @@ sealed internal class DotnetModuleBuilder(AssemblyDefinition[] assemblies)
         var kind = TypeClassifier.Classify(definition);
 
         // A delegate is only useful with its `Invoke` (what a function has to look like to become it), so its members are always read.
-        if (kind == TypeKind.Delegate && !definition.HasGenericParameters) isExternal = false;
+        if (kind == TypeKind.Delegate) isExternal = false;
 
-        var typeParameters = kind is TypeKind.Class or TypeKind.Struct or TypeKind.Interface
+        var typeParameters = kind is TypeKind.Class or TypeKind.Struct or TypeKind.Interface or TypeKind.Delegate
             ? MemberReferenceFactory.TypeParametersOf(definition.GenericParameters)
             : Array.Empty<TqParameter>();
         var node = new TypeNode(TypeClassifier.GetTypeName(definition), kind, reference, definition, isExternal)
         {
-            DotnetType = CreateDotnetType(kind, reference, typeParameters, definition.HasGenericParameters),
+            DotnetType = CreateDotnetType(kind, reference, typeParameters),
             TypeParameters = typeParameters,
         };
         _nodes.Add(TypeKey.Of(definition), node);
@@ -278,7 +278,7 @@ sealed internal class DotnetModuleBuilder(AssemblyDefinition[] assemblies)
 
     // O Dotnet* guarda a Reference (como o tipo é endereçado), nunca a Definition.
     private static IDotnetType? CreateDotnetType(
-        TypeKind kind, TypeReference reference, IReadOnlyList<TqParameter> typeParameters, bool generic) => kind switch
+        TypeKind kind, TypeReference reference, IReadOnlyList<TqParameter> typeParameters) => kind switch
     {
         TypeKind.StaticClass => new DotnetStaticClass(reference, TypeClassifier.GetTypeName(reference)),
         TypeKind.Class       => new DotnetClass(reference, TypeClassifier.GetTypeName(reference)) { Parameters = typeParameters },
@@ -287,7 +287,7 @@ sealed internal class DotnetModuleBuilder(AssemblyDefinition[] assemblies)
         TypeKind.Interface   => typeParameters.Count > 0
             ? new DotnetGenericInterface(reference, TypeClassifier.GetTypeName(reference)) { Parameters = typeParameters }
             : new DotnetInterface(reference, TypeClassifier.GetTypeName(reference)),
-        TypeKind.Delegate    => generic ? null : new DotnetDelegate(reference, TypeClassifier.GetTypeName(reference)), // generic delegates: not yet
+        TypeKind.Delegate    => new DotnetDelegate(reference, TypeClassifier.GetTypeName(reference)) { Parameters = typeParameters },
 
         _ => throw new ArgumentOutOfRangeException(nameof(kind), kind, null),
     };

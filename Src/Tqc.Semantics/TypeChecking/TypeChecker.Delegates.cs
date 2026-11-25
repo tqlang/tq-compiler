@@ -9,10 +9,18 @@ namespace Tqc.Semantics;
 
 internal sealed partial class TypeChecker
 {
-    /// <summary>The delegate of .NET that a type is a reference to (`*Action`); null for any other type.</summary>
+    /// <summary>
+    /// The delegate of .NET that a type is a reference to (`*Action`, `*Action(f64)`); null for any other type. For one that is
+    /// generic it is the definition: what its `Invoke` says in terms of `T` is told by the arguments of the type (see `BindingsOf`).
+    /// </summary>
     private static DotnetDelegate? DelegateOf(ITypeRef? type) =>
-        type != null && CompilerStd.Types.IsRef(type, out var referred) && referred is StructTypeReference { Struct: DotnetDelegate found }
-            ? found
+        type != null && CompilerStd.Types.IsRef(type, out var referred) && referred is StructTypeReference { Struct: var structure }
+            ? structure switch
+            {
+                DotnetDelegate found => found,
+                GenericInstance { Definition: DotnetDelegate generic } => generic,
+                _ => null,
+            }
             : null;
 
     /// <summary>The functions of Tq that a name denotes (a single one is a group of one); null if it is not the name of a function.</summary>
@@ -43,7 +51,12 @@ internal sealed partial class TypeChecker
         var name = functions.Count > 0 ? functions[0].Name : "?";
         var delegateName = TypeFormatter.Format(delegateType);
 
-        if (delegateInfo.Invoke is not { } invoke || FunctionSignature.Of(invoke) is not { } wanted)
+        // `Action(f64)`: the `Invoke` is `(T)`, and `T` is `f64` here.
+        var bound = BindingsOf(delegateType);
+        var generic = delegateInfo.Invoke is { } found ? FunctionSignature.Of(found) : null;
+        var wanted = generic == null ? null : new FunctionSignature([..generic.Parameters.Select(parameter => Substitute(parameter, bound))], Substitute(generic.Return, bound));
+
+        if (wanted == null)
         {
             Error($"The delegate '{delegateName}' has no 'Invoke' that tells what a function has to look like to be it ({where})", written.Location);
             return null;

@@ -331,13 +331,13 @@ cada aplicação é uma `GenericInstance` da tabela compartilhada; não há nó 
   (sem corpo; é a classe que os marca como intrínsecos). O TypeChecker os resolve como qualquer membro (overloads, `T` do receptor,
   erro de membro inexistente) e o backend intercepta a chamada ou a leitura (`BodyEmitter.EmitIntrinsic`) e faz o lowering; `.min`/`.max`
   viram `IrComptimeInt` do tipo. Ainda fora disso, como casos especiais: `.len`, os operadores e os pseudotipos `*T`/`?T`/`!T`.
-- Delegates do .NET sem parâmetros genéricos (`Action`, `EventHandler`) são `DotnetDelegate`: classes (logo `*Action`) cuja assinatura é a
+- Delegates do .NET (`Action`, `EventHandler`, `Action(i32)`) são `DotnetDelegate`: classes (logo `*Action`) cuja assinatura é a
   do `Invoke`. Eventos (`DotnetEvent`, lidos de `definition.Events`; os acessores `add_X`/`remove_X` continuam métodos) não têm valor:
   `x.Evento += f` e `x.Evento -= f` viram a chamada de `add`/`remove` com `f` como delegate. Em uma variável, parâmetro ou campo de
   delegate, `d += f` é `Delegate.Combine` e `d -= f` é `Delegate.Remove` (`IrDelegateChain`). `f` é o nome de uma função estática
   (de namespace ou `@static`) cuja assinatura é igual à do `Invoke` (`IrFunctionDelegate`: `ldnull`, `ldftn`, `newobj`); a conversão
   também vale em declaração/atribuição (`let *Action a = f`). Reconhece-se `+=`/`-=` pela localização: o lowering dá ao `a + b` a do
-  `a += b` inteiro. Ainda não: delegates genéricos, eventos estáticos, métodos de instância, função como argumento de chamada.
+  `a += b` inteiro. Delegates genéricos (`Action(i32)`, `Action(f64)`) valem igual: o `Invoke` é lido em termos de `T` e `BindingsOf` dá o `T` do tipo. Ainda não: eventos estáticos, métodos de instância, função como argumento de chamada.
 - `!T` e `?T` valem como expressão: o parser e o lowering os tratam como os operadores unários `!` (não lógico) e `?`
   (`UnaryOperator.Nullable`). O ReferenceBinder, depois de resolver o operando, decide: se ele é um tipo, a expressão vira
   uma referência a `Failable(T)` / `Nullable(T)`; senão continua sendo o operador. `?x` com `x` valor é erro de operador.
