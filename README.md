@@ -337,6 +337,10 @@ cada aplicação é uma `GenericInstance` da tabela compartilhada; não há nó 
   receptor passa pelas mesmas conversões de um argumento (um upcast de classe para interface precisa de `as`). Ainda não: extensões
   com parâmetros de tipo próprios (LINQ), extensões declaradas em Tq, filtro por import, receptor `ref this`, extensão de tipos sem membros
   (inteiros, slices).
+- Fatia para view do .NET: em argumentos de chamada (só aí) um `[]T` vira `Span(T)`, `ReadOnlySpan(T)`, `Memory(T)` ou
+  `ReadOnlyMemory(T)` (`ConversionRules.ClassifyArgument`, custo 20; o `T` tem de ser o mesmo do elemento; `[N]T` não converte, é um
+  buffer da pilha). No backend a fatia é um `Memory<T>`: `.Span` para `Span`, e `ReadOnlyMemory` (e o `.Span` dele) para os read-only;
+  o que o .NET escreve no `Span` aparece na fatia. `&array` continua sendo `[]T`, não `*T`. Em atribuição e declaração não vale.
 - Delegates do .NET (`Action`, `EventHandler`, `Action(i32)`) são `DotnetDelegate`: classes (logo `*Action`) cuja assinatura é a
   do `Invoke`. Eventos (`DotnetEvent`, lidos de `definition.Events`; os acessores `add_X`/`remove_X` continuam métodos) não têm valor:
   `x.Evento += f` e `x.Evento -= f` viram a chamada de `add`/`remove` com `f` como delegate. Em uma variável, parâmetro ou campo de

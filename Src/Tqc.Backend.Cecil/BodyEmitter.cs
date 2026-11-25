@@ -245,6 +245,39 @@ internal sealed class BodyEmitter
         _il.Append(end);
     }
 
+    /// <summary>
+    /// The `Memory<T>` on the stack as the view of .NET that is asked: `ReadOnlyMemory<T>` (its implicit conversion), `Span<T>`
+    /// (`.Span`) or `ReadOnlySpan<T>` (`.Span` of the `ReadOnlyMemory<T>`). False if `expected` is none of them.
+    /// </summary>
+    private bool EmitSliceView(GenericInstanceType memory, TypeReference expected)
+    {
+        if (expected is not GenericInstanceType { ElementType.FullName: var name } || name is not ("System.Span`1" or "System.ReadOnlySpan`1" or "System.ReadOnlyMemory`1"))
+            return false;
+
+        var element = memory.GenericArguments[0];
+        var readOnly = new GenericInstanceType(Core("System.ReadOnlyMemory`1"));
+        readOnly.GenericArguments.Add(element);
+
+        if (name == "System.Span`1")
+        {
+            var held = NewTemp(memory);
+            _il.Emit(OpCodes.Stloc, held);
+            _il.Emit(OpCodes.Ldloca, held);
+            _il.Emit(OpCodes.Call, _owner.GenericMember("System.Memory`1", memory, "get_Span", 0));
+            return true;
+        }
+
+        _il.Emit(OpCodes.Call, _owner.GenericMember("System.Memory`1", memory, "op_Implicit", 1,
+            parameter => parameter.ParameterType is GenericInstanceType { ElementType.FullName: "System.Memory`1" }));
+        if (name == "System.ReadOnlyMemory`1") return true;
+
+        var readOnlyHeld = NewTemp(readOnly);
+        _il.Emit(OpCodes.Stloc, readOnlyHeld);
+        _il.Emit(OpCodes.Ldloca, readOnlyHeld);
+        _il.Emit(OpCodes.Call, _owner.GenericMember("System.ReadOnlyMemory`1", readOnly, "get_Span", 0));
+        return true;
+    }
+
     /// <summary>`Memory<T>` of the array on the stack, which it refers to.</summary>
     private void EmitMemoryOf(GenericInstanceType memory) =>
         _il.Emit(OpCodes.Newobj, _owner.GenericMember("System.Memory`1", memory, ".ctor", 1, parameter => parameter.ParameterType is ArrayType));
@@ -815,6 +848,9 @@ internal sealed class BodyEmitter
             EmitMemoryOf(wrapper);
             return expected;
         }
+
+        // A slice where .NET asks for a view of one: `Span<T>`, `ReadOnlySpan<T>` or `ReadOnlyMemory<T>` (`Memory<T>` is the slice itself).
+        if (IsMemory(actual, out var sliced) && EmitSliceView(sliced, expected)) return expected;
 
         if (IsMemory(actual, out var viewed) && expected is ArrayType)
         {

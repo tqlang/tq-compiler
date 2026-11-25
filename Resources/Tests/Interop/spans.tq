@@ -1,0 +1,23 @@
+from Std import { Test }
+from Dotnet.System import { BitConverter }
+
+# A slice (`&array`, or a `[]T`) goes where .NET asks for `Span(T)`, `ReadOnlySpan(T)`, `Memory(T)` or `ReadOnlyMemory(T)`;
+# only in the arguments of a call.
+@public func testSpans() {
+    Test.newTestUnit("Interop - spans - a slice is a ReadOnlySpan")
+    {
+        # BitConverter.ToInt32(ReadOnlySpan(u8)), little endian.
+        let [4]u8 bytes = [1, 1, 0, 0]
+        Test.assert(BitConverter.ToInt32(&bytes), 257)
+    }
+
+    Test.newTestUnit("Interop - spans - a slice is a Span, and what .NET writes in it is seen")
+    {
+        # BitConverter.TryWriteBytes(Span(u8), i32)
+        let [4]u8 buffer = [0, 0, 0, 0]
+        let i32 value = 258
+        Test.assert(BitConverter.TryWriteBytes(&buffer, value), true)
+        Test.assert(buffer[0], 2)
+        Test.assert(buffer[1], 1)
+    }
+}

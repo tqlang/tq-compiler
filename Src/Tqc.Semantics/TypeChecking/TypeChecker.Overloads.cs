@@ -154,7 +154,7 @@ internal sealed partial class TypeChecker
         foreach (var overload in byArity)
         {
             var matches = arguments
-                .Select((argument, i) => ConversionRules.Classify(
+                .Select((argument, i) => ConversionRules.ClassifyArgument(
                     argumentTypes[i], argument, overload.ParameterTypes[i], conversions, _accessor))
                 .ToArray();
 

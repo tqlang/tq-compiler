@@ -40,6 +40,7 @@ from Tests import {
     Interop.testGenericInterfaces()
     Interop.testRefParameters()
     Interop.testDelegates()
+    Interop.testSpans()
 
     StdLib.testDynamicArray()
     StdLib.testDictionaries()

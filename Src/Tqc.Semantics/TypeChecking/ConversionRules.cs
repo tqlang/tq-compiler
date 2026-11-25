@@ -56,6 +56,7 @@ internal static class ConversionRules
     // A widening conversion costs more than any literal rule, and grows with the size added.
     private const int Widening = 10;
     private const int Upcast = 10;
+    private const int SliceView = 20;
     private const int UserConversion = 100;
     private const int GenericParameter = 1000;
     private const int NullToNullable = 1;
@@ -106,6 +107,32 @@ internal static class ConversionRules
 
         var via = conversions.Find(argument, parameter, accessor);
         return via != null ? new ArgumentMatch(MatchKind.Convert, UserConversion, via) : ArgumentMatch.None;
+    }
+
+    /// <summary>
+    /// How an argument of a call fits a parameter: what `Classify` says, and besides that a slice goes where the
+    /// view of one is asked (see `ClassifySliceView`). This one is only for calls: an assignment does not do it.
+    /// </summary>
+    public static ArgumentMatch ClassifyArgument(
+        ITypeRef? argument, IrExpression argumentNode, ITypeRef? parameter,
+        ImplicitConversions conversions, AccessContext accessor)
+    {
+        var match = Classify(argument, argumentNode, parameter, conversions, accessor);
+        return match.Kind == MatchKind.None && argument != null && parameter != null ? ClassifySliceView(argument, parameter) : match;
+    }
+
+    /// <summary>
+    /// A `[]T` goes where `Span(T)`, `ReadOnlySpan(T)`, `Memory(T)` or `ReadOnlyMemory(T)` of .NET is asked (the slice is a
+    /// `Memory(T)` in the backend). An array `[N]T` does not: it is a buffer of the stack.
+    /// </summary>
+    private static ArgumentMatch ClassifySliceView(ITypeRef argument, ITypeRef parameter)
+    {
+        if (argument is not SliceTypeRef { Element: var element }) return ArgumentMatch.None;
+        if (parameter is not StructTypeReference { Struct: GenericInstance { Definition: DotnetStruct definition, Arguments: [var written] } }) return ArgumentMatch.None;
+        if (definition.TypeReference.FullName is not ("System.Span`1" or "System.ReadOnlySpan`1" or "System.Memory`1" or "System.ReadOnlyMemory`1"))
+            return ArgumentMatch.None;
+
+        return TypeExpressions.Raw(written) is { } wanted && SameType(wanted, element) ? Convert(SliceView) : ArgumentMatch.None;
     }
 
     /// <summary>A number: a sized integer, a float, or a literal of either.</summary>
