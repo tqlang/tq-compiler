@@ -325,6 +325,12 @@ cada aplicação é uma `GenericInstance` da tabela compartilhada; não há nó 
   referências e a mensagem de erro (`ref T`) usam `Std.Types.IsRef`.
 - Parâmetros `ref`/`out` do .NET são `Ref(T)` (um ponteiro gerenciado). `&x` de uma variável ou parâmetro que é valor (`i32`, uma
   struct) dá o endereço dele: `dict.TryGetValue("k", &value)`. Só variáveis e parâmetros; campos e elementos de array ainda não.
+- O que os tipos criados pelo compilador (`Std.Types`) sabem fazer é declarado neles como membros intrínsecos
+  (`CompilerStd.DeclareIntrinsics`): `Nullable(T).unwrap()` e `.value`, `Failable(T).ignored()`, `.min` e `.max` de `Integer`,
+  `NaturalInteger` e `NativeInteger`. `PrimitiveStruct` é um `IMemberContainer`; os membros são `IntrinsicMethod`/`IntrinsicProperty`
+  (sem corpo; é a classe que os marca como intrínsecos). O TypeChecker os resolve como qualquer membro (overloads, `T` do receptor,
+  erro de membro inexistente) e o backend intercepta a chamada ou a leitura (`BodyEmitter.EmitIntrinsic`) e faz o lowering; `.min`/`.max`
+  viram `IrComptimeInt` do tipo. Ainda fora disso, como casos especiais: `.len`, os operadores e os pseudotipos `*T`/`?T`/`!T`.
 - Delegates do .NET sem parâmetros genéricos (`Action`, `EventHandler`) são `DotnetDelegate`: classes (logo `*Action`) cuja assinatura é a
   do `Invoke`. Eventos (`DotnetEvent`, lidos de `definition.Events`; os acessores `add_X`/`remove_X` continuam métodos) não têm valor:
   `x.Evento += f` e `x.Evento -= f` viram a chamada de `add`/`remove` com `f` como delegate. Em uma variável, parâmetro ou campo de

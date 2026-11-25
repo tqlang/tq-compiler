@@ -89,6 +89,16 @@ public sealed class StdTypes
     /// </summary>
     internal void DeclareIntrinsics()
     {
+        // The bounds of an integer: `u8.max`, `i32.min`. They are constants of the type that they are read from.
+        foreach (var integer in new[] { Integer, NaturalInteger, NativeInteger })
+        {
+            integer.Members =
+            [
+                new IntrinsicProperty("min", integer, null) { IsStatic = true },
+                new IntrinsicProperty("max", integer, null) { IsStatic = true },
+            ];
+        }
+
         // What the wrappers can do. Each is intrinsic: the backend lowers a call to it (`x.unwrap()`, `x.value`, `x.ignored()`).
         var maybe = new GenericParameterTypeRef(Nullable.Parameters[0]);
         Nullable.Members =

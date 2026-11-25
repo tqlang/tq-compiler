@@ -36,12 +36,19 @@ public sealed class IntrinsicMethodGroup(string name, IReadOnlyList<IntrinsicMet
     public override string ToString() => $"intrinsic group {name}";
 }
 
-/// <summary>A value that the compiler declares on one of its types (`Nullable(T).value`); it can only be read.</summary>
-public sealed class IntrinsicProperty(string name, PrimitiveStruct owner, ITypeRef type) : IField
+/// <summary>
+/// A value that the compiler declares on one of its types (`Nullable(T).value`, `Integer(...).max`); it can only be read.
+/// A static one belongs to the type (`u8.max`), and its type is the type itself (`Type` is null).
+/// </summary>
+public sealed class IntrinsicProperty(string name, PrimitiveStruct owner, ITypeRef? type) : IField
 {
     public string Name => name;
     public PrimitiveStruct Owner => owner;
-    public ITypeRef Type => type;
+
+    /// <summary>Null for a static one: the type that it is read from.</summary>
+    public ITypeRef? Type => type;
+
+    public bool IsStatic { get; init; }
 
     public override string ToString() => $"intrinsic {owner.Name}.{name}";
 }

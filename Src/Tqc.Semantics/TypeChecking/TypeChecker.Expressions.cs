@@ -352,8 +352,8 @@ internal sealed partial class TypeChecker
 
         // `u8.max` and `i32.min`: the bounds of an integer type. They are constants of that type (not literals: they
         // have a size), so `u8.max + 1` is a `u8` and overflows.
-        if (name.Value is "min" or "max" && IsTypeOrNamespace(baseExpr) && TypeFromExpression(baseExpr) is { } denoted
-            && (ConversionRules.IsInteger(denoted)))
+        if (IsTypeOrNamespace(baseExpr) && TypeFromExpression(baseExpr) is { } denoted
+            && ContainerOf(denoted)?.TryGetMember(name.Value) is IntrinsicProperty { IsStatic: true })
         {
             if (asTarget) Error($"'{name.Value}' of '{TypeFormatter.Format(denoted)}' is a constant and cannot be assigned", access.access.Location);
 
@@ -381,6 +381,12 @@ internal sealed partial class TypeChecker
         if (!AccessChecker.CanAccess(member, _accessor))
         {
             Error(AccessChecker.Explain(name.Value, member, _accessor), access.access.Location);
+            return (visited, null);
+        }
+
+        if (member is IntrinsicProperty { IsStatic: true })
+        {
+            Error($"'{name.Value}' is a member of the type, not of a value: write it on the type", access.access.Location);
             return (visited, null);
         }
 
@@ -590,7 +596,7 @@ internal sealed partial class TypeChecker
         FieldReference { Field: DotnetField field } => field.Type,
         FieldReference { Field: DotnetProperty property } => property.Type,
         FieldReference { Field: DotnetEvent @event } => @event.Type,
-        FieldReference { Field: IntrinsicProperty property } => property.Type,
+        FieldReference { Field: IntrinsicProperty { Type: { } intrinsicType } } => intrinsicType,
         ThisReference { Owner: TqTypedef typedef } => new TypedefTypeReference(typedef),
         ThisReference { Owner: IStruct owner } => StructSemantics.TypeOf(owner),
         FieldReference { Field: TqNamedCase { Typedef: { } typedef } } => new TypedefTypeReference(typedef),
