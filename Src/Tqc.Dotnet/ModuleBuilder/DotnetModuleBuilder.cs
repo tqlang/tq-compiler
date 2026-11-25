@@ -410,13 +410,12 @@ sealed internal class DotnetModuleBuilder(AssemblyDefinition[] assemblies)
                 node.Members.Add(Members.Property(property, declaring, node.TypeParameters));
         }
 
-        // An event with a delegate that is not supported (a generic one) is left out; its accessors are still methods.
+        // An event whose delegate is not supported (a generic one) is kept: using it says why it cannot be.
         foreach (var @event in definition.Events)
         {
             if (@event.AddMethod is not { } add || !MemberVisibility.IsVisible(add)) continue;
 
-            var built = Members.Event(@event, declaring, node.TypeParameters);
-            if (built.Type is not UnsupportedTypeRef) node.Members.Add(built);
+            node.Members.Add(Members.Event(@event, declaring, node.TypeParameters));
         }
 
         foreach (var method in definition.Methods)

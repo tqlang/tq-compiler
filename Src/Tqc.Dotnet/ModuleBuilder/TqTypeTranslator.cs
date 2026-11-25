@@ -129,7 +129,8 @@ sealed internal class TqTypeTranslator(Func<TypeReference, TypeNode?> lookup)
             TypeKind.Class     => CompilerStd.Types.RefOf(new StructTypeReference((IStruct)dotnetType)),
             TypeKind.Struct    => new StructTypeReference((IStruct)dotnetType),
             TypeKind.Enum      => new StructTypeReference((IStruct)dotnetType),
-            TypeKind.Interface => new ProtocolTypeReference((IProtocol)dotnetType),
+            // An interface is only ever referred to: what a member gives or takes is `*IWindow`.
+            TypeKind.Interface => CompilerStd.Types.RefOf(new ProtocolTypeReference((IProtocol)dotnetType)),
             TypeKind.Delegate  => CompilerStd.Types.RefOf(new StructTypeReference((IStruct)dotnetType)),
 
             _ => Unsupported(type), // StaticClass não é tipo de valor

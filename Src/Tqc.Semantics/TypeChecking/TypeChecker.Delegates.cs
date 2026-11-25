@@ -156,7 +156,7 @@ internal sealed partial class TypeChecker
 
         if (DelegateOf(@event.Type) is not { } delegateInfo)
         {
-            Error($"The type of the event '{@event.Name}' is not a delegate that is known", access.Location);
+            Error($"The event '{@event.Name}' takes a delegate that is not supported yet: {TypeFormatter.Format(@event.Type)} (generic delegates are not imported)", access.Location);
             return failed;
         }
 
