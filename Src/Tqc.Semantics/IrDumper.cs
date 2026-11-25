@@ -5,6 +5,7 @@ using Tqc.Core;
 using Tqc.IR;
 using Tqc.IR.Nodes;
 using Tqc.IR.ProgramMembers;
+using Tqc.IR.ProgramMembers.Primitive;
 using Tqc.IR.ProgramMembers.Tq;
 using Tqc.IR.References;
 
