@@ -164,7 +164,7 @@ internal class Lexer(string Source)
 
             while (!IsEof())
             {
-                var cc = PeekRune().Value;
+                var cc = (char)PeekRune().Value;
                 if (cc == '.')
                 {
                     if (numBase != 10 || isFloating) break;

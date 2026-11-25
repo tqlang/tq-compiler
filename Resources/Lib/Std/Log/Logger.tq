@@ -18,15 +18,20 @@ from Std import { Console }
 func log_raw(LogLevel level, string scope, string message) {
 	let value = ""
 
-	if (level == LogLevel.debug)   value += Console.color_black +  "[DEBUG] "
-	elif (level == LogLevel.warn)  value += Console.color_yellow + "[WARN ] "
-	elif (level == LogLevel.info)  value += Console.color_white +  "[INFO ] "
-	elif (level == LogLevel.error) value += Console.color_red +    "[ERROR] "
+	match (level) {
+		case LogLevel.debug => value += Console.color_black +  "[DEBUG] "
+		case LogLevel.warn =>  value += Console.color_yellow + "[WARN ] "
+		case LogLevel.info =>  value += Console.color_white +  "[INFO ] "
+		case LogLevel.error => value += Console.color_red +    "[ERROR] "
+	}
 
 	value += scope + ": "
 	value += message
 	value += Console.style_reset
 
-	Console.writeln(value)
+	match (level) {
+		case LogLevel.info =>  Console.out.writeLine(value)
+		case LogLevel.debug, LogLevel.warn, LogLevel.error => Console.err.writeLine(value)
+	}
 }
 

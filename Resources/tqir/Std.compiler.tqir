@@ -1,0 +1,56 @@
+module Std (primitive, created by the compiler)
+  namespace Std
+    namespace Math
+      typedef Operator
+        case Add
+        case AddOnBounds
+        case AddWrap
+        case Coalesce
+        case Decrement
+        case Div
+        case DivCeil
+        case DivFloor
+        case Equal
+        case ExactEqual
+        case Greater
+        case GreaterEqual
+        case Ignored
+        case Increment
+        case Less
+        case LessEqual
+        case Mul
+        case MulOnBounds
+        case MulWrap
+        case Negate
+        case Not
+        case NotEqual
+        case NotExactEqual
+        case Nullable
+        case Pow
+        case PowOnBounds
+        case PowWrap
+        case Rest
+        case Sub
+        case SubOnBounds
+        case SubWrap
+        case Try
+        case Unwrap
+    namespace Memory
+    namespace Types
+      primitive struct AnyType
+      primitive struct Bool
+      primitive struct Char
+      primitive struct Const(type)
+      primitive struct Failable(type)
+      primitive struct Float(bitSize)
+      primitive struct Integer(signed, bitSize)
+      primitive struct Label
+      primitive struct NativeInteger(signed)
+      primitive struct NaturalInteger(signed)
+      primitive struct NoReturn
+      primitive struct Nullable(type)
+      primitive struct Opaque
+      primitive struct Ref(type)
+      primitive struct String
+      primitive struct Type
+      primitive struct Void

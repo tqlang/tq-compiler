@@ -1,0 +1,20 @@
+from Std.Io import
+from Dotnet.System import { Console }
+
+@private struct StderrWriter
+	extends Stream
+	implements TextWriter
+{
+
+	@public @override func write(string value) {
+		Console.Error.Write(value)
+	}
+
+	@public @override func writeLine(string value) {
+		Console.Error.WriteLine(value)
+	}
+
+	@public @override func flush() {
+		Console.Error.Flush()
+	}
+}

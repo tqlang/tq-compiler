@@ -1,0 +1,796 @@
+; module Std
+namespace Std {
+    namespace Collections {
+        ; file /home/leo/Documentos/repos/tq-compiler/tq-compiler-vibes/Resources/Lib/Std/Collections/DynamicArray.tq
+        import @Dotnet.System.Collections.Generic { List }    ; @0:0
+        ; declares DynamicArray
+        
+        ; file /home/leo/Documentos/repos/tq-compiler/tq-compiler-vibes/Resources/Lib/Std/Collections/Dictionary.tq
+        import @Dotnet.System.Collections.Generic { CsDictionary = Dictionary }    ; @0:0
+        ; declares Dictionary
+        
+        !public
+        %Std.Collections.Dictionary(%TKey, %TValue) = public type {    ; ns=Std.Collections · /home/leo/Documentos/repos/tq-compiler/tq-compiler-vibes/Resources/Lib/Std/Collections/Dictionary.tq(2,0)
+            ; type parameter %TKey: type
+            ; type parameter %TValue: type
+            !public
+            define public void @Std.Collections.Dictionary.constructor() {    ; owner=Dictionary · ns=Std.Collections · /home/leo/Documentos/repos/tq-compiler/tq-compiler-vibes/Resources/Lib/Std/Collections/Dictionary.tq(6,1)
+                ref Dictionary(TKey, TValue) store(ref Dictionary(TKey, TValue) @_dict, ref Dictionary(TKey, TValue) new Dictionary(TKey, TValue)())    ; @7:2
+            }
+            field private ref Dictionary(TKey, TValue) @Std.Collections.Dictionary._dict    ; ns=Std.Collections · /home/leo/Documentos/repos/tq-compiler/tq-compiler-vibes/Resources/Lib/Std/Collections/Dictionary.tq(4,1)
+            !indexerGet
+            !public
+            define public ? %TValue @Std.Collections.Dictionary.indexerGet(? %TKey %key) {    ; owner=Dictionary · ns=Std.Collections · /home/leo/Documentos/repos/tq-compiler/tq-compiler-vibes/Resources/Lib/Std/Collections/Dictionary.tq(15,21)
+                ret TValue call @get_Item(TKey %key)    ; @15:57
+            }
+            !indexerSet
+            !public
+            define public void @Std.Collections.Dictionary.indexerSet(? %TKey %key, ? %TValue %value) {    ; owner=Dictionary · ns=Std.Collections · /home/leo/Documentos/repos/tq-compiler/tq-compiler-vibes/Resources/Lib/Std/Collections/Dictionary.tq(16,21)
+                void call @set_Item(TKey %key, TValue %value)    ; @16:64
+            }
+            !public
+            property public int @Std.Collections.Dictionary.len {    ; ns=Std.Collections · backing field: no · getter: yes · setter: no · accessors resolved: yes · /home/leo/Documentos/repos/tq-compiler/tq-compiler-vibes/Resources/Lib/Std/Collections/Dictionary.tq(18,9)
+                get public int() {    ; owner=Dictionary · ns=Std.Collections · /home/leo/Documentos/repos/tq-compiler/tq-compiler-vibes/Resources/Lib/Std/Collections/Dictionary.tq(18,24)
+                    ret int field(ref Dictionary(TKey, TValue) @_dict, @Count)    ; @18:24
+                }
+                ; get resolved to @Dictionary.get_len
+            }
+            !public
+            define public bool @Std.Collections.Dictionary.hasKey(? %TKey %key) {    ; owner=Dictionary · ns=Std.Collections · /home/leo/Documentos/repos/tq-compiler/tq-compiler-vibes/Resources/Lib/Std/Collections/Dictionary.tq(20,9)
+                ret bool call @ContainsKey(TKey %key)    ; @20:39
+            }
+            !public
+            define public void @Std.Collections.Dictionary.put(? %TKey %key, ? %TValue %value) {    ; owner=Dictionary · ns=Std.Collections · /home/leo/Documentos/repos/tq-compiler/tq-compiler-vibes/Resources/Lib/Std/Collections/Dictionary.tq(22,9)
+                void call @Add(TKey %key, TValue %value)    ; @22:45
+            }
+            !public
+            define public ?TValue @Std.Collections.Dictionary.remove(? %TKey %key) {    ; owner=Dictionary · ns=Std.Collections · /home/leo/Documentos/repos/tq-compiler/tq-compiler-vibes/Resources/Lib/Std/Collections/Dictionary.tq(24,1)
+                ?TValue store(?TValue local(%value, ?TValue), ?TValue null)    ; @25:2
+                if (bool call @Dictionary.hasKey(TKey %key)) {    ; @27:2
+                    ?TValue store(?TValue %value, ?TValue convert(TValue call @get_Item(TKey %key), ?TValue))    ; @28:3
+                    bool call @Remove(TKey %key)    ; @29:3
+                }
+                ret ?TValue %value    ; @32:2
+            }
+            !public
+            define public void @Std.Collections.Dictionary.clear() {    ; owner=Dictionary · ns=Std.Collections · /home/leo/Documentos/repos/tq-compiler/tq-compiler-vibes/Resources/Lib/Std/Collections/Dictionary.tq(36,9)
+                void call @Clear()    ; @36:25
+            }
+        }
+        
+        !public
+        %Std.Collections.DynamicArray(%T) = public type {    ; ns=Std.Collections · /home/leo/Documentos/repos/tq-compiler/tq-compiler-vibes/Resources/Lib/Std/Collections/DynamicArray.tq(2,0)
+            ; type parameter %T: type
+            field private ? @Std.Collections.DynamicArray._list = ref List(T) new List(T)()    ; ns=Std.Collections · /home/leo/Documentos/repos/tq-compiler/tq-compiler-vibes/Resources/Lib/Std/Collections/DynamicArray.tq(4,1)
+            !indexerGet
+            !public
+            define public ? %T @Std.Collections.DynamicArray.indexerGet(int %index) {    ; owner=DynamicArray · ns=Std.Collections · /home/leo/Documentos/repos/tq-compiler/tq-compiler-vibes/Resources/Lib/Std/Collections/DynamicArray.tq(6,21)
+                ret T call @get_Item(int %index)    ; @6:53
+            }
+            !indexerSet
+            !public
+            define public void @Std.Collections.DynamicArray.indexerSet(int %index, ? %T %value) {    ; owner=DynamicArray · ns=Std.Collections · /home/leo/Documentos/repos/tq-compiler/tq-compiler-vibes/Resources/Lib/Std/Collections/DynamicArray.tq(7,21)
+                void call @set_Item(int %index, T %value)    ; @7:60
+            }
+            !public
+            define public void @Std.Collections.DynamicArray.append(? %T %value) {    ; owner=DynamicArray · ns=Std.Collections · /home/leo/Documentos/repos/tq-compiler/tq-compiler-vibes/Resources/Lib/Std/Collections/DynamicArray.tq(9,9)
+                void call @Add(T %value)    ; @9:33
+            }
+            !public
+            define public void @Std.Collections.DynamicArray.appendMany([]? %T %value) {    ; owner=DynamicArray · ns=Std.Collections · /home/leo/Documentos/repos/tq-compiler/tq-compiler-vibes/Resources/Lib/Std/Collections/DynamicArray.tq(11,1)
+                while (int store(int local(%i), integer literal 0); bool lt(int %i, int member([]T %value, ?len)); int inc.post(int %i)) {    ; @12:2
+                    void call @DynamicArray.append(T index([]T %value, int %i))    ; @12:42
+                }
+            }
+            !public
+            define public void @Std.Collections.DynamicArray.removeAt(int %index) {    ; owner=DynamicArray · ns=Std.Collections · /home/leo/Documentos/repos/tq-compiler/tq-compiler-vibes/Resources/Lib/Std/Collections/DynamicArray.tq(15,9)
+                void call @RemoveAt(int %index)    ; @15:37
+            }
+        }
+        
+    }
+    namespace Console {
+        ; file /home/leo/Documentos/repos/tq-compiler/tq-compiler-vibes/Resources/Lib/Std/Console/AnsiColors.tq
+        ; declares color_black, color_blue, color_bright_black, color_bright_blue, color_bright_cyan, color_bright_green, color_bright_magenta, color_bright_red, color_bright_white, color_bright_yellow, color_cyan, color_green, color_magenta, color_red, color_white, color_yellow, style_reset
+        
+        ; file /home/leo/Documentos/repos/tq-compiler/tq-compiler-vibes/Resources/Lib/Std/Console/StdinReader.tq
+        import @Std.Io    ; @0:0
+        import @Dotnet.System { Console }    ; @1:0
+        ; declares StdinReader
+        
+        ; file /home/leo/Documentos/repos/tq-compiler/tq-compiler-vibes/Resources/Lib/Std/Console/Console.tq
+        import @Std.Io    ; @0:0
+        ; declares _err, _in, _out, err, in, out, write, writeln
+        
+        ; file /home/leo/Documentos/repos/tq-compiler/tq-compiler-vibes/Resources/Lib/Std/Console/StdoutWriter.tq
+        import @Std.Io    ; @0:0
+        import @Dotnet.System { Console }    ; @1:0
+        ; declares StdoutWriter
+        
+        ; file /home/leo/Documentos/repos/tq-compiler/tq-compiler-vibes/Resources/Lib/Std/Console/StderrWriter.tq
+        import @Std.Io    ; @0:0
+        import @Dotnet.System { Console }    ; @1:0
+        ; declares StderrWriter
+        
+        !public
+        field public Const(String) @Std.Console.color_black = string "[30m"    ; ns=Std.Console · /home/leo/Documentos/repos/tq-compiler/tq-compiler-vibes/Resources/Lib/Std/Console/AnsiColors.tq(0,8)
+        !public
+        field public Const(String) @Std.Console.color_red = string "[31m"    ; ns=Std.Console · /home/leo/Documentos/repos/tq-compiler/tq-compiler-vibes/Resources/Lib/Std/Console/AnsiColors.tq(1,8)
+        !public
+        field public Const(String) @Std.Console.color_green = string "[32m"    ; ns=Std.Console · /home/leo/Documentos/repos/tq-compiler/tq-compiler-vibes/Resources/Lib/Std/Console/AnsiColors.tq(2,8)
+        !public
+        field public Const(String) @Std.Console.color_yellow = string "[33m"    ; ns=Std.Console · /home/leo/Documentos/repos/tq-compiler/tq-compiler-vibes/Resources/Lib/Std/Console/AnsiColors.tq(3,8)
+        !public
+        field public Const(String) @Std.Console.color_blue = string "[34m"    ; ns=Std.Console · /home/leo/Documentos/repos/tq-compiler/tq-compiler-vibes/Resources/Lib/Std/Console/AnsiColors.tq(4,8)
+        !public
+        field public Const(String) @Std.Console.color_magenta = string "[35m"    ; ns=Std.Console · /home/leo/Documentos/repos/tq-compiler/tq-compiler-vibes/Resources/Lib/Std/Console/AnsiColors.tq(5,8)
+        !public
+        field public Const(String) @Std.Console.color_cyan = string "[36m"    ; ns=Std.Console · /home/leo/Documentos/repos/tq-compiler/tq-compiler-vibes/Resources/Lib/Std/Console/AnsiColors.tq(6,8)
+        !public
+        field public Const(String) @Std.Console.color_white = string "[37m"    ; ns=Std.Console · /home/leo/Documentos/repos/tq-compiler/tq-compiler-vibes/Resources/Lib/Std/Console/AnsiColors.tq(7,8)
+        !public
+        field public Const(String) @Std.Console.color_bright_black = string "[90m"    ; ns=Std.Console · /home/leo/Documentos/repos/tq-compiler/tq-compiler-vibes/Resources/Lib/Std/Console/AnsiColors.tq(9,8)
+        !public
+        field public Const(String) @Std.Console.color_bright_red = string "[91m"    ; ns=Std.Console · /home/leo/Documentos/repos/tq-compiler/tq-compiler-vibes/Resources/Lib/Std/Console/AnsiColors.tq(10,8)
+        !public
+        field public Const(String) @Std.Console.color_bright_green = string "[92m"    ; ns=Std.Console · /home/leo/Documentos/repos/tq-compiler/tq-compiler-vibes/Resources/Lib/Std/Console/AnsiColors.tq(11,8)
+        !public
+        field public Const(String) @Std.Console.color_bright_yellow = string "[93m"    ; ns=Std.Console · /home/leo/Documentos/repos/tq-compiler/tq-compiler-vibes/Resources/Lib/Std/Console/AnsiColors.tq(12,8)
+        !public
+        field public Const(String) @Std.Console.color_bright_blue = string "[94m"    ; ns=Std.Console · /home/leo/Documentos/repos/tq-compiler/tq-compiler-vibes/Resources/Lib/Std/Console/AnsiColors.tq(13,8)
+        !public
+        field public Const(String) @Std.Console.color_bright_magenta = string "[95m"    ; ns=Std.Console · /home/leo/Documentos/repos/tq-compiler/tq-compiler-vibes/Resources/Lib/Std/Console/AnsiColors.tq(14,8)
+        !public
+        field public Const(String) @Std.Console.color_bright_cyan = string "[96m"    ; ns=Std.Console · /home/leo/Documentos/repos/tq-compiler/tq-compiler-vibes/Resources/Lib/Std/Console/AnsiColors.tq(15,8)
+        !public
+        field public Const(String) @Std.Console.color_bright_white = string "[97m"    ; ns=Std.Console · /home/leo/Documentos/repos/tq-compiler/tq-compiler-vibes/Resources/Lib/Std/Console/AnsiColors.tq(16,8)
+        !public
+        field public Const(String) @Std.Console.style_reset = string "[0m"    ; ns=Std.Console · /home/leo/Documentos/repos/tq-compiler/tq-compiler-vibes/Resources/Lib/Std/Console/AnsiColors.tq(18,8)
+        field private Const(AnyType) @Std.Console._in = StdinReader new UNRESOLVED StdinReader()    ; ns=Std.Console · /home/leo/Documentos/repos/tq-compiler/tq-compiler-vibes/Resources/Lib/Std/Console/Console.tq(2,0)
+        !public
+        property public StdinReader @Std.Console.in {    ; ns=Std.Console · backing field: no · getter: yes · setter: no · accessors resolved: yes · /home/leo/Documentos/repos/tq-compiler/tq-compiler-vibes/Resources/Lib/Std/Console/Console.tq(3,8)
+            get public StdinReader() {    ; ns=Std.Console · /home/leo/Documentos/repos/tq-compiler/tq-compiler-vibes/Resources/Lib/Std/Console/Console.tq(3,30)
+                ret StdinReader @_in    ; @3:30
+            }
+            ; get resolved to @get_in
+        }
+        field private Const(AnyType) @Std.Console._out = StdoutWriter new UNRESOLVED StdoutWriter()    ; ns=Std.Console · /home/leo/Documentos/repos/tq-compiler/tq-compiler-vibes/Resources/Lib/Std/Console/Console.tq(5,0)
+        !public
+        property public StdoutWriter @Std.Console.out {    ; ns=Std.Console · backing field: no · getter: yes · setter: no · accessors resolved: yes · /home/leo/Documentos/repos/tq-compiler/tq-compiler-vibes/Resources/Lib/Std/Console/Console.tq(6,8)
+            get public StdoutWriter() {    ; ns=Std.Console · /home/leo/Documentos/repos/tq-compiler/tq-compiler-vibes/Resources/Lib/Std/Console/Console.tq(6,32)
+                ret StdoutWriter @_out    ; @6:32
+            }
+            ; get resolved to @get_out
+        }
+        field private Const(AnyType) @Std.Console._err = StderrWriter new UNRESOLVED StderrWriter()    ; ns=Std.Console · /home/leo/Documentos/repos/tq-compiler/tq-compiler-vibes/Resources/Lib/Std/Console/Console.tq(8,0)
+        !public
+        property public StderrWriter @Std.Console.err {    ; ns=Std.Console · backing field: no · getter: yes · setter: no · accessors resolved: yes · /home/leo/Documentos/repos/tq-compiler/tq-compiler-vibes/Resources/Lib/Std/Console/Console.tq(9,8)
+            get public StderrWriter() {    ; ns=Std.Console · /home/leo/Documentos/repos/tq-compiler/tq-compiler-vibes/Resources/Lib/Std/Console/Console.tq(9,32)
+                ret StderrWriter @_err    ; @9:32
+            }
+            ; get resolved to @get_err
+        }
+        !public
+        define public void @Std.Console.write(int %value) {    ; ns=Std.Console · /home/leo/Documentos/repos/tq-compiler/tq-compiler-vibes/Resources/Lib/Std/Console/Console.tq(12,8)
+            void call @StdoutWriter.write(string convert(int %value, string))    ; @12:33
+        }
+        !public
+        define public void @Std.Console.write(i64 %value) {    ; ns=Std.Console · /home/leo/Documentos/repos/tq-compiler/tq-compiler-vibes/Resources/Lib/Std/Console/Console.tq(13,8)
+            void call @StdoutWriter.write(string convert(i64 %value, string))    ; @13:33
+        }
+        !public
+        define public void @Std.Console.write(u64 %value) {    ; ns=Std.Console · /home/leo/Documentos/repos/tq-compiler/tq-compiler-vibes/Resources/Lib/Std/Console/Console.tq(14,8)
+            void call @StdoutWriter.write(string convert(u64 %value, string))    ; @14:33
+        }
+        !public
+        define public void @Std.Console.write(i128 %value) {    ; ns=Std.Console · /home/leo/Documentos/repos/tq-compiler/tq-compiler-vibes/Resources/Lib/Std/Console/Console.tq(15,8)
+            void call @StdoutWriter.write(string convert(i128 %value, string))    ; @15:34
+        }
+        !public
+        define public void @Std.Console.write(u128 %value) {    ; ns=Std.Console · /home/leo/Documentos/repos/tq-compiler/tq-compiler-vibes/Resources/Lib/Std/Console/Console.tq(16,8)
+            void call @StdoutWriter.write(string convert(u128 %value, string))    ; @16:34
+        }
+        !public
+        define public void @Std.Console.write([]anytype %value) {    ; ns=Std.Console · /home/leo/Documentos/repos/tq-compiler/tq-compiler-vibes/Resources/Lib/Std/Console/Console.tq(17,8)
+            void call @StdoutWriter.write(string convert([]anytype %value, string))    ; @17:39
+        }
+        !public
+        define public void @Std.Console.write(string %value) {    ; ns=Std.Console · /home/leo/Documentos/repos/tq-compiler/tq-compiler-vibes/Resources/Lib/Std/Console/Console.tq(18,8)
+            void call @StdoutWriter.write(string %value)    ; @18:36
+        }
+        !public
+        define public void @Std.Console.writeln(int %value) {    ; ns=Std.Console · /home/leo/Documentos/repos/tq-compiler/tq-compiler-vibes/Resources/Lib/Std/Console/Console.tq(20,8)
+            void call @StdoutWriter.writeLine(string convert(int %value, string))    ; @20:35
+        }
+        !public
+        define public void @Std.Console.writeln(i64 %value) {    ; ns=Std.Console · /home/leo/Documentos/repos/tq-compiler/tq-compiler-vibes/Resources/Lib/Std/Console/Console.tq(21,8)
+            void call @StdoutWriter.writeLine(string convert(i64 %value, string))    ; @21:35
+        }
+        !public
+        define public void @Std.Console.writeln(u64 %value) {    ; ns=Std.Console · /home/leo/Documentos/repos/tq-compiler/tq-compiler-vibes/Resources/Lib/Std/Console/Console.tq(22,8)
+            void call @StdoutWriter.writeLine(string convert(u64 %value, string))    ; @22:35
+        }
+        !public
+        define public void @Std.Console.writeln(i128 %value) {    ; ns=Std.Console · /home/leo/Documentos/repos/tq-compiler/tq-compiler-vibes/Resources/Lib/Std/Console/Console.tq(23,8)
+            void call @StdoutWriter.writeLine(string convert(i128 %value, string))    ; @23:36
+        }
+        !public
+        define public void @Std.Console.writeln(u128 %value) {    ; ns=Std.Console · /home/leo/Documentos/repos/tq-compiler/tq-compiler-vibes/Resources/Lib/Std/Console/Console.tq(24,8)
+            void call @StdoutWriter.writeLine(string convert(u128 %value, string))    ; @24:36
+        }
+        !public
+        define public void @Std.Console.writeln([]anytype %value) {    ; ns=Std.Console · /home/leo/Documentos/repos/tq-compiler/tq-compiler-vibes/Resources/Lib/Std/Console/Console.tq(25,8)
+            void call @StdoutWriter.writeLine(string convert([]anytype %value, string))    ; @25:41
+        }
+        !public
+        define public void @Std.Console.writeln(string %value) {    ; ns=Std.Console · /home/leo/Documentos/repos/tq-compiler/tq-compiler-vibes/Resources/Lib/Std/Console/Console.tq(26,8)
+            void call @StdoutWriter.writeLine(string %value)    ; @26:38
+        }
+        !public
+        define public void @Std.Console.writeln() {    ; ns=Std.Console · /home/leo/Documentos/repos/tq-compiler/tq-compiler-vibes/Resources/Lib/Std/Console/Console.tq(27,8)
+            void call @StdoutWriter.writeLine(string "")    ; @27:26
+        }
+        !private
+        %Std.Console.StderrWriter = private type extends Stream implements TextWriter {    ; ns=Std.Console · /home/leo/Documentos/repos/tq-compiler/tq-compiler-vibes/Resources/Lib/Std/Console/StderrWriter.tq(3,0)
+            !public
+            !override
+            define public void @Std.Console.StderrWriter.write(string %value) {    ; overridable · owner=StderrWriter · ns=Std.Console · /home/leo/Documentos/repos/tq-compiler/tq-compiler-vibes/Resources/Lib/Std/Console/StderrWriter.tq(8,1)
+                void call @Write(string %value)    ; @9:2
+            }
+            !public
+            !override
+            define public void @Std.Console.StderrWriter.writeLine(string %value) {    ; overridable · owner=StderrWriter · ns=Std.Console · /home/leo/Documentos/repos/tq-compiler/tq-compiler-vibes/Resources/Lib/Std/Console/StderrWriter.tq(12,1)
+                void call @WriteLine(string %value)    ; @13:2
+            }
+            !public
+            !override
+            define public void @Std.Console.StderrWriter.flush() {    ; overridable · owner=StderrWriter · ns=Std.Console · /home/leo/Documentos/repos/tq-compiler/tq-compiler-vibes/Resources/Lib/Std/Console/StderrWriter.tq(16,1)
+                void call @Flush()    ; @17:2
+            }
+        }
+        
+        !private
+        %Std.Console.StdinReader = private type extends Stream implements TextReader {    ; ns=Std.Console · /home/leo/Documentos/repos/tq-compiler/tq-compiler-vibes/Resources/Lib/Std/Console/StdinReader.tq(3,0)
+            !public
+            !override
+            define public string @Std.Console.StdinReader.readLine() {    ; overridable · owner=StdinReader · ns=Std.Console · /home/leo/Documentos/repos/tq-compiler/tq-compiler-vibes/Resources/Lib/Std/Console/StdinReader.tq(8,19)
+                ret string "TODO"    ; @8:45
+            }
+            !public
+            !override
+            define public string @Std.Console.StdinReader.readAll() {    ; overridable · owner=StdinReader · ns=Std.Console · /home/leo/Documentos/repos/tq-compiler/tq-compiler-vibes/Resources/Lib/Std/Console/StdinReader.tq(9,19)
+                ret string "TODO"    ; @9:44
+            }
+            !public
+            !override
+            define public void @Std.Console.StdinReader.flush() {    ; overridable · owner=StdinReader · ns=Std.Console · /home/leo/Documentos/repos/tq-compiler/tq-compiler-vibes/Resources/Lib/Std/Console/StdinReader.tq(11,1)
+            }
+        }
+        
+        !private
+        %Std.Console.StdoutWriter = private type extends Stream implements TextWriter {    ; ns=Std.Console · /home/leo/Documentos/repos/tq-compiler/tq-compiler-vibes/Resources/Lib/Std/Console/StdoutWriter.tq(3,0)
+            !public
+            !override
+            define public void @Std.Console.StdoutWriter.write(string %value) {    ; overridable · owner=StdoutWriter · ns=Std.Console · /home/leo/Documentos/repos/tq-compiler/tq-compiler-vibes/Resources/Lib/Std/Console/StdoutWriter.tq(8,1)
+                void call @Write(string %value)    ; @9:2
+            }
+            !public
+            !override
+            define public void @Std.Console.StdoutWriter.writeLine(string %value) {    ; overridable · owner=StdoutWriter · ns=Std.Console · /home/leo/Documentos/repos/tq-compiler/tq-compiler-vibes/Resources/Lib/Std/Console/StdoutWriter.tq(12,1)
+                void call @WriteLine(string %value)    ; @13:2
+            }
+            !public
+            !override
+            define public void @Std.Console.StdoutWriter.flush() {    ; overridable · owner=StdoutWriter · ns=Std.Console · /home/leo/Documentos/repos/tq-compiler/tq-compiler-vibes/Resources/Lib/Std/Console/StdoutWriter.tq(16,1)
+                void call @Flush()    ; @17:2
+            }
+        }
+        
+    }
+    namespace Fs {
+        ; file /home/leo/Documentos/repos/tq-compiler/tq-compiler-vibes/Resources/Lib/Std/Fs/FileInfo.tq
+        import @Dotnet.System.IO { CsFileInfo = FileInfo }    ; @0:0
+        ; declares FileInfo
+        
+        ; file /home/leo/Documentos/repos/tq-compiler/tq-compiler-vibes/Resources/Lib/Std/Fs/fs.tq
+        import @Dotnet.System.IO { CsFStream = FileStream, CsSeekOrigin = SeekOrigin, CsFileMode = FileMode, CsFileAccess = FileAccess, CsFile = File }    ; @0:0
+        ; declares FileAccess, FileMode, SeekOrigin, fileExists, open, readAllText, writeAllText
+        
+        ; file /home/leo/Documentos/repos/tq-compiler/tq-compiler-vibes/Resources/Lib/Std/Fs/FileStream.tq
+        import @Std.Io    ; @0:0
+        ; declares FileStream
+        
+        ; file /home/leo/Documentos/repos/tq-compiler/tq-compiler-vibes/Resources/Lib/Std/Fs/File.tq
+        import @Dotnet.System.IO { CsFStream = FileStream, CsSeekOrigin = SeekOrigin, CsFileMode = FileMode, CsFileAccess = FileAccess }    ; @0:0
+        ; declares File
+        
+        !public
+        %Std.Fs.File = public type {    ; ns=Std.Fs · /home/leo/Documentos/repos/tq-compiler/tq-compiler-vibes/Resources/Lib/Std/Fs/File.tq(7,0)
+            define private void @Std.Fs.File.constructor(ref FileStream %stream) {    ; owner=File · ns=Std.Fs · /home/leo/Documentos/repos/tq-compiler/tq-compiler-vibes/Resources/Lib/Std/Fs/File.tq(11,1)
+                ref FileStream store(ref FileStream @_filestream, ref FileStream %stream)    ; @12:2
+            }
+            field private ref FileStream @Std.Fs.File._filestream    ; ns=Std.Fs · /home/leo/Documentos/repos/tq-compiler/tq-compiler-vibes/Resources/Lib/Std/Fs/File.tq(9,1)
+            define private void @Std.Fs.File.close() {    ; owner=File · ns=Std.Fs · /home/leo/Documentos/repos/tq-compiler/tq-compiler-vibes/Resources/Lib/Std/Fs/File.tq(15,1)
+                void call @Close()    ; @16:2
+            }
+        }
+        
+        !public
+        %Std.Fs.FileInfo = public type {    ; ns=Std.Fs · /home/leo/Documentos/repos/tq-compiler/tq-compiler-vibes/Resources/Lib/Std/Fs/FileInfo.tq(5,0)
+            define private void @Std.Fs.FileInfo.constructor(ref FileInfo %fInfo) {    ; owner=FileInfo · ns=Std.Fs · /home/leo/Documentos/repos/tq-compiler/tq-compiler-vibes/Resources/Lib/Std/Fs/FileInfo.tq(13,1)
+                ref FileInfo store(ref FileInfo @_fileInfo, ref FileInfo %fInfo)    ; @14:2
+                string store(string @name, string field(ref FileInfo %fInfo, @Name))    ; @15:2
+                string store(string @directory, string field(ref FileInfo %fInfo, @DirectoryName))    ; @16:2
+                uint store(uint @length, uint convert(i64 field(ref FileInfo %fInfo, @Length), uint))    ; @17:2
+            }
+            field private ref FileInfo @Std.Fs.FileInfo._fileInfo    ; ns=Std.Fs · /home/leo/Documentos/repos/tq-compiler/tq-compiler-vibes/Resources/Lib/Std/Fs/FileInfo.tq(7,1)
+            !public
+            field public string @Std.Fs.FileInfo.name    ; ns=Std.Fs · /home/leo/Documentos/repos/tq-compiler/tq-compiler-vibes/Resources/Lib/Std/Fs/FileInfo.tq(9,9)
+            !public
+            field public string @Std.Fs.FileInfo.directory    ; ns=Std.Fs · /home/leo/Documentos/repos/tq-compiler/tq-compiler-vibes/Resources/Lib/Std/Fs/FileInfo.tq(10,9)
+            !public
+            field public uint @Std.Fs.FileInfo.length    ; ns=Std.Fs · /home/leo/Documentos/repos/tq-compiler/tq-compiler-vibes/Resources/Lib/Std/Fs/FileInfo.tq(11,9)
+        }
+        
+        !public
+        %Std.Fs.FileStream = public type extends Stream implements TextWriter, TextReader, BinaryWriter {    ; ns=Std.Fs · /home/leo/Documentos/repos/tq-compiler/tq-compiler-vibes/Resources/Lib/Std/Fs/FileStream.tq(2,0)
+            !public
+            !override
+            define public void @Std.Fs.FileStream.write(string %value) {    ; overridable · owner=FileStream · ns=Std.Fs · /home/leo/Documentos/repos/tq-compiler/tq-compiler-vibes/Resources/Lib/Std/Fs/FileStream.tq(7,1)
+            }
+            !public
+            !override
+            define public void @Std.Fs.FileStream.writeLine(string %value) {    ; overridable · owner=FileStream · ns=Std.Fs · /home/leo/Documentos/repos/tq-compiler/tq-compiler-vibes/Resources/Lib/Std/Fs/FileStream.tq(11,1)
+            }
+            !public
+            !override
+            define public string @Std.Fs.FileStream.readLine() {    ; overridable · owner=FileStream · ns=Std.Fs · /home/leo/Documentos/repos/tq-compiler/tq-compiler-vibes/Resources/Lib/Std/Fs/FileStream.tq(15,19)
+                ret string "TODO"    ; @15:45
+            }
+            !public
+            !override
+            define public string @Std.Fs.FileStream.readAll() {    ; overridable · owner=FileStream · ns=Std.Fs · /home/leo/Documentos/repos/tq-compiler/tq-compiler-vibes/Resources/Lib/Std/Fs/FileStream.tq(16,19)
+                ret string "TODO"    ; @16:44
+            }
+            !public
+            !override
+            define public void @Std.Fs.FileStream.flush() {    ; overridable · owner=FileStream · ns=Std.Fs · /home/leo/Documentos/repos/tq-compiler/tq-compiler-vibes/Resources/Lib/Std/Fs/FileStream.tq(18,1)
+            }
+        }
+        
+        !public
+        define public File @Std.Fs.open(string %path) {    ; ns=Std.Fs · /home/leo/Documentos/repos/tq-compiler/tq-compiler-vibes/Resources/Lib/Std/Fs/fs.tq(8,0)
+            ref FileStream store(ref FileStream local(%filestream), ref FileStream new FileStream(string %path, FileMode convert(FileMode @openOrCreate, FileMode), FileAccess convert(FileAccess @RO, FileAccess)))    ; @9:1
+            ret File new File(ref FileStream %filestream)    ; @14:1
+        }
+        !public
+        define public bool @Std.Fs.fileExists(string %path) {    ; ns=Std.Fs · /home/leo/Documentos/repos/tq-compiler/tq-compiler-vibes/Resources/Lib/Std/Fs/fs.tq(17,0)
+            ret bool call @Exists(string %path)    ; @18:1
+        }
+        !public
+        define public string @Std.Fs.readAllText(string %path) {    ; ns=Std.Fs · /home/leo/Documentos/repos/tq-compiler/tq-compiler-vibes/Resources/Lib/Std/Fs/fs.tq(21,0)
+            ret string call @ReadAllText(string %path)    ; @22:1
+        }
+        !public
+        define public void @Std.Fs.writeAllText(string %path, string %content) {    ; ns=Std.Fs · /home/leo/Documentos/repos/tq-compiler/tq-compiler-vibes/Resources/Lib/Std/Fs/fs.tq(25,0)
+            void call @WriteAllText(string %path, string %content)    ; @26:1
+        }
+        !public
+        %Std.Fs.SeekOrigin = public typedef {    ; ns=Std.Fs · /home/leo/Documentos/repos/tq-compiler/tq-compiler-vibes/Resources/Lib/Std/Fs/fs.tq(30,0)
+            case @Std.Fs.SeekOrigin.begin = SeekOrigin @Begin    ; ns=Std.Fs · @31:1
+            case @Std.Fs.SeekOrigin.current = SeekOrigin @Current    ; ns=Std.Fs · @32:1
+            case @Std.Fs.SeekOrigin.end = SeekOrigin @End    ; ns=Std.Fs · @33:1
+        }
+        
+        !public
+        %Std.Fs.FileMode = public typedef {    ; ns=Std.Fs · /home/leo/Documentos/repos/tq-compiler/tq-compiler-vibes/Resources/Lib/Std/Fs/fs.tq(36,0)
+            case @Std.Fs.FileMode.createNew = FileMode @CreateNew    ; ns=Std.Fs · @37:1
+            case @Std.Fs.FileMode.create = FileMode @Create    ; ns=Std.Fs · @38:1
+            case @Std.Fs.FileMode.open = FileMode @Open    ; ns=Std.Fs · @39:1
+            case @Std.Fs.FileMode.openOrCreate = FileMode @OpenOrCreate    ; ns=Std.Fs · @40:1
+            case @Std.Fs.FileMode.truncate = FileMode @Truncate    ; ns=Std.Fs · @41:1
+            case @Std.Fs.FileMode.append = FileMode @Append    ; ns=Std.Fs · @42:1
+        }
+        
+        !public
+        %Std.Fs.FileAccess = public typedef {    ; ns=Std.Fs · /home/leo/Documentos/repos/tq-compiler/tq-compiler-vibes/Resources/Lib/Std/Fs/fs.tq(45,0)
+            case @Std.Fs.FileAccess.RO = FileAccess @Read    ; ns=Std.Fs · @46:1
+            case @Std.Fs.FileAccess.WO = FileAccess @Write    ; ns=Std.Fs · @47:1
+            case @Std.Fs.FileAccess.RW = FileAccess @ReadWrite    ; ns=Std.Fs · @48:1
+        }
+        
+    }
+    namespace Io {
+        ; file /home/leo/Documentos/repos/tq-compiler/tq-compiler-vibes/Resources/Lib/Std/Io/Stream.tq
+        ; declares Stream
+        
+        ; file /home/leo/Documentos/repos/tq-compiler/tq-compiler-vibes/Resources/Lib/Std/Io/BinaryWriter.tq
+        ; declares BinaryWriter
+        
+        ; file /home/leo/Documentos/repos/tq-compiler/tq-compiler-vibes/Resources/Lib/Std/Io/TextWriter.tq
+        ; declares TextWriter
+        
+        ; file /home/leo/Documentos/repos/tq-compiler/tq-compiler-vibes/Resources/Lib/Std/Io/TextReader.tq
+        ; declares TextReader
+        
+        !public
+        !protocol
+        %Std.Io.BinaryWriter = public type protocol {    ; ns=Std.Io · /home/leo/Documentos/repos/tq-compiler/tq-compiler-vibes/Resources/Lib/Std/Io/BinaryWriter.tq(0,0)
+        }
+        
+        !public
+        !abstract
+        %Std.Io.Stream = public type abstract {    ; ns=Std.Io · /home/leo/Documentos/repos/tq-compiler/tq-compiler-vibes/Resources/Lib/Std/Io/Stream.tq(0,0)
+            !public
+            declare public abstract void @Std.Io.Stream.flush()    ; owner=Stream · ns=Std.Io · /home/leo/Documentos/repos/tq-compiler/tq-compiler-vibes/Resources/Lib/Std/Io/Stream.tq(2,12)
+        }
+        
+        !public
+        !protocol
+        %Std.Io.TextReader = public type protocol {    ; ns=Std.Io · /home/leo/Documentos/repos/tq-compiler/tq-compiler-vibes/Resources/Lib/Std/Io/TextReader.tq(0,0)
+            !public
+            declare public abstract string @Std.Io.TextReader.readLine()    ; owner=TextReader · ns=Std.Io · /home/leo/Documentos/repos/tq-compiler/tq-compiler-vibes/Resources/Lib/Std/Io/TextReader.tq(2,9)
+            !public
+            declare public abstract string @Std.Io.TextReader.readAll()    ; owner=TextReader · ns=Std.Io · /home/leo/Documentos/repos/tq-compiler/tq-compiler-vibes/Resources/Lib/Std/Io/TextReader.tq(3,9)
+        }
+        
+        !public
+        !protocol
+        %Std.Io.TextWriter = public type protocol {    ; ns=Std.Io · /home/leo/Documentos/repos/tq-compiler/tq-compiler-vibes/Resources/Lib/Std/Io/TextWriter.tq(0,0)
+            !public
+            declare public abstract void @Std.Io.TextWriter.write(string %text)    ; owner=TextWriter · ns=Std.Io · /home/leo/Documentos/repos/tq-compiler/tq-compiler-vibes/Resources/Lib/Std/Io/TextWriter.tq(2,9)
+            !public
+            declare public abstract void @Std.Io.TextWriter.writeLine(string %text)    ; owner=TextWriter · ns=Std.Io · /home/leo/Documentos/repos/tq-compiler/tq-compiler-vibes/Resources/Lib/Std/Io/TextWriter.tq(3,9)
+        }
+        
+    }
+    namespace Log {
+        ; file /home/leo/Documentos/repos/tq-compiler/tq-compiler-vibes/Resources/Lib/Std/Log/LogLevel.tq
+        ; declares LogLevel
+        
+        ; file /home/leo/Documentos/repos/tq-compiler/tq-compiler-vibes/Resources/Lib/Std/Log/Logger.tq
+        import @Std { Console }    ; @0:0
+        ; declares Logger, log_raw
+        
+        !public
+        %Std.Log.LogLevel = public typedef {    ; ns=Std.Log · /home/leo/Documentos/repos/tq-compiler/tq-compiler-vibes/Resources/Lib/Std/Log/LogLevel.tq(0,0)
+            case @Std.Log.LogLevel.debug    ; ns=Std.Log · @1:1
+            case @Std.Log.LogLevel.warn    ; ns=Std.Log · @2:1
+            case @Std.Log.LogLevel.info    ; ns=Std.Log · @3:1
+            case @Std.Log.LogLevel.error    ; ns=Std.Log · @4:1
+        }
+        
+        !public
+        %Std.Log.Logger = public type {    ; ns=Std.Log · /home/leo/Documentos/repos/tq-compiler/tq-compiler-vibes/Resources/Lib/Std/Log/Logger.tq(2,0)
+            !public
+            define public void @Std.Log.Logger.constructor(string %scope) {    ; owner=Logger · ns=Std.Log · /home/leo/Documentos/repos/tq-compiler/tq-compiler-vibes/Resources/Lib/Std/Log/Logger.tq(6,1)
+                string store(string field(Logger %this, @scope), string %scope)    ; @7:2
+            }
+            field private string @Std.Log.Logger.scope    ; ns=Std.Log · /home/leo/Documentos/repos/tq-compiler/tq-compiler-vibes/Resources/Lib/Std/Log/Logger.tq(4,1)
+            !public
+            define public void @Std.Log.Logger.debug(string %value) {    ; owner=Logger · ns=Std.Log · /home/leo/Documentos/repos/tq-compiler/tq-compiler-vibes/Resources/Lib/Std/Log/Logger.tq(10,9)
+                void call @log_raw(LogLevel @debug, string @scope, string %value)    ; @10:36
+            }
+            !public
+            define public void @Std.Log.Logger.warn(string %value) {    ; owner=Logger · ns=Std.Log · /home/leo/Documentos/repos/tq-compiler/tq-compiler-vibes/Resources/Lib/Std/Log/Logger.tq(11,9)
+                void call @log_raw(LogLevel @warn, string @scope, string %value)    ; @11:35
+            }
+            !public
+            define public void @Std.Log.Logger.info(string %value) {    ; owner=Logger · ns=Std.Log · /home/leo/Documentos/repos/tq-compiler/tq-compiler-vibes/Resources/Lib/Std/Log/Logger.tq(12,9)
+                void call @log_raw(LogLevel @info, string @scope, string %value)    ; @12:35
+            }
+            !public
+            define public void @Std.Log.Logger.err(string %value) {    ; owner=Logger · ns=Std.Log · /home/leo/Documentos/repos/tq-compiler/tq-compiler-vibes/Resources/Lib/Std/Log/Logger.tq(13,9)
+                void call @log_raw(LogLevel @error, string @scope, string %value)    ; @13:34
+            }
+        }
+        
+        define private void @Std.Log.log_raw(typedef LogLevel %level, string %scope, string %message) {    ; ns=Std.Log · /home/leo/Documentos/repos/tq-compiler/tq-compiler-vibes/Resources/Lib/Std/Log/Logger.tq(17,0)
+            string store(string local(%value), string "")    ; @18:1
+            string match(LogLevel %level) {    ; @20:1
+                case LogLevel @debug => string store(string %value, string add(string %value, string add(string @color_black, string "[DEBUG] ")))
+                case LogLevel @warn => string store(string %value, string add(string %value, string add(string @color_yellow, string "[WARN ] ")))
+                case LogLevel @info => string store(string %value, string add(string %value, string add(string @color_white, string "[INFO ] ")))
+                case LogLevel @error => string store(string %value, string add(string %value, string add(string @color_red, string "[ERROR] ")))
+            }
+            string store(string %value, string add(string %value, string add(string %scope, string ": ")))    ; @27:1
+            string store(string %value, string add(string %value, string %message))    ; @28:1
+            string store(string %value, string add(string %value, string @style_reset))    ; @29:1
+            void match(LogLevel %level) {    ; @31:1
+                case LogLevel @info => void call @StdoutWriter.writeLine(string %value)
+                case LogLevel @debug, LogLevel @warn, LogLevel @error => void call @StderrWriter.writeLine(string %value)
+            }
+        }
+    }
+    namespace Memory {
+        ; file /home/leo/Documentos/repos/tq-compiler/tq-compiler-vibes/Resources/Lib/Std/Memory/alignment.tq
+        ; declares Alignment
+        
+        ; file /home/leo/Documentos/repos/tq-compiler/tq-compiler-vibes/Resources/Lib/Std/Memory/memops.tq
+        ; declares __compare_impl__, __copy_impl__, __fill_impl__, compare, copy, fill
+        
+        ; file /home/leo/Documentos/repos/tq-compiler/tq-compiler-vibes/Resources/Lib/Std/Memory/singleton.tq
+        import @Dotnet.System { GC }    ; @0:0
+        import @Dotnet.System.Runtime.CompilerServices { RuntimeHelpers }    ; @1:0
+        ; declares alloc
+        
+        !public
+        %Std.Memory.Alignment = public typedef {    ; ns=Std.Memory · /home/leo/Documentos/repos/tq-compiler/tq-compiler-vibes/Resources/Lib/Std/Memory/alignment.tq(0,0)
+            case 1, 2, 4, 8, 16, 32    ; @1:1
+        }
+        
+        !public
+        define public void @Std.Memory.copy([]i8 %source, []i8 %target) {    ; ns=Std.Memory · /home/leo/Documentos/repos/tq-compiler/tq-compiler-vibes/Resources/Lib/Std/Memory/memops.tq(2,8)
+            void call @__copy_impl__(type %Integer(true, 8), []i8 %source, []i8 %target)    ; @2:46
+        }
+        !public
+        define public void @Std.Memory.copy([]u8 %source, []u8 %target) {    ; ns=Std.Memory · /home/leo/Documentos/repos/tq-compiler/tq-compiler-vibes/Resources/Lib/Std/Memory/memops.tq(3,8)
+            void call @__copy_impl__(type %Integer(false, 8), []u8 %source, []u8 %target)    ; @3:46
+        }
+        !public
+        define public void @Std.Memory.copy([]i16 %source, []i16 %target) {    ; ns=Std.Memory · /home/leo/Documentos/repos/tq-compiler/tq-compiler-vibes/Resources/Lib/Std/Memory/memops.tq(4,8)
+            void call @__copy_impl__(type %Integer(true, 16), []i16 %source, []i16 %target)    ; @4:48
+        }
+        !public
+        define public void @Std.Memory.copy([]u16 %source, []u16 %target) {    ; ns=Std.Memory · /home/leo/Documentos/repos/tq-compiler/tq-compiler-vibes/Resources/Lib/Std/Memory/memops.tq(5,8)
+            void call @__copy_impl__(type %Integer(false, 16), []u16 %source, []u16 %target)    ; @5:48
+        }
+        !public
+        define public void @Std.Memory.copy([]i32 %source, []i32 %target) {    ; ns=Std.Memory · /home/leo/Documentos/repos/tq-compiler/tq-compiler-vibes/Resources/Lib/Std/Memory/memops.tq(6,8)
+            void call @__copy_impl__(type %Integer(true, 32), []i32 %source, []i32 %target)    ; @6:48
+        }
+        !public
+        define public void @Std.Memory.copy([]u32 %source, []u32 %target) {    ; ns=Std.Memory · /home/leo/Documentos/repos/tq-compiler/tq-compiler-vibes/Resources/Lib/Std/Memory/memops.tq(7,8)
+            void call @__copy_impl__(type %Integer(false, 32), []u32 %source, []u32 %target)    ; @7:48
+        }
+        !public
+        define public void @Std.Memory.copy([]i64 %source, []i64 %target) {    ; ns=Std.Memory · /home/leo/Documentos/repos/tq-compiler/tq-compiler-vibes/Resources/Lib/Std/Memory/memops.tq(8,8)
+            void call @__copy_impl__(type %Integer(true, 64), []i64 %source, []i64 %target)    ; @8:48
+        }
+        !public
+        define public void @Std.Memory.copy([]u64 %source, []u64 %target) {    ; ns=Std.Memory · /home/leo/Documentos/repos/tq-compiler/tq-compiler-vibes/Resources/Lib/Std/Memory/memops.tq(9,8)
+            void call @__copy_impl__(type %Integer(false, 64), []u64 %source, []u64 %target)    ; @9:48
+        }
+        !public
+        define public void @Std.Memory.copy([]i128 %source, []i128 %target) {    ; ns=Std.Memory · /home/leo/Documentos/repos/tq-compiler/tq-compiler-vibes/Resources/Lib/Std/Memory/memops.tq(10,8)
+            void call @__copy_impl__(type %Integer(true, 128), []i128 %source, []i128 %target)    ; @10:50
+        }
+        !public
+        define public void @Std.Memory.copy([]u128 %source, []u128 %target) {    ; ns=Std.Memory · /home/leo/Documentos/repos/tq-compiler/tq-compiler-vibes/Resources/Lib/Std/Memory/memops.tq(11,8)
+            void call @__copy_impl__(type %Integer(false, 128), []u128 %source, []u128 %target)    ; @11:50
+        }
+        !public
+        define public void @Std.Memory.copy([]bool %source, []bool %target) {    ; ns=Std.Memory · /home/leo/Documentos/repos/tq-compiler/tq-compiler-vibes/Resources/Lib/Std/Memory/memops.tq(12,8)
+            void call @__copy_impl__(type %Bool, []bool %source, []bool %target)    ; @12:50
+        }
+        !public
+        define public void @Std.Memory.copy([]anytype %source, []anytype %target) {    ; ns=Std.Memory · /home/leo/Documentos/repos/tq-compiler/tq-compiler-vibes/Resources/Lib/Std/Memory/memops.tq(13,8)
+            void call @__copy_impl__(type %AnyType, []anytype %source, []anytype %target)    ; @13:56
+        }
+        define private void @Std.Memory.__copy_impl__(type %T, []? %T %source, []? %T %target) {    ; ns=Std.Memory · /home/leo/Documentos/repos/tq-compiler/tq-compiler-vibes/Resources/Lib/Std/Memory/memops.tq(15,0)
+            if (bool ne(int member([]T %source, ?len), int member([]T %target, ?len))) {    ; @16:4
+                ret void    ; @16:34
+            }
+            while (int store(int local(%i), integer literal 0); bool lt(int %i, int member([]T %source, ?len)); int inc.post(int %i)) {    ; @17:4
+                T store(T index([]T %target, int %i), T index([]T %source, int %i))    ; @17:45
+            }
+        }
+        !public
+        define public bool @Std.Memory.compare([]i8 %a, []i8 %b) {    ; ns=Std.Memory · /home/leo/Documentos/repos/tq-compiler/tq-compiler-vibes/Resources/Lib/Std/Memory/memops.tq(21,8)
+            ret bool call @__compare_impl__(type %Integer(true, 8), []i8 %a, []i8 %b)    ; @21:44
+        }
+        !public
+        define public bool @Std.Memory.compare([]u8 %a, []u8 %b) {    ; ns=Std.Memory · /home/leo/Documentos/repos/tq-compiler/tq-compiler-vibes/Resources/Lib/Std/Memory/memops.tq(22,8)
+            ret bool call @__compare_impl__(type %Integer(false, 8), []u8 %a, []u8 %b)    ; @22:44
+        }
+        !public
+        define public bool @Std.Memory.compare([]i16 %a, []i16 %b) {    ; ns=Std.Memory · /home/leo/Documentos/repos/tq-compiler/tq-compiler-vibes/Resources/Lib/Std/Memory/memops.tq(23,8)
+            ret bool call @__compare_impl__(type %Integer(true, 16), []i16 %a, []i16 %b)    ; @23:46
+        }
+        !public
+        define public bool @Std.Memory.compare([]u16 %a, []u16 %b) {    ; ns=Std.Memory · /home/leo/Documentos/repos/tq-compiler/tq-compiler-vibes/Resources/Lib/Std/Memory/memops.tq(24,8)
+            ret bool call @__compare_impl__(type %Integer(false, 16), []u16 %a, []u16 %b)    ; @24:46
+        }
+        !public
+        define public bool @Std.Memory.compare([]i32 %a, []i32 %b) {    ; ns=Std.Memory · /home/leo/Documentos/repos/tq-compiler/tq-compiler-vibes/Resources/Lib/Std/Memory/memops.tq(25,8)
+            ret bool call @__compare_impl__(type %Integer(true, 32), []i32 %a, []i32 %b)    ; @25:46
+        }
+        !public
+        define public bool @Std.Memory.compare([]u32 %a, []u32 %b) {    ; ns=Std.Memory · /home/leo/Documentos/repos/tq-compiler/tq-compiler-vibes/Resources/Lib/Std/Memory/memops.tq(26,8)
+            ret bool call @__compare_impl__(type %Integer(false, 32), []u32 %a, []u32 %b)    ; @26:46
+        }
+        !public
+        define public bool @Std.Memory.compare([]i64 %a, []i64 %b) {    ; ns=Std.Memory · /home/leo/Documentos/repos/tq-compiler/tq-compiler-vibes/Resources/Lib/Std/Memory/memops.tq(27,8)
+            ret bool call @__compare_impl__(type %Integer(true, 64), []i64 %a, []i64 %b)    ; @27:46
+        }
+        !public
+        define public bool @Std.Memory.compare([]u64 %a, []u64 %b) {    ; ns=Std.Memory · /home/leo/Documentos/repos/tq-compiler/tq-compiler-vibes/Resources/Lib/Std/Memory/memops.tq(28,8)
+            ret bool call @__compare_impl__(type %Integer(false, 64), []u64 %a, []u64 %b)    ; @28:46
+        }
+        !public
+        define public bool @Std.Memory.compare([]i128 %a, []i128 %b) {    ; ns=Std.Memory · /home/leo/Documentos/repos/tq-compiler/tq-compiler-vibes/Resources/Lib/Std/Memory/memops.tq(29,8)
+            ret bool call @__compare_impl__(type %Integer(true, 128), []i128 %a, []i128 %b)    ; @29:48
+        }
+        !public
+        define public bool @Std.Memory.compare([]u128 %a, []u128 %b) {    ; ns=Std.Memory · /home/leo/Documentos/repos/tq-compiler/tq-compiler-vibes/Resources/Lib/Std/Memory/memops.tq(30,8)
+            ret bool call @__compare_impl__(type %Integer(false, 128), []u128 %a, []u128 %b)    ; @30:48
+        }
+        !public
+        define public bool @Std.Memory.compare([]bool %a, []bool %b) {    ; ns=Std.Memory · /home/leo/Documentos/repos/tq-compiler/tq-compiler-vibes/Resources/Lib/Std/Memory/memops.tq(31,8)
+            ret bool call @__compare_impl__(type %Bool, []bool %a, []bool %b)    ; @31:48
+        }
+        !public
+        define public bool @Std.Memory.compare([]anytype %a, []anytype %b) {    ; ns=Std.Memory · /home/leo/Documentos/repos/tq-compiler/tq-compiler-vibes/Resources/Lib/Std/Memory/memops.tq(32,8)
+            ret bool call @__compare_impl__(type %AnyType, []anytype %a, []anytype %b)    ; @32:54
+        }
+        define private bool @Std.Memory.__compare_impl__(type %T, []? %T %a, []? %T %b) {    ; ns=Std.Memory · /home/leo/Documentos/repos/tq-compiler/tq-compiler-vibes/Resources/Lib/Std/Memory/memops.tq(34,0)
+            if (bool ne(int member([]T %a, ?len), int member([]T %b, ?len))) {    ; @35:4
+                ret bool false    ; @35:24
+            }
+            while (int store(int local(%i), integer literal 0); bool lt(int %i, int member([]T %a, ?len)); int inc.post(int %i)) {    ; @37:1
+                if (bool ne(T index([]T %a, int %i), T index([]T %b, int %i))) {    ; @38:5
+                    ret bool false    ; @38:23
+                }
+            }
+            ret bool true    ; @40:4
+        }
+        !public
+        define public void @Std.Memory.fill([]i8 %slice, i8 %value) {    ; ns=Std.Memory · /home/leo/Documentos/repos/tq-compiler/tq-compiler-vibes/Resources/Lib/Std/Memory/memops.tq(43,8)
+            void call @__fill_impl__(type %Integer(true, 8), []i8 %slice, i8 %value)    ; @43:42
+        }
+        !public
+        define public void @Std.Memory.fill([]u8 %slice, u8 %value) {    ; ns=Std.Memory · /home/leo/Documentos/repos/tq-compiler/tq-compiler-vibes/Resources/Lib/Std/Memory/memops.tq(44,8)
+            void call @__fill_impl__(type %Integer(false, 8), []u8 %slice, u8 %value)    ; @44:42
+        }
+        !public
+        define public void @Std.Memory.fill([]i16 %slice, i16 %value) {    ; ns=Std.Memory · /home/leo/Documentos/repos/tq-compiler/tq-compiler-vibes/Resources/Lib/Std/Memory/memops.tq(45,8)
+            void call @__fill_impl__(type %Integer(true, 16), []i16 %slice, i16 %value)    ; @45:44
+        }
+        !public
+        define public void @Std.Memory.fill([]u16 %slice, u16 %value) {    ; ns=Std.Memory · /home/leo/Documentos/repos/tq-compiler/tq-compiler-vibes/Resources/Lib/Std/Memory/memops.tq(46,8)
+            void call @__fill_impl__(type %Integer(false, 16), []u16 %slice, u16 %value)    ; @46:44
+        }
+        !public
+        define public void @Std.Memory.fill([]i32 %slice, i32 %value) {    ; ns=Std.Memory · /home/leo/Documentos/repos/tq-compiler/tq-compiler-vibes/Resources/Lib/Std/Memory/memops.tq(47,8)
+            void call @__fill_impl__(type %Integer(true, 32), []i32 %slice, i32 %value)    ; @47:44
+        }
+        !public
+        define public void @Std.Memory.fill([]u32 %slice, u32 %value) {    ; ns=Std.Memory · /home/leo/Documentos/repos/tq-compiler/tq-compiler-vibes/Resources/Lib/Std/Memory/memops.tq(48,8)
+            void call @__fill_impl__(type %Integer(false, 32), []u32 %slice, u32 %value)    ; @48:44
+        }
+        !public
+        define public void @Std.Memory.fill([]i64 %slice, i64 %value) {    ; ns=Std.Memory · /home/leo/Documentos/repos/tq-compiler/tq-compiler-vibes/Resources/Lib/Std/Memory/memops.tq(49,8)
+            void call @__fill_impl__(type %Integer(true, 64), []i64 %slice, i64 %value)    ; @49:44
+        }
+        !public
+        define public void @Std.Memory.fill([]u64 %slice, u64 %value) {    ; ns=Std.Memory · /home/leo/Documentos/repos/tq-compiler/tq-compiler-vibes/Resources/Lib/Std/Memory/memops.tq(50,8)
+            void call @__fill_impl__(type %Integer(false, 64), []u64 %slice, u64 %value)    ; @50:44
+        }
+        !public
+        define public void @Std.Memory.fill([]i128 %slice, i128 %value) {    ; ns=Std.Memory · /home/leo/Documentos/repos/tq-compiler/tq-compiler-vibes/Resources/Lib/Std/Memory/memops.tq(51,8)
+            void call @__fill_impl__(type %Integer(true, 128), []i128 %slice, i128 %value)    ; @51:46
+        }
+        !public
+        define public void @Std.Memory.fill([]u128 %slice, u128 %value) {    ; ns=Std.Memory · /home/leo/Documentos/repos/tq-compiler/tq-compiler-vibes/Resources/Lib/Std/Memory/memops.tq(52,8)
+            void call @__fill_impl__(type %Integer(false, 128), []u128 %slice, u128 %value)    ; @52:46
+        }
+        !public
+        define public void @Std.Memory.fill([]bool %slice, bool %value) {    ; ns=Std.Memory · /home/leo/Documentos/repos/tq-compiler/tq-compiler-vibes/Resources/Lib/Std/Memory/memops.tq(53,8)
+            void call @__fill_impl__(type %Bool, []bool %slice, bool %value)    ; @53:46
+        }
+        !public
+        define public void @Std.Memory.fill([]anytype %slice, anytype %value) {    ; ns=Std.Memory · /home/leo/Documentos/repos/tq-compiler/tq-compiler-vibes/Resources/Lib/Std/Memory/memops.tq(54,8)
+            void call @__fill_impl__(type %AnyType, []anytype %slice, anytype %value)    ; @54:52
+        }
+        define private void @Std.Memory.__fill_impl__(type %T, []? %T %slice, ? %T %value) {    ; ns=Std.Memory · /home/leo/Documentos/repos/tq-compiler/tq-compiler-vibes/Resources/Lib/Std/Memory/memops.tq(56,0)
+            while (int store(int local(%i), integer literal 0); bool lt(int %i, int member([]T %slice, ?len)); int inc.post(int %i)) {    ; @57:1
+                T store(T index([]T %slice, int %i), T %value)    ; @57:41
+            }
+        }
+        !public
+        define public []? %T @Std.Memory.alloc(type %T, uint %length, typedef Alignment %alignment) {    ; ns=Std.Memory · /home/leo/Documentos/repos/tq-compiler/tq-compiler-vibes/Resources/Lib/Std/Memory/singleton.tq(4,0)
+            ret []T call @AllocateArray(type %T, int convert(uint %length, int), bool false)    ; @5:4
+        }
+    }
+    namespace Process {
+        ; file /home/leo/Documentos/repos/tq-compiler/tq-compiler-vibes/Resources/Lib/Std/Process/Process.tq
+        import @Dotnet.System.Environment { CsGetArgs = GetCommandLineArgs, CsExit = Exit }    ; @1:0
+        ; declares exit, getProgramArguments
+        
+        !public
+        define public []string @Std.Process.getProgramArguments() {    ; ns=Std.Process · /home/leo/Documentos/repos/tq-compiler/tq-compiler-vibes/Resources/Lib/Std/Process/Process.tq(6,0)
+            ret []string call @GetCommandLineArgs()    ; @7:4
+        }
+        !public
+        define public NoReturn @Std.Process.exit(uint %status) {    ; ns=Std.Process · /home/leo/Documentos/repos/tq-compiler/tq-compiler-vibes/Resources/Lib/Std/Process/Process.tq(10,0)
+            void call @Exit(int convert(uint %status, int))    ; @11:4
+        }
+    }
+    namespace Test {
+        ; file /home/leo/Documentos/repos/tq-compiler/tq-compiler-vibes/Resources/Lib/Std/Test/test.tq
+        import @Std { Memory, Console, Log }    ; @1:0
+        ; declares __assert__impl__, assert, logger, newTestUnit, testCount
+        
+        field private uint @Std.Test.testCount = uint convert(integer literal 0, uint)    ; ns=Std.Test · /home/leo/Documentos/repos/tq-compiler/tq-compiler-vibes/Resources/Lib/Std/Test/test.tq(3,0)
+        field private Const(AnyType) @Std.Test.logger = Logger new Logger(string "Test")    ; ns=Std.Test · /home/leo/Documentos/repos/tq-compiler/tq-compiler-vibes/Resources/Lib/Std/Test/test.tq(4,0)
+        !public
+        define public void @Std.Test.assert(type %T, ? %T %value, ? %T %reference) {    ; ns=Std.Test · /home/leo/Documentos/repos/tq-compiler/tq-compiler-vibes/Resources/Lib/Std/Test/test.tq(7,8)
+            void call @__assert__impl__(bool eq(T %value, T %reference), string convert(T %value, string), string convert(T %reference, string))    ; @7:52
+        }
+        !public
+        define public void @Std.Test.assert(u8 %value, u8 %reference) {    ; ns=Std.Test · /home/leo/Documentos/repos/tq-compiler/tq-compiler-vibes/Resources/Lib/Std/Test/test.tq(10,8)
+            void call @__assert__impl__(bool eq(u8 %value, u8 %reference), string convert(u8 %value, string), string convert(u8 %reference, string))    ; @10:46
+        }
+        !public
+        define public void @Std.Test.assert(i8 %value, i8 %reference) {    ; ns=Std.Test · /home/leo/Documentos/repos/tq-compiler/tq-compiler-vibes/Resources/Lib/Std/Test/test.tq(11,8)
+            void call @__assert__impl__(bool eq(i8 %value, i8 %reference), string convert(i8 %value, string), string convert(i8 %reference, string))    ; @11:46
+        }
+        !public
+        define public void @Std.Test.assert(u16 %value, u16 %reference) {    ; ns=Std.Test · /home/leo/Documentos/repos/tq-compiler/tq-compiler-vibes/Resources/Lib/Std/Test/test.tq(12,8)
+            void call @__assert__impl__(bool eq(u16 %value, u16 %reference), string convert(u16 %value, string), string convert(u16 %reference, string))    ; @12:48
+        }
+        !public
+        define public void @Std.Test.assert(i16 %value, i16 %reference) {    ; ns=Std.Test · /home/leo/Documentos/repos/tq-compiler/tq-compiler-vibes/Resources/Lib/Std/Test/test.tq(13,8)
+            void call @__assert__impl__(bool eq(i16 %value, i16 %reference), string convert(i16 %value, string), string convert(i16 %reference, string))    ; @13:48
+        }
+        !public
+        define public void @Std.Test.assert(u32 %value, u32 %reference) {    ; ns=Std.Test · /home/leo/Documentos/repos/tq-compiler/tq-compiler-vibes/Resources/Lib/Std/Test/test.tq(14,8)
+            void call @__assert__impl__(bool eq(u32 %value, u32 %reference), string convert(u32 %value, string), string convert(u32 %reference, string))    ; @14:48
+        }
+        !public
+        define public void @Std.Test.assert(i32 %value, i32 %reference) {    ; ns=Std.Test · /home/leo/Documentos/repos/tq-compiler/tq-compiler-vibes/Resources/Lib/Std/Test/test.tq(15,8)
+            void call @__assert__impl__(bool eq(i32 %value, i32 %reference), string convert(i32 %value, string), string convert(i32 %reference, string))    ; @15:48
+        }
+        !public
+        define public void @Std.Test.assert(u64 %value, u64 %reference) {    ; ns=Std.Test · /home/leo/Documentos/repos/tq-compiler/tq-compiler-vibes/Resources/Lib/Std/Test/test.tq(16,8)
+            void call @__assert__impl__(bool eq(u64 %value, u64 %reference), string convert(u64 %value, string), string convert(u64 %reference, string))    ; @16:48
+        }
+        !public
+        define public void @Std.Test.assert(i64 %value, i64 %reference) {    ; ns=Std.Test · /home/leo/Documentos/repos/tq-compiler/tq-compiler-vibes/Resources/Lib/Std/Test/test.tq(17,8)
+            void call @__assert__impl__(bool eq(i64 %value, i64 %reference), string convert(i64 %value, string), string convert(i64 %reference, string))    ; @17:48
+        }
+        !public
+        define public void @Std.Test.assert(u128 %value, u128 %reference) {    ; ns=Std.Test · /home/leo/Documentos/repos/tq-compiler/tq-compiler-vibes/Resources/Lib/Std/Test/test.tq(18,8)
+            void call @__assert__impl__(bool eq(u128 %value, u128 %reference), string convert(u128 %value, string), string convert(u128 %reference, string))    ; @18:50
+        }
+        !public
+        define public void @Std.Test.assert(i128 %value, i128 %reference) {    ; ns=Std.Test · /home/leo/Documentos/repos/tq-compiler/tq-compiler-vibes/Resources/Lib/Std/Test/test.tq(19,8)
+            void call @__assert__impl__(bool eq(i128 %value, i128 %reference), string convert(i128 %value, string), string convert(i128 %reference, string))    ; @19:50
+        }
+        !public
+        define public void @Std.Test.assert(int %value, int %reference) {    ; ns=Std.Test · /home/leo/Documentos/repos/tq-compiler/tq-compiler-vibes/Resources/Lib/Std/Test/test.tq(20,8)
+            void call @__assert__impl__(bool eq(int %value, int %reference), string convert(int %value, string), string convert(int %reference, string))    ; @20:48
+        }
+        !public
+        define public void @Std.Test.assert(uint %value, uint %reference) {    ; ns=Std.Test · /home/leo/Documentos/repos/tq-compiler/tq-compiler-vibes/Resources/Lib/Std/Test/test.tq(21,8)
+            void call @__assert__impl__(bool eq(uint %value, uint %reference), string convert(uint %value, string), string convert(uint %reference, string))    ; @21:50
+        }
+        !public
+        define public void @Std.Test.assert(bool %value, bool %reference) {    ; ns=Std.Test · /home/leo/Documentos/repos/tq-compiler/tq-compiler-vibes/Resources/Lib/Std/Test/test.tq(24,8)
+            void call @__assert__impl__(bool eq(bool %value, bool %reference), string convert(bool %value, string), string convert(bool %reference, string))    ; @24:50
+        }
+        !public
+        define public void @Std.Test.assert(char %value, char %reference) {    ; ns=Std.Test · /home/leo/Documentos/repos/tq-compiler/tq-compiler-vibes/Resources/Lib/Std/Test/test.tq(25,8)
+            void call @__assert__impl__(bool eq(char %value, char %reference), string convert(char %value, string), string convert(char %reference, string))    ; @25:50
+        }
+        !public
+        define public void @Std.Test.assert(string %value, string %reference) {    ; ns=Std.Test · /home/leo/Documentos/repos/tq-compiler/tq-compiler-vibes/Resources/Lib/Std/Test/test.tq(26,8)
+            void call @__assert__impl__(bool eq(string %value, string %reference), string convert(string %value, string), string convert(string %reference, string))    ; @26:54
+        }
+        !public
+        define public void @Std.Test.assert(type %T, []? %T %value, []? %T %reference) {    ; ns=Std.Test · /home/leo/Documentos/repos/tq-compiler/tq-compiler-vibes/Resources/Lib/Std/Test/test.tq(29,8)
+            void call @__assert__impl__(bool call @compare([]T %value, []T %reference), string convert([]T %value, string), string convert([]T %reference, string))    ; @29:56
+        }
+        !public
+        define public void @Std.Test.newTestUnit(string %title) {    ; ns=Std.Test · /home/leo/Documentos/repos/tq-compiler/tq-compiler-vibes/Resources/Lib/Std/Test/test.tq(32,0)
+            uint store(uint @testCount, uint convert(integer literal 0, uint))    ; @33:4
+            void call @Logger.debug(string %title)    ; @34:4
+        }
+        define private void @Std.Test.__assert__impl__(bool %status, string %value, string %expected) {    ; ns=Std.Test · /home/leo/Documentos/repos/tq-compiler/tq-compiler-vibes/Resources/Lib/Std/Test/test.tq(37,0)
+            uint inc.post(uint @testCount)    ; @38:4
+            if (bool not(bool %status)) {    ; @40:4
+                void call @Logger.err(string add(string concat(string "    - TEST ", uint @testCount, string " "), string concat(string @color_red, string " [FAILED] (", string %value, string " != ", string %expected, string ")", string @style_reset)))    ; @41:8
+            }
+        }
+    }
+}

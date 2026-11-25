@@ -12,8 +12,8 @@ cache-dir = ".tq-cache"
     dependencies = [
         "module : Std",
         "module : Silk",
+        "module : Dotnet",
     ]
-
 
 [[module]]
     name = "Std"

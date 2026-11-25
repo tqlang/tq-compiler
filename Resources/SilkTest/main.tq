@@ -1,9 +1,11 @@
 from Std.Console import
 
 from Silk.Silk.NET.Windowing import
+from Silk.Silk.NET.OpenGL import
 from Silk.Silk.NET.Maths import { Vector2D }
 
-let IWindow window
+let *IWindow window
+let *GL gl
 
 @public func main() {
 	writeln("Hello, World!")
@@ -16,15 +18,18 @@ let IWindow window
 
 	window = Window.Create(windowOptions)
 
-	#window.add_Load(onLoad)
-	#window.add_Update(onUpdate)
-	#window.add_Render(onRender)
+	let view = window as *IView
+	view.Load += onLoad
+	view.Update += onUpdate
+	view.Render += onRender
 
 	WindowExtensions.Run(window)
 }
 
 func onLoad() {
 	writeln("Loaded!")
+
+	gl = ContextSourceExtensions.CreateOpenGL(window)
 }
 
 func onUpdate(f64 delta) {
@@ -33,4 +38,7 @@ func onUpdate(f64 delta) {
 
 func onRender(f64 delta) {
 	writeln("Render!")
+
+	gl.ClearColor(0.3882353, 0.58431375, 0.93333334, 1.0)
+	gl.Clear(ClearBufferMask.ColorBufferBit)
 }
