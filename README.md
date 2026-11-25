@@ -344,6 +344,10 @@ cada aplicação é uma `GenericInstance` da tabela compartilhada; não há nó 
 - Strings em linhas consecutivas são uma string só (`StringExpressionNode.Following`, no parser): cada literal (também os interpolados)
   é uma linha, com `\n` entre duas e nenhum no fim. Precisa haver quebra de linha entre eles (`"a" "b"` na mesma linha não junta);
   comentários e linhas em branco no meio não interrompem; vírgula ou operador separam; vale em qualquer lugar onde há uma string.
+- `UnsafePtr(T)` (`StdTypes.UnsafePtr`): o ponteiro não gerenciado, intrínseco. Os `T*` do .NET são importados como ele (`void*` é
+  `UnsafePtr(Opaque)`, `T**` é `UnsafePtr(UnsafePtr(T))`); `ref`/`out`/`in` continuam `Ref(T)`. No backend é `T*` do IL. O único valor
+  que o Tq escreve é `null` (o ponteiro 0, em qualquer posição de argumento, atribuição ou declaração); nenhum outro literal converte, e `Ref(T)`
+  e fatias nunca convertem para ele nem ele para elas. Desreferenciar, indexar e converter serão funções intrínsecas, ainda não feitas.
 - Delegates do .NET (`Action`, `EventHandler`, `Action(i32)`) são `DotnetDelegate`: classes (logo `*Action`) cuja assinatura é a
   do `Invoke`. Eventos (`DotnetEvent`, lidos de `definition.Events`; os acessores `add_X`/`remove_X` continuam métodos) não têm valor:
   `x.Evento += f` e `x.Evento -= f` viram a chamada de `add`/`remove` com `f` como delegate. Em uma variável, parâmetro ou campo de

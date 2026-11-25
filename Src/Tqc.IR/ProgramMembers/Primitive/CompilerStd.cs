@@ -57,6 +57,12 @@ public sealed class StdTypes
     /// <summary>`Nullable(T)`: a `T` or nothing. `?T` is `Nullable(T)`.</summary>
     public PrimitiveStruct Nullable { get; }
 
+    /// <summary>
+    /// `UnsafePtr(T)`: an unmanaged pointer to a `T`, as in `T*` of .NET (`void*` is `UnsafePtr(Opaque)`). It is not a `Ref(T)` and never
+    /// converts to one: only `null` is a value of it for now; what else it does (dereference, index, convert) will be intrinsic functions.
+    /// </summary>
+    public PrimitiveStruct UnsafePtr { get; }
+
     /// <summary>`int` and `uint`: the integer of the target's default size.</summary>
     public PrimitiveStruct NaturalInteger { get; }
 
@@ -75,6 +81,7 @@ public sealed class StdTypes
         Ref = new PrimitiveStruct("Ref", [Parameter("type", Type)]);
         Failable = new PrimitiveStruct("Failable", [Parameter("type", Type)]);
         Nullable = new PrimitiveStruct("Nullable", [Parameter("type", Type)]);
+        UnsafePtr = new PrimitiveStruct("UnsafePtr", [Parameter("type", Type)]);
         NaturalInteger = new PrimitiveStruct("NaturalInteger", [Parameter("signed", Bool)]);
         NativeInteger = new PrimitiveStruct("NativeInteger", [Parameter("signed", Bool)]);
 
@@ -118,7 +125,7 @@ public sealed class StdTypes
     public IEnumerable<IMember> All =>
     [
         Bool, Char, String, Void, Opaque, NoReturn, Label, Type, AnyType,
-        NaturalInteger, NativeInteger, Integer, Float, Const, Ref, Failable, Nullable,
+        NaturalInteger, NativeInteger, Integer, Float, Const, Ref, Failable, Nullable, UnsafePtr,
     ];
 
     /// <summary>`definition(argument)` as an expression, for a pseudotype that modifies a type (`Const`, `Ref`, `Failable`).</summary>
@@ -142,6 +149,12 @@ public sealed class StdTypes
 
     /// <summary>The type `Nullable(T)`.</summary>
     public ITypeRef NullableOf(ITypeRef value) => OfType(Nullable, value);
+
+    /// <summary>The type `UnsafePtr(T)`.</summary>
+    public ITypeRef UnsafePtrOf(ITypeRef pointee) => OfType(UnsafePtr, pointee);
+
+    /// <summary>Whether a type is `UnsafePtr(T)`; `pointee` is `T` as written.</summary>
+    public bool IsUnsafePtr(ITypeRef? type, out ITypeRef pointee) => TryUnary(type, UnsafePtr, out pointee);
 
     /// <summary>Whether a type is `Nullable(T)`; `value` is `T` as written.</summary>
     public bool IsNullable(ITypeRef? type, out ITypeRef value) => TryUnary(type, Nullable, out value);

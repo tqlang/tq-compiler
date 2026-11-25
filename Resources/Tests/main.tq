@@ -41,6 +41,7 @@ from Tests import {
     Interop.testRefParameters()
     Interop.testDelegates()
     Interop.testSpans()
+    Interop.testUnsafePtr()
 
     StdLib.testDynamicArray()
     StdLib.testDictionaries()

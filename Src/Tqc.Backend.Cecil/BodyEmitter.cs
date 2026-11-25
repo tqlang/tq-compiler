@@ -753,6 +753,14 @@ internal sealed class BodyEmitter
         var type = expected;
         if (type == null && _types.Get(nothing) is { } given and not NullTypeRef) type = _owner.MapType(given, nothing.Location);
 
+        // The null of an `UnsafePtr(T)` is the pointer 0.
+        if (type is PointerType)
+        {
+            _il.Emit(OpCodes.Ldc_I4_0);
+            _il.Emit(OpCodes.Conv_U);
+            return type;
+        }
+
         if (type is { IsValueType: true })
         {
             var empty = NewTemp(type);

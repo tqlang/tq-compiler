@@ -80,11 +80,22 @@ sealed internal class TqTypeTranslator(Func<TypeReference, TypeNode?> lookup)
         // Sem representação na IR por enquanto
         GenericInstanceType instance => TranslateInstance(instance, generics),
 
-        PointerType or FunctionPointerType or ArrayType or SentinelType
+        // `T*` is an unmanaged pointer: `UnsafePtr(T)`, and `void*` is `UnsafePtr(Opaque)`.
+        PointerType pointer => TranslatePointer(pointer, generics),
+
+        FunctionPointerType or ArrayType or SentinelType
             => Unsupported(type),
 
         _ => TranslateNamed(type),
     };
+
+    private ITypeRef TranslatePointer(PointerType pointer, Func<GenericParameter, ITypeRef?>? generics)
+    {
+        if (pointer.ElementType.FullName == "System.Void") return CompilerStd.Types.UnsafePtrOf(new StructTypeReference(Std.Opaque));
+
+        var pointee = Translate(pointer.ElementType, generics);
+        return pointee is UnsupportedTypeRef ? Unsupported(pointer) : CompilerStd.Types.UnsafePtrOf(pointee);
+    }
 
     /// <summary>
     /// `List&lt;T&gt;` with its arguments: an application of the generic struct, as `List(T)` is in Tq. A class is

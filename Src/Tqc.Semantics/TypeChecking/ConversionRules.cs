@@ -76,7 +76,9 @@ internal static class ConversionRules
         if (argument.Equals(parameter)) return ArgumentMatch.Exact;
 
         // `null` is the empty `?T`.
-        if (argument is NullTypeRef) return types.IsNullable(parameter, out _) ? Convert(NullToNullable) : ArgumentMatch.None;
+        // It is also the only value that goes where an `UnsafePtr(T)` is asked: the null pointer.
+        if (argument is NullTypeRef)
+            return types.IsNullable(parameter, out _) || types.IsUnsafePtr(parameter, out _) ? Convert(NullToNullable) : ArgumentMatch.None;
 
         // A `T` is a `?T` and a `!T`.
         if (types.IsNullable(parameter, out var wrapped) || types.IsFailable(parameter, out wrapped))

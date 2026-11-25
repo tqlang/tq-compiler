@@ -1,0 +1,15 @@
+from Std import { Test }
+from Dotnet.System.Runtime.InteropServices import { NativeMemory }
+
+# `T*` of .NET is `UnsafePtr(T)` (`void*` is `UnsafePtr(Opaque)`); the only value of it that Tq writes is `null`.
+@public func testUnsafePtr() {
+    Test.newTestUnit("Interop - unsafe pointers - void* is UnsafePtr(Opaque), and null goes where one is asked")
+    {
+        # NativeMemory.Alloc(uptr) gives a void*, NativeMemory.Free(void*) takes one.
+        let p = NativeMemory.Alloc(16)
+        NativeMemory.Free(p)
+        NativeMemory.Free(null)
+
+        Test.assert(true, true)
+    }
+}

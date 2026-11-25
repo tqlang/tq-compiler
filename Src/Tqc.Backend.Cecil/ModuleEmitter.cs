@@ -350,6 +350,13 @@ internal sealed partial class ModuleEmitter
             return referred.IsValueType ? new ByReferenceType(referred) : referred;
         }
 
+        // `UnsafePtr(T)`: `T*`; `UnsafePtr(Opaque)` is `void*`.
+        if (ReferenceEquals(definition, std.UnsafePtr))
+        {
+            var opaque = TypeExpressions.Raw(only) is StructTypeReference { Struct: var pointee } && ReferenceEquals(pointee, std.Opaque);
+            return new PointerType(opaque ? Core("System.Void") : MapExpression(only));
+        }
+
         // `?T`: a value needs a wrapper; a reference can be null already.
         if (ReferenceEquals(definition, std.Nullable))
         {
