@@ -1,3 +1,4 @@
+using System.Text;
 using Tqc.Core;
 using Tqc.Dotnet.ModuleBuilder;
 using Tqc.Dotnet.ProgramMembers;
@@ -145,7 +146,7 @@ internal sealed partial class TypeChecker
         var byArity = overloads.Where(overload => overload.Accepts(arguments.Length)).ToList();
         if (byArity.Count == 0)
         {
-            Error($"No {noun} of '{name}' takes {arguments.Length} argument(s). {Candidates(name, allOverloads)}", location);
+            Error($"No {noun} of '{name}' takes {arguments.Length} argument(s). Candidates:\n{Candidates(name, allOverloads)}", location);
             return null;
         }
 
@@ -163,7 +164,7 @@ internal sealed partial class TypeChecker
         if (candidates.Count == 0)
         {
             var given = string.Join(", ", argumentTypes.Select(TypeFormatter.Format));
-            Error($"No {noun} of '{name}' accepts ({given}). {Candidates(name, allOverloads)}", location);
+            Error($"No {noun} of '{name}' accepts ({given}). Candidates:\n{Candidates(name, allOverloads)}", location);
             return null;
         }
 
@@ -465,8 +466,16 @@ internal sealed partial class TypeChecker
             FunctionSignature.Of(method)!.Return);
     }
 
-    private static string Candidates(string name, List<Overload> overloads) =>
-        "Candidates: " + string.Join(", ", overloads.Select(overload => Signature(name, overload)));
+    private static string Candidates(string name, List<Overload> overloads)
+    {
+        var sb = new StringBuilder();
+        
+        foreach (var overload in overloads)
+            sb.Append(" - ").AppendLine(Signature(name, overload));
+
+        sb.Length -= Environment.NewLine.Length;
+        return sb.ToString();
+    }
 
     private static string Signature(string name, Overload overload, bool withReturn = false) =>
         $"{name}({string.Join(", ", overload.ParameterTypes.Select(TypeFormatter.Format))})"

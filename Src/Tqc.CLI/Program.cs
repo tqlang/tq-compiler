@@ -1,5 +1,5 @@
 using System.Diagnostics;
-using System.Reflection;
+using System.Text;
 using System.Text.RegularExpressions;
 using Tqc.Backend.Cecil;
 using Tqc.Build.Model;
@@ -198,10 +198,27 @@ static class Program
     {
         foreach (var diagnostic in diagnostics)
         {
+            var sb = new StringBuilder();
             var where = diagnostic is CompilationError { Location: { } location }
-                ? $"{location.filePath}({location.span.LineStart},{location.span.ColStart}): "
+                ? $"{location}"
                 : "";
-            Console.Error.WriteLine($"{where}error: {diagnostic.Message}");
+
+            sb.Append("\e[31m┌ ").Append("error:\e[0m ").AppendLine(where);
+            var diagnosticLines = diagnostic.Message.Split(Environment.NewLine);
+
+            if (diagnosticLines.Length == 1)
+            {
+                sb.Append("\e[31m└\e[0m ").Append(diagnosticLines[0]);;
+            }
+            else
+            {
+                foreach (var line in diagnosticLines[..^1])
+                    sb.Append("\e[31m│\e[0m ").AppendLine(line);
+                
+                sb.Append("\e[31m└\e[0m ").Append(diagnosticLines[^1]);
+            }
+
+            Console.Error.WriteLine(sb.ToString());
         }
 
         if (diagnostics.HasErrors) Console.Error.WriteLine($"{diagnostics.Count} error(s)");

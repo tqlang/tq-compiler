@@ -17,16 +17,16 @@ internal static class TypeFormatter
                 return "?";
 
             case ComptimeIntegerTypeRef:
-                return "integer literal";
+                return "integer_literal";
 
             case ComptimeDecimalTypeRef:
-                return "decimal literal";
+                return "decimal_literal";
 
             case NullTypeRef:
                 return "null";
 
             case var _ when types.IsRef(type, out var referred):
-                return "ref " + Format(referred);
+                return "*" + Format(referred);
 
             case var _ when types.IsFailable(type, out var result):
                 return "!" + Format(result);

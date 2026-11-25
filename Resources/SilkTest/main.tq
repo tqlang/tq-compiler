@@ -1,15 +1,17 @@
 from Std.Console import
 
-from Silk.Silk.NET.Windowing import
-from Silk.Silk.NET.OpenGL import
-from Silk.Silk.NET.Maths import { Vector2D }
+from Dotnet.System import
+from Dotnet.Silk.NET.Windowing import
+from Dotnet.Silk.NET.OpenGL import
+from Dotnet.Silk.NET.Maths import { Vector2D }
 
 let *IWindow window
 let *GL gl
 
-@public func main() {
-	writeln("Hello, World!")
+let uint vao
+let uint vbo
 
+@public func main() {
 	let windowOptions = WindowOptions.Default
 	{
 		windowOptions.Size = new Vector2D(int)(1000, 600)
@@ -27,18 +29,35 @@ let *GL gl
 }
 
 func onLoad() {
-	writeln("Loaded!")
-
 	gl = ContextSourceExtensions.CreateOpenGL(window)
+	
+	vao = gl.GenVertexArray()
+	gl.BindVertexArray(vao)
+
+	let [12]f32 vertices = [
+		 0.5,  0.5, 0.0,
+		 0.5, -0.5, 0.0,
+		-0.5, -0.5, 0.0,
+		-0.5,  0.5, 0.0
+	]
+	
+	vbo = gl.GenBuffer()
+	gl.BindBuffer(BufferTargetARB.ArrayBuffer, vbo)
+
+	gl.BufferData(
+		f32,
+		BufferTargetARB.ArrayBuffer,
+		vertices.len * 4, # sizeof(float)
+		&vertices,
+		BuferUsageARB.StaticDraw
+	)
 }
 
 func onUpdate(f64 delta) {
-	writeln("Update!")
+
 }
 
 func onRender(f64 delta) {
-	writeln("Render!")
-
 	gl.ClearColor(0.3882353, 0.58431375, 0.93333334, 1.0)
 	gl.Clear(ClearBufferMask.ColorBufferBit)
 }

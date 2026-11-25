@@ -74,7 +74,7 @@ internal sealed partial class TypeChecker
         var rewritten = call with
         {
             callee = new IrReference(call.callee.Location, new FunctionGroupTypeReference(group)),
-            ArgumentsList = new IrArgumentsList(call.ArgumentsList.Location, [receiver, ..call.ArgumentsList.arguments]),
+            ArgumentsList = new IrArgumentsList(call.ArgumentsList.location, [receiver, ..call.ArgumentsList.arguments]),
         };
 
         var resolved = ResolveOverload(rewritten, group.Name, OverloadsOf(group, viaValue: false), expected);
