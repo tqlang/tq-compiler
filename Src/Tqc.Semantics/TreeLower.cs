@@ -694,10 +694,23 @@ public static class TreeLower
                 var parts = new List<IrExpression>();
                 var literal = new StringBuilder();
 
-                foreach (var content in stringExp.Contents)
+                // The strings of the lines that follow are one string with a line feed between each two.
+                var lines = new List<StringContentNode?>();
+                lines.AddRange(stringExp.Contents);
+                foreach (var following in stringExp.Following)
+                {
+                    lines.Add(null);
+                    lines.AddRange(following.Contents);
+                }
+
+                foreach (var content in lines)
                 {
                     switch (content)
                     {
+                        case null:
+                            literal.Append('\n');
+                        break;
+
                         case StringCharacterLiteralNode character:
                             literal.Append(character.GetCharacterLiteralValue());
                         break;

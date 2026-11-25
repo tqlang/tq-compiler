@@ -22,4 +22,29 @@ from Std import { Test }
         Test.assert("sum: \{number + 1}", "sum: 6")
         Test.assert("\{number * number} squared", "25 squared")
     }
+
+    # Strings on consecutive lines are one string, with a line feed between each two (none after the last).
+    Test.newTestUnit("Builtins - strings - strings on consecutive lines are one multiline string")
+    {
+        let string text = "a"
+            "b"
+            ""
+            "c"
+        Test.assert(text, "a\nb\n\nc")
+
+        # A comment or a blank line between them does not stop the sequence.
+        let string spaced = "x"
+            # comment
+
+            "y"
+        Test.assert(spaced, "x\ny")
+
+        let string mixed = "n = \{number}"
+            "end"
+        Test.assert(mixed, "n = 5\nend")
+
+        # In an argument too; a comma separates.
+        Test.assert("p"
+            "q", "p\nq")
+    }
 }

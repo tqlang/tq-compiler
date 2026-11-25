@@ -341,6 +341,9 @@ cada aplicação é uma `GenericInstance` da tabela compartilhada; não há nó 
   `ReadOnlyMemory(T)` (`ConversionRules.ClassifyArgument`, custo 20; o `T` tem de ser o mesmo do elemento; `[N]T` não converte, é um
   buffer da pilha). No backend a fatia é um `Memory<T>`: `.Span` para `Span`, e `ReadOnlyMemory` (e o `.Span` dele) para os read-only;
   o que o .NET escreve no `Span` aparece na fatia. `&array` continua sendo `[]T`, não `*T`. Em atribuição e declaração não vale.
+- Strings em linhas consecutivas são uma string só (`StringExpressionNode.Following`, no parser): cada literal (também os interpolados)
+  é uma linha, com `\n` entre duas e nenhum no fim. Precisa haver quebra de linha entre eles (`"a" "b"` na mesma linha não junta);
+  comentários e linhas em branco no meio não interrompem; vírgula ou operador separam; vale em qualquer lugar onde há uma string.
 - Delegates do .NET (`Action`, `EventHandler`, `Action(i32)`) são `DotnetDelegate`: classes (logo `*Action`) cuja assinatura é a
   do `Invoke`. Eventos (`DotnetEvent`, lidos de `definition.Events`; os acessores `add_X`/`remove_X` continuam métodos) não têm valor:
   `x.Evento += f` e `x.Evento -= f` viram a chamada de `add`/`remove` com `f` como delegate. Em uma variável, parâmetro ou campo de

@@ -10,15 +10,22 @@ public record StringExpressionNode(
     TokenNode RightDoubleQuotes
 ) : ExpressionNode
 {
+    /// <summary>
+    /// The strings written on the lines after this one, with nothing but trivia between them: all of them are one string, with a
+    /// line feed between each two. They have no `Following` of their own.
+    /// </summary>
+    public StringExpressionNode[] Following { get; init; } = [];
+
     override internal StringBuilder AppendSyntaxToStringBuilder(StringBuilder sb)
     {
         sb.AppendSyntaxNode(LeftDoubleQuotes);
         foreach (var i in Contents) sb.AppendSyntaxNode(i);
         sb.AppendSyntaxNode(RightDoubleQuotes);
+        foreach (var line in Following) line.AppendSyntaxToStringBuilder(sb);
         return sb;
     }
     
-    public override SourceSpan Span => LeftDoubleQuotes.Span + RightDoubleQuotes.Span;
+    public override SourceSpan Span => LeftDoubleQuotes.Span + (Following.Length > 0 ? Following[^1].RightDoubleQuotes.Span : RightDoubleQuotes.Span);
 }
 
 public abstract record StringContentNode : SyntaxNode;

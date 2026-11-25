@@ -1309,7 +1309,38 @@ public class Parser(DiagnosticBag diagnostics)
             throw new EndOfStreamException("Expected expression, found End of Stream");
     }
 
+    /// <summary>
+    /// A string, and the ones on the lines that follow it (a line break is needed; comments and blank lines do not stop it): they are
+    /// one string whose lines are the strings. What comes after the last one is not touched.
+    /// </summary>
     private StringExpressionNode ParseStringExpression()
+    {
+        var first = ParseSingleString();
+        List<StringExpressionNode> following = [];
+
+        while (true)
+        {
+            var checkpoint = SaveCheckpoint();
+            var lineBreak = false;
+
+            while (!AtEnd() && PeekKind() is TokenKind.Whitespace or TokenKind.Comment or TokenKind.LineFeed)
+            {
+                if (PeekKind() == TokenKind.LineFeed) lineBreak = true;
+                AdvanceTrivia();
+            }
+
+            if (lineBreak && Check(TokenKind.DoubleQuote)) following.Add(ParseSingleString());
+            else
+            {
+                Rollback(checkpoint);
+                break;
+            }
+        }
+
+        return following.Count == 0 ? first : first with { Following = [.. following] };
+    }
+
+    private StringExpressionNode ParseSingleString()
     {
         var oldMode = _lexer.Mode;
         _lexer.Mode = Lexer.LexerMode.String;
