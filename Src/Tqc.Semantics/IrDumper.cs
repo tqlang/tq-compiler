@@ -302,7 +302,12 @@ public sealed class IrDumper
     // ---- References
 
     private static string Callable(IFunction function) =>
-        function is TqFunction { Owner: { } owner } ? $"{owner.Name}.{function.Name}" : function.Name;
+        function switch
+        {
+            TqFunction { Owner: { } owner } => $"{owner.Name}.{function.Name}",
+            IntrinsicMethod intrinsic => $"{intrinsic.Owner.Name}.{function.Name}",
+            _ => function.Name,
+        };
 
     /// <summary>What a name is: `%x` a local, a parameter or `this`; `@x` a function, a field or a namespace; `%X` a type.</summary>
     private static string Symbol(Ref reference) => reference switch

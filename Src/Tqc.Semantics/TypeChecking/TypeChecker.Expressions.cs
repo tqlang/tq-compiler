@@ -342,13 +342,6 @@ internal sealed partial class TypeChecker
                 : (visited, TypeOfReference(access.access.Reference));
         }
 
-        // `x.value` of a `?T` is the `T`, as `x.unwrap()`.
-        if (name.Value == "value" && TypeOf(baseExpr) is { } nullableType && CompilerStd.Types.IsNullable(nullableType, out _))
-        {
-            if (asTarget) Error("The value of a '?T' cannot be assigned", access.access.Location);
-            return VisitWrapperOperator(new IrUnary(access.Location, UnaryOperator.Unwrap, baseExpr), baseExpr);
-        }
-
         // The length of a slice is an `int`; it is not a member of any struct, so it stays an unresolved name
         // and the backend knows it by the type of the value.
         if (TypeOf(baseExpr) is SliceTypeRef or ArrayTypeRef && name.Value == "len")
@@ -395,6 +388,9 @@ internal sealed partial class TypeChecker
         var resolved = visited with { access = new IrReference(access.access.Location, reference) };
         if (member is TqProperty property) return PropertyAccess(resolved, property, asTarget);
 
+        if (member is IntrinsicProperty { Owner: var declaring } && asTarget)
+            Error($"'{name.Value}' of '{declaring.Name}' can only be read, not assigned", access.access.Location);
+
         // A field or property of `List(i8)` is typed in terms of `i8`, not of the `T` it was declared with.
         var memberType = TypeOfReference(reference);
         if (DependsOnTypeParameter(memberType))
@@ -438,6 +434,7 @@ internal sealed partial class TypeChecker
         TqStruct or TqTypedef => true,
         DotnetClass { Members: not null } or DotnetStruct { Members: not null } => true,
         DotnetEnum { Members: not null } or DotnetInterface { Members: not null } => true,
+        PrimitiveStruct { Members.Count: > 0 } => true,
         _ => false,
     };
 
@@ -501,21 +498,6 @@ internal sealed partial class TypeChecker
         var expected = _expected;
         _expected = null;
 
-        // `x.ignored()` of a `!T` and `x.unwrap()` of a `?T` are not functions: they are operators the backend knows.
-        if (call.callee is IrAccess { access.Reference: UnsolvedRef { Value: "ignored" or "unwrap" } intrinsic } intrinsicAccess
-            && call.ArgumentsList.arguments.Length == 0)
-        {
-            var receiver = Visit(intrinsicAccess.baseExpr);
-            var receiverType = TypeOf(receiver);
-            var ignores = intrinsic.Value == "ignored";
-
-            if (receiverType != null && (ignores
-                    ? CompilerStd.Types.IsFailable(receiverType, out _)
-                    : CompilerStd.Types.IsNullable(receiverType, out _)))
-                return VisitWrapperOperator(
-                    new IrUnary(call.Location, ignores ? UnaryOperator.Ignored : UnaryOperator.Unwrap, receiver), receiver);
-        }
-
         var visited = call with
         {
             callee = Visit(call.callee),
@@ -535,6 +517,11 @@ internal sealed partial class TypeChecker
             // A single function is a group of one: its arguments are checked and converted all the same.
             case FunctionTypeReference { Function: TqFunction function }:
                 visited = ResolveOverload(visited, function.Name, [ToOverload(function)], expected) ?? visited;
+                break;
+
+            // `x.unwrap()` of a `?T`, `x.ignored()` of a `!T`: declared by the compiler, lowered by the backend.
+            case FunctionTypeReference { Function: IntrinsicMethod intrinsic }:
+                visited = ResolveOverload(visited, intrinsic.Name, [ToOverload(intrinsic)], expected) ?? visited;
                 break;
 
             case FunctionTypeReference { Function: DotnetMethod { IsConstructor: false } method }:
@@ -603,6 +590,7 @@ internal sealed partial class TypeChecker
         FieldReference { Field: DotnetField field } => field.Type,
         FieldReference { Field: DotnetProperty property } => property.Type,
         FieldReference { Field: DotnetEvent @event } => @event.Type,
+        FieldReference { Field: IntrinsicProperty property } => property.Type,
         ThisReference { Owner: TqTypedef typedef } => new TypedefTypeReference(typedef),
         ThisReference { Owner: IStruct owner } => StructSemantics.TypeOf(owner),
         FieldReference { Field: TqNamedCase { Typedef: { } typedef } } => new TypedefTypeReference(typedef),

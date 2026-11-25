@@ -406,6 +406,11 @@ internal sealed partial class TypeChecker
                     .Select(ToOverload));
                 break;
 
+            // The methods that the compiler declares on its types are instance ones.
+            case IntrinsicMethodGroup intrinsicGroup:
+                if (viaValue) overloads.AddRange(intrinsicGroup.Methods.Select(ToOverload));
+                break;
+
             case DotnetMethodGroup dotnetGroup:
                 // Through a type only static methods apply; through a value, only those of instances.
                 foreach (var method in dotnetGroup.Methods.Where(method => method.IsStatic != viaValue && !method.IsConstructor && IsCallable(method)))
@@ -441,6 +446,12 @@ internal sealed partial class TypeChecker
     /// and make a call with several overloads impossible to decide.
     /// </summary>
     private static bool IsCallable(DotnetMethod method) => !method.ParameterTypes.Any(type => type is UnsupportedTypeRef);
+
+    private static Overload ToOverload(IntrinsicMethod method)
+    {
+        var signature = FunctionSignature.Of(method)!;
+        return new Overload(method, signature.Parameters, [..signature.Parameters.Select(_ => (IrExpression?)null)], signature.Parameters.Count, signature.Return);
+    }
 
     private static Overload ToOverload(DotnetMethod method)
     {

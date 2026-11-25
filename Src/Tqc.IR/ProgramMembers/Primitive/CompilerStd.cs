@@ -15,6 +15,8 @@ public static class CompilerStd
 
     public static readonly StdTypes Types = new();
 
+    static CompilerStd() => Types.DeclareIntrinsics();
+
     public static readonly IModule Module = new PrimitiveModule(
         new PrimitiveNamespace(ModuleName,
         [
@@ -79,6 +81,28 @@ public sealed class StdTypes
         var bitSize = new TqParameter(Expression(Natural(true).GetReference()), "bitSize");
         Integer = new PrimitiveStruct("Integer", [Parameter("signed", Bool), bitSize]);
         Float = new PrimitiveStruct("Float", [new TqParameter(Expression(Natural(true).GetReference()), "bitSize")]);
+    }
+
+    /// <summary>
+    /// What the types can do. Each member is intrinsic: the backend lowers a call to it. It is declared once `CompilerStd.Types`
+    /// exists, because a member's type is made from the instance table, which needs it.
+    /// </summary>
+    internal void DeclareIntrinsics()
+    {
+        // What the wrappers can do. Each is intrinsic: the backend lowers a call to it (`x.unwrap()`, `x.value`, `x.ignored()`).
+        var maybe = new GenericParameterTypeRef(Nullable.Parameters[0]);
+        Nullable.Members =
+        [
+            new IntrinsicMethodGroup("unwrap", [new IntrinsicMethod("unwrap", Nullable, [], maybe)]),
+            new IntrinsicProperty("value", Nullable, maybe),
+        ];
+
+        // `!void` has nothing to keep, so what `ignored` gives there is a `?void`, which is nothing.
+        var result = new GenericParameterTypeRef(Failable.Parameters[0]);
+        Failable.Members =
+        [
+            new IntrinsicMethodGroup("ignored", [new IntrinsicMethod("ignored", Failable, [], NullableOf(result))]),
+        ];
     }
 
     public IEnumerable<IMember> All =>

@@ -1259,6 +1259,9 @@ internal sealed class BodyEmitter
                 _il.Emit(OpCodes.Ldfld, _owner.Use(backing));
                 return backing.FieldType;
 
+            case IntrinsicProperty intrinsic when baseExpr != null:
+                return EmitIntrinsic(intrinsic.Owner.Name, intrinsic.Name, baseExpr, location);
+
             case DotnetField dotnetField:
             {
                 var reference = _owner.Module.ImportReference(dotnetField.Reference);
@@ -1424,6 +1427,9 @@ internal sealed class BodyEmitter
 
         switch (function)
         {
+            case IntrinsicMethod intrinsic when receiver != null:
+                return EmitIntrinsic(intrinsic.Owner.Name, intrinsic.Name, receiver, call.Location);
+
             case TqFunction tq when _owner.Backend.Definitions.TryGetValue(tq, out var definition) && definition is MethodDefinition method:
             {
                 // Through a reference to a struct of a hierarchy the call goes to the interface, so that the most derived function runs.
@@ -1883,6 +1889,26 @@ internal sealed class BodyEmitter
         _il.Emit(OpCodes.Ldloc, empty);
         _il.Append(end);
         return nullable;
+    }
+
+    /// <summary>
+    /// What a member that the compiler declares on its own types (`Nullable.unwrap`, `Failable.ignored`) stands for: its lowering.
+    /// The operand is what the member is read or called on. Null (void) is the result of what gives nothing.
+    /// </summary>
+    private TypeReference? EmitIntrinsic(string owner, string member, IrExpression operand, SourceLocation location)
+    {
+        switch (owner, member)
+        {
+            case ("Nullable", "unwrap" or "value"):
+                return EmitUnwrap(new IrUnary(location, UnaryOperator.Unwrap, operand));
+
+            case ("Failable", "ignored"):
+                return EmitIgnored(new IrUnary(location, UnaryOperator.Ignored, operand));
+
+            default:
+                Report($"The intrinsic '{owner}.{member}' is not known by this backend", location);
+                return null;
+        }
     }
 
     /// <summary>`x.unwrap()` / `x.value`: the `T` of a `?T`; if there is none, an `InvalidOperationException`.</summary>

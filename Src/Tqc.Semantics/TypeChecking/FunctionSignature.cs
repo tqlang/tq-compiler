@@ -33,6 +33,8 @@ internal sealed class FunctionSignature(IReadOnlyList<ITypeRef?> parameters, ITy
             ],
             method.ReturnType == null ? Void() : method.ReturnType is UnsupportedTypeRef ? null : method.ReturnType),
 
+        IntrinsicMethod intrinsic => new FunctionSignature([..intrinsic.ParameterTypes], intrinsic.ReturnType ?? Void()),
+
         _ => null,
     };
 
