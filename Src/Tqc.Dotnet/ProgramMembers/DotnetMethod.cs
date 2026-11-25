@@ -26,6 +26,14 @@ public class DotnetMethod(
     public bool IsStatic => !reference.HasThis;
     public bool IsConstructor => name == ".ctor";
 
+    /// <summary>
+    /// A static method whose first parameter is the one it extends (`this` in C#): `WindowExtensions.Run(window)` is also
+    /// `window.Run()`. What the metadata says; false if the assembly of the method cannot be loaded.
+    /// </summary>
+    public bool IsExtension => IsStatic && parameterTypes.Count > 0
+        && Definition is { } definition
+        && definition.CustomAttributes.Any(attribute => attribute.AttributeType.FullName == "System.Runtime.CompilerServices.ExtensionAttribute");
+
     // What the metadata says; false if the assembly of the method cannot be loaded.
     public bool IsAbstract => Definition is { IsAbstract: true };
     public bool IsVirtual => Definition is { IsVirtual: true, IsFinal: false };

@@ -332,6 +332,7 @@ internal sealed partial class TypeChecker
     private (IrExpression, ITypeRef?) VisitAccess(IrAccess access)
     {
         var asTarget = TakeTarget();
+        var asCallee = TakeCallee();
         var baseExpr = Visit(access.baseExpr);
         var visited = access with { baseExpr = baseExpr };
 
@@ -367,12 +368,22 @@ internal sealed partial class TypeChecker
             return (new IrComptimeInt(access.Location, name.Value == "min" ? minimum : maximum), denoted);
         }
 
+        // A member that the type does not have, called through a value, may be an extension method of .NET.
+        IrExpression? ExtensionOrNull() =>
+            asCallee && !asTarget && TypeOf(baseExpr) != null && !IsTypeOrNamespace(baseExpr) && extensions.Named(name.Value) is { } extensionGroup
+                ? visited with { access = new IrReference(access.access.Location, new ExtensionReference(extensionGroup)) }
+                : null;
+
+        IrExpression ExtensionOrNothing() => ExtensionOrNull() ?? visited;
+
         var container = ContainerOf(TypeOf(baseExpr));
-        if (container == null) return (visited, null);
+        if (container == null) return (ExtensionOrNothing(), null);
 
         var member = container.TryGetMember(name.Value);
         if (member == null)
         {
+            if (ExtensionOrNull() is { } extended) return (extended, null);
+
             if (ListsMembers(container))
                 Error($"'{TypeFormatter.Format(TypeOf(baseExpr))}' has no member named '{name.Value}'", access.access.Location);
             return (visited, null);
@@ -504,11 +515,19 @@ internal sealed partial class TypeChecker
         var expected = _expected;
         _expected = null;
 
+        _asCallee = call.callee is IrAccess;
+        var calleeVisited = Visit(call.callee);
+        _asCallee = false;
+
         var visited = call with
         {
-            callee = Visit(call.callee),
+            callee = calleeVisited,
             ArgumentsList = VisitArguments(call.ArgumentsList),
         };
+
+        // `x.f()` where `f` is an extension method of .NET: a call of it with `x` as the first argument.
+        if (visited.callee is IrAccess { baseExpr: var extended, access.Reference: ExtensionReference extension })
+            return VisitExtensionCall(visited, extended, extension, expected);
 
         // `a.f()` keeps `a` as the receiver; a function reached through a value is not static.
         // `Console.f()` and `Foo.f()` go through a namespace or a type, not a value: there the static ones apply.

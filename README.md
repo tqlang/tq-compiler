@@ -331,6 +331,12 @@ cada aplicação é uma `GenericInstance` da tabela compartilhada; não há nó 
   (sem corpo; é a classe que os marca como intrínsecos). O TypeChecker os resolve como qualquer membro (overloads, `T` do receptor,
   erro de membro inexistente) e o backend intercepta a chamada ou a leitura (`BodyEmitter.EmitIntrinsic`) e faz o lowering; `.min`/`.max`
   viram `IrComptimeInt` do tipo. Ainda fora disso, como casos especiais: `.len`, os operadores e os pseudotipos `*T`/`?T`/`!T`.
+- Métodos de extensão do .NET (`DotnetMethod.IsExtension`: estático, com `[Extension]`): `x.f(args)` onde o tipo de `x` não tem `f` chama
+  o método estático `f` com `x` como primeiro argumento (`window.Run()` é `WindowExtensions.Run(window)`). O membro do tipo sempre
+  vale primeiro. As extensões vêm de todos os módulos .NET de dependência (`ExtensionIndex`), escolhidas como qualquer overload; o
+  receptor passa pelas mesmas conversões de um argumento (um upcast de classe para interface precisa de `as`). Ainda não: extensões
+  com parâmetros de tipo próprios (LINQ), extensões declaradas em Tq, filtro por import, receptor `ref this`, extensão de tipos sem membros
+  (inteiros, slices).
 - Delegates do .NET (`Action`, `EventHandler`, `Action(i32)`) são `DotnetDelegate`: classes (logo `*Action`) cuja assinatura é a
   do `Invoke`. Eventos (`DotnetEvent`, lidos de `definition.Events`; os acessores `add_X`/`remove_X` continuam métodos) não têm valor:
   `x.Evento += f` e `x.Evento -= f` viram a chamada de `add`/`remove` com `f` como delegate. Em uma variável, parâmetro ou campo de
