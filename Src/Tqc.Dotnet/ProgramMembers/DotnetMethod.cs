@@ -7,7 +7,7 @@ namespace Tqc.Dotnet.ProgramMembers;
 
 public class DotnetMethod(
     string name, ITypeRef? returnType, IReadOnlyList<ITypeRef> parameterTypes, MethodReference reference,
-    IReadOnlyList<TqParameter>? typeParameters = null)
+    IReadOnlyList<TqParameter>? typeParameters = null, bool isExtension = false)
     : IMethod, IDotnetMember
 {
     public string Name => name;
@@ -31,8 +31,8 @@ public class DotnetMethod(
     /// `window.Run()`. What the metadata says; false if the assembly of the method cannot be loaded.
     /// </summary>
     public bool IsExtension => IsStatic && parameterTypes.Count > 0
-        && Definition is { } definition
-        && definition.CustomAttributes.Any(attribute => attribute.AttributeType.FullName == "System.Runtime.CompilerServices.ExtensionAttribute");
+        && (isExtension || Definition is { } definition
+            && definition.CustomAttributes.Any(attribute => attribute.AttributeType.FullName == "System.Runtime.CompilerServices.ExtensionAttribute"));
 
     // What the metadata says; false if the assembly of the method cannot be loaded.
     public bool IsAbstract => Definition is { IsAbstract: true };

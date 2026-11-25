@@ -69,7 +69,9 @@ sealed internal class MemberReferenceFactory(SignatureRemapper remapper, TqTypeT
             translator.TranslateReturn(reference.ReturnType, Generic),
             reference.Parameters.Select(p => translator.Translate(p.ParameterType, Generic)).ToArray(),
             reference,
-            methodParameters);
+            methodParameters,
+            isExtension: method.IsStatic && method.HasCustomAttributes
+                && method.CustomAttributes.Any(attribute => attribute.AttributeType.FullName == "System.Runtime.CompilerServices.ExtensionAttribute"));
     }
 
     public DotnetProperty Property(PropertyDefinition property, TypeReference declaring, IReadOnlyList<TqParameter>? typeParameters = null) => new(

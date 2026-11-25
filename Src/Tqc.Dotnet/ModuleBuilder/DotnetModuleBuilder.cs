@@ -2,6 +2,7 @@ using System.Collections.Immutable;
 using Mono.Cecil;
 using Tqc.Dotnet.ProgramMembers;
 using Tqc.IR.ProgramMembers;
+using Tqc.IR.ProgramMembers.Primitive;
 using Tqc.IR.ProgramMembers.Tq;
 using Tqc.IR.References;
 
@@ -29,6 +30,7 @@ sealed internal class DotnetModuleBuilder(AssemblyDefinition[] assemblies)
         var root = DiscoverTypes(moduleName);
         LinkBaseTypes();
         BuildMembers();
+        RegisterExtensions();
         AttachContents();
 
         //TypeTreeDumper.Dump(root);
@@ -128,8 +130,18 @@ sealed internal class DotnetModuleBuilder(AssemblyDefinition[] assemblies)
             }
         }
 
+        // An extension is also a method of the type it extends: of this name, next to the ones the type has.
+        var extensions = node.Extensions.GroupBy(extension => extension.Name).ToDictionary(group => group.Key, group => group.ToImmutableArray());
+        foreach (var name in extensions.Keys.Where(name => !methods.ContainsKey(name))) methods[name] = [];
+
         foreach (var (name, overloads) in methods)
-            AddFirst(table, name, new DotnetMethodGroup(name) { Methods = overloads.ToImmutableArray() });
+        {
+            AddFirst(table, name, new DotnetMethodGroup(name)
+            {
+                Methods = overloads.ToImmutableArray(),
+                Extensions = extensions.GetValueOrDefault(name, []),
+            });
+        }
 
         foreach (var nested in node.Nested)
         {
@@ -384,6 +396,37 @@ sealed internal class DotnetModuleBuilder(AssemblyDefinition[] assemblies)
                 built.Add(node);
                 BuildMembers(node);
             }
+        }
+    }
+
+    /// <summary>
+    /// Each extension method of the module (`static Run(this IView view)`) is given to the type of its first parameter, so that
+    /// `window.Run()` finds it as a method of `IView` that `IWindow` inherits, whether or not the namespace of the static class is
+    /// imported. Only for a receiver that is a type of the module, without type parameters of its own; a method with type
+    /// parameters of its own (LINQ) is left out.
+    /// </summary>
+    private void RegisterExtensions()
+    {
+        var byType = _nodes.Values
+            .Where(node => !node.IsExternal && node.DotnetType != null)
+            .GroupBy(node => (object)node.DotnetType!, ReferenceEqualityComparer.Instance)
+            .ToDictionary(group => group.Key, group => group.First(), ReferenceEqualityComparer.Instance);
+
+        foreach (var node in _nodes.Values.Where(node => !node.IsExternal && node.DotnetType is DotnetStaticClass))
+        foreach (var method in node.Members.OfType<DotnetMethod>())
+        {
+            if (!method.IsExtension || method.TypeParameters.Count > 0) continue;
+
+            var receiver = CompilerStd.Types.IsRef(method.ParameterTypes[0], out var referred) ? referred : method.ParameterTypes[0];
+            object? target = receiver switch
+            {
+                ProtocolTypeReference { Protocol: var protocol } => protocol,
+                StructTypeReference { Struct: GenericInstance } => null,
+                StructTypeReference { Struct: var structure } => structure,
+                _ => null,
+            };
+
+            if (target != null && byType.TryGetValue(target, out var targetNode)) targetNode.Extensions.Add(method);
         }
     }
 

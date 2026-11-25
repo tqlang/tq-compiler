@@ -100,6 +100,7 @@ public sealed class ModuleDumper
 
             case DotnetMethodGroup group:
                 foreach (var method in group.Methods) Method(method);
+                foreach (var method in group.Extensions) Method(method);
                 break;
 
             case DotnetMethod method: Method(method); break;
@@ -136,6 +137,7 @@ public sealed class ModuleDumper
     {
         var flags = new List<string>();
         if (method.IsStatic) flags.Add("static");
+        if (method.IsExtension) flags.Add("extension");
         if (method.IsAbstract) flags.Add("abstract");
         else if (method.IsVirtual) flags.Add("virtual");
 

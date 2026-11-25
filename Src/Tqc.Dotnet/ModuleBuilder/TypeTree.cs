@@ -38,6 +38,9 @@ sealed internal class TypeNode(string name, TypeKind kind, TypeReference referen
 
     public ITypeRef? BaseType { get; set; }
 
+    /// <summary>The extension methods (of any static class of the module) whose first parameter is this type.</summary>
+    public List<DotnetMethod> Extensions { get; } = [];
+
     /// <summary>The interfaces an interface extends.</summary>
     public List<ITypeRef> ParentInterfaces { get; } = [];
 

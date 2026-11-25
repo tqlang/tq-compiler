@@ -16,7 +16,7 @@ namespace Tqc.Semantics;
 /// simply has no entry in the table.
 /// </summary>
 internal sealed partial class TypeChecker(
-    TypeTable types, DiagnosticBag diagnostics, ImplicitConversions conversions, OperatorOverloads operators, ExtensionIndex extensions)
+    TypeTable types, DiagnosticBag diagnostics, ImplicitConversions conversions, OperatorOverloads operators)
 {
     /// <summary>The namespace of the code being checked; what it can reach depends on it.</summary>
     private AccessContext _accessor;
@@ -35,7 +35,7 @@ internal sealed partial class TypeChecker(
 
         InheritanceChecker.Check(module.RootNamespace, diagnostics);
 
-        new TypeChecker(module.Types, diagnostics, conversions, operators, ExtensionIndex.Build(dependencies.Select(dependency => dependency.RootNamespace)))
+        new TypeChecker(module.Types, diagnostics, conversions, operators)
             .CheckNamespace(module.RootNamespace, []);
     }
 

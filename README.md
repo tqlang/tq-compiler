@@ -331,13 +331,13 @@ cada aplicação é uma `GenericInstance` da tabela compartilhada; não há nó 
   (sem corpo; é a classe que os marca como intrínsecos). O TypeChecker os resolve como qualquer membro (overloads, `T` do receptor,
   erro de membro inexistente) e o backend intercepta a chamada ou a leitura (`BodyEmitter.EmitIntrinsic`) e faz o lowering; `.min`/`.max`
   viram `IrComptimeInt` do tipo. Ainda fora disso, como casos especiais: `.len`, os operadores e os pseudotipos `*T`/`?T`/`!T`.
-- Métodos de extensão do .NET (`DotnetMethod.IsExtension`: estático, com `[Extension]`): `x.f(args)` onde o tipo de `x` não tem `f` chama
-  o método estático `f` com `x` como primeiro argumento (`window.Run()` é `WindowExtensions.Run(window)`). O membro do tipo vale primeiro; a extensão
-  só entra quando o tipo não tem o nome, ou tem mas nenhuma sobrecarga serve aos argumentos (como em C#: `window.Run()` com `IView.Run(Action)`
-  e `WindowExtensions.Run(IView)`; `TypeChecker.ExtensionWhenMembersFail`). As extensões vêm de todos os módulos .NET de dependência (`ExtensionIndex`), escolhidas como qualquer overload; o
-  receptor passa pelas mesmas conversões de um argumento (um upcast de classe para interface precisa de `as`). Ainda não: extensões
-  com parâmetros de tipo próprios (LINQ), extensões declaradas em Tq, filtro por import, receptor `ref this`, extensão de tipos sem membros
-  (inteiros, slices).
+- Métodos de extensão do .NET (`DotnetMethod.IsExtension`: estático com `[Extension]`, lido na importação): o importador
+  (`DotnetModuleBuilder.RegisterExtensions`) registra cada um, sem parâmetros de tipo próprios, em `DotnetMethodGroup.Extensions` do tipo do
+  primeiro parâmetro, qualquer que seja o namespace importado; quem herda do tipo (`IWindow` de `IView`) os vê pela herança normal.
+  `x.f(args)` tenta primeiro os métodos do tipo e só usa a extensão quando nenhum serve aos argumentos (como em C#): vira a chamada
+  estática de `f` com `x` como primeiro argumento (`TypeChecker.ExtensionWhenMembersFail`), e o receptor converte como um argumento.
+  Ainda não: extensões com parâmetros de tipo próprios (LINQ) nem de receptor genérico, extensões declaradas em Tq, `ref this`, extensão
+  de tipos sem lista de membros (inteiros, fatias). O dump do módulo marca `<extension>`.
 - Fatia para view do .NET: em argumentos de chamada (só aí) um `[]T` vira `Span(T)`, `ReadOnlySpan(T)`, `Memory(T)` ou
   `ReadOnlyMemory(T)` (`ConversionRules.ClassifyArgument`, custo 20; o `T` tem de ser o mesmo do elemento; `[N]T` não converte, é um
   buffer da pilha). No backend a fatia é um `Memory<T>`: `.Span` para `Span`, e `ReadOnlyMemory` (e o `.Span` dele) para os read-only;
