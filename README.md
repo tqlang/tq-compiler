@@ -362,9 +362,9 @@ cada aplicação é uma `GenericInstance` da tabela compartilhada; não há nó 
   candidato, como se o alvo só tivesse aquele; um `return` é conferido inteiro, porque a conversão do valor faz parte dele. Se as versões saem iguais (mesma árvore e
   mesmos tipos) o resultado é a própria expressão; se diferem, vira um nó de escolha com uma versão por tamanho (todas com o mesmo tipo; se os tipos diferem é erro).
   Um erro que todos os tamanhos dão é dado uma vez; um que só alguns dão diz a linha, os tamanhos e o motivo (`... (when 'int' has 16 or 64 bits)`). O backend pega a
-  versão do tamanho que ele conhece (`CecilBackend.Abi.Natural`); com um só candidato, caso do .NET, nada disso acontece e a IR é a de sempre. Limites: um bloco nunca é
-  repetido inteiro; valores de campos, parâmetros padrão e casos de enum não entram (são conferidos uma vez, sem relação entre `iN` e `int`); o tipo inferido de um
-  `let` que difere entre tamanhos não é detectado; árvores com referências que não comparam por valor viram escolha mesmo sem precisar. `iptr/uptr` ainda não.
+  versão do tamanho que ele conhece (`CecilBackend.Abi.Natural`); com um só candidato, caso do .NET, nada disso acontece e a IR é a de sempre. Valores de campos, parâmetros padrão e casos de enum entram também (a expressão com a conversão ao tipo declarado). Limites: um bloco nunca é
+  repetido inteiro; o tipo inferido de um `let` local que difere entre tamanhos não é detectado; a comparação das versões é estrutural (nós, `match`, tipos), e só
+  referências fora da IR que não comparam por valor viram escolha sem precisar. `iptr/uptr` ainda não.
 - Operações bit a bit, só de inteiros (`TypeChecker.VisitBitwise`): `a ⋏ b` (e), `a ⋎ b` (ou), `a ⊕ b` (ou exclusivo), `~a` (não), `a << n` e `a >> n`
   (`>>` aritmético em inteiro com sinal, lógico sem sinal), `a <<% n` e `a >>% n` (a quantidade é tomada módulo o tamanho do tipo). Sem alternativas
   em ASCII e sem atribuição composta. Precedência como Rust e Zig, do mais forte: `* /`, `+ -`, deslocamentos, `⋏`, `⊕`, `⋎`, comparações.

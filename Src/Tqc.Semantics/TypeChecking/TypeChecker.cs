@@ -84,27 +84,22 @@ internal sealed partial class TypeChecker(
         switch (member)
         {
             case TqField { Value: not null } field:
-                field.Value = Visit(field.Value);
-                if (field.Type != null)
-                {
-                    var declared = TypeFromExpression(field.Type);
+            {
+                var original = field.Value;
+                var declared = field.Type != null ? TypeFromExpression(field.Type) : null;
 
-                    // `const x = 1`: the field takes the type of its value.
-                    if (IsConst(declared, out var argument) && IsInferredArgument(argument))
-                    {
-                        if (TypeOf(field.Value) is { } valueType) _inferredConstants[field] = DefaultTypeOf(valueType);
-                    }
-                    else
-                    {
-                        field.Value = Coerce(field.Value, ValueTypeOf(declared, null), WithoutConst(field.Type), $"the field '{field.Name}'");
-                    }
-                }
-                else if (TypeOf(field.Value) is { } inferred)
+                // `const x = 1` and `let x = value`: the field takes the type of its value.
+                var inferring = declared == null || (IsConst(declared, out var argument) && IsInferredArgument(argument));
+
+                field.Value = PerSizeValue(original.Location, () =>
                 {
-                    // `let x = value`: the field takes the type of its value.
-                    _inferredConstants[field] = DefaultTypeOf(inferred);
-                }
+                    var value = Visit(original);
+                    return inferring ? value : Coerce(value, ValueTypeOf(declared!, null), WithoutConst(field.Type!), $"the field '{field.Name}'");
+                });
+
+                if (inferring && TypeOf(field.Value) is { } inferred) _inferredConstants[field] = DefaultTypeOf(inferred);
                 break;
+            }
 
             case TqProperty property:
                 EnsureAccessors(property);
@@ -140,10 +135,18 @@ internal sealed partial class TypeChecker(
                 break;
 
             case TqNamedCase { Value: not null } entry:
-                entry.Value = Visit(entry.Value);
-                if (entry.Typedef?.UnderlyingType is { } underlying)
-                    entry.Value = Coerce(entry.Value, TypeFromExpression(underlying), underlying, $"the case '{entry.Name}'");
+            {
+                var original = entry.Value;
+                var underlying = entry.Typedef?.UnderlyingType;
+                var underlyingType = underlying != null ? TypeFromExpression(underlying) : null;
+
+                entry.Value = PerSizeValue(original.Location, () =>
+                {
+                    var value = Visit(original);
+                    return underlying != null ? Coerce(value, underlyingType!, underlying, $"the case '{entry.Name}'") : value;
+                });
                 break;
+            }
         }
     }
 
@@ -164,9 +167,10 @@ internal sealed partial class TypeChecker(
         // A default value is of the type of its parameter.
         foreach (var parameter in function.Parameters.Where(parameter => parameter.DefaultValue != null))
         {
-            var value = Visit(parameter.DefaultValue!);
-            parameter.DefaultValue = Coerce(
-                value, TypeFromExpression(parameter.Type), parameter.Type, $"the default of '{parameter.Name}'");
+            var original = parameter.DefaultValue!;
+            var parameterType = TypeFromExpression(parameter.Type);
+            parameter.DefaultValue = PerSizeValue(
+                original.Location, () => Coerce(Visit(original), parameterType, parameter.Type, $"the default of '{parameter.Name}'"));
         }
 
         var outer = _function;
