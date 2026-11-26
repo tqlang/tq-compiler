@@ -1,5 +1,6 @@
 # tq-compiler
 
+
 Compilador da linguagem **Tq**, escrito em C# (.NET 10). O alvo atual é gerar código .NET.
 
 O projeto é um único `Tqc.csproj` (assembly `tqc`). Os namespaces continuam `Tqc.*`.
