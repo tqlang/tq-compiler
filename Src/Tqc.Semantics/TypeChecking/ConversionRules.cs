@@ -50,6 +50,7 @@ internal static class ConversionRules
     private const int LiteralToUint = 2;
     private const int LiteralToSizedInteger = 3;
     private const int SameSizeNatural = 1;
+    private const int LossyNatural = 50;
 
     // A decimal literal is an `f64` unless another float is asked for; the other floats tie.
     private const int DecimalToF64 = 1;
@@ -160,8 +161,11 @@ internal static class ConversionRules
         if (a is ComptimeDecimalTypeRef) return TryFloat(b, out _) ? b : null;
         if (b is ComptimeDecimalTypeRef) return TryFloat(a, out _) ? a : null;
 
-        if (ClassifyWidening(a, b, abi).Kind != MatchKind.None) return b;
-        if (ClassifyWidening(b, a, abi).Kind != MatchKind.None) return a;
+        // When both ways work (`int` and `i8` meet), the cheaper one, the one that loses nothing, is the common type.
+        var forward = ClassifyWidening(a, b, abi);
+        var backward = ClassifyWidening(b, a, abi);
+        if (forward.Kind != MatchKind.None && (backward.Kind == MatchKind.None || forward.Cost <= backward.Cost)) return b;
+        if (backward.Kind != MatchKind.None) return a;
         return null;
     }
 
@@ -315,17 +319,21 @@ internal static class ConversionRules
 
     private static ArgumentMatch ClassifyWidening(ITypeRef argument, ITypeRef parameter, TargetAbi abi)
     {
-        // `int` against `i32` (and `uint` against `u32`): when the target has a single size for `int`, they are the same
-        // integer under two names, so the conversion costs almost nothing. With several candidate sizes there is no such rule.
-        if (abi.Natural is { } natural)
+        // `int` and `uint` against the integers with a size. From the natural one into a sized one (same signedness) it is always
+        // implicit: free when the target has a single size for `int` and it is the same, a widening when the target is larger,
+        // and costly, so that no overload takes it over a better one, when it can lose bits. From the sized one into the natural
+        // one it is implicit only when the target has a single size for `int` and the sizes are equal (`i32` is `int` on .NET).
+        if (TryNatural(argument, out var naturalSigned) && TryInteger(parameter, out var sizedSigned, out var sizedBits) && sizedSigned == naturalSigned)
         {
-            var fromNatural = TryNatural(argument, out var naturalFrom);
-            var toNatural = TryNatural(parameter, out var naturalTo);
-            if (fromNatural && TryInteger(parameter, out var toSigned1, out var toBits1) && toBits1 == natural && toSigned1 == naturalFrom)
-                return Convert(SameSizeNatural);
-            if (toNatural && TryInteger(argument, out var fromSigned1, out var fromBits1) && fromBits1 == natural && fromSigned1 == naturalTo)
-                return Convert(SameSizeNatural);
+            if (abi.Natural is not { } size) return Convert(LossyNatural);
+            if (sizedBits == size) return Convert(SameSizeNatural);
+            return sizedBits > size ? Convert(Widening + sizedBits - size) : Convert(LossyNatural);
         }
+
+        if (abi.Natural is { } natural && TryNatural(parameter, out var targetSigned)
+                                       && TryInteger(argument, out var fromSigned0, out var fromBits0)
+                                       && fromBits0 == natural && fromSigned0 == targetSigned)
+            return Convert(SameSizeNatural);
 
         if (TryInteger(argument, out var fromSigned, out var fromBits) && TryInteger(parameter, out var toSigned, out var toBits))
         {

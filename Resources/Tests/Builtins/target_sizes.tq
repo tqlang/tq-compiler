@@ -8,6 +8,9 @@ func pick(i64 value) int => 2
 func pickUnsigned(uint value) int => 1
 func pickUnsigned(u64 value) int => 2
 
+func sizedSigned(i64 value) i64 => value + 1
+func narrow(i8 value) i8 => value
+
 func twice(int number) int => number * 2
 
 @public func testTargetSizes() {
@@ -25,5 +28,9 @@ func twice(int number) int => number * 2
 		let i32 back = natural
 		Test.assert(back, 7)
 		Test.assert(signed + natural, 14)
+
+		# From `int` to a sized integer of the same signedness it is always implicit: larger, equal or smaller.
+		Test.assert(sizedSigned(natural), 8)
+		Test.assert(narrow(natural), 7)
 	}
 }

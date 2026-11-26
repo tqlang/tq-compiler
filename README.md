@@ -355,7 +355,7 @@ cada aplicação é uma `GenericInstance` da tabela compartilhada; não há nó 
   `iptr/uptr`, cada um como lista de candidatos (`CecilBackend.Abi`: `int` = {32}, `iptr` = {32, 64}). O CLI escolhe o backend pelo `target` do `[project]`
   (o que vem antes do primeiro `-`; backend desconhecido dá `TargetAbi.Unknown`, sem nenhuma relação) e entrega ao analisador (`SemanticAnalyser.TypeCheck`
   → `ImplicitConversions.Abi`). Com um único tamanho candidato para `int`, `i32` ⇄ `int` e `u32` ⇄ `uint` convertem implicitamente (custo 1, o menor, em
-  chamadas e em operadores). `i64 → int` nunca é implícito. Ainda não há a estrutura de decisão em tempo de compilação para vários tamanhos candidatos.
+  chamadas e em operadores). `i64 → int` nunca é implícito. De `int`/`uint` para qualquer inteiro com tamanho e mesmo sinal a conversão é sempre implícita: custo 1 se o tamanho é o do alvo, alargamento se é maior, e custo alto (50) se pode perder bits, para que nenhum overload a prefira a uma melhor; num operador entre `int` e `iN` o tipo comum é o de menor custo (o que não perde). Ainda não há a estrutura de decisão em tempo de compilação para vários tamanhos candidatos.
 - Operações bit a bit, só de inteiros (`TypeChecker.VisitBitwise`): `a ⋏ b` (e), `a ⋎ b` (ou), `a ⊕ b` (ou exclusivo), `~a` (não), `a << n` e `a >> n`
   (`>>` aritmético em inteiro com sinal, lógico sem sinal), `a <<% n` e `a >>% n` (a quantidade é tomada módulo o tamanho do tipo). Sem alternativas
   em ASCII e sem atribuição composta. Precedência como Rust e Zig, do mais forte: `* /`, `+ -`, deslocamentos, `⋏`, `⊕`, `⋎`, comparações.
