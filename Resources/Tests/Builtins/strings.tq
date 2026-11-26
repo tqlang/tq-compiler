@@ -23,6 +23,16 @@ from Std import { Test }
         Test.assert("\{number * number} squared", "25 squared")
     }
 
+    Test.newTestUnit("Builtins - strings - test default formatting")
+    {
+        let [4]int numbers = [10, 15, 20, 30]
+        let []int slice = numbers[1 .. 2]
+
+        Test.assert("numbers = \{numbers}", "numbers = [10, 15, 20, 30]")
+        Test.assert("slice = \{slice}", "slice = [15, 20]")
+        Test.assert("\{true} \{false}", "true false")
+    }
+
     # Strings on consecutive lines are one string, with a line feed between each two (none after the last).
     Test.newTestUnit("Builtins - strings - strings on consecutive lines are one multiline string")
     {

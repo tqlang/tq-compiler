@@ -41,12 +41,12 @@ internal sealed class BodyEmitter
 
     public BodyEmitter(ModuleEmitter owner, TqFunction function, MethodDefinition method, ILProcessor il)
     {
-        _owner = owner;
+        _owner    = owner;
         _function = function;
-        _method = method;
-        _il = il;
-        _target = owner.Module;
-        _types = owner.Tq.Types;
+        _method   = method;
+        _il       = il;
+        _target   = owner.Module;
+        _types    = owner.Tq.Types;
     }
 
     public void Emit()
@@ -173,9 +173,9 @@ internal sealed class BodyEmitter
         var text = expression switch
         {
             IrReference reference => NameOf(reference.Reference),
-            IrAccess access => $"{Shape(access.baseExpr)}.{NameOf(access.access.Reference)}",
-            IrCall call => $"a call of {Shape(call.callee)}",
-            _ => $"a {expression.GetType().Name}",
+            IrAccess access       => $"{Shape(access.baseExpr)}.{NameOf(access.access.Reference)}",
+            IrCall call           => $"a call of {Shape(call.callee)}",
+            _                     => $"a {expression.GetType().Name}",
         };
 
         return $"'{text}' : {_types.Get(expression)?.ToString() ?? "?"}";
@@ -183,10 +183,10 @@ internal sealed class BodyEmitter
 
     private static string NameOf(Ref reference) => reference switch
     {
-        UnsolvedRef unsolved => $"{unsolved.Value} (unresolved name)",
+        UnsolvedRef unsolved             => $"{unsolved.Value} (unresolved name)",
         FunctionGroupTypeReference group => $"{group.FunctionGroup.Name} (group of overloads)",
-        FunctionTypeReference function => function.Function.Name,
-        _ => reference.ToString() ?? reference.GetType().Name,
+        FunctionTypeReference function   => function.Function.Name,
+        _                                => reference.ToString() ?? reference.GetType().Name,
     };
 
     private TypeReference? TypeOfNode(IrExpression expression) =>
@@ -447,7 +447,8 @@ internal sealed class BodyEmitter
     }
 
     private Target BoxTarget(VariableDefinition value, VariableDefinition box, bool declares) => new(
-        value.VariableType, 1,
+        value.VariableType,
+        1,
         () =>
         {
             if (declares) EmitNewBox(value, box);
@@ -458,7 +459,8 @@ internal sealed class BodyEmitter
         {
             EmitBoxAddress(value, box);
             _il.Emit(OpCodes.Ldobj, value.VariableType);
-        });
+        }
+    );
 
     /// <summary>`const x = 1`: the type is the one of the value.</summary>
     private static bool IsUntypedConstant(IrExpression type) =>
@@ -469,12 +471,12 @@ internal sealed class BodyEmitter
     private MethodReference Library(string typeName, string name, params string[] parameterTypes)
     {
         var type = _owner.Backend.Core.Find(typeName)
-                   ?? throw new BackendError($"The type '{typeName}' was not found in 'System.Runtime'");
+            ?? throw new BackendError($"The type '{typeName}' was not found in 'System.Runtime'");
 
-        var method = type.Methods.FirstOrDefault(
-            candidate => candidate.Name == name
-            && candidate.Parameters.Count == parameterTypes.Length
-            && candidate.Parameters.Select(parameter => parameter.ParameterType.FullName).SequenceEqual(parameterTypes)) 
+        var method = type.Methods.FirstOrDefault(candidate => candidate.Name == name
+                && candidate.Parameters.Count == parameterTypes.Length
+                && candidate.Parameters.Select(parameter => parameter.ParameterType.FullName).SequenceEqual(parameterTypes)
+            )
             ?? throw new BackendError($"The method '{typeName}.{name}' was not found in 'System.Runtime'");
 
         return _target.ImportReference(method);
@@ -563,7 +565,10 @@ internal sealed class BodyEmitter
             case ulong unsigned64: _il.Emit(OpCodes.Ldc_I8, unchecked((long)unsigned64)); break;
             case float single: _il.Emit(OpCodes.Ldc_R4, single); break;
             case double number: _il.Emit(OpCodes.Ldc_R8, number); break;
-            default: Report($"The constant '{constant}' cannot be emitted to .NET yet", location); _il.Emit(OpCodes.Ldnull); break;
+            default:
+                Report($"The constant '{constant}' cannot be emitted to .NET yet", location);
+                _il.Emit(OpCodes.Ldnull);
+            break;
         }
     }
 
@@ -614,7 +619,8 @@ internal sealed class BodyEmitter
         switch (node)
         {
             case IrBody body:
-                foreach (var child in body.Children) EmitStatement(child); break;
+                foreach (var child in body.Children) EmitStatement(child);
+            break;
 
             case IrReturnStatement @return:
                 EmitReturn(@return); break;
@@ -773,7 +779,7 @@ internal sealed class BodyEmitter
                 _il.Emit(OpCodes.Ldc_I4_0);
                 _il.Emit(OpCodes.Conv_U);
                 return type;
-            
+
             case { IsValueType: true }:
             {
                 var empty = NewTemp(type);
@@ -782,7 +788,7 @@ internal sealed class BodyEmitter
                 _il.Emit(OpCodes.Ldloc, empty);
                 return type;
             }
-            
+
             default:
                 _il.Emit(OpCodes.Ldnull);
                 return type ?? Core("System.Object");
@@ -817,7 +823,7 @@ internal sealed class BodyEmitter
                 return ChooseNatural(choice.Variants, variant => variant.Bits, choice.Location) is { } picked
                     ? Emit(picked.Expression, expected, discard)
                     : null;
-            
+
             case IrStringConcat concat: return EmitConcat(concat);
             case IrReference reference: return EmitReference(reference);
             case IrAccess access: return EmitAccess(access);
@@ -942,7 +948,7 @@ internal sealed class BodyEmitter
                     _il.Emit(OpCodes.Newobj, _owner.GenericMember("System.Nullable`1", nullable, ".ctor", 1));
                 return target;
             }
-            
+
             case GenericInstanceType { ElementType.FullName: "Tq.Failable`1" } failable:
             {
                 var emitted = EmitValue(conversion.Expression, failable.GenericArguments[0]);
@@ -978,9 +984,39 @@ internal sealed class BodyEmitter
             _il.Emit(OpCodes.Dup);
             _il.Emit(OpCodes.Ldc_I4, i);
 
-            var part = Emit(concat.Parts[i], null);
-            if (part == null) Report("This expression has no value", concat.Parts[i].Location);
-            else if (part.IsValueType) _il.Emit(OpCodes.Box, part);
+            var part = concat.Parts[i];
+            
+            if (part is IrStringConstant textConstant)
+            {
+                _il.Emit(OpCodes.Ldstr, textConstant.Value);
+            }
+            else
+            {
+                var partType = Emit(part, null);
+                if (partType == null)
+                {
+                    Report("This expression has no value", part.Location);
+                    _il.Emit(OpCodes.Ldnull);
+                    partType = Core("System.Object");
+                }
+                
+                if (partType is GenericInstanceType { ElementType.FullName:
+                    "System.Memory`1" or "System.ReadOnlyMemory`1" or "System.Span`1" or "System.ReadOnlySpan`1" } sliceLike)
+                {
+                    var elem = sliceLike.GenericArguments[0];
+                    var temp = NewTemp(sliceLike);
+                    _il.Emit(OpCodes.Stloc, temp);
+                    _il.Emit(OpCodes.Ldloca, temp);
+                    _il.Emit(OpCodes.Call, _owner.GenericMember(sliceLike.ElementType.FullName, sliceLike, "ToArray", 0));
+                    partType = new ArrayType(elem);
+                }
+                
+                if (partType.IsValueType) _il.Emit(OpCodes.Box, partType);
+                
+                // Importa e chama o formatador estático do Tq.Runtime
+                var formatMethod = _target.ImportReference(_owner.Backend.Runtime.FormatterFormatStatic);
+                _il.Emit(OpCodes.Call, formatMethod);
+            }
 
             _il.Emit(OpCodes.Stelem_Ref);
         }
@@ -1137,8 +1173,14 @@ internal sealed class BodyEmitter
         var actual = Emit(addressOf.Operand, null);
         if (actual is not ArrayType array)
         {
-            if (actual != null) Report("'&' takes an array, or a variable of a struct"
-            + " that extends or is extended by another one (by value)", addressOf.Location);
+            if (actual != null)
+            {
+                Report(
+                    "'&' takes an array, or a variable of a struct"
+                    + " that extends or is extended by another one (by value)",
+                    addressOf.Location
+                );
+            }
             return actual;
         }
 
@@ -1231,8 +1273,11 @@ internal sealed class BodyEmitter
             }
 
             case ParameterReference { Parameter: var typeParameter } when GenericParameterTypeRef.IsTypeParameter(typeParameter):
-                Report($"'{typeParameter.Name}' is a type: it exists only while compiling,"
-                    + " and as a value it has no .NET equivalent", reference.Location);
+                Report(
+                    $"'{typeParameter.Name}' is a type: it exists only while compiling,"
+                    + " and as a value it has no .NET equivalent",
+                    reference.Location
+                );
                 return null;
 
             case ParameterReference parameter:
@@ -1496,7 +1541,7 @@ internal sealed class BodyEmitter
             sb.Append("The callee is ").Append(Shape(call.callee)).AppendLine(",");
             sb.Append("with the arguments ").Append(arguments).AppendLine(".");
             sb.Append("The type checker did not choose an overload for it (see --dump-ir)");
-            
+
             Report(sb.ToString(), call.Location);
             return null;
         }
@@ -1531,7 +1576,7 @@ internal sealed class BodyEmitter
                 {
                     var instance = new GenericInstanceMethod(target);
                     foreach (var typeArgument in typeArguments) instance.GenericArguments.Add(typeArgument);
-                    target = instance;
+                    target   = instance;
                     returned = Instantiate(returned, typeArguments, tqHost?.GenericArguments);
                 }
 
@@ -1570,7 +1615,7 @@ internal sealed class BodyEmitter
                 {
                     var instance = new GenericInstanceMethod(method);
                     foreach (var typeArgument in dotnetTypeArguments) instance.GenericArguments.Add(typeArgument);
-                    dotnetTarget = instance;
+                    dotnetTarget   = instance;
                     dotnetReturned = Instantiate(method.ReturnType, dotnetTypeArguments, hostArguments);
                 }
 
@@ -1590,8 +1635,11 @@ internal sealed class BodyEmitter
     /// emit nothing: they are the types the method is instantiated with, which are returned.
     /// </summary>
     private List<TypeReference> EmitArguments(
-        IrExpression[] arguments, IList<ParameterDefinition> parameters, TqParameter[]? declared,
-        IList<TypeReference>? hostArguments = null)
+        IrExpression[] arguments,
+        IList<ParameterDefinition> parameters,
+        TqParameter[]? declared,
+        IList<TypeReference>? hostArguments = null
+    )
     {
         var types = new List<TypeReference>();
 
@@ -1634,7 +1682,10 @@ internal sealed class BodyEmitter
     /// <param name="typeArguments">The ones of the method (`!!0`).</param>
     /// <param name="hostArguments">The ones of the generic type the member is of (`!0`): `i8` in `List(i8)`.</param>
     private static TypeReference Instantiate(
-        TypeReference type, IList<TypeReference> typeArguments, IList<TypeReference>? hostArguments = null)
+        TypeReference type,
+        IList<TypeReference> typeArguments,
+        IList<TypeReference>? hostArguments = null
+    )
     {
         switch (type)
         {
@@ -1675,8 +1726,8 @@ internal sealed class BodyEmitter
             // A member the type inherits is called through the type that declares it (`MoveNext` is of `IEnumerator`, not of
             // `IEnumerator<T>`), so only a member declared by the generic type itself goes through it.
             && (declaring == null || host.ElementType.FullName == declaring.GetElementType().FullName)
-            ? host
-            : null;
+                ? host
+                : null;
     }
 
     /// <summary>
@@ -1705,8 +1756,8 @@ internal sealed class BodyEmitter
     {
         var rebased = new MethodReference(method.Name, method.ReturnType, host)
         {
-            HasThis = method.HasThis,
-            ExplicitThis = method.ExplicitThis,
+            HasThis           = method.HasThis,
+            ExplicitThis      = method.ExplicitThis,
             CallingConvention = method.CallingConvention,
         };
 
@@ -2091,14 +2142,20 @@ internal sealed class BodyEmitter
                     Report($"The operator '{binary.Operator}' does not exist for '{common.Name}' in .NET", binary.Location);
                 else
                     EmitArithmetic(binary.Operator, number, binary.Location);
-                break;
+            break;
 
             // The values on the stack are extended to 32 bits with their sign, so the result is already right for the smaller types.
             case BinaryOperator.BitAnd or BinaryOperator.BitOr or BinaryOperator.BitXor:
                 if (!known || number.Float || common.FullName == "System.Char")
                     Report($"The operator '{binary.Operator}' does not exist for '{common.Name}' in .NET", binary.Location);
                 else
-                    _il.Emit(binary.Operator == BinaryOperator.BitAnd ? OpCodes.And : binary.Operator == BinaryOperator.BitOr ? OpCodes.Or : OpCodes.Xor);
+                    _il.Emit(
+                        binary.Operator == BinaryOperator.BitAnd
+                            ? OpCodes.And
+                            : binary.Operator == BinaryOperator.BitOr
+                                ? OpCodes.Or
+                                : OpCodes.Xor
+                    );
             break;
 
             case BinaryOperator.Equal or BinaryOperator.ExactEqual:
@@ -2156,7 +2213,8 @@ internal sealed class BodyEmitter
             var bits = value & ((BigInteger.One << 128) - 1);
             var constructor = _owner.Backend.Core.Find(expected.FullName)!.Methods.First(candidate =>
                 candidate.IsConstructor && candidate.Parameters.Count == 2
-                && candidate.Parameters.All(parameter => parameter.ParameterType.FullName == "System.UInt64"));
+                && candidate.Parameters.All(parameter => parameter.ParameterType.FullName == "System.UInt64")
+            );
 
             _il.Emit(OpCodes.Ldc_I8, unchecked((long)(ulong)(bits >> 64)));
             _il.Emit(OpCodes.Ldc_I8, unchecked((long)(ulong)(bits & ulong.MaxValue)));
@@ -2183,17 +2241,17 @@ internal sealed class BodyEmitter
     {
         (var known, signed, bits) = typeName switch
         {
-            "System.SByte" => (true, true, 8),
-            "System.Byte" => (true, false, 8),
-            "System.Int16" => (true, true, 16),
-            "System.UInt16" => (true, false, 16),
-            "System.Int32" => (true, true, 32),
-            "System.UInt32" => (true, false, 32),
-            "System.Int64" => (true, true, 64),
-            "System.UInt64" => (true, false, 64),
-            "System.Int128" => (true, true, 128),
+            "System.SByte"   => (true, true, 8),
+            "System.Byte"    => (true, false, 8),
+            "System.Int16"   => (true, true, 16),
+            "System.UInt16"  => (true, false, 16),
+            "System.Int32"   => (true, true, 32),
+            "System.UInt32"  => (true, false, 32),
+            "System.Int64"   => (true, true, 64),
+            "System.UInt64"  => (true, false, 64),
+            "System.Int128"  => (true, true, 128),
             "System.UInt128" => (true, false, 128),
-            _ => (false, false, 0),
+            _                => (false, false, 0),
         };
 
         return known;
@@ -2213,8 +2271,11 @@ internal sealed class BodyEmitter
         var module = runtime.Assembly.MainModule;
         var parameterType = _owner.Backend.Core.Require(module, type.FullName);
 
-        var helper = new MethodDefinition($"{name}_{type.Name}",
-            MethodAttributes.Public | MethodAttributes.Static | MethodAttributes.HideBySig, parameterType);
+        var helper = new MethodDefinition(
+            $"{name}_{type.Name}",
+            MethodAttributes.Public | MethodAttributes.Static | MethodAttributes.HideBySig,
+            parameterType
+        );
         helper.Parameters.Add(new ParameterDefinition("a", ParameterAttributes.None, parameterType));
         helper.Parameters.Add(new ParameterDefinition("b", ParameterAttributes.None, parameterType));
         runtime.Ops.Methods.Add(helper);
@@ -2400,7 +2461,7 @@ internal sealed class BodyEmitter
         {
             BinaryOperator.AddOnBounds => "op_Addition",
             BinaryOperator.SubOnBounds => "op_Subtraction",
-            _ => "op_Multiply",
+            _                          => "op_Multiply",
         };
 
         if (signed)
@@ -2581,11 +2642,11 @@ internal sealed class BodyEmitter
             {
                 case BinaryOperator.Pow:
                     _il.Emit(signed ? OpCodes.Mul_Ovf : OpCodes.Mul_Ovf_Un);
-                    break;
+                break;
 
                 case BinaryOperator.PowWrap:
                     _il.Emit(OpCodes.Mul);
-                    break;
+                break;
 
                 case BinaryOperator.PowOnBounds when bits == 64:
                     _il.Emit(OpCodes.Call, OpsHelper("MulOnBounds", type, () =>
@@ -2593,12 +2654,12 @@ internal sealed class BodyEmitter
                         EmitWideSaturated(BinaryOperator.MulOnBounds, signed);
                         _il.Emit(OpCodes.Ret);
                     }));
-                    break;
+                break;
 
                 default:
                     _il.Emit(OpCodes.Mul);
                     EmitClamp(BinaryOperator.MulOnBounds, signed, bits);
-                    break;
+                break;
             }
         }
 
@@ -2645,18 +2706,18 @@ internal sealed class BodyEmitter
     {
         var name = @operator switch
         {
-            BinaryOperator.Add => "op_CheckedAddition",
+            BinaryOperator.Add     => "op_CheckedAddition",
             BinaryOperator.AddWrap => "op_Addition",
-            BinaryOperator.Sub => "op_CheckedSubtraction",
+            BinaryOperator.Sub     => "op_CheckedSubtraction",
             BinaryOperator.SubWrap => "op_Subtraction",
-            BinaryOperator.Mul => "op_CheckedMultiply",
+            BinaryOperator.Mul     => "op_CheckedMultiply",
             BinaryOperator.MulWrap => "op_Multiply",
-            BinaryOperator.Div => "op_Division",
-            BinaryOperator.Rest => "op_Modulus",
-            BinaryOperator.BitAnd => "op_BitwiseAnd",
-            BinaryOperator.BitOr => "op_BitwiseOr",
-            BinaryOperator.BitXor => "op_ExclusiveOr",
-            _ => null,
+            BinaryOperator.Div     => "op_Division",
+            BinaryOperator.Rest    => "op_Modulus",
+            BinaryOperator.BitAnd  => "op_BitwiseAnd",
+            BinaryOperator.BitOr   => "op_BitwiseOr",
+            BinaryOperator.BitXor  => "op_ExclusiveOr",
+            _                      => null,
         };
 
         if (name == null) return false;
@@ -2688,39 +2749,55 @@ internal sealed class BodyEmitter
             {
                 case BinaryOperator.AddOnBounds:
                     // it wrapped around if the sum is below one of them
-                    Arg(0); Arg(1); Operate("op_Addition");
+                    Arg(0);
+                    Arg(1);
+                    Operate("op_Addition");
                     var sum = NewTemp(Core(type));
                     _il.Emit(OpCodes.Stloc, sum);
-                    _il.Emit(OpCodes.Ldloc, sum); Arg(0); Compare("op_GreaterThanOrEqual");
+                    _il.Emit(OpCodes.Ldloc, sum);
+                    Arg(0);
+                    Compare("op_GreaterThanOrEqual");
                     _il.Emit(OpCodes.Brtrue, plain);
                     Constant("get_MaxValue");
                     _il.Emit(OpCodes.Br, done);
                     _il.Append(plain);
                     _il.Emit(OpCodes.Ldloc, sum);
-                    break;
+                break;
 
                 case BinaryOperator.SubOnBounds:
-                    Arg(0); Arg(1); Compare("op_LessThan");
+                    Arg(0);
+                    Arg(1);
+                    Compare("op_LessThan");
                     _il.Emit(OpCodes.Brtrue, zero);
-                    Arg(0); Arg(1); Operate("op_Subtraction");
+                    Arg(0);
+                    Arg(1);
+                    Operate("op_Subtraction");
                     _il.Emit(OpCodes.Br, done);
                     _il.Append(zero);
                     Constant("get_Zero");
-                    break;
+                break;
 
                 default:
-                    Arg(0); Constant("get_Zero"); Compare("op_Equality");
+                    Arg(0);
+                    Constant("get_Zero");
+                    Compare("op_Equality");
                     _il.Emit(OpCodes.Brtrue, zero);
-                    Arg(1); Constant("get_MaxValue"); Arg(0); Operate("op_Division"); Compare("op_GreaterThan"); // b > max / a
+                    Arg(1);
+                    Constant("get_MaxValue");
+                    Arg(0);
+                    Operate("op_Division");
+                    Compare("op_GreaterThan"); // b > max / a
                     _il.Emit(OpCodes.Brtrue, maximum);
-                    Arg(0); Arg(1); Operate("op_Multiply");
+                    Arg(0);
+                    Arg(1);
+                    Operate("op_Multiply");
                     _il.Emit(OpCodes.Br, done);
                     _il.Append(maximum);
                     Constant("get_MaxValue");
                     _il.Emit(OpCodes.Br, done);
                     _il.Append(zero);
                     Constant("get_Zero");
-                    break;
+                break;
             }
 
             _il.Append(done);
@@ -2732,32 +2809,56 @@ internal sealed class BodyEmitter
             case BinaryOperator.AddOnBounds:
             {
                 var nonPositive = _il.Create(OpCodes.Nop);
-                Arg(1); Constant("get_Zero"); Compare("op_GreaterThan");
+                Arg(1);
+                Constant("get_Zero");
+                Compare("op_GreaterThan");
                 _il.Emit(OpCodes.Brfalse, nonPositive);
-                Arg(0); Constant("get_MaxValue"); Arg(1); Operate("op_Subtraction"); Compare("op_GreaterThan"); // a > max - b
+                Arg(0);
+                Constant("get_MaxValue");
+                Arg(1);
+                Operate("op_Subtraction");
+                Compare("op_GreaterThan"); // a > max - b
                 _il.Emit(OpCodes.Brtrue, maximum);
                 _il.Emit(OpCodes.Br, plain);
                 _il.Append(nonPositive);
-                Arg(0); Constant("get_MinValue"); Arg(1); Operate("op_Subtraction"); Compare("op_LessThan"); // a < min - b
+                Arg(0);
+                Constant("get_MinValue");
+                Arg(1);
+                Operate("op_Subtraction");
+                Compare("op_LessThan"); // a < min - b
                 _il.Emit(OpCodes.Brtrue, minimum);
                 _il.Append(plain);
-                Arg(0); Arg(1); Operate("op_Addition");
+                Arg(0);
+                Arg(1);
+                Operate("op_Addition");
                 break;
             }
 
             case BinaryOperator.SubOnBounds:
             {
                 var nonPositive = _il.Create(OpCodes.Nop);
-                Arg(1); Constant("get_Zero"); Compare("op_GreaterThan");
+                Arg(1);
+                Constant("get_Zero");
+                Compare("op_GreaterThan");
                 _il.Emit(OpCodes.Brfalse, nonPositive);
-                Arg(0); Constant("get_MinValue"); Arg(1); Operate("op_Addition"); Compare("op_LessThan"); // a < min + b
+                Arg(0);
+                Constant("get_MinValue");
+                Arg(1);
+                Operate("op_Addition");
+                Compare("op_LessThan"); // a < min + b
                 _il.Emit(OpCodes.Brtrue, minimum);
                 _il.Emit(OpCodes.Br, plain);
                 _il.Append(nonPositive);
-                Arg(0); Constant("get_MaxValue"); Arg(1); Operate("op_Addition"); Compare("op_GreaterThan"); // a > max + b
+                Arg(0);
+                Constant("get_MaxValue");
+                Arg(1);
+                Operate("op_Addition");
+                Compare("op_GreaterThan"); // a > max + b
                 _il.Emit(OpCodes.Brtrue, maximum);
                 _il.Append(plain);
-                Arg(0); Arg(1); Operate("op_Subtraction");
+                Arg(0);
+                Arg(1);
+                Operate("op_Subtraction");
                 break;
             }
 
@@ -2768,41 +2869,65 @@ internal sealed class BodyEmitter
                 var overflow = _il.Create(OpCodes.Nop);
                 var product = NewTemp(Core(type));
 
-                Arg(0); Constant("get_Zero"); Compare("op_Equality");
+                Arg(0);
+                Constant("get_Zero");
+                Compare("op_Equality");
                 _il.Emit(OpCodes.Brtrue, zero);
-                Arg(1); Constant("get_Zero"); Compare("op_Equality");
+                Arg(1);
+                Constant("get_Zero");
+                Compare("op_Equality");
                 _il.Emit(OpCodes.Brtrue, zero);
 
                 // `-1` is apart: `min / -1` does not exist, and `x * -1` is only `-x`
-                Arg(0); Constant("get_NegativeOne"); Compare("op_Equality");
+                Arg(0);
+                Constant("get_NegativeOne");
+                Compare("op_Equality");
                 _il.Emit(OpCodes.Brtrue, firstIsMinusOne);
-                Arg(1); Constant("get_NegativeOne"); Compare("op_Equality");
+                Arg(1);
+                Constant("get_NegativeOne");
+                Compare("op_Equality");
                 _il.Emit(OpCodes.Brtrue, secondIsMinusOne);
 
-                Arg(0); Arg(1); Operate("op_Multiply");
+                Arg(0);
+                Arg(1);
+                Operate("op_Multiply");
                 _il.Emit(OpCodes.Stloc, product);
-                _il.Emit(OpCodes.Ldloc, product); Arg(0); Operate("op_Division"); Arg(1); Compare("op_Equality"); // it did not fit if (a * b) / a is not b
+                _il.Emit(OpCodes.Ldloc, product);
+                Arg(0);
+                Operate("op_Division");
+                Arg(1);
+                Compare("op_Equality"); // it did not fit if (a * b) / a is not b
                 _il.Emit(OpCodes.Brfalse, overflow);
                 _il.Emit(OpCodes.Ldloc, product);
                 _il.Emit(OpCodes.Br, done);
 
                 _il.Append(overflow);
-                Arg(0); Constant("get_Zero"); Compare("op_LessThan");
-                Arg(1); Constant("get_Zero"); Compare("op_LessThan");
+                Arg(0);
+                Constant("get_Zero");
+                Compare("op_LessThan");
+                Arg(1);
+                Constant("get_Zero");
+                Compare("op_LessThan");
                 _il.Emit(OpCodes.Ceq); // the signs are the same: the product is above the maximum
                 _il.Emit(OpCodes.Brtrue, maximum);
                 _il.Emit(OpCodes.Br, minimum);
 
                 _il.Append(firstIsMinusOne);
-                Arg(1); Constant("get_MinValue"); Compare("op_Equality");
+                Arg(1);
+                Constant("get_MinValue");
+                Compare("op_Equality");
                 _il.Emit(OpCodes.Brtrue, maximum);
-                Arg(1); Call128(type, "op_UnaryNegation", "T");
+                Arg(1);
+                Call128(type, "op_UnaryNegation", "T");
                 _il.Emit(OpCodes.Br, done);
 
                 _il.Append(secondIsMinusOne);
-                Arg(0); Constant("get_MinValue"); Compare("op_Equality");
+                Arg(0);
+                Constant("get_MinValue");
+                Compare("op_Equality");
                 _il.Emit(OpCodes.Brtrue, maximum);
-                Arg(0); Call128(type, "op_UnaryNegation", "T");
+                Arg(0);
+                Call128(type, "op_UnaryNegation", "T");
                 _il.Emit(OpCodes.Br, done);
                 break;
             }
@@ -2901,11 +3026,11 @@ internal sealed class BodyEmitter
             {
                 case BinaryOperator.Pow:
                     Call128(name, "op_CheckedMultiply", "T", "T");
-                    break;
+                break;
 
                 case BinaryOperator.PowWrap:
                     Call128(name, "op_Multiply", "T", "T");
-                    break;
+                break;
 
                 default:
                     _il.Emit(OpCodes.Call, OpsHelper("MulOnBounds", type, () =>
@@ -2913,7 +3038,7 @@ internal sealed class BodyEmitter
                         EmitWideSaturated128(BinaryOperator.MulOnBounds, name, signed);
                         _il.Emit(OpCodes.Ret);
                     }));
-                    break;
+                break;
             }
         }
 
@@ -2968,13 +3093,31 @@ internal sealed class BodyEmitter
         switch (@operator)
         {
             case BinaryOperator.Add or BinaryOperator.AddWrap:
-                _il.Emit(!checkedOperation ? OpCodes.Add : number.Signed ? OpCodes.Add_Ovf : OpCodes.Add_Ovf_Un); break;
+                _il.Emit(
+                    !checkedOperation
+                        ? OpCodes.Add
+                        : number.Signed
+                            ? OpCodes.Add_Ovf
+                            : OpCodes.Add_Ovf_Un
+                ); break;
 
             case BinaryOperator.Sub or BinaryOperator.SubWrap:
-                _il.Emit(!checkedOperation ? OpCodes.Sub : number.Signed ? OpCodes.Sub_Ovf : OpCodes.Sub_Ovf_Un); break;
+                _il.Emit(
+                    !checkedOperation
+                        ? OpCodes.Sub
+                        : number.Signed
+                            ? OpCodes.Sub_Ovf
+                            : OpCodes.Sub_Ovf_Un
+                ); break;
 
             case BinaryOperator.Mul or BinaryOperator.MulWrap:
-                _il.Emit(!checkedOperation ? OpCodes.Mul : number.Signed ? OpCodes.Mul_Ovf : OpCodes.Mul_Ovf_Un); break;
+                _il.Emit(
+                    !checkedOperation
+                        ? OpCodes.Mul
+                        : number.Signed
+                            ? OpCodes.Mul_Ovf
+                            : OpCodes.Mul_Ovf_Un
+                ); break;
 
             case BinaryOperator.Div:
                 _il.Emit(number.Float || number.Signed ? OpCodes.Div : OpCodes.Div_Un);
@@ -3022,8 +3165,11 @@ internal sealed class BodyEmitter
         {
             if (!wraps && literal.BigInteger >= bits)
             {
-                Report($"The amount of the shift ({literal.BigInteger}) is not less than the size of '{type.Name}' ({bits} bits):{Environment.NewLine}"
-                    + $"use '<<%' or '>>%' to take it modulo the size", binary.Location);
+                Report(
+                    $"The amount of the shift ({literal.BigInteger}) is not less than the size of '{type.Name}' ({bits} bits):{Environment.NewLine}"
+                    + $"use '<<%' or '>>%' to take it modulo the size",
+                    binary.Location
+                );
                 return type;
             }
 
@@ -3072,7 +3218,13 @@ internal sealed class BodyEmitter
             return type;
         }
 
-        _il.Emit(toLeft ? OpCodes.Shl : size.Signed ? OpCodes.Shr : OpCodes.Shr_Un);
+        _il.Emit(
+            toLeft
+                ? OpCodes.Shl
+                : size.Signed
+                    ? OpCodes.Shr
+                    : OpCodes.Shr_Un
+        );
 
         // Shifted to the left, a type of less than 32 bits has bits above its size.
         if (toLeft && size.Bits < 32)
@@ -3360,12 +3512,22 @@ internal sealed class BodyEmitter
                 // `*T` of a value: what it points to is written.
                 if (definition.ParameterType is ByReferenceType reference)
                 {
-                    return new Target(reference.ElementType, 1, () => _il.Emit(OpCodes.Ldarg, definition),
-                        () => _il.Emit(OpCodes.Stobj, reference.ElementType), () => _il.Emit(OpCodes.Ldobj, reference.ElementType));
+                    return new Target(
+                        reference.ElementType,
+                        1,
+                        () => _il.Emit(OpCodes.Ldarg, definition),
+                        () => _il.Emit(OpCodes.Stobj, reference.ElementType),
+                        () => _il.Emit(OpCodes.Ldobj, reference.ElementType)
+                    );
                 }
 
-                return new Target(definition.ParameterType, 0, () => { },
-                    () => _il.Emit(OpCodes.Starg, definition), () => _il.Emit(OpCodes.Ldarg, definition));
+                return new Target(
+                    definition.ParameterType,
+                    0,
+                    () => { },
+                    () => _il.Emit(OpCodes.Starg, definition),
+                    () => _il.Emit(OpCodes.Ldarg, definition)
+                );
             }
 
             case IrReference { Reference: IrField field }:
@@ -3395,7 +3557,8 @@ internal sealed class BodyEmitter
                             EmitElementAddress(memory, () => EmitValue(index.Indices[0], Core("System.Int32")));
                         },
                         () => _il.Emit(OpCodes.Stobj, elementType),
-                        () => _il.Emit(OpCodes.Ldobj, elementType));
+                        () => _il.Emit(OpCodes.Ldobj, elementType)
+                    );
                 }
 
                 var arrayType = TypeOfNode(index.Target) as ArrayType;
@@ -3416,7 +3579,8 @@ internal sealed class BodyEmitter
                         EmitValue(index.Indices[0], Core("System.Int32"));
                     },
                     () => _il.Emit(OpCodes.Stelem_Any, element),
-                    () => _il.Emit(OpCodes.Ldelem_Any, element));
+                    () => _il.Emit(OpCodes.Ldelem_Any, element)
+                );
             }
 
             default:
@@ -3426,7 +3590,12 @@ internal sealed class BodyEmitter
     }
 
     private Target LocalTarget(VariableDefinition variable) => new(
-        variable.VariableType, 0, () => { }, () => _il.Emit(OpCodes.Stloc, variable), () => _il.Emit(OpCodes.Ldloc, variable));
+        variable.VariableType,
+        0,
+        () => { },
+        () => _il.Emit(OpCodes.Stloc, variable),
+        () => _il.Emit(OpCodes.Ldloc, variable)
+    );
 
     private Target? MemberTarget(object member, IrExpression? baseExpr, SourceLocation location)
     {
@@ -3436,8 +3605,13 @@ internal sealed class BodyEmitter
             {
                 var tqHost = fieldDefinition.IsStatic ? null : TqHost(baseExpr, fieldDefinition.DeclaringType);
                 return tqHost != null
-                    ? FieldTarget(OnHost(_owner.Use(fieldDefinition), tqHost), false,
-                        Instantiate(fieldDefinition.FieldType, [], tqHost.GenericArguments), fieldDefinition.DeclaringType, baseExpr)
+                    ? FieldTarget(
+                        OnHost(_owner.Use(fieldDefinition), tqHost),
+                        false,
+                        Instantiate(fieldDefinition.FieldType, [], tqHost.GenericArguments),
+                        fieldDefinition.DeclaringType,
+                        baseExpr
+                    )
                     : FieldTarget(_owner.Use(fieldDefinition), fieldDefinition.IsStatic, fieldDefinition.FieldType, fieldDefinition.DeclaringType, baseExpr);
             }
 
@@ -3449,8 +3623,13 @@ internal sealed class BodyEmitter
                 var reference = _owner.Module.ImportReference(dotnetField.Reference);
                 var host = dotnetField.IsStatic ? null : HostOf(baseExpr);
                 if (host != null) reference = OnHost(reference, host);
-                return FieldTarget(reference, dotnetField.IsStatic, Instantiate(reference.FieldType, [], host?.GenericArguments),
-                    reference.DeclaringType, baseExpr);
+                return FieldTarget(
+                    reference,
+                    dotnetField.IsStatic,
+                    Instantiate(reference.FieldType, [], host?.GenericArguments),
+                    reference.DeclaringType,
+                    baseExpr
+                );
             }
 
             case DotnetProperty { Getter: { } getter, Setter: { } setter }:
@@ -3466,10 +3645,14 @@ internal sealed class BodyEmitter
                     set = OnHost(set, host);
                 }
 
-                return new Target(Instantiate(get.ReturnType, [], host?.GenericArguments), isInstance ? 1 : 0,
-                    () => { if (isInstance) EmitFieldReceiver(baseExpr, set.DeclaringType); },
+                return new Target(
+                    Instantiate(get.ReturnType, [], host?.GenericArguments),
+                    isInstance ? 1 : 0,
+                    () =>
+                    { if (isInstance) EmitFieldReceiver(baseExpr, set.DeclaringType); },
                     () => _il.Emit(isInstance && !set.DeclaringType.IsValueType ? OpCodes.Callvirt : OpCodes.Call, set),
-                    () => _il.Emit(isInstance && !get.DeclaringType.IsValueType ? OpCodes.Callvirt : OpCodes.Call, get));
+                    () => _il.Emit(isInstance && !get.DeclaringType.IsValueType ? OpCodes.Callvirt : OpCodes.Call, get)
+                );
             }
 
             default:
@@ -3483,7 +3666,12 @@ internal sealed class BodyEmitter
         if (isStatic)
             return new Target(type, 0, () => { }, () => _il.Emit(OpCodes.Stsfld, field), () => _il.Emit(OpCodes.Ldsfld, field));
 
-        return new Target(type, 1, () => EmitFieldReceiver(baseExpr, declaring),
-            () => _il.Emit(OpCodes.Stfld, field), () => _il.Emit(OpCodes.Ldfld, field));
+        return new Target(
+            type,
+            1,
+            () => EmitFieldReceiver(baseExpr, declaring),
+            () => _il.Emit(OpCodes.Stfld, field),
+            () => _il.Emit(OpCodes.Ldfld, field)
+        );
     }
 }

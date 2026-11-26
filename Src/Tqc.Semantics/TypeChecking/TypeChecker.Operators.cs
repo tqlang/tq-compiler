@@ -71,7 +71,7 @@ internal sealed partial class TypeChecker
 
         if (common == null)
             Error($"The operator '{binary.Operator}' cannot be applied to '{TypeFormatter.Format(leftType)}' and " +
-                  $"'{TypeFormatter.Format(rightType)}'; convert one of them with `as`", binary.Location);
+                  $"'{TypeFormatter.Format(rightType)}'{Environment.NewLine}Convert one of them with `as`", binary.Location);
         else
             Error($"The operator '{binary.Operator}' does not exist for '{TypeFormatter.Format(common)}'", binary.Location);
 
@@ -115,7 +115,8 @@ internal sealed partial class TypeChecker
         {
             if (leftType is ComptimeIntegerTypeRef && rightType is ComptimeIntegerTypeRef)
             {
-                Error($"'{symbol}' needs an operand with a type, because a literal has no size: give one of them a type (`5 as u8 {symbol} 3`)", visited.Location);
+                Error($"'{symbol}' needs an operand with a type, because a literal has no size{Environment.NewLine}"
+                + "Give one of them a type (`5 as u8 {symbol} 3`)", visited.Location);
                 return (visited, null);
             }
 
@@ -130,7 +131,8 @@ internal sealed partial class TypeChecker
                 return overloaded;
 
             Error(common == null
-                ? $"The operator '{symbol}' cannot be applied to '{TypeFormatter.Format(leftType)}' and '{TypeFormatter.Format(rightType)}'; convert one of them with `as`"
+                ? $"The operator '{symbol}' cannot be applied to '{TypeFormatter.Format(leftType)}' and '{TypeFormatter.Format(rightType)}'{Environment.NewLine}"
+                    + "Convert one of them with `as`"
                 : $"The operator '{symbol}' does not exist for '{TypeFormatter.Format(common)}': it takes integers", visited.Location);
             return (visited, null);
         }
