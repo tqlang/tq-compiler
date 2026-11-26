@@ -900,6 +900,13 @@ public static class TreeLower
         TokenKind.DivCeil => BinaryOperator.DivCeil,
         TokenKind.Rest => BinaryOperator.Rest,
         TokenKind.Coalesce => BinaryOperator.Coalesce,
+        TokenKind.BitwiseAnd => BinaryOperator.BitAnd,
+        TokenKind.BitwiseOr => BinaryOperator.BitOr,
+        TokenKind.BitwiseXor => BinaryOperator.BitXor,
+        TokenKind.BitShiftLeft => BinaryOperator.ShiftLeft,
+        TokenKind.BitShiftRight => BinaryOperator.ShiftRight,
+        TokenKind.BitShiftLeftWrap => BinaryOperator.ShiftLeftWrap,
+        TokenKind.BitShiftRightWrap => BinaryOperator.ShiftRightWrap,
         TokenKind.Power => BinaryOperator.Pow,
         TokenKind.PowerWrap => BinaryOperator.PowWrap,
         TokenKind.PowerOnBounds => BinaryOperator.PowOnBounds,
@@ -931,6 +938,7 @@ public static class TreeLower
         TokenKind.Minus => UnaryOperator.Negate,
         TokenKind.Increment => UnaryOperator.Increment,
         TokenKind.Decrement => UnaryOperator.Decrement,
+        TokenKind.Tilde => UnaryOperator.BitNot,
         _ => throw new InvalidOperationException($"Not a unary operator: {kind}"),
     };
 

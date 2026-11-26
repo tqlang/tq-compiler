@@ -35,6 +35,7 @@ from Tests import {
     Builtins.testArithmeticI64()
     Builtins.testArithmeticU128()
     Builtins.testArithmeticI128()
+    Builtins.testBitwise()
 
     Builtins.testConstants()
     Interop.testGenericInterfaces()

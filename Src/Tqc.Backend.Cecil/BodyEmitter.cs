@@ -1985,6 +1985,10 @@ internal sealed class BodyEmitter
         if (binary.Operator is BinaryOperator.Equal or BinaryOperator.NotEqual && (binary.Left is IrNull || binary.Right is IrNull))
             return EmitNullComparison(binary);
 
+        if (binary.Operator is BinaryOperator.ShiftLeft or BinaryOperator.ShiftRight
+            or BinaryOperator.ShiftLeftWrap or BinaryOperator.ShiftRightWrap)
+            return EmitShift(binary);
+
         var common = CommonType(binary.Left, binary.Right);
         if (common == null) return null;
 
@@ -2052,6 +2056,14 @@ internal sealed class BodyEmitter
                     Report($"The operator '{binary.Operator}' does not exist for '{common.Name}' in .NET", binary.Location);
                 else
                     EmitArithmetic(binary.Operator, number, binary.Location);
+                break;
+
+            // The values on the stack are extended to 32 bits with their sign, so the result is already right for the smaller types.
+            case BinaryOperator.BitAnd or BinaryOperator.BitOr or BinaryOperator.BitXor:
+                if (!known || number.Float || common.FullName == "System.Char")
+                    Report($"The operator '{binary.Operator}' does not exist for '{common.Name}' in .NET", binary.Location);
+                else
+                    _il.Emit(binary.Operator == BinaryOperator.BitAnd ? OpCodes.And : binary.Operator == BinaryOperator.BitOr ? OpCodes.Or : OpCodes.Xor);
                 break;
 
             case BinaryOperator.Equal or BinaryOperator.ExactEqual:
@@ -2608,6 +2620,9 @@ internal sealed class BodyEmitter
             BinaryOperator.MulWrap => "op_Multiply",
             BinaryOperator.Div => "op_Division",
             BinaryOperator.Rest => "op_Modulus",
+            BinaryOperator.BitAnd => "op_BitwiseAnd",
+            BinaryOperator.BitOr => "op_BitwiseOr",
+            BinaryOperator.BitXor => "op_ExclusiveOr",
             _ => null,
         };
 
@@ -2950,6 +2965,91 @@ internal sealed class BodyEmitter
         else _il.Emit(checkedOperation ? (number.Signed ? OpCodes.Conv_Ovf_I2 : OpCodes.Conv_Ovf_U2) : (number.Signed ? OpCodes.Conv_I2 : OpCodes.Conv_U2));
     }
 
+    /// <summary>
+    /// `a << n`, `a >> n`, `a <<% n`, `a >>% n`. The amount of `<<` and `>>` has to be less than the size of `a`: a literal is checked
+    /// while compiling, and any other amount when running (an `OverflowException`). The `%` ones take it modulo the size. `>>` keeps the sign
+    /// of a signed `a`. The 128 bits integers are shifted by their own operators; a type smaller than 32 bits is shifted as 32 and then cut.
+    /// </summary>
+    private TypeReference? EmitShift(IrBinary binary)
+    {
+        var type = EmitValue(binary.Left, null);
+        if (type == null) return null;
+
+        var wide = type.FullName is "System.Int128" or "System.UInt128";
+        if (!wide && (!TryNum(type, out var number) || number.Float || number.Native || type.FullName == "System.Char"))
+        {
+            Report($"The operator '{binary.Operator}' does not exist for '{type.Name}' in .NET", binary.Location);
+            return null;
+        }
+
+        TryNum(type, out var size);
+        var bits = wide ? 128 : size.Bits;
+        var wraps = binary.Operator is BinaryOperator.ShiftLeftWrap or BinaryOperator.ShiftRightWrap;
+        var toLeft = binary.Operator is BinaryOperator.ShiftLeft or BinaryOperator.ShiftLeftWrap;
+
+        // The amount, as an `int32` on the stack.
+        if (binary.Right is IrComptimeInt literal)
+        {
+            if (!wraps && literal.BigInteger >= bits)
+            {
+                Report($"The amount of the shift ({literal.BigInteger}) is not less than the size of '{type.Name}' ({bits} bits): use '<<%' or '>>%' to take it modulo the size", binary.Location);
+                return type;
+            }
+
+            _il.Emit(OpCodes.Ldc_I4, (int)(wraps ? literal.BigInteger % bits : literal.BigInteger));
+        }
+        else
+        {
+            var amountType = EmitValue(binary.Right, null);
+            if (amountType == null) return null;
+
+            if (!TryNum(amountType, out var amount) || amount.Float || amountType.FullName == "System.Char")
+            {
+                Report($"The amount of a shift has to be an integer of up to 64 bits, not '{amountType.Name}'", binary.Right.Location);
+                return type;
+            }
+
+            _il.Emit(amount.Signed ? OpCodes.Conv_I8 : OpCodes.Conv_U8);
+
+            if (wraps)
+            {
+                _il.Emit(OpCodes.Ldc_I8, (long)(bits - 1));
+                _il.Emit(OpCodes.And);
+            }
+            else
+            {
+                // Negative amounts are huge as unsigned, so one comparison covers both ends.
+                var held = NewTemp(Core("System.Int64"));
+                var fits = _il.Create(OpCodes.Nop);
+                _il.Emit(OpCodes.Stloc, held);
+                _il.Emit(OpCodes.Ldloc, held);
+                _il.Emit(OpCodes.Ldc_I8, (long)bits);
+                _il.Emit(OpCodes.Blt_Un, fits);
+                _il.Emit(OpCodes.Ldstr, $"The amount of the shift is not less than the size of the type ({bits} bits)");
+                _il.Emit(OpCodes.Newobj, _owner.ExceptionConstructor("System.OverflowException"));
+                _il.Emit(OpCodes.Throw);
+                _il.Append(fits);
+                _il.Emit(OpCodes.Ldloc, held);
+            }
+
+            _il.Emit(OpCodes.Conv_I4);
+        }
+
+        if (wide)
+        {
+            _il.Emit(OpCodes.Call, Library(type.FullName, toLeft ? "op_LeftShift" : "op_RightShift", type.FullName, "System.Int32"));
+            return type;
+        }
+
+        _il.Emit(toLeft ? OpCodes.Shl : size.Signed ? OpCodes.Shr : OpCodes.Shr_Un);
+
+        // Shifted to the left, a type of less than 32 bits has bits above its size.
+        if (toLeft && size.Bits < 32)
+            _il.Emit(size.Bits == 8 ? (size.Signed ? OpCodes.Conv_I1 : OpCodes.Conv_U1) : (size.Signed ? OpCodes.Conv_I2 : OpCodes.Conv_U2));
+
+        return type;
+    }
+
     private void EmitStringOperator(IrBinary binary, TypeReference text)
     {
         EmitValue(binary.Left, text);
@@ -3013,6 +3113,30 @@ internal sealed class BodyEmitter
                     _il.Emit(OpCodes.Call, Library(type.FullName, "op_UnaryNegation", type.FullName));
                 else
                     _il.Emit(OpCodes.Neg);
+                return type;
+            }
+
+            // `~x`: `not`; a type smaller than 32 bits is cut back to its size (an unsigned one would keep the upper bits set).
+            case UnaryOperator.BitNot:
+            {
+                var type = Emit(unary.Operand, expected);
+                if (type == null) return null;
+
+                if (type.FullName is "System.Int128" or "System.UInt128")
+                {
+                    _il.Emit(OpCodes.Call, Library(type.FullName, "op_OnesComplement", type.FullName));
+                    return type;
+                }
+
+                if (!TryNum(type, out var number) || number.Float || type.FullName == "System.Char")
+                {
+                    Report($"The operator '~' does not exist for '{type.Name}' in .NET", unary.Location);
+                    return null;
+                }
+
+                _il.Emit(OpCodes.Not);
+                if (!number.Native && number.Bits == 8) _il.Emit(number.Signed ? OpCodes.Conv_I1 : OpCodes.Conv_U1);
+                else if (!number.Native && number.Bits == 16) _il.Emit(number.Signed ? OpCodes.Conv_I2 : OpCodes.Conv_U2);
                 return type;
             }
 

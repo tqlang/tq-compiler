@@ -476,6 +476,9 @@ public sealed class IrDumper
         [BinaryOperator.Less] = "lt", [BinaryOperator.Greater] = "gt",
         [BinaryOperator.LessEqual] = "le", [BinaryOperator.GreaterEqual] = "ge",
         [BinaryOperator.Coalesce] = "coalesce",
+        [BinaryOperator.BitAnd] = "and", [BinaryOperator.BitOr] = "or", [BinaryOperator.BitXor] = "xor",
+        [BinaryOperator.ShiftLeft] = "shl", [BinaryOperator.ShiftRight] = "shr",
+        [BinaryOperator.ShiftLeftWrap] = "shl.wrap", [BinaryOperator.ShiftRightWrap] = "shr.wrap",
     };
 
     /// <summary>`type operation`: the type the checker gave the expression (`?` when it has none), then what it does.</summary>
@@ -580,6 +583,7 @@ public sealed class IrDumper
                     UnaryOperator.Try => "try",
                     UnaryOperator.Ignored => "ignored",
                     UnaryOperator.Unwrap => "unwrap",
+                    UnaryOperator.BitNot => "bitnot",
                     _ => unary.Operator.ToString().ToLowerInvariant(),
                 };
                 return Typed(unary, $"{name}({Expr(unary.Operand)})");

@@ -349,6 +349,14 @@ cada aplicação é uma `GenericInstance` da tabela compartilhada; não há nó 
   `UnsafePtr(Opaque)`, `T**` é `UnsafePtr(UnsafePtr(T))`); `ref`/`out`/`in` continuam `Ref(T)`. No backend é `T*` do IL. O único valor
   que o Tq escreve é `null` (o ponteiro 0, em qualquer posição de argumento, atribuição ou declaração); nenhum outro literal converte, e `Ref(T)`
   e fatias nunca convertem para ele nem ele para elas. Desreferenciar, indexar e converter serão funções intrínsecas, ainda não feitas.
+- Operações bit a bit, só de inteiros (`TypeChecker.VisitBitwise`): `a ⋏ b` (e), `a ⋎ b` (ou), `a ⊕ b` (ou exclusivo), `~a` (não), `a << n` e `a >> n`
+  (`>>` aritmético em inteiro com sinal, lógico sem sinal), `a <<% n` e `a >>% n` (a quantidade é tomada módulo o tamanho do tipo). Sem alternativas
+  em ASCII e sem atribuição composta. Precedência como Rust e Zig, do mais forte: `* /`, `+ -`, deslocamentos, `⋏`, `⊕`, `⋎`, comparações.
+  Os dois lados de `⋏ ⋎ ⊕` vão para o tipo comum; o resultado de um deslocamento é o tipo do lado esquerdo e a quantidade é qualquer inteiro de
+  até 64 bits. Um literal sem tipo não dá o tipo: `5 ⋏ 3`, `5 << n` e `~5` são erro (`x ⋏ 5` vale: o literal toma o tipo de `x`). `<<` e `>>`
+  exigem quantidade menor que o tamanho em bits: literal é checado na compilação, o resto na execução (`OverflowException`). Inteiros
+  nativos (`iptr`/`uptr`) não têm deslocamento ainda. IR: `BinaryOperator.BitAnd/BitOr/BitXor/ShiftLeft/ShiftRight/ShiftLeftWrap/ShiftRightWrap`,
+  `UnaryOperator.BitNot`; a declaração como operadores intrínsecos dos inteiros fica para o passo de operadores da migração.
 - Delegates do .NET (`Action`, `EventHandler`, `Action(i32)`) são `DotnetDelegate`: classes (logo `*Action`) cuja assinatura é a
   do `Invoke`. Eventos (`DotnetEvent`, lidos de `definition.Events`; os acessores `add_X`/`remove_X` continuam métodos) não têm valor:
   `x.Evento += f` e `x.Evento -= f` viram a chamada de `add`/`remove` com `f` como delegate. Em uma variável, parâmetro ou campo de

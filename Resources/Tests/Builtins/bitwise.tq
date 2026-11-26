@@ -1,0 +1,76 @@
+from Std import { Test }
+
+# ⋏ and, ⋎ or, ⊕ xor, ~ not, << and >> shifts, <<% and >>% shifts that take the amount modulo the size of the type.
+# Only integers with a type: a literal gives no type (`5 ⋏ 3` is an error), but it takes the one of its partner.
+@public func testBitwise() {
+	let u8 twelve = 12
+	let u8 ten = 10
+	let u8 one8 = 1
+	let u8 full8 = 255
+	let i8 five8 = 5
+	let i32 minus16 = -16
+	let i32 three = 3
+	let u32 one32 = 1
+	let u32 lowBits = 4294967280
+	let u64 one64 = 1
+	let u128 one128 = 1
+
+	Test.newTestUnit("Builtins - bitwise - and, or, xor")
+	{
+		Test.assert(twelve ⋏ ten, 8)
+		Test.assert(twelve ⋎ ten, 14)
+		Test.assert(twelve ⊕ ten, 6)
+
+		# A literal goes with the type of the other side.
+		Test.assert(twelve ⋏ 4, 4)
+		Test.assert(2 ⋎ twelve, 14)
+		Test.assert(minus16 ⋏ 255, 240)
+	}
+
+	Test.newTestUnit("Builtins - bitwise - not")
+	{
+		Test.assert(~one8, 254)
+		Test.assert(~full8, 0)
+		Test.assert(~five8, -6)
+		Test.assert(~one32, 4294967294)
+		Test.assert(~minus16, 15)
+	}
+
+	Test.newTestUnit("Builtins - bitwise - shifts")
+	{
+		Test.assert(one8 << 7, 128)
+		Test.assert(full8 << 4, 240)
+		Test.assert(one32 << 31, 2147483648)
+		Test.assert(one64 << 40, 1099511627776)
+		Test.assert(one128 << 100 >> 100, 1)
+
+		# The amount does not have to be a literal, nor the type of the left side.
+		Test.assert(one8 << three, 8)
+		Test.assert(one64 << three, 8)
+
+		# `>>` keeps the sign of a signed integer, and fills with zeros an unsigned one.
+		Test.assert(minus16 >> 2, -4)
+		Test.assert(lowBits >> 4, 268435455)
+		Test.assert(full8 >> 1, 127)
+	}
+
+	Test.newTestUnit("Builtins - bitwise - shifts that take the amount modulo the size")
+	{
+		Test.assert(one8 <<% 9, 2)
+		Test.assert(one8 <<% 8, 1)
+		Test.assert(full8 >>% 9, 127)
+		Test.assert(one32 <<% 33, 2)
+		Test.assert(one8 <<% three, 8)
+		Test.assert(one128 <<% 129, 2)
+	}
+
+	Test.newTestUnit("Builtins - bitwise - precedence")
+	{
+		# `<<` and `>>` are below `+` and above `⋏`, which is above `⊕`, which is above `⋎`; all above the comparisons.
+		Test.assert(one32 + one32 << 2, 8)
+		Test.assert(one32 << one32 + one32, 4)
+		Test.assert(twelve ⋎ ten ⋏ 4, 12)
+		Test.assert(twelve ⊕ ten ⋎ 1, 7)
+		Test.assert(twelve ⋏ ten == 8, true)
+	}
+}

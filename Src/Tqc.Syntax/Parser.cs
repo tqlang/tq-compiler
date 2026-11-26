@@ -898,7 +898,7 @@ public class Parser(DiagnosticBag diagnostics)
 
     private ExpressionNode ParseRelational()
     {
-        var left = ParseAdditive();
+        var left = ParseBitwiseOr();
 
         // The checkpoint is taken before each operator: when there is none, the trivia read looking for it is given back.
         while (true)
@@ -916,12 +916,47 @@ public class Parser(DiagnosticBag diagnostics)
 
             var op = AdvanceNode();
             AdvanceTrivia(_midExpressionTrivia);
-            var right = ParseAdditive();
+            var right = ParseBitwiseOr();
             left = new BinaryExpressionNode(left, op, right);
         }
 
         return left;
     }
+
+    /// <summary>
+    /// A level of left associative binary operators: `operand (op operand)*`. The checkpoint is taken before each operator: when there
+    /// is none, the trivia read looking for it is given back.
+    /// </summary>
+    private ExpressionNode ParseBinaryLevel(Func<ExpressionNode> operand, params TokenKind[] operators)
+    {
+        var left = operand();
+
+        while (true)
+        {
+            var cp = SaveCheckpoint();
+            AdvanceTrivia(_midExpressionTrivia);
+
+            if (AtEnd() || !operators.Contains(PeekKind()))
+            {
+                Rollback(cp);
+                break;
+            }
+
+            var op = AdvanceNode();
+            AdvanceTrivia(_midExpressionTrivia);
+            left = new BinaryExpressionNode(left, op, operand());
+        }
+
+        return left;
+    }
+
+    // Bitwise operators, as in Rust and Zig: below `+` and `-`, above the comparisons. From the loosest: `⋎`, `⊕`, `⋏`, the shifts.
+    private ExpressionNode ParseBitwiseOr() => ParseBinaryLevel(ParseBitwiseXor, TokenKind.BitwiseOr);
+    private ExpressionNode ParseBitwiseXor() => ParseBinaryLevel(ParseBitwiseAnd, TokenKind.BitwiseXor);
+    private ExpressionNode ParseBitwiseAnd() => ParseBinaryLevel(ParseShift, TokenKind.BitwiseAnd);
+
+    private ExpressionNode ParseShift() => ParseBinaryLevel(
+        ParseAdditive, TokenKind.BitShiftLeft, TokenKind.BitShiftRight, TokenKind.BitShiftLeftWrap, TokenKind.BitShiftRightWrap);
 
     private ExpressionNode ParseAdditive()
     {
@@ -1145,7 +1180,8 @@ public class Parser(DiagnosticBag diagnostics)
                 or TokenKind.QuestionMark
                 or TokenKind.Minus
                 or TokenKind.Increment
-                or TokenKind.Decrement:
+                or TokenKind.Decrement
+                or TokenKind.Tilde:
             {
                 var op = AdvanceNode();
                 var operand = ParsePrefix();

@@ -45,6 +45,8 @@ public enum TokenKind
     
     BitShiftLeft,        // <<
     BitShiftRight,       // >>
+    BitShiftLeftWrap,    // <<%
+    BitShiftRightWrap,   // >>%
     
     FatRightArrow,       // =>
     

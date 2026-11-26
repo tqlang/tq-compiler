@@ -59,19 +59,18 @@ internal class Lexer(string Source)
             case '.': return GetTokenValue(TokenKind.Dot);
             case ',': return GetTokenValue(TokenKind.Comma);
             
+            // `<<` and `>>` shift, and with a `%` after them the amount is masked to the size of the type.
             case '<':
-                return GetTokenValue(
-                    NextRuneIf('=') ? TokenKind.LessEqual
-                    : NextRuneIf('<') ? TokenKind.BitShiftLeft
-                    : TokenKind.LeftAngle
-                );
+            {
+                if (NextRuneIf('=')) return GetTokenValue(TokenKind.LessEqual);
+                if (NextRuneIf('<')) return GetTokenValue(NextRuneIf('%') ? TokenKind.BitShiftLeftWrap : TokenKind.BitShiftLeft);
+                return GetTokenValue(TokenKind.LeftAngle);
+            }
             case '>':
             {
-                return GetTokenValue(
-                    NextRuneIf('=') ? TokenKind.GreaterEqual
-                    : NextRuneIf('<') ? TokenKind.BitShiftRight
-                    : TokenKind.RightAngle
-                );
+                if (NextRuneIf('=')) return GetTokenValue(TokenKind.GreaterEqual);
+                if (NextRuneIf('>')) return GetTokenValue(NextRuneIf('%') ? TokenKind.BitShiftRightWrap : TokenKind.BitShiftRight);
+                return GetTokenValue(TokenKind.RightAngle);
             }
             
             case '+':
@@ -128,6 +127,8 @@ internal class Lexer(string Source)
                         : TokenKind.NotEqualsEquals
                     : TokenKind.Bang);
             
+            case '~': return GetTokenValue(TokenKind.Tilde);
+
             case '⋏': return GetTokenValue(TokenKind.BitwiseAnd);
             case '⋎': return GetTokenValue(TokenKind.BitwiseOr);
             case '⊕': return GetTokenValue(TokenKind.BitwiseXor);

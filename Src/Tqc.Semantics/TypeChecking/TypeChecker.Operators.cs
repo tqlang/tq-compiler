@@ -25,6 +25,7 @@ internal sealed partial class TypeChecker
         var visited = binary with { Left = left, Right = right };
 
         if (binary.Operator == BinaryOperator.Coalesce) return VisitCoalesce(visited, left, right);
+        if (IsBitwise(binary.Operator)) return VisitBitwise(visited, left, right);
 
         var isComparison = binary.Operator >= BinaryOperator.Equal;
         ITypeRef? resultOf(ITypeRef common) => isComparison ? BoolType() : common;
@@ -75,6 +76,98 @@ internal sealed partial class TypeChecker
             Error($"The operator '{binary.Operator}' does not exist for '{TypeFormatter.Format(common)}'", binary.Location);
 
         return (visited, isComparison ? BoolType() : null);
+    }
+
+    // ---- Bitwise operators
+
+    private static bool IsBitwise(BinaryOperator @operator) => @operator is
+        BinaryOperator.BitAnd or BinaryOperator.BitOr or BinaryOperator.BitXor
+        or BinaryOperator.ShiftLeft or BinaryOperator.ShiftRight or BinaryOperator.ShiftLeftWrap or BinaryOperator.ShiftRightWrap;
+
+    private static string BitwiseSymbol(BinaryOperator @operator) => @operator switch
+    {
+        BinaryOperator.BitAnd => "⋏",
+        BinaryOperator.BitOr => "⋎",
+        BinaryOperator.BitXor => "⊕",
+        BinaryOperator.ShiftLeft => "<<",
+        BinaryOperator.ShiftRight => ">>",
+        BinaryOperator.ShiftLeftWrap => "<<%",
+        _ => ">>%",
+    };
+
+    /// <summary>
+    /// `a ⋏ b`, `a ⋎ b`, `a ⊕ b`: two integers brought to a common type, which is the type of the result. `a << n`, `a >> n`, `a <<% n`,
+    /// `a >>% n`: the type of the result is the one of `a`, and `n` is any integer of up to 64 bits (`>>` keeps the sign of a signed `a`).
+    /// An integer without a type (a literal) has no size, so it cannot be the only thing that gives the type: `x ⋏ 5` is fine, `5 ⋏ 3` is not.
+    /// </summary>
+    private (IrExpression, ITypeRef?) VisitBitwise(IrBinary visited, IrExpression left, IrExpression right)
+    {
+        var @operator = visited.Operator;
+        var symbol = BitwiseSymbol(@operator);
+        var leftType = TypeOf(left);
+        var rightType = TypeOf(right);
+        if (leftType == null || rightType == null) return (visited, null);
+
+        var isShift = @operator is BinaryOperator.ShiftLeft or BinaryOperator.ShiftRight
+            or BinaryOperator.ShiftLeftWrap or BinaryOperator.ShiftRightWrap;
+
+        if (!isShift)
+        {
+            if (leftType is ComptimeIntegerTypeRef && rightType is ComptimeIntegerTypeRef)
+            {
+                Error($"'{symbol}' needs an operand with a type, because a literal has no size: give one of them a type (`5 as u8 {symbol} 3`)", visited.Location);
+                return (visited, null);
+            }
+
+            var common = ConversionRules.Common(leftType, rightType);
+            if (common != null && ConversionRules.IsInteger(common))
+            {
+                CheckLiteralFits(left, right, leftType, rightType, common);
+                return (visited, common);
+            }
+
+            if (TryOverloadedOperator(@operator.ToString(), visited.Location, [left, right], visited) is { } overloaded)
+                return overloaded;
+
+            Error(common == null
+                ? $"The operator '{symbol}' cannot be applied to '{TypeFormatter.Format(leftType)}' and '{TypeFormatter.Format(rightType)}'; convert one of them with `as`"
+                : $"The operator '{symbol}' does not exist for '{TypeFormatter.Format(common)}': it takes integers", visited.Location);
+            return (visited, null);
+        }
+
+        if (leftType is ComptimeIntegerTypeRef)
+        {
+            Error($"The left side of '{symbol}' needs a type, because a literal has no size: `5 as u32 {symbol} n`", visited.Location);
+            return (visited, null);
+        }
+
+        if (!ConversionRules.IsInteger(leftType))
+        {
+            if (TryOverloadedOperator(@operator.ToString(), visited.Location, [left, right], visited) is { } overloaded)
+                return overloaded;
+
+            Error($"The operator '{symbol}' does not exist for '{TypeFormatter.Format(leftType)}': it takes integers", visited.Location);
+            return (visited, null);
+        }
+
+        if (ConversionRules.TryNative(leftType, out _))
+        {
+            Error($"The operator '{symbol}' does not take a native integer yet: its size is not known while compiling", visited.Location);
+            return (visited, null);
+        }
+
+        // The amount: a literal that is not negative, or an integer of up to 64 bits.
+        if (right is IrComptimeInt { BigInteger.Sign: < 0 })
+            Error($"The amount of '{symbol}' cannot be negative", right.Location);
+        else if (rightType is not ComptimeIntegerTypeRef)
+        {
+            if (!ConversionRules.IsInteger(rightType))
+                Error($"The amount of '{symbol}' has to be an integer, not '{TypeFormatter.Format(rightType)}'", right.Location);
+            else if (ConversionRules.TryInteger(rightType, out _, out var amountBits) && amountBits > 64)
+                Error($"The amount of '{symbol}' takes an integer of up to 64 bits, not '{TypeFormatter.Format(rightType)}'", right.Location);
+        }
+
+        return (visited, leftType);
     }
 
     private static bool BinaryOperatorExists(BinaryOperator @operator, ITypeRef type)
@@ -213,6 +306,24 @@ internal sealed partial class TypeChecker
             Error($"'{constant}' is a constant and cannot be changed", unary.Location);
 
         if (type == null) return (visited, unary.Operator == UnaryOperator.Not ? BoolType() : null);
+
+        // `~x`: the bits of an integer, inverted, of the same type. A literal has no size, so `~5` is not a value.
+        if (unary.Operator == UnaryOperator.BitNot)
+        {
+            if (type is ComptimeIntegerTypeRef)
+            {
+                Error("'~' needs an operand with a type, because a literal has no size: `~(5 as u8)`", unary.Location);
+                return (visited, null);
+            }
+
+            if (ConversionRules.IsInteger(type)) return (visited, type);
+
+            if (TryOverloadedOperator(unary.Operator.ToString(), unary.Location, [operand], visited) is { } bitNot)
+                return bitNot;
+
+            Error($"The operator '~' does not exist for '{TypeFormatter.Format(type)}': it takes integers", unary.Location);
+            return (visited, null);
+        }
 
         var exists = unary.Operator == UnaryOperator.Not ? IsBool(type) : ConversionRules.IsNumeric(type);
         if (exists) return (visited, unary.Operator == UnaryOperator.Not ? BoolType() : type);
