@@ -86,6 +86,18 @@ internal sealed class BodyEmitter
     private void Report(string message, SourceLocation? location) => _owner.Report(message, location);
     private TypeReference Core(string name) => _owner.Backend.Core.Require(_target, name);
 
+    /// <summary>
+    /// The version of a decision on the size of `int` that is for this target: the target has a single size for it (see `CecilBackend.Abi`),
+    /// which is the one that was checked. If none is, the analyzer tried sizes this backend does not have: nothing is emitted.
+    /// </summary>
+    private T? ChooseNatural<T>(IEnumerable<T> variants, Func<T, int> bitsOf, SourceLocation location) where T : class
+    {
+        var natural = CecilBackend.Abi.Natural;
+        var chosen = natural != null ? variants.FirstOrDefault(variant => bitsOf(variant) == natural) : null;
+        if (chosen == null) Report($"No version of this code is for an 'int' of {(natural != null ? natural + " bits" : "the size of this target")}", location);
+        return chosen;
+    }
+
     private static bool IsVoid(TypeReference? type) => type == null || type.FullName == "System.Void";
 
     /// <summary>`Tq.Failable` (`!void`) and `Tq.Failable&lt;T&gt;` (`!T`); `result` is `T`, or void.</summary>
@@ -611,6 +623,10 @@ internal sealed class BodyEmitter
                 EmitDiscard(statement.Expression);
                 break;
 
+            case IrNaturalChoiceStatement choice:
+                if (ChooseNatural(choice.Variants, variant => variant.Bits, choice.Location) is { } chosen) EmitStatement(chosen.Statement);
+                break;
+
             case IrIf @if:
                 EmitIf(@if);
                 break;
@@ -797,6 +813,10 @@ internal sealed class BodyEmitter
 
             case IrNull nothing: return EmitNull(nothing, expected);
 
+            case IrNaturalChoice choice:
+                return ChooseNatural(choice.Variants, variant => variant.Bits, choice.Location) is { } picked
+                    ? Emit(picked.Expression, expected, discard)
+                    : null;
             case IrStringConcat concat: return EmitConcat(concat);
             case IrReference reference: return EmitReference(reference);
             case IrAccess access: return EmitAccess(access);

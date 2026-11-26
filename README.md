@@ -355,7 +355,15 @@ cada aplicação é uma `GenericInstance` da tabela compartilhada; não há nó 
   `iptr/uptr`, cada um como lista de candidatos (`CecilBackend.Abi`: `int` = {32}, `iptr` = {32, 64}). O CLI escolhe o backend pelo `target` do `[project]`
   (o que vem antes do primeiro `-`; backend desconhecido dá `TargetAbi.Unknown`, sem nenhuma relação) e entrega ao analisador (`SemanticAnalyser.TypeCheck`
   → `ImplicitConversions.Abi`). Com um único tamanho candidato para `int`, `i32` → `int` e `u32` → `uint` convertem implicitamente (custo 1, o menor, em
-  chamadas e em operadores). Só nesse sentido: `int → iN` nunca é implícito (a forma explícita ainda não foi verificada para inteiros), e `i64 → int` também. Ainda não há a estrutura de decisão em tempo de compilação para vários tamanhos candidatos.
+  chamadas e em operadores). Só nesse sentido: `int → iN` nunca é implícito (a forma explícita ainda não foi verificada para inteiros), e `i64 → int` também.
+- Decisão em tempo de compilação sobre o tamanho de `int/uint` (`TypeChecker.Targets.cs`, `IrNaturalChoice`, `IrNaturalChoiceStatement`): quando o alvo dá mais de um
+  tamanho candidato a `int`, o analisador confere cada expressão (de uma instrução, condição de `if`/`while`, declaração e passo do `while`) uma vez para cada
+  candidato, como se o alvo só tivesse aquele; um `return` é conferido inteiro, porque a conversão do valor faz parte dele. Se as versões saem iguais (mesma árvore e
+  mesmos tipos) o resultado é a própria expressão; se diferem, vira um nó de escolha com uma versão por tamanho (todas com o mesmo tipo; se os tipos diferem é erro).
+  Um erro que todos os tamanhos dão é dado uma vez; um que só alguns dão diz a linha, os tamanhos e o motivo (`... (when 'int' has 16 or 64 bits)`). O backend pega a
+  versão do tamanho que ele conhece (`CecilBackend.Abi.Natural`); com um só candidato, caso do .NET, nada disso acontece e a IR é a de sempre. Limites: um bloco nunca é
+  repetido inteiro; valores de campos, parâmetros padrão e casos de enum não entram (são conferidos uma vez, sem relação entre `iN` e `int`); o tipo inferido de um
+  `let` que difere entre tamanhos não é detectado; árvores com referências que não comparam por valor viram escolha mesmo sem precisar. `iptr/uptr` ainda não.
 - Operações bit a bit, só de inteiros (`TypeChecker.VisitBitwise`): `a ⋏ b` (e), `a ⋎ b` (ou), `a ⊕ b` (ou exclusivo), `~a` (não), `a << n` e `a >> n`
   (`>>` aritmético em inteiro com sinal, lógico sem sinal), `a <<% n` e `a >>% n` (a quantidade é tomada módulo o tamanho do tipo). Sem alternativas
   em ASCII e sem atribuição composta. Precedência como Rust e Zig, do mais forte: `* /`, `+ -`, deslocamentos, `⋏`, `⊕`, `⋎`, comparações.

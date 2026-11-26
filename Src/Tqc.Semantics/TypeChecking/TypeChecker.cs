@@ -45,7 +45,11 @@ internal sealed partial class TypeChecker(
 
     private void Error(string message, SourceLocation location)
     {
-        if (_silenced == 0) diagnostics.ReportError(new TypeError(message, location));
+        if (_silenced != 0) return;
+
+        // While the code is tried for one size of `int` at a time, the errors wait: see PerNaturalSize.
+        if (_captured != null) _captured.Add((message, location));
+        else diagnostics.ReportError(new TypeError(message, location));
     }
 
     /// <summary>What `action` gives, with the errors it finds not reported: to try one way and then another.</summary>
@@ -237,14 +241,14 @@ internal sealed partial class TypeChecker(
         switch (node)
         {
             case IrReturnStatement returnStatement:
-                return CheckReturn(returnStatement);
+                return CheckPerSize(returnStatement, () => CheckReturn(returnStatement));
 
             case IrExpressionStatement expressionStatement:
-                return expressionStatement with { Expression = VisitExpecting(expressionStatement.Expression, Expectation.Discard) };
+                return expressionStatement with { Expression = VisitPerSize(expressionStatement.Expression, Expectation.Discard) };
 
             case IrIf ifStatement:
             {
-                var condition = Visit(ifStatement.Condition);
+                var condition = VisitPerSize(ifStatement.Condition);
                 var conditionType = TypeOf(condition);
                 if (conditionType != null && !IsBool(conditionType))
                     Error($"The condition of 'if' must be bool, not '{TypeFormatter.Format(conditionType)}'", condition.Location);
@@ -259,14 +263,14 @@ internal sealed partial class TypeChecker(
 
             case IrWhile loop:
             {
-                var declaration = loop.Declaration != null ? Visit(loop.Declaration) : null;
+                var declaration = loop.Declaration != null ? VisitPerSize(loop.Declaration) : null;
 
-                var condition = Visit(loop.Condition);
+                var condition = VisitPerSize(loop.Condition);
                 var conditionType = TypeOf(condition);
                 if (conditionType != null && !IsBool(conditionType))
                     Error($"The condition of 'while' must be bool, not '{TypeFormatter.Format(conditionType)}'", condition.Location);
 
-                var step = loop.Step != null ? Visit(loop.Step) : null;
+                var step = loop.Step != null ? VisitPerSize(loop.Step) : null;
 
                 _loopDepth++;
                 var body = (IrStatement)CheckNode(loop.Body);
@@ -284,7 +288,7 @@ internal sealed partial class TypeChecker(
                 return nested;
 
             case IrExpression expression:
-                return Visit(expression);
+                return VisitPerSize(expression);
 
             default:
                 return node;

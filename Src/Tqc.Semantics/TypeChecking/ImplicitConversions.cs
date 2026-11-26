@@ -13,7 +13,7 @@ namespace Tqc.Semantics;
 internal sealed class ImplicitConversions
 {
     /// <summary>The sizes the target gives to the types that depend on it.</summary>
-    public TargetAbi Abi { get; init; } = TargetAbi.Unknown;
+    public TargetAbi Abi { get; set; } = TargetAbi.Unknown;
 
     private readonly List<(ITypeRef From, ITypeRef To, TqFunction Function)> _entries = [];
 

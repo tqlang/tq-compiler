@@ -52,6 +52,9 @@ internal sealed partial class TypeChecker
             case IrIndex index:
                 return VisitIndex(index);
 
+            case IrNaturalChoice choice:
+                return (choice, types.Get(choice));
+
             case IrStringConcat concat:
                 return (concat with { Parts = [..concat.Parts.Select(Visit)] }, StringType());
 

@@ -379,6 +379,19 @@ public sealed class IrDumper
                 ExpressionStatement(statement.Expression, at);
                 break;
 
+            case IrNaturalChoiceStatement choice:
+                Line($"natural_choice {{{at}");
+                _depth++;
+                foreach (var variant in choice.Variants)
+                {
+                    Line($"{variant.Bits} bits:");
+                    Nested(variant.Statement);
+                }
+
+                _depth--;
+                Line("}");
+                break;
+
             case IrIf @if:
                 Line($"if ({Expr(@if.Condition)}) {{{at}");
                 Nested(@if.Then);
@@ -612,6 +625,9 @@ public sealed class IrDumper
 
             case IrStringConstant text:
                 return Typed(text, $"\"{Escape(text.Value)}\"");
+
+            case IrNaturalChoice choice:
+                return Typed(choice, $"natural_choice({string.Join(", ", choice.Variants.Select(variant => $"{variant.Bits}: {Expr(variant.Expression)}"))})");
 
             case IrStringConcat concat:
                 return Typed(concat, $"concat({string.Join(", ", concat.Parts.Select(Expr))})");
