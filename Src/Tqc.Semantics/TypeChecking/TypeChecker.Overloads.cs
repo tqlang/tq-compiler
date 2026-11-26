@@ -239,7 +239,8 @@ internal sealed partial class TypeChecker
             if (a.Matches[i].Cost < b.Matches[i].Cost) better = true;
         }
 
-        return better;
+        // Equal costs: the one that needs fewer conversions between `i32` and `int` (which are the same type on the target) is better.
+        return better || a.Matches.Count(match => match.Alias) < b.Matches.Count(match => match.Alias);
     }
 
     /// <summary>The arguments, each converted to the type of its parameter where that takes a conversion.</summary>

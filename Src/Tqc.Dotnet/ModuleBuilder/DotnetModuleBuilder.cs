@@ -308,11 +308,12 @@ sealed internal class DotnetModuleBuilder(AssemblyDefinition[] assemblies)
 
     /// <summary>
     /// The base of each type and the interfaces of an interface. What a type inherits is looked up in them, so a base that
-    /// is not a type of the module (it was only found by reference) gets its members read too.
+    /// is not a type of the module (it was only found by reference) gets its members read too. A delegate has one too
+    /// (`MulticastDelegate`, where `GetInvocationList` is).
     /// </summary>
     private void LinkBaseTypes()
     {
-        var pending = new Queue<TypeNode>(_nodes.Values.Where(n => !n.IsExternal && n.Kind != TypeKind.Delegate));
+        var pending = new Queue<TypeNode>(_nodes.Values.Where(n => !n.IsExternal));
         var done = new HashSet<TypeNode>(ReferenceEqualityComparer.Instance);
 
         while (pending.TryDequeue(out var node))

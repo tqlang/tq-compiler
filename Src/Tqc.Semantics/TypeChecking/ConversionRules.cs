@@ -32,7 +32,7 @@ internal enum MatchKind
 /// `Via` is the function of an `@implicitConvert` that does the conversion, when that is what it takes.
 /// `Wraps` says the argument is a `T` that goes where a `?T` or a `!T` is asked (after converting it to `T`, if that takes it).
 /// </summary>
-internal readonly record struct ArgumentMatch(MatchKind Kind, int Cost, IFunction? Via = null, bool Wraps = false)
+internal readonly record struct ArgumentMatch(MatchKind Kind, int Cost, IFunction? Via = null, bool Wraps = false, bool Alias = false)
 {
     public static readonly ArgumentMatch None = new(MatchKind.None, 0);
     public static readonly ArgumentMatch Exact = new(MatchKind.Exact, 0);
@@ -49,7 +49,6 @@ internal static class ConversionRules
     private const int LiteralToInt = 1;
     private const int LiteralToUint = 2;
     private const int LiteralToSizedInteger = 3;
-    private const int SameSizeNatural = 1;
 
     // A decimal literal is an `f64` unless another float is asked for; the other floats tie.
     private const int DecimalToF64 = 1;
@@ -316,13 +315,13 @@ internal static class ConversionRules
     private static ArgumentMatch ClassifyWidening(ITypeRef argument, ITypeRef parameter, TargetAbi abi)
     {
         // `i32` into `int` (and `u32` into `uint`): when the target has a single size for `int`, they are the same integer under
-        // two names, so the conversion costs almost nothing. The other way, `int` into `iN`, is never implicit (it is `as`), and with
+        // two names, so the conversion costs nothing; it only loses a tie against an overload that takes the argument as it is (`Alias`). The other way, `int` into `iN`, is never implicit (it is `as`), and with
         // several candidate sizes there is no rule at all.
         if (abi.Natural is { } natural
             && TryNatural(parameter, out var naturalSigned)
             && TryInteger(argument, out var sizedSigned, out var sizedBits)
             && sizedBits == natural && sizedSigned == naturalSigned)
-            return Convert(SameSizeNatural);
+            return new ArgumentMatch(MatchKind.Convert, 0, Alias: true);
 
         if (TryInteger(argument, out var fromSigned, out var fromBits) && TryInteger(parameter, out var toSigned, out var toBits))
         {

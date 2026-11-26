@@ -1,14 +1,14 @@
 from Std import { Test }
 
 # The target (.NET) says `int` has 32 bits, so `i32` and `int` are the same integer under two names, and so are `u32` and `uint`.
-# The conversion between them is the cheapest one, cheaper than going to a larger type.
-func pick(int value) int => 1
-func pick(i64 value) int => 2
+# The conversion costs nothing (it only loses a tie against an overload that takes the argument as it is), so it beats going to a larger type.
+func targetPick(int value) int => 1
+func targetPick(i64 value) int => 2
 
-func pickUnsigned(uint value) int => 1
-func pickUnsigned(u64 value) int => 2
+func targetPickUnsigned(uint value) int => 1
+func targetPickUnsigned(u64 value) int => 2
 
-func twice(int number) int => number * 2
+func targetTwice(int number) int => number * 2
 
 @public func testTargetSizes() {
 	let i32 signed = 7
@@ -17,9 +17,9 @@ func twice(int number) int => number * 2
 
 	Test.newTestUnit("Builtins - target sizes - i32 and int")
 	{
-		Test.assert(pick(signed), 1)
-		Test.assert(pickUnsigned(unsigned), 1)
-		Test.assert(twice(signed), 14)
+		Test.assert(targetPick(signed), 1)
+		Test.assert(targetPickUnsigned(unsigned), 1)
+		Test.assert(targetTwice(signed), 14)
 
 		# Only from the sized one into `int`; `int` into `iN` is never implicit.
 		let int widened = signed
