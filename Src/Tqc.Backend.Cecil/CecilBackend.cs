@@ -2,6 +2,7 @@ using Mono.Cecil;
 using Tqc.Diagnostics;
 using Tqc.Dotnet.ProgramMembers;
 using Tqc.IR.ProgramMembers;
+using Tqc.IR.Targets;
 using Tqc.IR.ProgramMembers.Tq;
 
 namespace Tqc.Backend.Cecil;
@@ -22,6 +23,9 @@ namespace Tqc.Backend.Cecil;
 /// </summary>
 public sealed class CecilBackend(DiagnosticBag diagnostics)
 {
+    /// <summary>What this backend answers about the sizes of the types that depend on the target: `int` is System.Int32, `iptr` is 32 or 64 bits.</summary>
+    public static TargetAbi Abi { get; } = new(8, [32], [32, 64]);
+
     private readonly List<AssemblyDefinition> _dotnetAssemblies = [];
     private readonly List<(AssemblyDefinition Assembly, string Name, bool IsEntry)> _emitted = [];
     private CoreTypes? _core;

@@ -1,0 +1,29 @@
+from Std import { Test }
+
+# The target (.NET) says `int` has 32 bits, so `i32` and `int` are the same integer under two names, and so are `u32` and `uint`.
+# The conversion between them is the cheapest one, cheaper than going to a larger type.
+func pick(int value) int => 1
+func pick(i64 value) int => 2
+
+func pickUnsigned(uint value) int => 1
+func pickUnsigned(u64 value) int => 2
+
+func twice(int number) int => number * 2
+
+@public func testTargetSizes() {
+	let i32 signed = 7
+	let u32 unsigned = 7
+	let int natural = 7
+
+	Test.newTestUnit("Builtins - target sizes - i32 and int")
+	{
+		Test.assert(pick(signed), 1)
+		Test.assert(pickUnsigned(unsigned), 1)
+		Test.assert(twice(signed), 14)
+
+		# Both ways, and in an operation with the other one.
+		let i32 back = natural
+		Test.assert(back, 7)
+		Test.assert(signed + natural, 14)
+	}
+}

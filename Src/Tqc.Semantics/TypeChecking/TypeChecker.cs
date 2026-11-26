@@ -6,6 +6,7 @@ using Tqc.IR.ProgramMembers;
 using Tqc.IR.ProgramMembers.Primitive;
 using Tqc.IR.ProgramMembers.Tq;
 using Tqc.IR.References;
+using Tqc.IR.Targets;
 
 namespace Tqc.Semantics;
 
@@ -24,10 +25,10 @@ internal sealed partial class TypeChecker(
     /// <summary>The function whose body is being checked; `return` is checked against it.</summary>
     private TqFunction? _function;
 
-    public static void Check(TqModule module, IModule[] dependencies, DiagnosticBag diagnostics)
+    public static void Check(TqModule module, IModule[] dependencies, DiagnosticBag diagnostics, TargetAbi abi)
     {
         var conversions = ImplicitConversions.Build(
-            [module.RootNamespace, ..dependencies.Select(dependency => dependency.RootNamespace)]);
+            [module.RootNamespace, ..dependencies.Select(dependency => dependency.RootNamespace)], abi);
 
         INamespace[] roots = [module.RootNamespace, ..dependencies.Select(dependency => dependency.RootNamespace)];
         var operators = OperatorOverloads.Build(

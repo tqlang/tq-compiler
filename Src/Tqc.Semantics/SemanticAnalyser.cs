@@ -1,6 +1,7 @@
 using Tqc.Diagnostics;
 using Tqc.IR.ProgramMembers;
 using Tqc.IR.ProgramMembers.Tq;
+using Tqc.IR.Targets;
 using Tqc.Syntax;
 
 namespace Tqc.Semantics;
@@ -19,12 +20,12 @@ public static class SemanticAnalyser
     
     /// <summary>
     /// Types the expressions of a module whose names are bound (the result goes to `TqModule.Types`)
-    /// and resolves the calls to overload groups. Errors go to `diagnostics`.
+    /// and resolves the calls to overload groups. Errors go to `diagnostics`. `abi` is what the target says about the size of `int` and the like.
     /// </summary>
-    public static void TypeCheck(IModule module, IModule[] dependencies, DiagnosticBag diagnostics)
+    public static void TypeCheck(IModule module, IModule[] dependencies, DiagnosticBag diagnostics, TargetAbi abi)
     {
         if (module is not TqModule @tqModule) throw new ArgumentException("module is not TqModule", nameof(module));
-        TypeChecker.Check(tqModule, dependencies, diagnostics);
+        TypeChecker.Check(tqModule, dependencies, diagnostics, abi);
     }
 
     /// <summary>The IR of a module as text, with the type of each expression (see <see cref="IrDumper"/>). For debugging.</summary>

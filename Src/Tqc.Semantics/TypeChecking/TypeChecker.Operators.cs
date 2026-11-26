@@ -59,7 +59,7 @@ internal sealed partial class TypeChecker
             return (visited, BoolType());
         }
 
-        var common = ConversionRules.Common(leftType, rightType);
+        var common = ConversionRules.Common(leftType, rightType, conversions.Abi);
         if (common != null && BinaryOperatorExists(binary.Operator, common))
         {
             CheckLiteralFits(left, right, leftType, rightType, common);
@@ -119,7 +119,7 @@ internal sealed partial class TypeChecker
                 return (visited, null);
             }
 
-            var common = ConversionRules.Common(leftType, rightType);
+            var common = ConversionRules.Common(leftType, rightType, conversions.Abi);
             if (common != null && ConversionRules.IsInteger(common))
             {
                 CheckLiteralFits(left, right, leftType, rightType, common);

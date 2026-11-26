@@ -238,7 +238,7 @@ internal sealed partial class TypeChecker
             type = values[0];
             foreach (var value in values.Skip(1))
             {
-                type = type != null ? ConversionRules.Common(type, value!) : null;
+                type = type != null ? ConversionRules.Common(type, value!, conversions.Abi) : null;
                 if (type == null) break;
             }
         }

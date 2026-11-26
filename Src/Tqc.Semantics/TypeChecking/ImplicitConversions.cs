@@ -2,6 +2,7 @@ using Tqc.IR.ProgramMembers;
 using Tqc.IR.ProgramMembers.Primitive;
 using Tqc.IR.ProgramMembers.Tq;
 using Tqc.IR.References;
+using Tqc.IR.Targets;
 
 namespace Tqc.Semantics;
 
@@ -11,11 +12,14 @@ namespace Tqc.Semantics;
 /// </summary>
 internal sealed class ImplicitConversions
 {
+    /// <summary>The sizes the target gives to the types that depend on it.</summary>
+    public TargetAbi Abi { get; init; } = TargetAbi.Unknown;
+
     private readonly List<(ITypeRef From, ITypeRef To, TqFunction Function)> _entries = [];
 
-    public static ImplicitConversions Build(IEnumerable<INamespace> roots)
+    public static ImplicitConversions Build(IEnumerable<INamespace> roots, TargetAbi abi)
     {
-        var conversions = new ImplicitConversions();
+        var conversions = new ImplicitConversions { Abi = abi };
         foreach (var root in roots) conversions.Scan(root);
         return conversions;
     }

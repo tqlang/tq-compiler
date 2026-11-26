@@ -351,6 +351,11 @@ cada aplicação é uma `GenericInstance` da tabela compartilhada; não há nó 
   `UnsafePtr(Opaque)`, `T**` é `UnsafePtr(UnsafePtr(T))`); `ref`/`out`/`in` continuam `Ref(T)`. No backend é `T*` do IL. O único valor
   que o Tq escreve é `null` (o ponteiro 0, em qualquer posição de argumento, atribuição ou declaração); nenhum outro literal converte, e `Ref(T)`
   e fatias nunca convertem para ele nem ele para elas. Desreferenciar, indexar e converter serão funções intrínsecas, ainda não feitas.
+- ABI do alvo (`TargetAbi`, em `Tqc.IR/Targets`): o backend responde os tamanhos que a linguagem não escreve: bits do `byte`, de `int/uint` e de
+  `iptr/uptr`, cada um como lista de candidatos (`CecilBackend.Abi`: `int` = {32}, `iptr` = {32, 64}). O CLI escolhe o backend pelo `target` do `[project]`
+  (o que vem antes do primeiro `-`; backend desconhecido dá `TargetAbi.Unknown`, sem nenhuma relação) e entrega ao analisador (`SemanticAnalyser.TypeCheck`
+  → `ImplicitConversions.Abi`). Com um único tamanho candidato para `int`, `i32` ⇄ `int` e `u32` ⇄ `uint` convertem implicitamente (custo 1, o menor, em
+  chamadas e em operadores). `i64 → int` nunca é implícito. Ainda não há a estrutura de decisão em tempo de compilação para vários tamanhos candidatos.
 - Operações bit a bit, só de inteiros (`TypeChecker.VisitBitwise`): `a ⋏ b` (e), `a ⋎ b` (ou), `a ⊕ b` (ou exclusivo), `~a` (não), `a << n` e `a >> n`
   (`>>` aritmético em inteiro com sinal, lógico sem sinal), `a <<% n` e `a >>% n` (a quantidade é tomada módulo o tamanho do tipo). Sem alternativas
   em ASCII e sem atribuição composta. Precedência como Rust e Zig, do mais forte: `* /`, `+ -`, deslocamentos, `⋏`, `⊕`, `⋎`, comparações.

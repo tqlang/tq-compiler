@@ -8,6 +8,7 @@ using Tqc.Diagnostics;
 using Tqc.Dotnet;
 using Tqc.IR.ProgramMembers;
 using Tqc.IR.ProgramMembers.Primitive;
+using Tqc.IR.Targets;
 using Tqc.Semantics;
 using Tqc.Syntax;
 
@@ -117,7 +118,7 @@ static class Program
 
                     var dependenciesArray = dependencies as IModule[] ?? dependencies.ToArray();
                     SemanticAnalyser.BindReferences(module, view, dependenciesArray, diagnostics);
-                    SemanticAnalyser.TypeCheck(module, dependenciesArray, diagnostics);
+                    SemanticAnalyser.TypeCheck(module, dependenciesArray, diagnostics, AbiOf(manifest.Project.Target));
                     tqModules.Add((module, moduleDescriptor.Name));
 
                     // Written even when there are errors: that is when it is most useful.
@@ -138,6 +139,16 @@ static class Program
         PrintDiagnostics(diagnostics);
         return diagnostics.HasErrors ? 1 : 0;
     }
+
+    /// <summary>
+    /// What the backend of the target says about the sizes of `int`, `iptr` and the like. The target is the name of the backend,
+    /// maybe followed by more about it (`llvm-x86`): the backend is what comes before the first `-`.
+    /// </summary>
+    private static TargetAbi AbiOf(string? target) => target?.Split('-')[0] switch
+    {
+        "dotnet" => CecilBackend.Abi,
+        _ => TargetAbi.Unknown,
+    };
 
     static void EmitDotnet(
         List<(IModule Module, string Name)> modules,

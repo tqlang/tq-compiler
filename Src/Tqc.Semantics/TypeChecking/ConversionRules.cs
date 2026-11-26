@@ -5,6 +5,7 @@ using Tqc.IR.ProgramMembers;
 using Tqc.IR.ProgramMembers.Primitive;
 using Tqc.IR.ProgramMembers.Tq;
 using Tqc.IR.References;
+using Tqc.IR.Targets;
 
 namespace Tqc.Semantics;
 
@@ -48,6 +49,7 @@ internal static class ConversionRules
     private const int LiteralToInt = 1;
     private const int LiteralToUint = 2;
     private const int LiteralToSizedInteger = 3;
+    private const int SameSizeNatural = 1;
 
     // A decimal literal is an `f64` unless another float is asked for; the other floats tie.
     private const int DecimalToF64 = 1;
@@ -95,7 +97,7 @@ internal static class ConversionRules
         if (argument is SliceTypeRef && parameter is SliceTypeRef { Element: var element } && IsStruct(element, types.AnyType))
             return new ArgumentMatch(MatchKind.Generic, GenericParameter);
 
-        var widening = ClassifyWidening(argument, parameter);
+        var widening = ClassifyWidening(argument, parameter, conversions.Abi);
         if (widening.Kind != MatchKind.None) return widening;
 
         var upcast = ClassifyUpcast(argument, parameter);
@@ -149,7 +151,7 @@ internal static class ConversionRules
     /// (an integer literal goes with an integer, a decimal one with a float); the larger one when the other
     /// widens into it without loss. Null if they do not meet without `as`.
     /// </summary>
-    public static ITypeRef? Common(ITypeRef a, ITypeRef b)
+    public static ITypeRef? Common(ITypeRef a, ITypeRef b, TargetAbi abi)
     {
         if (a.Equals(b)) return a;
 
@@ -158,8 +160,8 @@ internal static class ConversionRules
         if (a is ComptimeDecimalTypeRef) return TryFloat(b, out _) ? b : null;
         if (b is ComptimeDecimalTypeRef) return TryFloat(a, out _) ? a : null;
 
-        if (ClassifyWidening(a, b).Kind != MatchKind.None) return b;
-        if (ClassifyWidening(b, a).Kind != MatchKind.None) return a;
+        if (ClassifyWidening(a, b, abi).Kind != MatchKind.None) return b;
+        if (ClassifyWidening(b, a, abi).Kind != MatchKind.None) return a;
         return null;
     }
 
@@ -311,8 +313,20 @@ internal static class ConversionRules
         }
     }
 
-    private static ArgumentMatch ClassifyWidening(ITypeRef argument, ITypeRef parameter)
+    private static ArgumentMatch ClassifyWidening(ITypeRef argument, ITypeRef parameter, TargetAbi abi)
     {
+        // `int` against `i32` (and `uint` against `u32`): when the target has a single size for `int`, they are the same
+        // integer under two names, so the conversion costs almost nothing. With several candidate sizes there is no such rule.
+        if (abi.Natural is { } natural)
+        {
+            var fromNatural = TryNatural(argument, out var naturalFrom);
+            var toNatural = TryNatural(parameter, out var naturalTo);
+            if (fromNatural && TryInteger(parameter, out var toSigned1, out var toBits1) && toBits1 == natural && toSigned1 == naturalFrom)
+                return Convert(SameSizeNatural);
+            if (toNatural && TryInteger(argument, out var fromSigned1, out var fromBits1) && fromBits1 == natural && fromSigned1 == naturalTo)
+                return Convert(SameSizeNatural);
+        }
+
         if (TryInteger(argument, out var fromSigned, out var fromBits) && TryInteger(parameter, out var toSigned, out var toBits))
         {
             // Same signedness into a larger type, or unsigned into a strictly larger signed type.
