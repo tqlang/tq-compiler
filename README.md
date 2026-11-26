@@ -354,8 +354,9 @@ cada aplicação é uma `GenericInstance` da tabela compartilhada; não há nó 
 - ABI do alvo (`TargetAbi`, em `Tqc.IR/Targets`): o backend responde os tamanhos que a linguagem não escreve: bits do `byte`, de `int/uint` e de
   `iptr/uptr`, cada um como lista de candidatos (`CecilBackend.Abi`: `int` = {32}, `iptr` = {32, 64}). O CLI escolhe o backend pelo `target` do `[project]`
   (o que vem antes do primeiro `-`; backend desconhecido dá `TargetAbi.Unknown`, sem nenhuma relação) e entrega ao analisador (`SemanticAnalyser.TypeCheck`
-  → `ImplicitConversions.Abi`). Com um único tamanho candidato para `int`, `i32` → `int` e `u32` → `uint` convertem implicitamente (custo 1, o menor, em
-  chamadas e em operadores). Só nesse sentido: `int → iN` nunca é implícito (a forma explícita ainda não foi verificada para inteiros), e `i64 → int` também. Um inteiro menor que o `int` do alvo alarga para ele sem perda (`i16 → int`, `u16 → int`; custo de alargamento), como entre dois inteiros com tamanho.
+  → `ImplicitConversions.Abi`). `int/uint` e `iN/uN` nunca convertem implicitamente, em nenhum sentido e em nenhum tamanho: a conversão é sempre explícita, com `as`
+  (`signed as int`). A ABI fica disponível ao analisador (`ImplicitConversions.Abi`) para o que depender do tamanho de `int`, mas hoje nenhuma regra de conversão
+  a usa.
 - Decisão em tempo de compilação sobre o tamanho de `int/uint` (`TypeChecker.Targets.cs`, `IrNaturalChoice`, `IrNaturalChoiceStatement`): quando o alvo dá mais de um
   tamanho candidato a `int`, o analisador confere cada expressão (de uma instrução, condição de `if`/`while`, declaração e passo do `while`) uma vez para cada
   candidato, como se o alvo só tivesse aquele; um `return` é conferido inteiro, porque a conversão do valor faz parte dele. Se as versões saem iguais (mesma árvore e
