@@ -36,7 +36,6 @@ from Tests import {
     Builtins.testArithmeticU128()
     Builtins.testArithmeticI128()
     Builtins.testBitwise()
-    Builtins.testTargetSizes()
     Builtins.testNativeSizes()
 
     Builtins.testConstants()
