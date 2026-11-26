@@ -1,0 +1,23 @@
+from Std import { Test }
+
+# `iptr` and `uptr` have 32 or 64 bits depending on where the program runs, so the compiler checks the code for both sizes.
+# A literal has to fit in all of them: 100 does, 5000000000 would be an error ("when 'iptr' has 32 bits").
+# The fields are only here for the compiler to check their values for both sizes.
+let iptr nativeField = 100
+let uptr nativeUnsigned = 4000000000
+
+func nativeIdentity(iptr value) iptr => value
+
+@public func testNativeSizes() {
+	Test.newTestUnit("Builtins - native sizes - a literal that fits every size")
+	{
+		let iptr small = 100
+		let uptr large = 4000000000
+		let iptr negative = -5
+
+		Test.assert(small == 100, true)
+		Test.assert(large == 4000000000, true)
+		Test.assert(negative < 0, true)
+		Test.assert(nativeIdentity(7) == 7, true)
+	}
+}

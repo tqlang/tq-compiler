@@ -198,7 +198,7 @@ internal sealed partial class TypeChecker
         {
             if (operand is not IrComptimeInt literal || type is not ComptimeIntegerTypeRef) continue;
 
-            if (ConversionRules.ClassifyLiteral(literal, common).Kind == MatchKind.None)
+            if (ConversionRules.ClassifyLiteral(literal, common, conversions.Abi).Kind == MatchKind.None)
                 Error($"The literal {literal.BigInteger} does not fit in '{TypeFormatter.Format(common)}'", literal.Location);
         }
     }

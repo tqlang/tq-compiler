@@ -6,6 +6,7 @@ using Tqc.Core;
 using Tqc.Dotnet.ProgramMembers;
 using Tqc.IR;
 using Tqc.IR.Nodes;
+using Tqc.IR.Targets;
 using Tqc.IR.ProgramMembers;
 using Tqc.IR.ProgramMembers.Primitive;
 using Tqc.IR.ProgramMembers.Tq;
@@ -88,14 +89,13 @@ internal sealed class BodyEmitter
     private TypeReference Core(string name) => _owner.Backend.Core.Require(_target, name);
 
     /// <summary>
-    /// The version of a decision on the size of `int` that is for this target: the target has a single size for it (see `CecilBackend.Abi`),
-    /// which is the one that was checked. If none is, the analyzer tried sizes this backend does not have: nothing is emitted.
+    /// The version of a decision on the sizes that is for this target: the one whose sizes are the ones the target has (see `CecilBackend.Abi`).
+    /// A size the target has more than one candidate for (`iptr` of .NET) matches nothing: the backend does not choose it while compiling yet.
     /// </summary>
-    private T? ChooseNatural<T>(IEnumerable<T> variants, Func<T, int> bitsOf, SourceLocation location) where T : class
+    private T? ChooseBySize<T>(IEnumerable<T> variants, Func<T, TargetSizes> sizesOf, SourceLocation location) where T : class
     {
-        var natural = CecilBackend.Abi.Natural;
-        var chosen = natural != null ? variants.FirstOrDefault(variant => bitsOf(variant) == natural) : null;
-        if (chosen == null) Report($"No version of this code is for an 'int' of {(natural != null ? natural + " bits" : "the size of this target")}", location);
+        var chosen = variants.FirstOrDefault(variant => sizesOf(variant).Matches(CecilBackend.Abi));
+        if (chosen == null) Report("No version of this code is for the sizes of this target: it depends on the size of a type that has more than one in it", location);
         return chosen;
     }
 
@@ -628,9 +628,9 @@ internal sealed class BodyEmitter
             case IrExpressionStatement statement:
                 EmitDiscard(statement.Expression); break;
 
-            case IrNaturalChoiceStatement choice:
+            case IrSizeChoiceStatement choice:
             {
-                if (ChooseNatural(choice.Variants, variant => variant.Bits, choice.Location) is { } chosen)
+                if (ChooseBySize(choice.Variants, variant => variant.Sizes, choice.Location) is { } chosen)
                     EmitStatement(chosen.Statement);
             } break;
 
@@ -819,8 +819,8 @@ internal sealed class BodyEmitter
 
             case IrNull nothing: return EmitNull(nothing, expected);
 
-            case IrNaturalChoice choice:
-                return ChooseNatural(choice.Variants, variant => variant.Bits, choice.Location) is { } picked
+            case IrSizeChoice choice:
+                return ChooseBySize(choice.Variants, variant => variant.Sizes, choice.Location) is { } picked
                     ? Emit(picked.Expression, expected, discard)
                     : null;
 

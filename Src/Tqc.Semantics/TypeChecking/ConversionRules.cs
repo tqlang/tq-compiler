@@ -89,7 +89,7 @@ internal static class ConversionRules
                 return new ArgumentMatch(MatchKind.Convert, inner.Cost + Wrapping, inner.Via, true);
         }
 
-        if (argument is ComptimeIntegerTypeRef) return ClassifyLiteral(argumentNode, parameter);
+        if (argument is ComptimeIntegerTypeRef) return ClassifyLiteral(argumentNode, parameter, conversions.Abi);
         if (argument is ComptimeDecimalTypeRef)
             return TryFloat(parameter, out var floatBits) ? Convert(floatBits == 64 ? DecimalToF64 : DecimalToOtherFloat) : ArgumentMatch.None;
 
@@ -165,7 +165,7 @@ internal static class ConversionRules
     }
 
     /// <summary>How an integer literal fits a type; None if the type is not an integer or the value does not fit.</summary>
-    public static ArgumentMatch ClassifyLiteral(IrExpression literal, ITypeRef parameter)
+    public static ArgumentMatch ClassifyLiteral(IrExpression literal, ITypeRef parameter, TargetAbi? abi = null)
     {
         if (literal is not IrComptimeInt { BigInteger: var value })
             return ArgumentMatch.None;
@@ -176,8 +176,12 @@ internal static class ConversionRules
         if (TryNatural(parameter, out signed))
             return signed || value >= 0 ? Convert(signed ? LiteralToInt : LiteralToUint) : ArgumentMatch.None;
 
+        // `iptr`: it has to fit the size of the target; with several candidate sizes each is tried on its own (see PerNaturalSize).
         if (TryNative(parameter, out signed))
+        {
+            if (abi?.Native is { } nativeBits && !Fits(value, signed, nativeBits)) return ArgumentMatch.None;
             return signed || value >= 0 ? Convert(LiteralToSizedInteger) : ArgumentMatch.None;
+        }
 
         return ArgumentMatch.None;
     }

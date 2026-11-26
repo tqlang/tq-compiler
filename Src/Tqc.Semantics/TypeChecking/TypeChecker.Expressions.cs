@@ -52,7 +52,7 @@ internal sealed partial class TypeChecker
             case IrIndex index:
                 return VisitIndex(index);
 
-            case IrNaturalChoice choice:
+            case IrSizeChoice choice:
                 return (choice, types.Get(choice));
 
             case IrStringConcat concat:

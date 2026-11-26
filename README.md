@@ -357,14 +357,17 @@ cada aplicação é uma `GenericInstance` da tabela compartilhada; não há nó 
   → `ImplicitConversions.Abi`). `int/uint` e `iN/uN` nunca convertem implicitamente, em nenhum sentido e em nenhum tamanho: a conversão é sempre explícita, com `as`
   (`signed as int`). A ABI fica disponível ao analisador (`ImplicitConversions.Abi`) para o que depender do tamanho de `int`, mas hoje nenhuma regra de conversão
   a usa.
-- Decisão em tempo de compilação sobre o tamanho de `int/uint` (`TypeChecker.Targets.cs`, `IrNaturalChoice`, `IrNaturalChoiceStatement`): quando o alvo dá mais de um
-  tamanho candidato a `int`, o analisador confere cada expressão (de uma instrução, condição de `if`/`while`, declaração e passo do `while`) uma vez para cada
-  candidato, como se o alvo só tivesse aquele; um `return` é conferido inteiro, porque a conversão do valor faz parte dele. Se as versões saem iguais (mesma árvore e
-  mesmos tipos) o resultado é a própria expressão; se diferem, vira um nó de escolha com uma versão por tamanho (todas com o mesmo tipo; se os tipos diferem é erro).
-  Um erro que todos os tamanhos dão é dado uma vez; um que só alguns dão diz a linha, os tamanhos e o motivo (`... (when 'int' has 16 or 64 bits)`). O backend pega a
-  versão do tamanho que ele conhece (`CecilBackend.Abi.Natural`); com um só candidato, caso do .NET, nada disso acontece e a IR é a de sempre. Valores de campos, parâmetros padrão e casos de enum entram também (a expressão com a conversão ao tipo declarado). Limites: um bloco nunca é
-  repetido inteiro; o tipo inferido de um `let` local que difere entre tamanhos não é detectado; a comparação das versões é estrutural (nós, `match`, tipos), e só
-  referências fora da IR que não comparam por valor viram escolha sem precisar. `iptr/uptr` ainda não.
+- Decisão em tempo de compilação sobre os tamanhos que dependem do alvo (`TypeChecker.Targets.cs`, `IrSizeChoice`, `IrSizeChoiceStatement`, `TargetSizes`):
+  quando o alvo dá mais de um tamanho candidato a `int/uint` ou a `iptr/uptr` (no .NET: `iptr` = {32, 64}), o analisador confere cada expressão (de uma
+  instrução, condição de `if`/`while`, declaração e passo do `while`, valor de campo, parâmetro padrão e caso de enum) uma vez para cada combinação de
+  candidatos, como se o alvo só tivesse aquela; um `return` é conferido inteiro, porque a conversão do valor faz parte dele. Se as versões saem iguais (mesma
+  árvore e mesmos tipos) o resultado é a própria expressão; se diferem, vira um nó de escolha com uma versão por combinação (todas com o mesmo tipo; se os tipos
+  diferem é erro). Um erro que todas as combinações dão é dado uma vez; um que só algumas dão diz a linha, os tamanhos e o motivo
+  (`... (when 'iptr' has 32 bits)`). O que depende do tamanho de `iptr/uptr` hoje: um literal inteiro tem de caber em todos os tamanhos (`5000000000` em `iptr`
+  é erro para 32 bits). O backend escolhe a versão cujos tamanhos são os do alvo (`TargetSizes.Matches`); um tamanho com mais de um candidato (o `iptr` do .NET) não
+  casa com nenhuma versão, porque o backend ainda não decide isso (um binário que serve a vários tamanhos fica para depois). Com um só candidato para
+  tudo nada disso acontece e a IR é a de sempre. Limites: um bloco nunca é repetido inteiro; o tipo inferido de um `let` local que difere entre tamanhos não é
+  detectado; deslocamentos de `iptr/uptr` continuam sendo erro; o literal em `int/uint` ainda não é conferido contra o tamanho.
 - Operações bit a bit, só de inteiros (`TypeChecker.VisitBitwise`): `a ⋏ b` (e), `a ⋎ b` (ou), `a ⊕ b` (ou exclusivo), `~a` (não), `a << n` e `a >> n`
   (`>>` aritmético em inteiro com sinal, lógico sem sinal), `a <<% n` e `a >>% n` (a quantidade é tomada módulo o tamanho do tipo). Sem alternativas
   em ASCII e sem atribuição composta. Precedência como Rust e Zig, do mais forte: `* /`, `+ -`, deslocamentos, `⋏`, `⊕`, `⋎`, comparações.
