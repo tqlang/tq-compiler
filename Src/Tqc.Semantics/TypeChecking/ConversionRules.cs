@@ -314,14 +314,18 @@ internal static class ConversionRules
 
     private static ArgumentMatch ClassifyWidening(ITypeRef argument, ITypeRef parameter, TargetAbi abi)
     {
-        // `i32` into `int` (and `u32` into `uint`): when the target has a single size for `int`, they are the same integer under
-        // two names, so the conversion costs nothing; it only loses a tie against an overload that takes the argument as it is (`Alias`). The other way, `int` into `iN`, is never implicit (it is `as`), and with
-        // several candidate sizes there is no rule at all.
+        // An integer with a size into `int` / `uint`, when the target has a single size for them. The same size and sign is the same
+        // type under two names (`i32` and `int` on .NET): it costs nothing, and only loses a tie against an overload that takes the
+        // argument as it is (`Alias`). A smaller size is a widening, like between two integers with a size (unsigned into a larger
+        // signed too). A larger one, and `int` into `iN`, are never implicit (`as`); with several candidate sizes there is no rule.
         if (abi.Natural is { } natural
             && TryNatural(parameter, out var naturalSigned)
-            && TryInteger(argument, out var sizedSigned, out var sizedBits)
-            && sizedBits == natural && sizedSigned == naturalSigned)
-            return new ArgumentMatch(MatchKind.Convert, 0, Alias: true);
+            && TryInteger(argument, out var sizedSigned, out var sizedBits))
+        {
+            if (sizedBits == natural && sizedSigned == naturalSigned) return new ArgumentMatch(MatchKind.Convert, 0, Alias: true);
+            if (sizedBits < natural && (sizedSigned == naturalSigned || (!sizedSigned && naturalSigned)))
+                return Convert(Widening + natural - sizedBits);
+        }
 
         if (TryInteger(argument, out var fromSigned, out var fromBits) && TryInteger(parameter, out var toSigned, out var toBits))
         {

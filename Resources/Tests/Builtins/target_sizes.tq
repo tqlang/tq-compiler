@@ -10,6 +10,8 @@ func targetPickUnsigned(u64 value) int => 2
 
 func targetTwice(int number) int => number * 2
 
+func targetKeep(int value) int => value
+
 @public func testTargetSizes() {
 	let i32 signed = 7
 	let u32 unsigned = 7
@@ -25,5 +27,12 @@ func targetTwice(int number) int => number * 2
 		let int widened = signed
 		Test.assert(widened, 7)
 		Test.assert(signed + natural, 14)
+
+		# A smaller size widens into `int` (without loss), like into any larger integer.
+		let i16 small = 5
+		let u16 smallUnsigned = 6
+		Test.assert(targetKeep(small), 5)
+		Test.assert(targetKeep(smallUnsigned), 6)
+		Test.assert(small + natural, 12)
 	}
 }
