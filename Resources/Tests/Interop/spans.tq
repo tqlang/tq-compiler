@@ -13,9 +13,9 @@ from Dotnet.System import { BitConverter }
 
     Test.newTestUnit("Interop - spans - a slice is a Span, and what .NET writes in it is seen")
     {
-        # BitConverter.TryWriteBytes(Span(u8), i32)
+        # BitConverter.TryWriteBytes(Span(u8), int): the Int32 of .NET is the `int` of Tq, not `i32`
         let [4]u8 buffer = [0, 0, 0, 0]
-        let i32 value = 258
+        let int value = 258
         Test.assert(BitConverter.TryWriteBytes(&buffer, value), true)
         Test.assert(buffer[0], 2)
         Test.assert(buffer[1], 1)
