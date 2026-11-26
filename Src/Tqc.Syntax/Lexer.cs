@@ -1,9 +1,10 @@
 using System.Buffers;
 using System.Text;
+using Tqc.Core;
 
 namespace Tqc.Syntax;
 
-internal class Lexer(string Source)
+internal class Lexer(string Source, string Path)
 {
     private int _cursorPosition;
     private int _lastPosition;
@@ -15,6 +16,9 @@ internal class Lexer(string Source)
     public enum LexerMode { Normal, String }
     
     public bool IsEof() => _cursorPosition >= Source.Length;
+
+    /// <summary>The line and the column after the last token read.</summary>
+    public (int Line, int Column) Position => (_line, _column);
 
     public TokenValue NextToken()
     {
@@ -193,7 +197,7 @@ internal class Lexer(string Source)
         // Build identifier token
         if (c.IsIdentifierStart())
         {
-            while (PeekRune().IsIdentifierPart()) NextRune();
+            while (!IsEof() && PeekRune().IsIdentifierPart()) NextRune();
             return GetTokenValue(TokenKind.Identifier);
         }
         
@@ -228,12 +232,7 @@ internal class Lexer(string Source)
         }
         
         // unrecognized character
-        {
-            throw new NotImplementedException($"unknown token {c.ToString()} at {_line}:{_column}");
-            // FIXME implement error handlers
-            // try { throw new UnrecognizedCharacterException(c, i); }
-            // catch (SyntaxException e) { currentSrc.ThrowError(e); }
-        }
+        throw new SyntaxError($"Unrecognized character '{c}'", new SourceLocation(Path, _line, _column, _line, _column + 1));
     }
     private TokenValue NextStringToken()
     {

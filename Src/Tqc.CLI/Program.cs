@@ -105,6 +105,12 @@ static class Program
                 case null:
                 {
                     var module = BuildTqModule(moduleDescriptor, diagnostics);
+                    // With syntax errors there is nothing reliable to check: the build ends here.
+                    if (module == null)
+                    {
+                        PrintDiagnostics(diagnostics);
+                        return 1;
+                    }
                     // The Std of the project is merged with the one the compiler creates.
                     var view = moduleDescriptor.Name == CompilerStd.ModuleName
                         ? SemanticAnalyser.MergeStd(module, diagnostics)
@@ -185,7 +191,7 @@ static class Program
         Console.WriteLine($"DUMPED {name} IR to {Path.GetFullPath(file)}");
     }
 
-    static IModule BuildTqModule(ModuleDefinition module, DiagnosticBag diagnostics)
+    static IModule? BuildTqModule(ModuleDefinition module, DiagnosticBag diagnostics)
     {
         Console.WriteLine($"COMPILING {module.Name}...");
         
@@ -193,7 +199,9 @@ static class Program
             throw new UnreachableException($"Expected 'path' field with value string inside '{module.Name}' module");
 
         var tree = DirectoryParser.BuildTree(path, module.Name);
+        var errorsBefore = diagnostics.Count;
         var moduleRoot = ParseNamespaceRecursively(tree, diagnostics);
+        if (diagnostics.Count > errorsBefore) return null;
         var syntaxModuleContainer = new SyntaxModuleContainer(module.Name, moduleRoot);
         var m = SemanticAnalyser.Resolve(syntaxModuleContainer);
         CollectSyntaxDiagnostics(moduleRoot, diagnostics);
