@@ -1,5 +1,6 @@
 ###    TQ STANDARD LIBRARY SCRIPT    ###
 from Std import { Memory, Console, Log }
+from Dotnet.System import { Environment }
 
 let uint testCount = 0
 const logger = new Log.Logger("Test")
@@ -39,6 +40,9 @@ func __assert__impl__(bool status, string value, string expected) {
     testCount++
 
     if (!status) {
+        # the program keeps running the other tests, but ends with an error
+        Environment.ExitCode = 1
+
         logger.err(
             "    - TEST \{testCount} " +
             "\{Console.color_red} [FAILED] (\{value} != \{expected})\{Console.style_reset}"
