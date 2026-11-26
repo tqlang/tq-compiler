@@ -19,7 +19,7 @@ static class Program
     {
         if (args.Length == 0)
         {
-            Console.WriteLine("Usage: tqc <operation> <...>");
+            Console.WriteLine("Usage: tqc build_toml [build file (default: ./build.toml)] [--dump-ir[=dir]]");
             Environment.Exit(1);
         }
         
@@ -49,13 +49,21 @@ static class Program
             else args.Add(argument);
         }
 
-        var manifestFile = Path.GetFullPath("./build.toml"); //args.Count > 0 ? args[0] : "./build.toml");
+        // The build file is the first argument that is not an option, or `./build.toml`.
+        var manifestFile = Path.GetFullPath(args.Count > 0 ? args[0] : "./build.toml");
         if (!File.Exists(manifestFile))
         {
-            throw new NotImplementedException(
-                $"File not found in path '{manifestFile}'. "
-                + $"Default BuildManifest not implemented.");
+            throw new FileNotFoundException(
+                args.Count > 0
+                    ? $"Build file not found in path '{manifestFile}'."
+                    : $"File not found in path '{manifestFile}'. Pass the path of a build file, or run from a directory that has a build.toml.",
+                manifestFile);
         }
+
+        // The paths inside the build file are relative to the directory of the file, wherever the compiler is run from. The directory of the
+        // dump is the one the user wrote, so it is made absolute first.
+        if (dumpDirectory != null) dumpDirectory = Path.GetFullPath(dumpDirectory);
+        Directory.SetCurrentDirectory(Path.GetDirectoryName(manifestFile)!);
         
         // What the compiler creates for Std (the primitive types), next to the dumps of the modules.
         if (dumpDirectory != null) DumpMembers(CompilerStd.Module, CompilerStd.ModuleName, dumpDirectory, "compiler");

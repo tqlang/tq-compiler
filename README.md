@@ -35,11 +35,13 @@ Tq/                   código escrito em Tq
 3. Módulo Tq: cada subpasta vira um namespace, o `Syntax/Parser` lê cada `.tq`, o
    `Semantics/TreeLower` converte para a IR e o `Semantics/ReferenceBinder` resolve imports e nomes.
 
-Os caminhos do `build.toml` são relativos ao diretório atual, então execute de dentro de `Tq/`:
+`[build.toml]` é o caminho do arquivo de build (padrão: `./build.toml` do diretório atual). Os caminhos dentro do arquivo são relativos ao
+diretório dele, de onde quer que o compilador rode (o diretório de `--dump-ir=pasta` continua relativo a onde você rodou):
 
 ```
 cd Tq
-dotnet run --project ../Tqc.csproj -- build_toml
+dotnet run --project ../Tqc.csproj -- build_toml                       # ./build.toml
+dotnet run --project ../Tqc.csproj -- build_toml Resources/build.test.toml
 ```
 
 ## O módulo Std do compilador
