@@ -463,6 +463,10 @@ Para `T` de referência (`?string`) sai `ldnull`; para `T` de valor, `?T` é `Sy
 | `**` | potência, checada (floats: `Math.Pow`) | helper `Tq.Ops.Pow_Byte(a, b)` |
 | `**%` `**\|` | potência com wrap / saturada | helpers `PowWrap_*` e `PowOnBounds_*` |
 
+O `Tq.Runtime.dll` tem duas partes. O que não depende do código compilado (`Tq.Failable`, `Tq.TqFormatter` e a classe vazia `Tq.Ops`)
+é C#, no projeto `Src/Tq.Runtime`, compilado junto com o compilador. A cada build, o backend lê essa dll (a que está ao lado do
+compilador), acrescenta com o Cecil os helpers de `Tq.Ops` que o código usa e grava o resultado na pasta de saída.
+
 Os helpers são métodos estáticos de `Tq.Ops`, no `Tq.Runtime.dll` (o mesmo assembly do `Tq.Failable`, que só é gerado e escrito quando
 algum módulo precisa dele): uma cópia para o build inteiro, criada pelo primeiro módulo que usa o operador com aquele tipo, e chamada com
 `a`, `b`, `call`. Até 32 bits a conta é feita em 64 (onde não estoura) e cortada/estreitada; `i64` satura com
