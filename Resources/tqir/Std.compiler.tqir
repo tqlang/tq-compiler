@@ -5,6 +5,10 @@ module Std (primitive, created by the compiler)
         case Add
         case AddOnBounds
         case AddWrap
+        case BitAnd
+        case BitNot
+        case BitOr
+        case BitXor
         case Coalesce
         case Decrement
         case Div
@@ -30,6 +34,10 @@ module Std (primitive, created by the compiler)
         case PowOnBounds
         case PowWrap
         case Rest
+        case ShiftLeft
+        case ShiftLeftWrap
+        case ShiftRight
+        case ShiftRightWrap
         case Sub
         case SubOnBounds
         case SubWrap
@@ -53,4 +61,5 @@ module Std (primitive, created by the compiler)
       primitive struct Ref(type)
       primitive struct String
       primitive struct Type
+      primitive struct UnsafePtr(type)
       primitive struct Void

@@ -11,6 +11,7 @@ cache-dir = ".tq-cache"
     path = "./SilkTest"
     dependencies = [
         "module : Std",
+        "module : Silk",
         "module : Dotnet",
     ]
 
@@ -29,7 +30,13 @@ cache-dir = ".tq-cache"
         "dotnet : System.Console : 11.0.0.0",
         "dotnet : System.Collections : 11.0.0.0",
         "dotnet : System.Threading : 11.0.0.0",
+    ]
 
+
+[[module]]
+    type = "dotnet"
+    name = "Silk"
+    dependencies = [
         "dotnet : Extern/Silk.NET.Core.dll : 2.22.0.0",
         "dotnet : Extern/Silk.NET.GLFW.dll : 2.22.0.0",
         "dotnet : Extern/Silk.NET.Input.Common.dll : 2.22.0.0",

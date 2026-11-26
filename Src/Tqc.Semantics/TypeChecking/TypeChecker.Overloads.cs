@@ -373,8 +373,20 @@ internal sealed partial class TypeChecker
         // Two that only differ in what they return are told apart by what is done with the value.
         var written = candidates.Select(candidate => Signature(name, candidate.Overload)).ToList();
         var sameParameters = written.Distinct().Count() == 1;
-        var tied = string.Join(", ", candidates.Select(candidate => Signature(name, candidate.Overload, withReturn: true)));
 
+        var sb = new StringBuilder();
+        sb.AppendLine($"The call to the {noun}s of '{name} is ambiguous between:");
+        sb.AppendLine(Candidates(name, candidates));
+        
+        var hint = sameParameters
+                ? " They only differ in what they return, and nothing here says which one is wanted: use the value where its type is known"
+                + " (`let T x = ...`, `return ...`), or call it as a statement to run the one that returns nothing."
+            : arguments.Any(argument => argument is IrComptimeInt)
+                ? " Give the literal an explicit type, for example `5 as i32`."
+                : null;
+        
+        if (hint != null) sb.AppendLine(hint);
+        
         var context = expected switch
         {
             null => "the value is used where no type is asked (an argument, an operand, an assignment to a variable that exists)",
@@ -383,14 +395,9 @@ internal sealed partial class TypeChecker
             _ => "the type that is wanted is not known",
         };
 
-        var hint = sameParameters
-            ? " They only differ in what they return, and nothing here says which one is wanted: use the value where its type is known"
-                + " (`let T x = ...`, `return ...`), or call it as a statement to run the one that returns nothing."
-            : arguments.Any(argument => argument is IrComptimeInt)
-                ? " Give the literal an explicit type, for example `5 as i32`."
-                : "";
-
-        Error($"The call to the {noun}s of '{name}' is ambiguous between: {tied}.{hint} [here: {context}]", location);
+        sb.Append("[here: ").Append(context).Append(']');
+        
+        Error(sb.ToString(), location);
     }
 
     /// <param name="viaValue">The call goes through a value (`a.f()`): methods of instances, not static ones.</param>
@@ -466,13 +473,17 @@ internal sealed partial class TypeChecker
             FunctionSignature.Of(method)!.Return);
     }
 
+    private static string Candidates(string name, List<Candidate> candidates)
+    {
+        var sb = new StringBuilder();
+        foreach (var candidate in candidates) sb.Append(" - ").AppendLine(Signature(name, candidate.Overload));
+        sb.Length -= Environment.NewLine.Length;
+        return sb.ToString();
+    }
     private static string Candidates(string name, List<Overload> overloads)
     {
         var sb = new StringBuilder();
-        
-        foreach (var overload in overloads)
-            sb.Append(" - ").AppendLine(Signature(name, overload));
-
+        foreach (var overload in overloads) sb.Append(" - ").AppendLine(Signature(name, overload));
         sb.Length -= Environment.NewLine.Length;
         return sb.ToString();
     }

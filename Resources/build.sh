@@ -1,5 +1,5 @@
 clear
-/home/leo/Documentos/repos/tq-compiler/tq-compiler-vibes/Src/Tqc.CLI/bin/Debug/net10.0/Tqc.CLI build_toml
+/home/leo/Documentos/repos/tq-compiler/tq-compiler-vibes/Src/Tqc.CLI/bin/Debug/net10.0/Tqc.CLI build_toml $1
 
 if [ $? -ne 0 ]; then
     echo "Build failed, aborted";
@@ -7,4 +7,4 @@ if [ $? -ne 0 ]; then
 fi
 
 clear
-dotnet .tq-out/SilkTest.dll Testing ...;
+dotnet .tq-out/$2.dll Testing ...;

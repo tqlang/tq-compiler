@@ -23,7 +23,7 @@ internal sealed partial class TypeChecker
     private IrExpression VisitPerSize(IrExpression expression, Expectation? expectation = null) =>
         PerNaturalSize(
             expression.Location,
-            () => expectation != null ? VisitExpecting(expression, expectation) : Visit(expression),
+            () => expectation != null ? VisitExpecting(expression, expectation.Value) : Visit(expression),
             (location, versions) =>
             {
                 var choice = new IrNaturalChoice(location, [..versions.Select(version => new IrNaturalVariant(version.Bits, version.Node))]);

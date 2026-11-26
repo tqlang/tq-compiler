@@ -955,20 +955,21 @@ public static class TreeLower
     /// </summary>
     private static LoweringError DuplicatedNamespaceMemberError(string namespaceName, string name, IMember first, IMember second, string secondFile)
     {
-        var secondLocation = LocationOf(second) ?? new SourceLocation(secondFile, default(SourceSpan));
-        var where = LocationOf(first) is { } firstLocation
-            ? $" at {firstLocation.filePath}({firstLocation.span.LineStart},{firstLocation.span.ColStart})"
-            : "";
-        var here = $" at {secondLocation.filePath}({secondLocation.span.LineStart},{secondLocation.span.ColStart})";
+        var firstLocation = LocationOf(first) ?? new SourceLocation(secondFile, default);
+        var secondLocation = LocationOf(second) ?? new SourceLocation(secondFile, default);
         var namespaceText = string.IsNullOrEmpty(namespaceName) ? "the global namespace" : $"the namespace '{namespaceName}'";
 
         var advice = KindOf(first) == "function" && KindOf(second) == "function"
             ? $"Overloads of a function must be declared in the same file (move one of them, or give '{name}' another name)"
             : "Rename one of them";
 
-        return new LoweringError(
-            $"The name '{name}' is declared twice in {namespaceText}: the {KindOf(second)}{here} conflicts with the {KindOf(first)} already declared{where}. {advice}",
-            secondLocation);
+        var sb = new StringBuilder();
+        sb.Append("The name '").Append(name).Append("' is declared twice in ").Append(namespaceText).AppendLine(":");
+        sb.Append("The ").Append(KindOf(second)).Append(" at ").AppendLine(secondLocation.ToString());
+        sb.Append("conflicts with ").Append(KindOf(first)).Append(" at ").Append(firstLocation.ToString()).AppendLine(".");
+        sb.Append(advice);
+        
+        return new LoweringError(sb.ToString(), secondLocation);
     }
 
     private static string KindOf(IMember member) => member switch

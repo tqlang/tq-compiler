@@ -1,56 +1,136 @@
 from Std.Console import
+from Std.Process import
 
 from Dotnet.System import
-from Dotnet.Silk.NET.Windowing import
-from Dotnet.Silk.NET.OpenGL import
-from Dotnet.Silk.NET.Maths import { Vector2D }
+from Dotnet.System.Collections.Generic import
+
+from Silk.Silk.NET.Windowing import
+from Silk.Silk.NET.Input import
+from Silk.Silk.NET.OpenGL import
+from Silk.Silk.NET.Maths import { Vector2D }
 
 let *IWindow window
 let *GL gl
+let *IInputContext input
 
 let uint vao
 let uint vbo
+let uint ebo
+let uint shaderProgram
 
 @public func main() {
-	let windowOptions = WindowOptions.Default
-	{
-		windowOptions.Size = new Vector2D(int)(1000, 600)
-		windowOptions.Title = "Silk Test"
-	}
+    let windowOptions = WindowOptions.Default
+    {
+        windowOptions.Size = new Vector2D(int)(1000, 600)
+        windowOptions.Title = "Silk Test"
+    }
 
-	window = Window.Create(windowOptions)
+    window = Window.Create(windowOptions)
 
-	let view = window as *IView
-	view.Load += onLoad
-	view.Update += onUpdate
-	view.Render += onRender
+    window.Load += onLoad
+    window.Update += onUpdate
+    window.Render += onRender
 
-	WindowExtensions.Run(window)
+    window.Run()
 }
 
 func onLoad() {
-	gl = ContextSourceExtensions.CreateOpenGL(window)
-	
-	vao = gl.GenVertexArray()
-	gl.BindVertexArray(vao)
+    input = window.CreateInput()
 
-	let [12]f32 vertices = [
-		 0.5,  0.5, 0.0,
-		 0.5, -0.5, 0.0,
-		-0.5, -0.5, 0.0,
-		-0.5,  0.5, 0.0
-	]
-	
-	vbo = gl.GenBuffer()
-	gl.BindBuffer(BufferTargetARB.ArrayBuffer, vbo)
+	#let *IEnumerator(*IKeyboard) kbds = input.Keyboards.GetEnumerator()
+    #while (kbds.MoveNext()) kbds.Current.KeyDown += onKeyDown
 
-	gl.BufferData(
-		f32,
-		BufferTargetARB.ArrayBuffer,
-		vertices.len * 4, # sizeof(float)
-		&vertices,
-		BuferUsageARB.StaticDraw
-	)
+    gl = window.CreateOpenGL()
+
+    vao = gl.GenVertexArray()
+    gl.BindVertexArray(vao)
+
+    let [12]f32 vertices = [
+         0.5,  0.5, 0.0,
+         0.5, -0.5, 0.0,
+        -0.5, -0.5, 0.0,
+        -0.5,  0.5, 0.0
+    ]
+
+    vbo = gl.GenBuffer()
+    gl.BindBuffer(BufferTargetARB.ArrayBuffer, vbo)
+    gl.BufferData(f32, BufferTargetARB.ArrayBuffer, &vertices, BufferUsageARB.StaticDraw)
+
+    let [6]uint indices = [
+        0, 1, 3,
+        1, 2, 3
+    ]
+
+    ebo = gl.GenBuffer()
+    gl.BindBuffer(BufferTargetARB.ElementArrayBuffer, ebo)
+    gl.BufferData(uint, BufferTargetARB.ElementArrayBuffer, &indices, BufferUsageARB.StaticDraw)
+
+    let vertex_shader_code =
+        "#version 330 core"
+		""
+        "layout (location = 0) in vec3 aPosition;"
+		""
+        "void main() {"
+        "    gl_Position = vec4(aPosition, 1.0);"
+        "}"
+
+	let int status
+
+    let vertex_shader = gl.CreateShader(ShaderType.VertexShader)
+
+    gl.ShaderSource(vertex_shader, vertex_shader_code)
+    gl.CompileShader(vertex_shader)
+
+    gl.GetShader(vertex_shader, ShaderParameterName.CompileStatus, &status)
+    if status != GLEnum.True as int {
+        Console.WriteLine("Vertex shader compilation failed: \{gl.GetShaderInfoLog(vertex_shader)}")
+		exit(1)
+    }
+
+    let fragment_shader_code =
+        "#version 330 core"
+        ""
+		"out vec4 outColor;"
+		""
+        "void main() {"
+        "    outColor = vec4(1.0, 0.5, 0.2, 1.0);"
+        "}"
+
+    let fragment_shader = gl.CreateShader(ShaderType.FragmentShader)
+
+    gl.ShaderSource(fragment_shader, fragment_shader_code)
+    gl.CompileShader(fragment_shader)
+
+    gl.GetShader(fragment_shader, ShaderParameterName.CompileStatus, &status)
+    if status != GLEnum.True as int {
+        Console.WriteLine("Fragment shader compilation failed: \{gl.GetShaderInfoLog(fragment_shader)}")
+		exit(1)
+    }
+
+    shaderProgram = gl.CreateProgram()
+
+    gl.AttachShader(shaderProgram, vertex_shader)
+    gl.AttachShader(shaderProgram, fragment_shader)
+    gl.LinkProgram(shaderProgram)
+
+    gl.GetProgram(shaderProgram, ProgramPropertyARB.LinkStatus, &status)
+    if status != GLEnum.True as int {
+        Console.WriteLine("Shader program linking failed: \{gl.GetProgramInfoLog(shaderProgram)}")
+		exit(1)
+    }
+
+    gl.DetachShader(shaderProgram, vertex_shader)
+    gl.DetachShader(shaderProgram, fragment_shader)
+
+    gl.DeleteShader(vertex_shader)
+    gl.DeleteShader(fragment_shader)
+
+    gl.EnableVertexAttribArray(0)
+
+    gl.VertexAttribPointer(0, 3, VertexAttribPointerType.Float, false, 12, null)
+
+    gl.BindVertexArray(0)
+    gl.BindBuffer(BufferTargetARB.ArrayBuffer, 0)
 }
 
 func onUpdate(f64 delta) {
@@ -59,5 +139,15 @@ func onUpdate(f64 delta) {
 
 func onRender(f64 delta) {
 	gl.ClearColor(0.3882353, 0.58431375, 0.93333334, 1.0)
-	gl.Clear(ClearBufferMask.ColorBufferBit)
+    gl.Clear(ClearBufferMask.ColorBufferBit)
+
+    gl.BindVertexArray(vao)
+    gl.UseProgram(shaderProgram)
+
+    gl.DrawElements(PrimitiveType.Triangles, 6, DrawElementsType.UnsignedInt, null)
+}
+
+
+func onKeyDown(*IKeyboard keyboard, Key key, int keyCode) {
+    if (key == Key.Escape) window.Close()
 }

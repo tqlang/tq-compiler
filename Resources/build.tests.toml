@@ -4,24 +4,7 @@ cache-dir = ".tq-cache"
 [project]
     name = "myapp"
     target = "dotnet"
-    root = "Tqc"
-
-[[module]]
-    name = "Tqc"
-    path = "./Bootstrap/Tqc"
-    dependencies = [
-        "module : Tests",
-        "module : Tqc.Syntax",
-        "module : Std",
-    ]
-
-[[module]]
-   name = "Tqc.Syntax"
-   path = "./Bootstrap/Tqc.Syntax"
-   dependencies = [
-       "module : Tqc.Syntax",
-       "module : Std"
-   ]
+    root = "Tests"
 
 [[module]]
     name = "Tests"
@@ -47,4 +30,5 @@ cache-dir = ".tq-cache"
         "dotnet : System.Collections : 11.0.0.0",
         "dotnet : System.Threading : 11.0.0.0",
         "dotnet : System.ComponentModel.Primitives : 11.0.0.0",
+        "dotnet : System.Runtime.InteropServices : 11.0.0.0",
     ]

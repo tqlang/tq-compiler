@@ -15,9 +15,9 @@ namespace Std {
             ; type parameter %TValue: type
             !public
             define public void @Std.Collections.Dictionary.constructor() {    ; owner=Dictionary · ns=Std.Collections · /home/leo/Documentos/repos/tq-compiler/tq-compiler-vibes/Resources/Lib/Std/Collections/Dictionary.tq(6,1)
-                ref Dictionary(TKey, TValue) store(ref Dictionary(TKey, TValue) @_dict, ref Dictionary(TKey, TValue) new Dictionary(TKey, TValue)())    ; @7:2
+                *Dictionary(TKey, TValue) store(*Dictionary(TKey, TValue) @_dict, *Dictionary(TKey, TValue) new Dictionary(TKey, TValue)())    ; @7:2
             }
-            field private ref Dictionary(TKey, TValue) @Std.Collections.Dictionary._dict    ; ns=Std.Collections · /home/leo/Documentos/repos/tq-compiler/tq-compiler-vibes/Resources/Lib/Std/Collections/Dictionary.tq(4,1)
+            field private *Dictionary(TKey, TValue) @Std.Collections.Dictionary._dict    ; ns=Std.Collections · /home/leo/Documentos/repos/tq-compiler/tq-compiler-vibes/Resources/Lib/Std/Collections/Dictionary.tq(4,1)
             !indexerGet
             !public
             define public ? %TValue @Std.Collections.Dictionary.indexerGet(? %TKey %key) {    ; owner=Dictionary · ns=Std.Collections · /home/leo/Documentos/repos/tq-compiler/tq-compiler-vibes/Resources/Lib/Std/Collections/Dictionary.tq(15,21)
@@ -31,7 +31,7 @@ namespace Std {
             !public
             property public int @Std.Collections.Dictionary.len {    ; ns=Std.Collections · backing field: no · getter: yes · setter: no · accessors resolved: yes · /home/leo/Documentos/repos/tq-compiler/tq-compiler-vibes/Resources/Lib/Std/Collections/Dictionary.tq(18,9)
                 get public int() {    ; owner=Dictionary · ns=Std.Collections · /home/leo/Documentos/repos/tq-compiler/tq-compiler-vibes/Resources/Lib/Std/Collections/Dictionary.tq(18,24)
-                    ret int field(ref Dictionary(TKey, TValue) @_dict, @Count)    ; @18:24
+                    ret int field(*Dictionary(TKey, TValue) @_dict, @Count)    ; @18:24
                 }
                 ; get resolved to @Dictionary.get_len
             }
@@ -61,7 +61,7 @@ namespace Std {
         !public
         %Std.Collections.DynamicArray(%T) = public type {    ; ns=Std.Collections · /home/leo/Documentos/repos/tq-compiler/tq-compiler-vibes/Resources/Lib/Std/Collections/DynamicArray.tq(2,0)
             ; type parameter %T: type
-            field private ? @Std.Collections.DynamicArray._list = ref List(T) new List(T)()    ; ns=Std.Collections · /home/leo/Documentos/repos/tq-compiler/tq-compiler-vibes/Resources/Lib/Std/Collections/DynamicArray.tq(4,1)
+            field private ? @Std.Collections.DynamicArray._list = *List(T) new List(T)()    ; ns=Std.Collections · /home/leo/Documentos/repos/tq-compiler/tq-compiler-vibes/Resources/Lib/Std/Collections/DynamicArray.tq(4,1)
             !indexerGet
             !public
             define public ? %T @Std.Collections.DynamicArray.indexerGet(int %index) {    ; owner=DynamicArray · ns=Std.Collections · /home/leo/Documentos/repos/tq-compiler/tq-compiler-vibes/Resources/Lib/Std/Collections/DynamicArray.tq(6,21)
@@ -78,7 +78,7 @@ namespace Std {
             }
             !public
             define public void @Std.Collections.DynamicArray.appendMany([]? %T %value) {    ; owner=DynamicArray · ns=Std.Collections · /home/leo/Documentos/repos/tq-compiler/tq-compiler-vibes/Resources/Lib/Std/Collections/DynamicArray.tq(11,1)
-                while (int store(int local(%i), integer literal 0); bool lt(int %i, int member([]T %value, ?len)); int inc.post(int %i)) {    ; @12:2
+                while (int store(int local(%i), integer_literal 0); bool lt(int %i, int member([]T %value, ?len)); int inc.post(int %i)) {    ; @12:2
                     void call @DynamicArray.append(T index([]T %value, int %i))    ; @12:42
                 }
             }
@@ -306,10 +306,10 @@ namespace Std {
         
         !public
         %Std.Fs.File = public type {    ; ns=Std.Fs · /home/leo/Documentos/repos/tq-compiler/tq-compiler-vibes/Resources/Lib/Std/Fs/File.tq(7,0)
-            define private void @Std.Fs.File.constructor(ref FileStream %stream) {    ; owner=File · ns=Std.Fs · /home/leo/Documentos/repos/tq-compiler/tq-compiler-vibes/Resources/Lib/Std/Fs/File.tq(11,1)
-                ref FileStream store(ref FileStream @_filestream, ref FileStream %stream)    ; @12:2
+            define private void @Std.Fs.File.constructor(*FileStream %stream) {    ; owner=File · ns=Std.Fs · /home/leo/Documentos/repos/tq-compiler/tq-compiler-vibes/Resources/Lib/Std/Fs/File.tq(11,1)
+                *FileStream store(*FileStream @_filestream, *FileStream %stream)    ; @12:2
             }
-            field private ref FileStream @Std.Fs.File._filestream    ; ns=Std.Fs · /home/leo/Documentos/repos/tq-compiler/tq-compiler-vibes/Resources/Lib/Std/Fs/File.tq(9,1)
+            field private *FileStream @Std.Fs.File._filestream    ; ns=Std.Fs · /home/leo/Documentos/repos/tq-compiler/tq-compiler-vibes/Resources/Lib/Std/Fs/File.tq(9,1)
             define private void @Std.Fs.File.close() {    ; owner=File · ns=Std.Fs · /home/leo/Documentos/repos/tq-compiler/tq-compiler-vibes/Resources/Lib/Std/Fs/File.tq(15,1)
                 void call @Close()    ; @16:2
             }
@@ -317,13 +317,13 @@ namespace Std {
         
         !public
         %Std.Fs.FileInfo = public type {    ; ns=Std.Fs · /home/leo/Documentos/repos/tq-compiler/tq-compiler-vibes/Resources/Lib/Std/Fs/FileInfo.tq(5,0)
-            define private void @Std.Fs.FileInfo.constructor(ref FileInfo %fInfo) {    ; owner=FileInfo · ns=Std.Fs · /home/leo/Documentos/repos/tq-compiler/tq-compiler-vibes/Resources/Lib/Std/Fs/FileInfo.tq(13,1)
-                ref FileInfo store(ref FileInfo @_fileInfo, ref FileInfo %fInfo)    ; @14:2
-                string store(string @name, string field(ref FileInfo %fInfo, @Name))    ; @15:2
-                string store(string @directory, string field(ref FileInfo %fInfo, @DirectoryName))    ; @16:2
-                uint store(uint @length, uint convert(i64 field(ref FileInfo %fInfo, @Length), uint))    ; @17:2
+            define private void @Std.Fs.FileInfo.constructor(*FileInfo %fInfo) {    ; owner=FileInfo · ns=Std.Fs · /home/leo/Documentos/repos/tq-compiler/tq-compiler-vibes/Resources/Lib/Std/Fs/FileInfo.tq(13,1)
+                *FileInfo store(*FileInfo @_fileInfo, *FileInfo %fInfo)    ; @14:2
+                string store(string @name, string field(*FileInfo %fInfo, @Name))    ; @15:2
+                string store(string @directory, string field(*FileInfo %fInfo, @DirectoryName))    ; @16:2
+                uint store(uint @length, uint convert(i64 field(*FileInfo %fInfo, @Length), uint))    ; @17:2
             }
-            field private ref FileInfo @Std.Fs.FileInfo._fileInfo    ; ns=Std.Fs · /home/leo/Documentos/repos/tq-compiler/tq-compiler-vibes/Resources/Lib/Std/Fs/FileInfo.tq(7,1)
+            field private *FileInfo @Std.Fs.FileInfo._fileInfo    ; ns=Std.Fs · /home/leo/Documentos/repos/tq-compiler/tq-compiler-vibes/Resources/Lib/Std/Fs/FileInfo.tq(7,1)
             !public
             field public string @Std.Fs.FileInfo.name    ; ns=Std.Fs · /home/leo/Documentos/repos/tq-compiler/tq-compiler-vibes/Resources/Lib/Std/Fs/FileInfo.tq(9,9)
             !public
@@ -360,8 +360,8 @@ namespace Std {
         
         !public
         define public File @Std.Fs.open(string %path) {    ; ns=Std.Fs · /home/leo/Documentos/repos/tq-compiler/tq-compiler-vibes/Resources/Lib/Std/Fs/fs.tq(8,0)
-            ref FileStream store(ref FileStream local(%filestream), ref FileStream new FileStream(string %path, FileMode convert(FileMode @openOrCreate, FileMode), FileAccess convert(FileAccess @RO, FileAccess)))    ; @9:1
-            ret File new File(ref FileStream %filestream)    ; @14:1
+            *FileStream store(*FileStream local(%filestream), *FileStream new FileStream(string %path, FileMode convert(FileMode @openOrCreate, FileMode), FileAccess convert(FileAccess @RO, FileAccess)))    ; @9:1
+            ret File new File(*FileStream %filestream)    ; @14:1
         }
         !public
         define public bool @Std.Fs.fileExists(string %path) {    ; ns=Std.Fs · /home/leo/Documentos/repos/tq-compiler/tq-compiler-vibes/Resources/Lib/Std/Fs/fs.tq(17,0)
@@ -571,7 +571,7 @@ namespace Std {
             if (bool ne(int member([]T %source, ?len), int member([]T %target, ?len))) {    ; @16:4
                 ret void    ; @16:34
             }
-            while (int store(int local(%i), integer literal 0); bool lt(int %i, int member([]T %source, ?len)); int inc.post(int %i)) {    ; @17:4
+            while (int store(int local(%i), integer_literal 0); bool lt(int %i, int member([]T %source, ?len)); int inc.post(int %i)) {    ; @17:4
                 T store(T index([]T %target, int %i), T index([]T %source, int %i))    ; @17:45
             }
         }
@@ -627,7 +627,7 @@ namespace Std {
             if (bool ne(int member([]T %a, ?len), int member([]T %b, ?len))) {    ; @35:4
                 ret bool false    ; @35:24
             }
-            while (int store(int local(%i), integer literal 0); bool lt(int %i, int member([]T %a, ?len)); int inc.post(int %i)) {    ; @37:1
+            while (int store(int local(%i), integer_literal 0); bool lt(int %i, int member([]T %a, ?len)); int inc.post(int %i)) {    ; @37:1
                 if (bool ne(T index([]T %a, int %i), T index([]T %b, int %i))) {    ; @38:5
                     ret bool false    ; @38:23
                 }
@@ -683,7 +683,7 @@ namespace Std {
             void call @__fill_impl__(type %AnyType, []anytype %slice, anytype %value)    ; @54:52
         }
         define private void @Std.Memory.__fill_impl__(type %T, []? %T %slice, ? %T %value) {    ; ns=Std.Memory · /home/leo/Documentos/repos/tq-compiler/tq-compiler-vibes/Resources/Lib/Std/Memory/memops.tq(56,0)
-            while (int store(int local(%i), integer literal 0); bool lt(int %i, int member([]T %slice, ?len)); int inc.post(int %i)) {    ; @57:1
+            while (int store(int local(%i), integer_literal 0); bool lt(int %i, int member([]T %slice, ?len)); int inc.post(int %i)) {    ; @57:1
                 T store(T index([]T %slice, int %i), T %value)    ; @57:41
             }
         }
@@ -711,7 +711,7 @@ namespace Std {
         import @Std { Memory, Console, Log }    ; @1:0
         ; declares __assert__impl__, assert, logger, newTestUnit, testCount
         
-        field private uint @Std.Test.testCount = uint convert(integer literal 0, uint)    ; ns=Std.Test · /home/leo/Documentos/repos/tq-compiler/tq-compiler-vibes/Resources/Lib/Std/Test/test.tq(3,0)
+        field private uint @Std.Test.testCount = uint convert(integer_literal 0, uint)    ; ns=Std.Test · /home/leo/Documentos/repos/tq-compiler/tq-compiler-vibes/Resources/Lib/Std/Test/test.tq(3,0)
         field private Const(AnyType) @Std.Test.logger = Logger new Logger(string "Test")    ; ns=Std.Test · /home/leo/Documentos/repos/tq-compiler/tq-compiler-vibes/Resources/Lib/Std/Test/test.tq(4,0)
         !public
         define public void @Std.Test.assert(type %T, ? %T %value, ? %T %reference) {    ; ns=Std.Test · /home/leo/Documentos/repos/tq-compiler/tq-compiler-vibes/Resources/Lib/Std/Test/test.tq(7,8)
@@ -783,7 +783,7 @@ namespace Std {
         }
         !public
         define public void @Std.Test.newTestUnit(string %title) {    ; ns=Std.Test · /home/leo/Documentos/repos/tq-compiler/tq-compiler-vibes/Resources/Lib/Std/Test/test.tq(32,0)
-            uint store(uint @testCount, uint convert(integer literal 0, uint))    ; @33:4
+            uint store(uint @testCount, uint convert(integer_literal 0, uint))    ; @33:4
             void call @Logger.debug(string %title)    ; @34:4
         }
         define private void @Std.Test.__assert__impl__(bool %status, string %value, string %expected) {    ; ns=Std.Test · /home/leo/Documentos/repos/tq-compiler/tq-compiler-vibes/Resources/Lib/Std/Test/test.tq(37,0)

@@ -1,4 +1,5 @@
 using System.Numerics;
+using System.Text;
 using Mono.Cecil;
 using Mono.Cecil.Cil;
 using Tqc.Core;
@@ -263,7 +264,7 @@ internal sealed class BodyEmitter
     /// </summary>
     private bool EmitSliceView(GenericInstanceType memory, TypeReference expected)
     {
-        if (expected is not GenericInstanceType { ElementType.FullName: var name } || name is not ("System.Span`1" or "System.ReadOnlySpan`1" or "System.ReadOnlyMemory`1"))
+        if (expected is not GenericInstanceType { ElementType.FullName: var name and ("System.Span`1" or "System.ReadOnlySpan`1" or "System.ReadOnlyMemory`1") })
             return false;
 
         var element = memory.GenericArguments[0];
@@ -292,7 +293,8 @@ internal sealed class BodyEmitter
 
     /// <summary>`Memory<T>` of the array on the stack, which it refers to.</summary>
     private void EmitMemoryOf(GenericInstanceType memory) =>
-        _il.Emit(OpCodes.Newobj, _owner.GenericMember("System.Memory`1", memory, ".ctor", 1, parameter => parameter.ParameterType is ArrayType));
+        _il.Emit(OpCodes.Newobj, _owner.GenericMember(
+            "System.Memory`1", memory, ".ctor", 1, parameter => parameter.ParameterType is ArrayType));
 
     /// <summary>
     /// The `Memory<T>` on the stack becomes the `ref T` of the element whose index `emitIndex` leaves on the stack
@@ -469,11 +471,11 @@ internal sealed class BodyEmitter
         var type = _owner.Backend.Core.Find(typeName)
                    ?? throw new BackendError($"The type '{typeName}' was not found in 'System.Runtime'");
 
-        var method = type.Methods.FirstOrDefault(candidate => candidate.Name == name
-                                                              && candidate.Parameters.Count == parameterTypes.Length
-                                                              && candidate.Parameters.Select(parameter => parameter.ParameterType.FullName)
-                                                                  .SequenceEqual(parameterTypes))
-                     ?? throw new BackendError($"The method '{typeName}.{name}' was not found in 'System.Runtime'");
+        var method = type.Methods.FirstOrDefault(
+            candidate => candidate.Name == name
+            && candidate.Parameters.Count == parameterTypes.Length
+            && candidate.Parameters.Select(parameter => parameter.ParameterType.FullName).SequenceEqual(parameterTypes)) 
+            ?? throw new BackendError($"The method '{typeName}.{name}' was not found in 'System.Runtime'");
 
         return _target.ImportReference(method);
     }
@@ -596,8 +598,8 @@ internal sealed class BodyEmitter
 
             default:
                 // What is already in range of the smaller type needs nothing.
-                if (!from.Float && !from.Native && from.Bits == to.Bits && from.Signed == to.Signed) return;
-                if (!from.Float && !from.Native && from.Bits < to.Bits && (to.Signed || !from.Signed)) return;
+                if (from is { Float: false, Native: false } && from.Bits == to.Bits && from.Signed == to.Signed) return;
+                if (from is { Float: false, Native: false } && from.Bits < to.Bits && (to.Signed || !from.Signed)) return;
 
                 if (to.Bits == 8) _il.Emit(to.Signed ? OpCodes.Conv_I1 : OpCodes.Conv_U1);
                 else _il.Emit(to.Signed ? OpCodes.Conv_I2 : OpCodes.Conv_U2);
@@ -612,41 +614,36 @@ internal sealed class BodyEmitter
         switch (node)
         {
             case IrBody body:
-                foreach (var child in body.Children) EmitStatement(child);
-                break;
+                foreach (var child in body.Children) EmitStatement(child); break;
 
             case IrReturnStatement @return:
-                EmitReturn(@return);
-                break;
+                EmitReturn(@return); break;
 
             case IrExpressionStatement statement:
-                EmitDiscard(statement.Expression);
-                break;
+                EmitDiscard(statement.Expression); break;
 
             case IrNaturalChoiceStatement choice:
-                if (ChooseNatural(choice.Variants, variant => variant.Bits, choice.Location) is { } chosen) EmitStatement(chosen.Statement);
-                break;
+            {
+                if (ChooseNatural(choice.Variants, variant => variant.Bits, choice.Location) is { } chosen)
+                    EmitStatement(chosen.Statement);
+            } break;
 
             case IrIf @if:
-                EmitIf(@if);
-                break;
+                EmitIf(@if); break;
 
             case IrWhile @while:
-                EmitWhile(@while);
-                break;
+                EmitWhile(@while); break;
 
             case IrBreak @break:
                 if (_breakTargets.Count == 0) Report("'break' outside of a loop", @break.Location);
                 else _il.Emit(OpCodes.Br, _breakTargets.Peek());
-                break;
+            break;
 
             case IrExpression expression:
-                EmitDiscard(expression);
-                break;
+                EmitDiscard(expression); break;
 
             default:
-                Report($"The node {node.GetType().Name} cannot be emitted to .NET yet", node.location);
-                break;
+                Report($"The node {node.GetType().Name} cannot be emitted to .NET yet", node.location); break;
         }
     }
 
@@ -769,25 +766,28 @@ internal sealed class BodyEmitter
         var type = expected;
         if (type == null && _types.Get(nothing) is { } given and not NullTypeRef) type = _owner.MapType(given, nothing.Location);
 
-        // The null of an `UnsafePtr(T)` is the pointer 0.
-        if (type is PointerType)
+        switch (type)
         {
-            _il.Emit(OpCodes.Ldc_I4_0);
-            _il.Emit(OpCodes.Conv_U);
-            return type;
+            // The null of an `UnsafePtr(T)` is the pointer 0.
+            case PointerType:
+                _il.Emit(OpCodes.Ldc_I4_0);
+                _il.Emit(OpCodes.Conv_U);
+                return type;
+            
+            case { IsValueType: true }:
+            {
+                var empty = NewTemp(type);
+                _il.Emit(OpCodes.Ldloca, empty);
+                _il.Emit(OpCodes.Initobj, type);
+                _il.Emit(OpCodes.Ldloc, empty);
+                return type;
+            }
+            
+            default:
+                _il.Emit(OpCodes.Ldnull);
+                return type ?? Core("System.Object");
         }
 
-        if (type is { IsValueType: true })
-        {
-            var empty = NewTemp(type);
-            _il.Emit(OpCodes.Ldloca, empty);
-            _il.Emit(OpCodes.Initobj, type);
-            _il.Emit(OpCodes.Ldloc, empty);
-            return type;
-        }
-
-        _il.Emit(OpCodes.Ldnull);
-        return type ?? Core("System.Object");
     }
 
     /// <summary>Emits the expression; the type of what it left on the stack, or null if it left nothing.</summary>
@@ -817,6 +817,7 @@ internal sealed class BodyEmitter
                 return ChooseNatural(choice.Variants, variant => variant.Bits, choice.Location) is { } picked
                     ? Emit(picked.Expression, expected, discard)
                     : null;
+            
             case IrStringConcat concat: return EmitConcat(concat);
             case IrReference reference: return EmitReference(reference);
             case IrAccess access: return EmitAccess(access);
@@ -841,7 +842,8 @@ internal sealed class BodyEmitter
                 if (BoxOf(local) is { } declaredBox) EmitNewBox(variable, declaredBox);
 
                 // An array exists as soon as it is declared: memory with room for all of its elements.
-                if (local.type != null && TypeExpressions.Raw(local.type) is ArrayTypeRef { Length: var length } && variable.VariableType is ArrayType storage)
+                if (local.type != null && TypeExpressions.Raw(local.type) is ArrayTypeRef { Length: var length }
+                    && variable.VariableType is ArrayType storage)
                 {
                     _il.Emit(OpCodes.Ldc_I4, length);
                     _il.Emit(OpCodes.Newarr, storage.ElementType);
@@ -930,34 +932,38 @@ internal sealed class BodyEmitter
     {
         var target = _owner.MapExpression(conversion.toType);
 
-        // A `T` that becomes a `?T` (`Nullable<T>`, for a value) or a `!T` (`Tq.Failable<T>`, with no error).
-        if (target is GenericInstanceType { ElementType.FullName: "System.Nullable`1" } nullable)
+        switch (target)
         {
-            var emitted = EmitValue(conversion.Expression, nullable.GenericArguments[0]);
-            if (emitted.FullName != target.FullName)
-                _il.Emit(OpCodes.Newobj, _owner.GenericMember("System.Nullable`1", nullable, ".ctor", 1));
-            return target;
+            // A `T` that becomes a `?T` (`Nullable<T>`, for a value) or a `!T` (`Tq.Failable<T>`, with no error).
+            case GenericInstanceType { ElementType.FullName: "System.Nullable`1" } nullable:
+            {
+                var emitted = EmitValue(conversion.Expression, nullable.GenericArguments[0]);
+                if (emitted.FullName != target.FullName)
+                    _il.Emit(OpCodes.Newobj, _owner.GenericMember("System.Nullable`1", nullable, ".ctor", 1));
+                return target;
+            }
+            
+            case GenericInstanceType { ElementType.FullName: "Tq.Failable`1" } failable:
+            {
+                var emitted = EmitValue(conversion.Expression, failable.GenericArguments[0]);
+                if (emitted.FullName == target.FullName) return target;
+
+                var wrapperValue = NewTemp(emitted);
+                _il.Emit(OpCodes.Stloc, wrapperValue);
+
+                var wrapper = NewTemp(target);
+                var field = _owner.Backend.Runtime.FailableOf.Fields.First(candidate => candidate.Name == "Value");
+                _il.Emit(OpCodes.Ldloca, wrapper);
+                _il.Emit(OpCodes.Ldloc, wrapperValue);
+                _il.Emit(OpCodes.Stfld, new CecilField(field.Name, field.FieldType, target));
+                _il.Emit(OpCodes.Ldloc, wrapper);
+                return target;
+            }
+            default:
+                EmitValue(conversion.Expression, target);
+                return target;
         }
 
-        if (target is GenericInstanceType { ElementType.FullName: "Tq.Failable`1" } failable)
-        {
-            var emitted = EmitValue(conversion.Expression, failable.GenericArguments[0]);
-            if (emitted.FullName == target.FullName) return target;
-
-            var wrapperValue = NewTemp(emitted);
-            _il.Emit(OpCodes.Stloc, wrapperValue);
-
-            var wrapper = NewTemp(target);
-            var field = _owner.Backend.Runtime.FailableOf.Fields.First(candidate => candidate.Name == "Value");
-            _il.Emit(OpCodes.Ldloca, wrapper);
-            _il.Emit(OpCodes.Ldloc, wrapperValue);
-            _il.Emit(OpCodes.Stfld, new CecilField(field.Name, field.FieldType, target));
-            _il.Emit(OpCodes.Ldloc, wrapper);
-            return target;
-        }
-
-        EmitValue(conversion.Expression, target);
-        return target;
     }
 
     private TypeReference EmitConcat(IrStringConcat concat)
@@ -1058,17 +1064,15 @@ internal sealed class BodyEmitter
             switch (match.Arms[i].Body)
             {
                 case IrBody block:
-                    EmitStatement(block);
-                    break;
+                    EmitStatement(block); break;
 
                 case IrExpression value when discard:
-                    EmitDiscard(value);
-                    break;
+                    EmitDiscard(value); break;
 
                 case IrExpression value:
                     EmitValue(value, resultType);
                     _il.Emit(OpCodes.Stloc, result!);
-                    break;
+                break;
             }
 
             _il.Emit(OpCodes.Br, end);
@@ -1133,7 +1137,8 @@ internal sealed class BodyEmitter
         var actual = Emit(addressOf.Operand, null);
         if (actual is not ArrayType array)
         {
-            if (actual != null) Report("'&' takes an array, or a variable of a struct that extends or is extended by another one (by value)", addressOf.Location);
+            if (actual != null) Report("'&' takes an array, or a variable of a struct"
+            + " that extends or is extended by another one (by value)", addressOf.Location);
             return actual;
         }
 
@@ -1226,7 +1231,8 @@ internal sealed class BodyEmitter
             }
 
             case ParameterReference { Parameter: var typeParameter } when GenericParameterTypeRef.IsTypeParameter(typeParameter):
-                Report($"'{typeParameter.Name}' is a type: it exists only while compiling, and as a value it has no .NET equivalent", reference.Location);
+                Report($"'{typeParameter.Name}' is a type: it exists only while compiling,"
+                    + " and as a value it has no .NET equivalent", reference.Location);
                 return null;
 
             case ParameterReference parameter:
@@ -1484,8 +1490,14 @@ internal sealed class BodyEmitter
         if (reference is not FunctionTypeReference { Function: var function })
         {
             var arguments = string.Join(", ", call.ArgumentsList.arguments.Select(Shape));
-            Report($"This call could not be resolved to a function: the callee is {Shape(call.callee)}, with the arguments ({arguments}). "
-                   + "The type checker did not choose an overload for it (see --dump-ir)", call.Location);
+
+            var sb = new StringBuilder();
+            sb.AppendLine("This call could not be resolved to a function:");
+            sb.Append("The callee is ").Append(Shape(call.callee)).AppendLine(",");
+            sb.Append("with the arguments ").Append(arguments).AppendLine(".");
+            sb.Append("The type checker did not choose an overload for it (see --dump-ir)");
+            
+            Report(sb.ToString(), call.Location);
             return null;
         }
 
@@ -1513,7 +1525,7 @@ internal sealed class BodyEmitter
                 var typeArguments = EmitArguments(call.ArgumentsList.arguments, method.Parameters, tq.Parameters, tqHost?.GenericArguments);
 
                 // The types a generic function is given are the type arguments of the method.
-                MethodReference target = tqHost != null ? OnHost(_owner.Use(method), tqHost) : _owner.Use(method);
+                var target = tqHost != null ? OnHost(_owner.Use(method), tqHost) : _owner.Use(method);
                 var returned = Instantiate(method.ReturnType, [], tqHost?.GenericArguments);
                 if (typeArguments.Count > 0)
                 {
@@ -1741,7 +1753,9 @@ internal sealed class BodyEmitter
         // A class has the constructor it was given; so has a struct by value that has initial values for its fields.
         if (tqStruct != null && _owner.Backend.DefaultConstructors.TryGetValue(tqStruct, out var defaultConstructor))
         {
-            _il.Emit(OpCodes.Newobj, type is GenericInstanceType defaultHost ? OnHost(_owner.Use(defaultConstructor), defaultHost) : _owner.Use(defaultConstructor));
+            _il.Emit(OpCodes.Newobj, type is GenericInstanceType defaultHost
+                ? OnHost(_owner.Use(defaultConstructor), defaultHost)
+                : _owner.Use(defaultConstructor));
             return type;
         }
 
@@ -1767,7 +1781,8 @@ internal sealed class BodyEmitter
 
         if (leftType == null || rightType == null)
         {
-            Report($"The type of an operand is not known: the left one is {Shape(left)} and the right one is {Shape(right)}", left.Location);
+            Report($"The type of an operand is not known:{Environment.NewLine}"
+                + $"the left one is {Shape(left)} and the right one is {Shape(right)}", left.Location);
             return null;
         }
 
@@ -2084,42 +2099,39 @@ internal sealed class BodyEmitter
                     Report($"The operator '{binary.Operator}' does not exist for '{common.Name}' in .NET", binary.Location);
                 else
                     _il.Emit(binary.Operator == BinaryOperator.BitAnd ? OpCodes.And : binary.Operator == BinaryOperator.BitOr ? OpCodes.Or : OpCodes.Xor);
-                break;
+            break;
 
             case BinaryOperator.Equal or BinaryOperator.ExactEqual:
                 _il.Emit(OpCodes.Ceq);
-                break;
+            break;
 
             case BinaryOperator.NotEqual or BinaryOperator.NotExactEqual:
                 _il.Emit(OpCodes.Ceq);
                 _il.Emit(OpCodes.Ldc_I4_0);
                 _il.Emit(OpCodes.Ceq);
-                break;
+            break;
 
             case BinaryOperator.Less:
-                _il.Emit(known && !number.Float && !number.Signed ? OpCodes.Clt_Un : OpCodes.Clt);
-                break;
+                _il.Emit(known && number is { Float: false, Signed: false } ? OpCodes.Clt_Un : OpCodes.Clt); break;
 
             case BinaryOperator.Greater:
-                _il.Emit(known && !number.Float && !number.Signed ? OpCodes.Cgt_Un : OpCodes.Cgt);
-                break;
+                _il.Emit(known && number is { Float: false, Signed: false } ? OpCodes.Cgt_Un : OpCodes.Cgt); break;
 
             // `a <= b` is not `a > b` (a number that is not a number is neither): unordered counts as greater.
             case BinaryOperator.LessEqual:
                 _il.Emit(known && (number.Float || !number.Signed) ? OpCodes.Cgt_Un : OpCodes.Cgt);
                 _il.Emit(OpCodes.Ldc_I4_0);
                 _il.Emit(OpCodes.Ceq);
-                break;
+            break;
 
             case BinaryOperator.GreaterEqual:
                 _il.Emit(known && (number.Float || !number.Signed) ? OpCodes.Clt_Un : OpCodes.Clt);
                 _il.Emit(OpCodes.Ldc_I4_0);
                 _il.Emit(OpCodes.Ceq);
-                break;
+            break;
 
             default:
-                Report($"The operator '{binary.Operator}' cannot be emitted to .NET yet", binary.Location);
-                break;
+                Report($"The operator '{binary.Operator}' cannot be emitted to .NET yet", binary.Location); break;
         }
 
         return result;
@@ -2245,13 +2257,15 @@ internal sealed class BodyEmitter
                     EmitValue(binary.Right, common);
                     _il.Emit(OpCodes.Div);
                     if (number.Bits == 32) _il.Emit(OpCodes.Conv_R8);
-                    _il.Emit(OpCodes.Call, Library("System.Math", @operator == BinaryOperator.DivFloor ? "Floor" : "Ceiling", "System.Double"));
+                    _il.Emit(OpCodes.Call, Library("System.Math",
+                        @operator == BinaryOperator.DivFloor ? "Floor" : "Ceiling", "System.Double"));
                     if (number.Bits == 32) _il.Emit(OpCodes.Conv_R4);
                     return common;
                 }
 
                 default:
-                    Report($"The operator '{@operator}' does not exist for '{common.Name}': a float has no bounds to saturate at or to wrap around", binary.Location);
+                    Report($"The operator '{@operator}' does not exist for '{common.Name}':"
+                    + " a float has no bounds to saturate at or to wrap around", binary.Location);
                     return common;
             }
         }
@@ -2267,29 +2281,23 @@ internal sealed class BodyEmitter
             switch (@operator)
             {
                 case BinaryOperator.AddOnBounds or BinaryOperator.SubOnBounds or BinaryOperator.MulOnBounds when bits == 128:
-                    EmitWideSaturated128(@operator, common.FullName, signed);
-                    break;
+                    EmitWideSaturated128(@operator, common.FullName, signed); break;
 
                 case BinaryOperator.DivFloor or BinaryOperator.DivCeil when bits == 128:
-                    EmitRoundedDivision128(common.FullName, @operator == BinaryOperator.DivCeil, signed);
-                    break;
+                    EmitRoundedDivision128(common.FullName, @operator == BinaryOperator.DivCeil, signed); break;
 
                 case BinaryOperator.Pow or BinaryOperator.PowWrap or BinaryOperator.PowOnBounds when bits == 128:
-                    EmitPower128(@operator, common, signed);
-                    break;
+                    EmitPower128(@operator, common, signed); break;
 
                 case BinaryOperator.AddOnBounds or BinaryOperator.SubOnBounds or BinaryOperator.MulOnBounds:
                     if (bits <= 32) EmitSmallSaturated(@operator, signed, bits);
-                    else EmitWideSaturated(@operator, signed);
-                    break;
+                    else EmitWideSaturated(@operator, signed); break;
 
                 case BinaryOperator.DivFloor or BinaryOperator.DivCeil:
-                    EmitRoundedDivision(@operator == BinaryOperator.DivCeil, signed, bits);
-                    break;
+                    EmitRoundedDivision(@operator == BinaryOperator.DivCeil, signed, bits); break;
 
                 default:
-                    EmitPower(@operator, common, signed, bits);
-                    break;
+                    EmitPower(@operator, common, signed, bits); break;
             }
 
             _il.Emit(OpCodes.Ret);
@@ -2310,11 +2318,14 @@ internal sealed class BodyEmitter
     /// <summary>Back from the 64 bits domain to the size: cut (`wrap`) or checked, which throws when it does not fit.</summary>
     private void EmitNarrow(bool signed, int bits, bool checkedConversion)
     {
-        if (bits >= 64) return;
+        switch (bits)
+        {
+            case >= 64: return;
+            case 8: _il.Emit(checkedConversion ? (signed ? OpCodes.Conv_Ovf_I1 : OpCodes.Conv_Ovf_U1_Un) : (signed ? OpCodes.Conv_I1 : OpCodes.Conv_U1)); break;
+            case 16: _il.Emit(checkedConversion ? (signed ? OpCodes.Conv_Ovf_I2 : OpCodes.Conv_Ovf_U2_Un) : (signed ? OpCodes.Conv_I2 : OpCodes.Conv_U2)); break;
+            default: _il.Emit(checkedConversion ? (signed ? OpCodes.Conv_Ovf_I4 : OpCodes.Conv_Ovf_U4_Un) : (signed ? OpCodes.Conv_I4 : OpCodes.Conv_U4)); break;
+        }
 
-        if (bits == 8) _il.Emit(checkedConversion ? (signed ? OpCodes.Conv_Ovf_I1 : OpCodes.Conv_Ovf_U1_Un) : (signed ? OpCodes.Conv_I1 : OpCodes.Conv_U1));
-        else if (bits == 16) _il.Emit(checkedConversion ? (signed ? OpCodes.Conv_Ovf_I2 : OpCodes.Conv_Ovf_U2_Un) : (signed ? OpCodes.Conv_I2 : OpCodes.Conv_U2));
-        else _il.Emit(checkedConversion ? (signed ? OpCodes.Conv_Ovf_I4 : OpCodes.Conv_Ovf_U4_Un) : (signed ? OpCodes.Conv_I4 : OpCodes.Conv_U4));
     }
 
     private void CallMath(string name, string type) => _il.Emit(OpCodes.Call, Library("System.Math", name, type, type));
@@ -2374,10 +2385,10 @@ internal sealed class BodyEmitter
     {
         var type = _owner.Backend.Core.Find(typeName) ?? throw new BackendError($"The type '{typeName}' was not found");
         var method = type.Methods.FirstOrDefault(candidate => candidate.Name is "op_Implicit" or "op_Explicit"
-                                                              && candidate.Parameters.Count == 1
-                                                              && candidate.Parameters[0].ParameterType.FullName == from
-                                                              && candidate.ReturnType.FullName == to)
-                     ?? throw new BackendError($"'{typeName}' has no conversion from '{from}' to '{to}'");
+            && candidate.Parameters.Count == 1
+            && candidate.Parameters[0].ParameterType.FullName == from
+            && candidate.ReturnType.FullName == to)
+        ?? throw new BackendError($"'{typeName}' has no conversion from '{from}' to '{to}'");
 
         return _target.ImportReference(method);
     }
@@ -2556,8 +2567,10 @@ internal sealed class BodyEmitter
             _il.Emit(OpCodes.Ldc_I8, 0L);
             _il.Emit(OpCodes.Bge, valid);
             _il.Emit(OpCodes.Ldstr, "The exponent of an integer power must not be negative");
-            _il.Emit(OpCodes.Newobj, _target.ImportReference(_owner.Backend.Core.Find("System.OverflowException")!.Methods.First(
-                candidate => candidate.IsConstructor && candidate.Parameters.Count == 1 && candidate.Parameters[0].ParameterType.FullName == "System.String")));
+            _il.Emit(OpCodes.Newobj, _target.ImportReference(
+                _owner.Backend.Core.Find("System.OverflowException")!.Methods.First(
+                candidate => candidate.IsConstructor && candidate.Parameters.Count == 1
+                    && candidate.Parameters[0].ParameterType.FullName == "System.String")));
             _il.Emit(OpCodes.Throw);
             _il.Append(valid);
         }
@@ -2955,16 +2968,13 @@ internal sealed class BodyEmitter
         switch (@operator)
         {
             case BinaryOperator.Add or BinaryOperator.AddWrap:
-                _il.Emit(!checkedOperation ? OpCodes.Add : number.Signed ? OpCodes.Add_Ovf : OpCodes.Add_Ovf_Un);
-                break;
+                _il.Emit(!checkedOperation ? OpCodes.Add : number.Signed ? OpCodes.Add_Ovf : OpCodes.Add_Ovf_Un); break;
 
             case BinaryOperator.Sub or BinaryOperator.SubWrap:
-                _il.Emit(!checkedOperation ? OpCodes.Sub : number.Signed ? OpCodes.Sub_Ovf : OpCodes.Sub_Ovf_Un);
-                break;
+                _il.Emit(!checkedOperation ? OpCodes.Sub : number.Signed ? OpCodes.Sub_Ovf : OpCodes.Sub_Ovf_Un); break;
 
             case BinaryOperator.Mul or BinaryOperator.MulWrap:
-                _il.Emit(!checkedOperation ? OpCodes.Mul : number.Signed ? OpCodes.Mul_Ovf : OpCodes.Mul_Ovf_Un);
-                break;
+                _il.Emit(!checkedOperation ? OpCodes.Mul : number.Signed ? OpCodes.Mul_Ovf : OpCodes.Mul_Ovf_Un); break;
 
             case BinaryOperator.Div:
                 _il.Emit(number.Float || number.Signed ? OpCodes.Div : OpCodes.Div_Un);
@@ -3012,7 +3022,8 @@ internal sealed class BodyEmitter
         {
             if (!wraps && literal.BigInteger >= bits)
             {
-                Report($"The amount of the shift ({literal.BigInteger}) is not less than the size of '{type.Name}' ({bits} bits): use '<<%' or '>>%' to take it modulo the size", binary.Location);
+                Report($"The amount of the shift ({literal.BigInteger}) is not less than the size of '{type.Name}' ({bits} bits):{Environment.NewLine}"
+                    + $"use '<<%' or '>>%' to take it modulo the size", binary.Location);
                 return type;
             }
 
