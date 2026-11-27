@@ -76,8 +76,17 @@ funções por uma chamada a uma única função (`FunctionTypeReference`), conve
 - O tipo de retorno desempata, só entre overloads que aceitam os argumentos igualmente bem (os argumentos vêm primeiro). O
   contexto da chamada diz o que se faz com o valor: um statement que o descarta prefere o overload que retorna `void`; `let T x = f()`
   e `return f()` preferem os que retornam `T` (exato antes de com conversão) e descartam os que retornam outra coisa. Retorno
-  desconhecido (genérico) serve, mas não é o melhor. Nos demais lugares (argumento de outra chamada, atribuição a variável
-  existente, operandos) não há contexto, e o empate continua sendo ambiguidade.
+  desconhecido (genérico) serve, mas não é o melhor. O mesmo vale para o valor inicial de um campo, para `x = f()`, para
+  `f() as T` e para `try f()` (aí só servem os que retornam `!T`, que contam como `T`). Sem nenhum `void`, um valor
+  descartado prefere o `!void`. Nos demais lugares (argumento de outra chamada, operandos) não há contexto, e o empate
+  continua sendo ambiguidade.
+- No assembly (`Backend.Cecil/ModuleEmitter.Signatures.cs`), as assinaturas que o .NET ou o C# não distinguem mudam:
+  - Parâmetros que são o mesmo tipo no .NET (`f(int)` e `f(i32)`): o de tipo com tamanho mantém o nome, o outro leva os
+    tipos no nome (`f__int`). Uma função sem esse conflito não muda.
+  - Overloads que só diferem no retorno: os que retornam um valor passam a recebê-lo por um último parâmetro `out`
+    (`f(i32) string` vira `void f(int, out string)`). Uma referência (`*S` de struct por valor) continua no retorno.
+  - O que ainda colide (`f() int` e `f() i32`) leva o retorno no nome (`f__int`).
+  - Quem sobrescreve ou implementa uma função usa o nome e a forma dela. Membros de interfaces e classes do .NET não mudam.
 - Duas funções de mesmo nome no mesmo namespace, struct ou typedef (ou dois construtores de uma struct) com os mesmos
   parâmetros e o mesmo retorno são erro de compilação, mesmo sem nenhuma chamada. Nomes de parâmetros e atributos não
   diferenciam; `f(type T, T v)` e `f(type U, U v)` são a mesma assinatura.

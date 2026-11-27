@@ -74,7 +74,7 @@ internal sealed class BodyEmitter
         if (_function.Body != null) EmitStatement(_function.Body);
 
         // The end of the function: what a function without `return` at its end gives.
-        var returnType = _method.ReturnType;
+        var returnType = ReturnType;
         if (IsVoid(returnType))
             _il.Emit(OpCodes.Ret);
         else if (IsFailable(returnType, out var result) && IsVoid(result))
@@ -702,7 +702,7 @@ internal sealed class BodyEmitter
 
     private void EmitReturn(IrReturnStatement statement)
     {
-        var returnType = _method.ReturnType;
+        var returnType = ReturnType;
 
         if (statement.ReturnValue == null)
         {
@@ -736,18 +736,18 @@ internal sealed class BodyEmitter
             EmitValue(statement.ReturnValue, result);
             _il.Emit(OpCodes.Stfld, new CecilField(value.Name, value.FieldType, returnType));
             _il.Emit(OpCodes.Ldloc, wrapper);
-            _il.Emit(OpCodes.Ret);
+            EmitReturnValue();
             return;
         }
 
         EmitValue(statement.ReturnValue, returnType);
-        _il.Emit(OpCodes.Ret);
+        EmitReturnValue();
     }
 
     /// <summary>The value of `return` with nothing to say: a `Tq.Failable` with no error.</summary>
     private void EmitDefaultReturn()
     {
-        var returnType = _method.ReturnType;
+        var returnType = ReturnType;
         if (IsVoid(returnType))
         {
             _il.Emit(OpCodes.Ret);
@@ -758,6 +758,25 @@ internal sealed class BodyEmitter
         _il.Emit(OpCodes.Ldloca, empty);
         _il.Emit(OpCodes.Initobj, returnType);
         _il.Emit(OpCodes.Ldloc, empty);
+        EmitReturnValue();
+    }
+
+    /// <summary>What the function gives: the result of the method, or what it gives through `out`.</summary>
+    private TypeReference ReturnType =>
+        _owner.Backend.OutResults.TryGetValue(_method, out var result) ? result : _method.ReturnType;
+
+    /// <summary>With the value on the stack, returns it.</summary>
+    private void EmitReturnValue()
+    {
+        if (_owner.Backend.OutResults.TryGetValue(_method, out var type))
+        {
+            var value = NewTemp(type);
+            _il.Emit(OpCodes.Stloc, value);
+            _il.Emit(OpCodes.Ldarg, _method.Parameters[^1]);
+            _il.Emit(OpCodes.Ldloc, value);
+            _il.Emit(OpCodes.Stobj, type);
+        }
+
         _il.Emit(OpCodes.Ret);
     }
 
@@ -1631,8 +1650,10 @@ internal sealed class BodyEmitter
                 {
                     EmitValue(receiver, null);
                     EmitArguments(call.ArgumentsList.arguments, method.Parameters, tq.Parameters);
+                    var through = OutTemp(method, [], null);
                     _il.Emit(OpCodes.Callvirt, _owner.Use(interfaceMethod));
-                    return IsVoid(method.ReturnType) ? null : method.ReturnType;
+                    if (through != null) _il.Emit(OpCodes.Ldloc, through);
+                    return through?.VariableType ?? (IsVoid(method.ReturnType) ? null : method.ReturnType);
                 }
 
                 if (!method.IsStatic) EmitFieldReceiver(receiver, method.DeclaringType);
@@ -1652,8 +1673,14 @@ internal sealed class BodyEmitter
                     returned = Instantiate(returned, typeArguments, tqHost?.GenericArguments);
                 }
 
+                var outValue = OutTemp(method, typeArguments, tqHost?.GenericArguments);
                 var instanceOfClass = !method.IsStatic && !method.DeclaringType.IsValueType;
                 _il.Emit(instanceOfClass ? OpCodes.Callvirt : OpCodes.Call, target);
+                if (outValue != null)
+                {
+                    _il.Emit(OpCodes.Ldloc, outValue);
+                    return outValue.VariableType;
+                }
                 return IsVoid(returned) ? null : returned;
             }
 
@@ -1699,6 +1726,22 @@ internal sealed class BodyEmitter
                 Report($"The function '{function.Name}' is not emitted, so it cannot be called", call.Location);
                 return null;
         }
+    }
+
+    /// <summary>
+    /// For a method that gives its result through `out`: a local to receive it, whose address is put on the stack as the
+    /// last argument. Null for any other method.
+    /// </summary>
+    private VariableDefinition? OutTemp(MethodDefinition method, List<TypeReference> typeArguments, IList<TypeReference>? hostArguments)
+    {
+        if (!_owner.Backend.OutResults.TryGetValue(method, out var result)) return null;
+
+        var type = Instantiate(result, [], hostArguments);
+        if (typeArguments.Count > 0) type = Instantiate(type, typeArguments, hostArguments);
+
+        var value = NewTemp(type);
+        _il.Emit(OpCodes.Ldloca, value);
+        return value;
     }
 
     /// <summary>
@@ -2022,7 +2065,7 @@ internal sealed class BodyEmitter
         _il.Emit(OpCodes.Ldfld, FailableField(type, "Error"));
         _il.Emit(OpCodes.Brfalse, ok);
 
-        var returnType = _method.ReturnType;
+        var returnType = ReturnType;
         if (!IsFailable(returnType, out _))
         {
             Report("'try' returns the error from the function, which has to return a '!T'", unary.Location);
@@ -2035,7 +2078,7 @@ internal sealed class BodyEmitter
             _il.Emit(OpCodes.Ldfld, FailableField(type, "Error"));
             _il.Emit(OpCodes.Stfld, FailableField(returnType, "Error"));
             _il.Emit(OpCodes.Ldloc, result);
-            _il.Emit(OpCodes.Ret);
+            EmitReturnValue();
         }
 
         _il.Append(ok);
@@ -3479,10 +3522,46 @@ internal sealed class BodyEmitter
         target.Parameters.Add(new ParameterDefinition(_owner.Module.TypeSystem.Object));
         target.Parameters.Add(new ParameterDefinition(_owner.Module.TypeSystem.IntPtr));
 
+        // A delegate returns its value: a method that gives it through `out` is reached through one that returns it.
+        if (_owner.Backend.OutResults.TryGetValue(method, out var outResult)) method = ReturningMethod(method, outResult);
+
         _il.Emit(OpCodes.Ldnull);
         _il.Emit(OpCodes.Ldftn, _owner.Use(method));
         _il.Emit(OpCodes.Newobj, target);
         return delegateType;
+    }
+
+    /// <summary>A static method of this type that calls `target` and returns what it gives through `out`.</summary>
+    private MethodDefinition ReturningMethod(MethodDefinition target, TypeReference result)
+    {
+        if (target.HasGenericParameters || target.DeclaringType.HasGenericParameters)
+        {
+            Report($"The generic function '{target.Name}', overloaded by what it returns, cannot be a delegate in .NET yet", _function.SourceLocation);
+            return target;
+        }
+
+        var host = _method.DeclaringType;
+        var name = $"<{target.DeclaringType.Name}.{target.Name}>returning_{result.Name}";
+        if (host.Methods.FirstOrDefault(candidate => candidate.Name == name) is { } existing) return existing;
+
+        var method = new MethodDefinition(name,
+            MethodAttributes.Private | MethodAttributes.Static | MethodAttributes.HideBySig, _owner.Module.ImportReference(result));
+        foreach (var parameter in target.Parameters.Take(target.Parameters.Count - 1))
+            method.Parameters.Add(new ParameterDefinition(parameter.Name, parameter.Attributes, _owner.Module.ImportReference(parameter.ParameterType)));
+
+        var value = new VariableDefinition(method.ReturnType);
+        method.Body.Variables.Add(value);
+        method.Body.InitLocals = true;
+
+        var il = method.Body.GetILProcessor();
+        foreach (var parameter in method.Parameters) il.Emit(OpCodes.Ldarg, parameter);
+        il.Emit(OpCodes.Ldloca, value);
+        il.Emit(OpCodes.Call, _owner.Use(target));
+        il.Emit(OpCodes.Ldloc, value);
+        il.Emit(OpCodes.Ret);
+
+        host.Methods.Add(method);
+        return method;
     }
 
     /// <summary>`Delegate.Combine(d, f)` or `Delegate.Remove(d, f)`, cast back to the delegate (they give a `Delegate`).</summary>

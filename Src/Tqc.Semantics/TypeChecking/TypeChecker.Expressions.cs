@@ -91,7 +91,8 @@ internal sealed partial class TypeChecker
 
             case IrConvert conversion:
                 CheckValueType(conversion.toType);
-                return (conversion with { Expression = Visit(conversion.Expression) },
+                // `f() as T` says which overload by return is wanted.
+                return (conversion with { Expression = VisitExpecting(conversion.Expression, Expectation.Of(TypeFromExpression(conversion.toType))) },
                     TypeFromExpression(conversion.toType));
 
             case IrAccess access:
@@ -460,6 +461,14 @@ internal sealed partial class TypeChecker
         var declaredType = assign.Target is IrLocal { type: { } typeWritten } declaring && !NeedsInferredType(declaring)
             ? TypeFromExpression(WithoutConst(typeWritten)!)
             : null;
+        // So is one assigned to what already exists (`x = f()`), whose type is looked at first.
+        IrExpression? target = null;
+        if (declaredType == null && assign.Target is IrAccess or IrReference && IsCallOrTry(assign.Source))
+        {
+            target = VisitTarget(assign.Target);
+            declaredType = TypeOf(target);
+        }
+
         var source = declaredType != null ? VisitExpecting(assign.Source, Expectation.Of(declaredType)) : Visit(assign.Source);
         var sourceType = TypeOf(source);
 
@@ -473,9 +482,7 @@ internal sealed partial class TypeChecker
                 types.Set(local, DefaultTypeOf(sourceType));
         }
 
-        _targetNext = assign.Target is IrAccess or IrReference;
-        var target = Visit(assign.Target);
-        _targetNext = false;
+        target ??= VisitTarget(assign.Target);
 
         if (PropertyOf(target) is { } written) return WriteProperty(assign, target, source, written);
 
@@ -499,6 +506,17 @@ internal sealed partial class TypeChecker
         }
 
         return (assign with { Target = target, Source = source }, targetType);
+    }
+
+    private static bool IsCallOrTry(IrExpression expression) =>
+        expression is IrCall or IrUnary { Operator: UnaryOperator.Try, Operand: IrCall };
+
+    private IrExpression VisitTarget(IrExpression written)
+    {
+        _targetNext = written is IrAccess or IrReference;
+        var target = Visit(written);
+        _targetNext = false;
+        return target;
     }
 
     private (IrExpression, ITypeRef?) VisitCall(IrCall call)

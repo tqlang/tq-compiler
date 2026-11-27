@@ -94,7 +94,9 @@ internal sealed partial class TypeChecker(
 
                 field.Value = PerSizeValue(original.Location, () =>
                 {
-                    var value = Visit(original);
+                    var value = inferring
+                        ? Visit(original)
+                        : VisitExpecting(original, Expectation.Of(ValueTypeOf(declared!, null)));
                     return inferring ? value : Coerce(value, ValueTypeOf(declared!, null), WithoutConst(field.Type!), $"the field '{field.Name}'");
                 });
 

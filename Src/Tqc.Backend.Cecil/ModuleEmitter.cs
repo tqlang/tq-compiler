@@ -67,6 +67,7 @@ internal sealed partial class ModuleEmitter
         foreach (var container in _containers) DeclareFields(container);
         foreach (var container in _containers) DeclareBaseField(container);
         foreach (var container in _containers) DeclareFunctions(container);
+        ShapeFunctions();
         foreach (var container in _containers) DeclareProperties(container);
         foreach (var container in _containers) DeclareIndexers(container);
         DeclareRefMembers();

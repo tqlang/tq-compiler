@@ -59,6 +59,12 @@ public sealed class CecilBackend(DiagnosticBag diagnostics)
     /// <summary>The method of the interface of a struct for each of its functions.</summary>
     internal Dictionary<TqFunction, MethodDefinition> RefMethods { get; } = new(ReferenceEqualityComparer.Instance);
 
+    /// <summary>The signature of each function that may differ from how it was declared (see ModuleEmitter.Signatures).</summary>
+    internal Dictionary<TqFunction, FunctionShape> Shapes { get; } = new(ReferenceEqualityComparer.Instance);
+
+    /// <summary>The methods that give their result through a last parameter `out`, with the type of it.</summary>
+    internal Dictionary<MethodDefinition, TypeReference> OutResults { get; } = new(ReferenceEqualityComparer.Instance);
+
     /// <summary>The assemblies of a dotnet module are searched for the base types before `System.Runtime`, which is implicit.</summary>
     public void AddDotnetModule(IModule module)
     {

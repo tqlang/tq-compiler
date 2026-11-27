@@ -203,7 +203,8 @@ internal sealed partial class ModuleEmitter
 
                 var declared = new MethodDefinition(method.Name, attributes, method.ReturnType);
                 foreach (var parameter in method.Parameters)
-                    declared.Parameters.Add(new ParameterDefinition(parameter.Name, ParameterAttributes.None, parameter.ParameterType));
+                    declared.Parameters.Add(new ParameterDefinition(parameter.Name, parameter.Attributes, parameter.ParameterType));
+                if (_backend.OutResults.TryGetValue(method, out var outResult)) _backend.OutResults[declared] = outResult;
 
                 var il = declared.Body.GetILProcessor();
                 il.Emit(OpCodes.Ldarg_0);

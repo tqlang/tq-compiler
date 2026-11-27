@@ -26,7 +26,7 @@ internal sealed partial class TypeChecker
     private sealed record Candidate(Overload Overload, ArgumentMatch[] Matches);
 
     /// <summary>What the place a call is in does with its value: nothing (a statement), or it has to be of a type.</summary>
-    private readonly record struct Expectation(bool Discarded, ITypeRef? Type)
+    private readonly record struct Expectation(bool Discarded, ITypeRef? Type, bool Tried = false)
     {
         public static Expectation Discard => new(true, null);
         public static Expectation Of(ITypeRef? type) => new(false, type);
@@ -42,6 +42,8 @@ internal sealed partial class TypeChecker
     private IrExpression VisitExpecting(IrExpression expression, Expectation expectation)
     {
         if (expression is IrCall) _expected = expectation;
+        // `try f()`: what is said about the value is about what is inside the `!T` that `f` gives.
+        else if (expression is IrUnary { Operator: UnaryOperator.Try, Operand: IrCall }) _expected = expectation with { Tried = true };
         try { return Visit(expression); }
         finally { _expected = null; }
     }
@@ -205,10 +207,22 @@ internal sealed partial class TypeChecker
         foreach (var candidate in candidates)
         {
             var returned = candidate.Overload.Return;
+
+            // After `try` only a `!T` serves, and it counts as its `T`.
+            if (expected.Tried && returned != null)
+            {
+                if (!CompilerStd.Types.IsFailable(returned, out var inside)) continue;
+                returned = StructSemantics.ValueTypeOf(inside);
+            }
+
             var isVoid = returned != null && ConversionRules.IsStruct(returned, CompilerStd.Types.Void);
 
             int? rank;
-            if (expected.Discarded) rank = isVoid ? 0 : 1;
+            // Thrown away: nothing is best, then a `!void`, which has nothing but the error.
+            if (expected.Discarded)
+                rank = isVoid ? 0
+                    : returned != null && CompilerStd.Types.IsFailable(returned, out var failed) && failed != null
+                      && ConversionRules.IsStruct(failed, CompilerStd.Types.Void) ? 1 : 2;
             else if (returned == null || expected.Type == null) rank = 1;
             else
             {
@@ -381,7 +395,7 @@ internal sealed partial class TypeChecker
         
         var hint = sameParameters
                 ? " They only differ in what they return, and nothing here says which one is wanted: use the value where its type is known"
-                + " (`let T x = ...`, `return ...`), or call it as a statement to run the one that returns nothing."
+                + " (`let T x = ...`, `x = ...`, `return ...`, `... as T`), or call it as a statement to run the one that returns nothing."
             : arguments.Any(argument => argument is IrComptimeInt)
                 ? " Give the literal an explicit type, for example `5 as i32`."
                 : null;
@@ -390,7 +404,7 @@ internal sealed partial class TypeChecker
         
         var context = expected switch
         {
-            null => "the value is used where no type is asked (an argument, an operand, an assignment to a variable that exists)",
+            null => "the value is used where no type is asked (an argument or an operand)",
             { Discarded: true } => "the value is thrown away",
             { Type: { } wanted } => $"a '{TypeFormatter.Format(wanted)}' is wanted",
             _ => "the type that is wanted is not known",

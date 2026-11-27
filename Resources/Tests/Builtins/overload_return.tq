@@ -7,6 +7,28 @@ func choose(int number) int => number * 2
 func choose(int number) { chooseEffects = chooseEffects + 1 }
 func choose(int number) string => "text"
 
+func chooseFailable() !i32 => 7
+func chooseFailable() !string => "seven"
+
+func chosenByTry() !void {
+    let i32 number = try chooseFailable()
+    let string text = try chooseFailable()
+
+    Test.assert(number, 7)
+    Test.assert(text, "seven")
+}
+
+struct Chosen {
+    let int number = choose(4)
+    let string text = choose(4)
+}
+
+# Different types of Tq that are the same type of .NET.
+func sized(int value) string => "int"
+func sized(i32 value) string => "i32"
+func width() int => 1
+func width() i32 => 2
+
 func chosenAsInt() int => choose(5)
 func chosenAsString() string => choose(5)
 
@@ -33,5 +55,32 @@ func chosenAsString() string => choose(5)
     {
         Test.assert(chosenAsInt(), 10)
         Test.assert(chosenAsString(), "text")
+    }
+
+    Test.newTestUnit("Builtins - overload by return type - assignment, cast, field and try")
+    {
+        let string text = ""
+        text = choose(2)
+        let Chosen chosen = new Chosen()
+
+        Test.assert(text, "text")
+        Test.assert(choose(3) as int, 6)
+        Test.assert(chosen.number, 8)
+        Test.assert(chosen.text, "text")
+
+        let !void result = chosenByTry()
+    }
+
+    Test.newTestUnit("Builtins - overload by int and i32")
+    {
+        let int natural = 1
+        let i32 number = 1
+        let int first = width()
+        let i32 second = width()
+
+        Test.assert(sized(natural), "int")
+        Test.assert(sized(number), "i32")
+        Test.assert(first, 1)
+        Test.assert(second, 2)
     }
 }
