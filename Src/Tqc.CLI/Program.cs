@@ -227,7 +227,7 @@ static class Program
 
             if (diagnosticLines.Length == 1)
             {
-                sb.Append("\e[31m└\e[0m ").Append(diagnosticLines[0]);;
+                sb.Append("\e[31m└\e[0m ").Append(diagnosticLines[0]);
             }
             else
             {

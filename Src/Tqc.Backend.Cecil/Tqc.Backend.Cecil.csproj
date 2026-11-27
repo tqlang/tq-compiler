@@ -7,6 +7,8 @@
     </PropertyGroup>
 
     <ItemGroup>
+      <!-- not used by the code of the backend: it is the assembly that the backend reads and completes -->
+      <ProjectReference Include="..\Tq.Runtime\Tq.Runtime.csproj" />
       <ProjectReference Include="..\Tqc.Diagnostics\Tqc.Diagnostics.csproj" />
       <ProjectReference Include="..\Tqc.Dotnet\Tqc.Dotnet.csproj" />
       <ProjectReference Include="..\Tqc.IR\Tqc.IR.csproj" />

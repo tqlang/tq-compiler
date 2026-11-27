@@ -33,7 +33,7 @@ public sealed class CecilBackend(DiagnosticBag diagnostics)
 
     internal DiagnosticBag Diagnostics => diagnostics;
     internal CoreTypes Core => _core ??= new CoreTypes(_dotnetAssemblies);
-    internal TqRuntimeAssembly Runtime => _runtime ??= new TqRuntimeAssembly(Core);
+    internal TqRuntimeAssembly Runtime => _runtime ??= new TqRuntimeAssembly();
 
     /// <summary>What was emitted, by the member of the IR it came from; later modules refer to it.</summary>
     internal Dictionary<object, IMemberDefinition> Definitions { get; } = new(ReferenceEqualityComparer.Instance);

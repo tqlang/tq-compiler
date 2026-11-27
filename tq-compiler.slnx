@@ -1,5 +1,6 @@
 <Solution>
   <Folder Name="/Src/">
+    <Project Path="Src/Tq.Runtime/Tq.Runtime.csproj" />
     <Project Path="Src/Tqc.Backend.Cecil/Tqc.Backend.Cecil.csproj" />
     <Project Path="Src/Tqc.Build.Toml/Tqc.Build.Toml.csproj" />
     <Project Path="Src/Tqc.Build/Tqc.Build.csproj" />

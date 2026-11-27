@@ -1,0 +1,43 @@
+; module SilkTest
+namespace SilkTest {
+    ; file /home/leo/Documentos/repos/tq-compiler/tq-compiler-vibes/Resources/SilkTest/main.tq
+    import @Std.Console    ; @0:0
+    import @Dotnet.System    ; @2:0
+    import @Dotnet.Silk.NET.Windowing    ; @3:0
+    import @Dotnet.Silk.NET.OpenGL    ; @4:0
+    import @Dotnet.Silk.NET.Maths { Vector2D }    ; @5:0
+    ; declares gl, main, onLoad, onRender, onUpdate, vao, vbo, window
+    
+    field private *IWindow @SilkTest.window    ; ns=SilkTest · /home/leo/Documentos/repos/tq-compiler/tq-compiler-vibes/Resources/SilkTest/main.tq(7,0)
+    field private *GL @SilkTest.gl    ; ns=SilkTest · /home/leo/Documentos/repos/tq-compiler/tq-compiler-vibes/Resources/SilkTest/main.tq(8,0)
+    field private uint @SilkTest.vao    ; ns=SilkTest · /home/leo/Documentos/repos/tq-compiler/tq-compiler-vibes/Resources/SilkTest/main.tq(10,0)
+    field private uint @SilkTest.vbo    ; ns=SilkTest · /home/leo/Documentos/repos/tq-compiler/tq-compiler-vibes/Resources/SilkTest/main.tq(11,0)
+    !public
+    define public void @SilkTest.main() {    ; ns=SilkTest · /home/leo/Documentos/repos/tq-compiler/tq-compiler-vibes/Resources/SilkTest/main.tq(13,0)
+        WindowOptions store(WindowOptions local(%windowOptions), WindowOptions @Default)    ; @14:1
+        {    ; @15:1
+            Vector2D(NaturalInteger(true)) store(Vector2D(NaturalInteger(true)) field(WindowOptions %windowOptions, @Size), Vector2D(NaturalInteger(true)) new Vector2D(NaturalInteger(true))(int convert(integer_literal 1000, int), int convert(integer_literal 600, int)))    ; @16:2
+            string store(string field(WindowOptions %windowOptions, @Title), string "Silk Test")    ; @17:2
+        }
+        *IWindow store(*IWindow @window, *IWindow call @Create(WindowOptions %windowOptions))    ; @20:1
+        ? call @add_Load(*Action delegate *Action @onLoad)    ; @22:1
+        ? call @add_Update(*Action(Float(64)) delegate *Action(Float(64)) @onUpdate)    ; @23:1
+        ? call @add_Render(*Action(Float(64)) delegate *Action(Float(64)) @onRender)    ; @24:1
+        void call @Run(*IView convert(*IWindow @window, *IView))    ; @26:1
+    }
+    define private void @SilkTest.onLoad() {    ; ns=SilkTest · /home/leo/Documentos/repos/tq-compiler/tq-compiler-vibes/Resources/SilkTest/main.tq(29,0)
+        *GL store(*GL @gl, *GL call @CreateOpenGL(*IGLContextSource convert(*IWindow @window, *IGLContextSource)))    ; @30:1
+        uint store(uint @vao, uint call @GenVertexArray())    ; @32:1
+        void call @BindVertexArray(uint @vao)    ; @33:1
+        [12]f32 store([12]f32 local(%vertices, [? 12]f32), [12]f32 array(f32 convert(decimal_literal 0.5, f32), f32 convert(decimal_literal 0.5, f32), f32 convert(decimal_literal 0.0, f32), f32 convert(decimal_literal 0.5, f32), f32 convert(decimal_literal -0.5, f32), f32 convert(decimal_literal 0.0, f32), f32 convert(decimal_literal -0.5, f32), f32 convert(decimal_literal -0.5, f32), f32 convert(decimal_literal 0.0, f32), f32 convert(decimal_literal -0.5, f32), f32 convert(decimal_literal 0.5, f32), f32 convert(decimal_literal 0.0, f32)))    ; @35:1
+        uint store(uint @vbo, uint call @GenBuffer())    ; @42:1
+        void call @BindBuffer(BufferTargetARB @ArrayBuffer, uint @vbo)    ; @43:1
+        void call @BufferData(type %Float(32), BufferTargetARB @ArrayBuffer, ReadOnlySpan(Float(32)) convert([]f32 addr([12]f32 %vertices), ReadOnlySpan(Float(32))), BufferUsageARB @StaticDraw)    ; @45:1
+    }
+    define private void @SilkTest.onUpdate(f64 %delta) {    ; ns=SilkTest · /home/leo/Documentos/repos/tq-compiler/tq-compiler-vibes/Resources/SilkTest/main.tq(53,0)
+    }
+    define private void @SilkTest.onRender(f64 %delta) {    ; ns=SilkTest · /home/leo/Documentos/repos/tq-compiler/tq-compiler-vibes/Resources/SilkTest/main.tq(57,0)
+        void call @ClearColor(f32 convert(decimal_literal 0.3882353, f32), f32 convert(decimal_literal 0.58431375, f32), f32 convert(decimal_literal 0.93333334, f32), f32 convert(decimal_literal 1.0, f32))    ; @58:1
+        void call @Clear(ClearBufferMask @ColorBufferBit)    ; @59:1
+    }
+}

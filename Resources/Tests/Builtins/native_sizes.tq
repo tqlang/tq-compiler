@@ -1,6 +1,6 @@
 from Std import { Test }
 
-# `iptr` and `uptr` have 32 or 64 bits depending on where the program runs, so the compiler checks the code for both sizes.
+# `iptr` and `uptr` has it's size depending on where the program runs, so the compiler checks the code for both sizes.
 # A literal has to fit in all of them: 100 does, 5000000000 would be an error ("when 'iptr' has 32 bits").
 # The fields are only here for the compiler to check their values for both sizes.
 let iptr nativeField = 100
