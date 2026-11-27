@@ -1963,6 +1963,18 @@ internal sealed class BodyEmitter
                 _il.Emit(OpCodes.Ceq);
             }
         }
+        else if (type is PointerType)
+        {
+            // An `UnsafePtr(T)` is null when it is the address 0.
+            _il.Emit(OpCodes.Ldc_I4_0);
+            _il.Emit(OpCodes.Conv_U);
+            _il.Emit(OpCodes.Ceq);
+            if (!equal)
+            {
+                _il.Emit(OpCodes.Ldc_I4_0);
+                _il.Emit(OpCodes.Ceq);
+            }
+        }
         else
         {
             _il.Emit(OpCodes.Ldnull);
@@ -2162,7 +2174,7 @@ internal sealed class BodyEmitter
         var expected = operation switch
         {
             UnsafeOperation.IntFromPtr or UnsafeOperation.AlignOf => 1,
-            UnsafeOperation.PtrFromInt or UnsafeOperation.PtrCast or UnsafeOperation.IsNull
+            UnsafeOperation.PtrFromInt or UnsafeOperation.PtrCast
                 or UnsafeOperation.RefFromPtr or UnsafeOperation.PtrFromRef => 2,
             _ => 3,
         };
@@ -2227,13 +2239,6 @@ internal sealed class BodyEmitter
                 _il.Emit(OpCodes.Div);
                 return system.IntPtr;
             }
-
-            case UnsafeOperation.IsNull:
-                Pointer(1);
-                _il.Emit(OpCodes.Ldc_I4_0);
-                _il.Emit(OpCodes.Conv_U);
-                _il.Emit(OpCodes.Ceq);
-                return system.Boolean;
 
             case UnsafeOperation.BitCast:
             {

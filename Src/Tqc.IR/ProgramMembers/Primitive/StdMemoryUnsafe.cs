@@ -25,9 +25,6 @@ public enum UnsafeOperation
     /// <summary>`ptrDiff(type T, UnsafePtr(T) left, UnsafePtr(T) right) iptr`: the difference in elements.</summary>
     PtrDiff,
 
-    /// <summary>`isNull(type T, UnsafePtr(T) pointer) bool`</summary>
-    IsNull,
-
     /// <summary>`refFromPtr(type T, UnsafePtr(T) pointer) Ref(T)`</summary>
     RefFromPtr,
 
@@ -78,7 +75,6 @@ public static class StdMemoryUnsafe
         Declare("ptrAdd", UnsafeOperation.PtrAdd, [T], [("pointer", t => types.UnsafePtrOf(t[0])), ("offset", _ => native)], t => types.UnsafePtrOf(t[0]));
         Declare("ptrDiff", UnsafeOperation.PtrDiff, [T],
             [("left", t => types.UnsafePtrOf(t[0])), ("right", t => types.UnsafePtrOf(t[0]))], _ => native);
-        Declare("isNull", UnsafeOperation.IsNull, [T], [("pointer", t => types.UnsafePtrOf(t[0]))], _ => new StructTypeReference(types.Bool));
         Declare("refFromPtr", UnsafeOperation.RefFromPtr, [T], [("pointer", t => types.UnsafePtrOf(t[0]))], t => types.RefOf(t[0]));
         Declare("ptrFromRef", UnsafeOperation.PtrFromRef, [T], [("reference", t => types.RefOf(t[0]))], t => types.UnsafePtrOf(t[0]));
         Declare("bitCast", UnsafeOperation.BitCast, ["To", "From"], [("value", t => t[1])], t => t[0]);

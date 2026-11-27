@@ -378,7 +378,7 @@ cada aplicação é uma `GenericInstance` da tabela compartilhada; não há nó 
   outro `T` passa por `ptrCast`; `Ref(AnyType)` e `UnsafePtr(AnyType)` como parâmetro casam com qualquer `Ref`/`UnsafePtr`, `ConversionRules`);
   `sliceFromPtr(type T, UnsafePtr(T) | Ref(T), uptr) []T` (um `MemoryManager` sobre o ponteiro, `Tq.UnsafeOps` no `Tq.Runtime`: a memória não é do slice, `T` não pode ter
   referências, e o tamanho cabe em `int`; senão lança exceção); `ptrCast(type T, UnsafePtr(qualquer)) UnsafePtr(T)`; `ptrAdd(type T, UnsafePtr(T), iptr)` e
-  `ptrDiff(type T, UnsafePtr(T), UnsafePtr(T)) iptr`, em elementos; `isNull`; `refFromPtr` e `ptrFromRef` (um `Ref` é um ponteiro gerenciado: o GC pode movê-lo, o
+  `ptrDiff(type T, UnsafePtr(T), UnsafePtr(T)) iptr`, em elementos; `ptr == null` / `ptr != null` (o `null` de um `UnsafePtr` é o endereço 0); `refFromPtr` e `ptrFromRef` (um `Ref` é um ponteiro gerenciado: o GC pode movê-lo, o
   `ptrFromRef` só serve para o que não se move); `bitCast(type To, type From, From) To` (`Unsafe.BitCast`: lança exceção se não forem valores do mesmo tamanho);
   `alignOf(type T) uint` (o .NET não informa: é o deslocamento de um `T` depois de um byte num struct sequencial; um tipo com referências alinha como ponteiro).
 - Operações bit a bit, só de inteiros (`TypeChecker.VisitBitwise`): `a ⋏ b` (e), `a ⋎ b` (ou), `a ⊕ b` (ou exclusivo), `~a` (não), `a << n` e `a >> n`

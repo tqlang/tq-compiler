@@ -11,8 +11,9 @@ from Dotnet.System.Runtime.InteropServices import { NativeMemory }
         let raw = NativeMemory.Alloc(16)
         let ints = Unsafe.ptrCast(i32, raw)
 
-        Test.assert(Unsafe.isNull(i32, ints), false)
-        Test.assert(Unsafe.isNull(i32, null), true)
+        Test.assert(ints == null, false)
+        Test.assert(ints != null, true)
+        Test.assert(null == ints, false)
 
         # An offset is in elements, and so is the difference between two pointers.
         let next = Unsafe.ptrAdd(i32, ints, 3)
@@ -25,7 +26,7 @@ from Dotnet.System.Runtime.InteropServices import { NativeMemory }
         Test.assert(Unsafe.ptrDiff(i32, back, ints) == 0, true)
 
         let uptr zero = 0
-        Test.assert(Unsafe.isNull(i32, Unsafe.ptrFromInt(i32, zero)), true)
+        Test.assert(Unsafe.ptrFromInt(i32, zero) == null, true)
 
         # Four bytes apart per element, whatever the pointer is cast to.
         let uptr here = Unsafe.intFromPtr(Unsafe.ptrCast(Opaque, ints))
@@ -57,7 +58,7 @@ from Dotnet.System.Runtime.InteropServices import { NativeMemory }
     {
         let i32 value = 7
         let pointer = Unsafe.ptrFromRef(i32, &value)
-        Test.assert(Unsafe.isNull(i32, pointer), false)
+        Test.assert(pointer == null, false)
 
         # The address of a reference is the address of its pointer.
         let uptr viaRef = Unsafe.intFromPtr(&value)
