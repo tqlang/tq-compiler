@@ -78,6 +78,9 @@ funções por uma chamada a uma única função (`FunctionTypeReference`), conve
   e `return f()` preferem os que retornam `T` (exato antes de com conversão) e descartam os que retornam outra coisa. Retorno
   desconhecido (genérico) serve, mas não é o melhor. Nos demais lugares (argumento de outra chamada, atribuição a variável
   existente, operandos) não há contexto, e o empate continua sendo ambiguidade.
+- Duas funções de mesmo nome no mesmo namespace, struct ou typedef (ou dois construtores de uma struct) com os mesmos
+  parâmetros e o mesmo retorno são erro de compilação, mesmo sem nenhuma chamada. Nomes de parâmetros e atributos não
+  diferenciam; `f(type T, T v)` e `f(type U, U v)` são a mesma assinatura.
 - Funções com `@implicitConvert` (um parâmetro, um retorno) registram uma conversão implícita; o argumento passa por
   uma chamada a elas, com custo maior que o alargamento. Só valem para código que alcança a função.
 - `@onset` torna um tipo observável: se o tipo de `a` tem uma função `@onset` (um parâmetro) que aceita `v`, então

@@ -35,6 +35,7 @@ internal sealed partial class TypeChecker(
             roots, (message, location) => diagnostics.ReportError(new TypeError(message, location)));
 
         InheritanceChecker.Check(module.RootNamespace, diagnostics);
+        DuplicateFunctionChecker.Check(module.RootNamespace, diagnostics);
 
         new TypeChecker(module.Types, diagnostics, conversions, operators)
             .CheckNamespace(module.RootNamespace, []);
