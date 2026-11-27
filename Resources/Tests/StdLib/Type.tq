@@ -38,7 +38,7 @@ func sizeOfGeneric(type T) uint => Type.sizeOf(T)
         Test.assert(Type.bitSizeOf(u128), 128)
         Test.assert(Type.bitSizeOf(f32), 32)
         Test.assert(Type.bitSizeOf(f64), 64)
-        Test.assert(Type.bitSizeOf(bool), 1)
+        Test.assert(Type.bitSizeOf(bool), 8)
         Test.assert(Type.bitSizeOf(SizePair), 64)
 	}
 }
