@@ -38,6 +38,9 @@ internal sealed partial class TypeChecker(
 
         new TypeChecker(module.Types, diagnostics, conversions, operators)
             .CheckNamespace(module.RootNamespace, []);
+
+        // After the types of the fields that are declared without one are known.
+        RecursiveStructChecker.Check(module.RootNamespace, diagnostics, value => module.Types.Get(value));
     }
 
     /// <summary>Above zero while something is tried that may fail without it being an error (see Quietly).</summary>
