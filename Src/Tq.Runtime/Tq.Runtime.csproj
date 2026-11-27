@@ -12,6 +12,7 @@
         <Nullable>enable</Nullable>
         <ImplicitUsings>disable</ImplicitUsings>
         <Optimize>true</Optimize>
+        <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
         <!-- the compiler rewrites the assembly, so its symbols would not match it -->
         <DebugType>none</DebugType>
     </PropertyGroup>

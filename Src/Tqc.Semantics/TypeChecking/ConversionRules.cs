@@ -96,6 +96,11 @@ internal static class ConversionRules
         if (argument is SliceTypeRef && parameter is SliceTypeRef { Element: var element } && IsStruct(element, types.AnyType))
             return new ArgumentMatch(MatchKind.Generic, GenericParameter);
 
+        // `Ref(AnyType)` and `UnsafePtr(AnyType)`: a reference, or a pointer, to whatever (`Std.Memory.Unsafe.intFromPtr`).
+        if ((types.IsRef(parameter, out var referred) && IsStruct(referred, types.AnyType) && types.IsRef(argument, out _))
+            || (types.IsUnsafePtr(parameter, out var pointee) && IsStruct(pointee, types.AnyType) && types.IsUnsafePtr(argument, out _)))
+            return new ArgumentMatch(MatchKind.Generic, GenericParameter);
+
         var widening = ClassifyWidening(argument, parameter, conversions.Abi);
         if (widening.Kind != MatchKind.None) return widening;
 

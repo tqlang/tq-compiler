@@ -38,6 +38,7 @@ from Tests import {
     Builtins.testBitwise()
     Builtins.testNativeSizes()
     Builtins.testTypeSize()
+    Interop.testUnsafeMemory()
 
     Builtins.testConstants()
     Interop.testGenericInterfaces()

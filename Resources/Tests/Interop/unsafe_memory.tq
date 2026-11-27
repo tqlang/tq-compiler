@@ -1,0 +1,83 @@
+from Std import { Test }
+from Std.Memory import { Unsafe }
+from Std.Types import { Opaque }
+from Dotnet.System.Runtime.InteropServices import { NativeMemory }
+
+# `Std.Memory.Unsafe`: what the language does not do with a pointer by itself. Nothing in it is checked.
+# Only types with a size of their own are used here: the sizes of `int` and `iptr` are the target's.
+@public func testUnsafeMemory() {
+    Test.newTestUnit("Std.Memory.Unsafe - pointers, offsets and addresses")
+    {
+        let raw = NativeMemory.Alloc(16)
+        let ints = Unsafe.ptrCast(i32, raw)
+
+        Test.assert(Unsafe.isNull(i32, ints), false)
+        Test.assert(Unsafe.isNull(i32, null), true)
+
+        # An offset is in elements, and so is the difference between two pointers.
+        let next = Unsafe.ptrAdd(i32, ints, 3)
+        Test.assert(Unsafe.ptrDiff(i32, next, ints) == 3, true)
+        Test.assert(Unsafe.ptrDiff(i32, ints, next) == -3, true)
+
+        # The address of a pointer, and the pointer of an address.
+        let uptr address = Unsafe.intFromPtr(raw)
+        let back = Unsafe.ptrFromInt(i32, address)
+        Test.assert(Unsafe.ptrDiff(i32, back, ints) == 0, true)
+
+        let uptr zero = 0
+        Test.assert(Unsafe.isNull(i32, Unsafe.ptrFromInt(i32, zero)), true)
+
+        # Four bytes apart per element, whatever the pointer is cast to.
+        let uptr here = Unsafe.intFromPtr(Unsafe.ptrCast(Opaque, ints))
+        let uptr there = Unsafe.intFromPtr(Unsafe.ptrCast(Opaque, next))
+        Test.assert(there - here == 12, true)
+
+        NativeMemory.Free(raw)
+    }
+
+    Test.newTestUnit("Std.Memory.Unsafe - a slice over raw memory")
+    {
+        let raw = NativeMemory.Alloc(16)
+        let ints = Unsafe.ptrCast(i32, raw)
+        let []i32 slice = Unsafe.sliceFromPtr(i32, ints, 4)
+
+        slice[0] = 10
+        slice[3] = 40
+        Test.assert(slice[0], 10)
+        Test.assert(slice[3], 40)
+
+        # It is the memory itself: another slice over the same place sees what was written.
+        let []i32 last = Unsafe.sliceFromPtr(i32, Unsafe.ptrAdd(i32, ints, 3), 1)
+        Test.assert(last[0], 40)
+
+        NativeMemory.Free(raw)
+    }
+
+    Test.newTestUnit("Std.Memory.Unsafe - references and pointers")
+    {
+        let i32 value = 7
+        let pointer = Unsafe.ptrFromRef(i32, &value)
+        Test.assert(Unsafe.isNull(i32, pointer), false)
+
+        # The address of a reference is the address of its pointer.
+        let uptr viaRef = Unsafe.intFromPtr(&value)
+        let uptr viaPointer = Unsafe.intFromPtr(Unsafe.ptrCast(Opaque, pointer))
+        Test.assert(viaRef == viaPointer, true)
+
+        let []i32 view = Unsafe.sliceFromPtr(i32, &value, 1)
+        Test.assert(view[0], 7)
+
+        let reference = Unsafe.refFromPtr(i32, pointer)
+        Test.assert(Unsafe.intFromPtr(reference) == viaRef, true)
+    }
+
+    Test.newTestUnit("Std.Memory.Unsafe - bitCast and alignOf")
+    {
+        Test.assert(Unsafe.bitCast(u32, f32, 1.0) == 1065353216, true)
+        Test.assert(Unsafe.bitCast(f32, u32, 1065353216) == 1.0, true)
+
+        Test.assert(Unsafe.alignOf(u8) == 1, true)
+        Test.assert(Unsafe.alignOf(i16) == 2, true)
+        Test.assert(Unsafe.alignOf(i32) == 4, true)
+    }
+}

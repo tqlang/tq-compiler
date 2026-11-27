@@ -373,6 +373,14 @@ cada aplicação é uma `GenericInstance` da tabela compartilhada; não há nó 
   `TqFunction` sem corpo (`type T` como parâmetro de tipo), no namespace primitivo `Std.Type`; o backend reconhece e emite o `sizeof` do IL, então quem responde é o
   runtime (e o `iptr` não é decidido na compilação). Aceita inteiros, floats, `bool` e `char`, structs por valor, classes e `*T` (`Ref`: o tamanho de um inteiro
   nativo, já que o IL não mede um ponteiro gerenciado), `UnsafePtr(T)` e o `T` de uma função genérica. Os bits são os bytes vezes `ByteBits` da ABI do backend.
+- `Std.Memory.Unsafe` (`StdMemoryUnsafe`, `UnsafeOperation`): intrínsecas de memória sobre `UnsafePtr(T)` e `Ref(T)`, sem corpo; o Cecil emite o IL (`EmitUnsafe`).
+  Nada é conferido em tempo de execução. `ptrFromInt(type T, iptr|uptr) UnsafePtr(T)`; `intFromPtr(UnsafePtr(Opaque) | Ref(qualquer coisa)) uptr` (um `UnsafePtr(T)` de
+  outro `T` passa por `ptrCast`; `Ref(AnyType)` e `UnsafePtr(AnyType)` como parâmetro casam com qualquer `Ref`/`UnsafePtr`, `ConversionRules`);
+  `sliceFromPtr(type T, UnsafePtr(T) | Ref(T), uptr) []T` (um `MemoryManager` sobre o ponteiro, `Tq.UnsafeOps` no `Tq.Runtime`: a memória não é do slice, `T` não pode ter
+  referências, e o tamanho cabe em `int`; senão lança exceção); `ptrCast(type T, UnsafePtr(qualquer)) UnsafePtr(T)`; `ptrAdd(type T, UnsafePtr(T), iptr)` e
+  `ptrDiff(type T, UnsafePtr(T), UnsafePtr(T)) iptr`, em elementos; `isNull`; `refFromPtr` e `ptrFromRef` (um `Ref` é um ponteiro gerenciado: o GC pode movê-lo, o
+  `ptrFromRef` só serve para o que não se move); `bitCast(type To, type From, From) To` (`Unsafe.BitCast`: lança exceção se não forem valores do mesmo tamanho);
+  `alignOf(type T) uint` (o .NET não informa: é o deslocamento de um `T` depois de um byte num struct sequencial; um tipo com referências alinha como ponteiro).
 - Operações bit a bit, só de inteiros (`TypeChecker.VisitBitwise`): `a ⋏ b` (e), `a ⋎ b` (ou), `a ⊕ b` (ou exclusivo), `~a` (não), `a << n` e `a >> n`
   (`>>` aritmético em inteiro com sinal, lógico sem sinal), `a <<% n` e `a >>% n` (a quantidade é tomada módulo o tamanho do tipo). Sem alternativas
   em ASCII e sem atribuição composta. Precedência como Rust e Zig, do mais forte: `* /`, `+ -`, deslocamentos, `⋏`, `⊕`, `⋎`, comparações.

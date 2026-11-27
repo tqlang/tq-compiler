@@ -1623,6 +1623,9 @@ internal sealed class BodyEmitter
             case IntrinsicMethod intrinsic when receiver != null:
                 return EmitIntrinsic(intrinsic.Owner.Name, intrinsic.Name, receiver, call.Location);
 
+            case TqFunction unsafeFunction when StdMemoryUnsafe.TryGet(unsafeFunction, out var unsafeOperation):
+                return EmitUnsafe(unsafeOperation, call);
+
             case TqFunction sizeFunction when StdType.IsIntrinsic(sizeFunction):
                 return EmitTypeSize(call, bits: ReferenceEquals(sizeFunction, StdType.BitSizeOf));
 
@@ -2125,6 +2128,146 @@ internal sealed class BodyEmitter
         }
 
         return _owner.Module.TypeSystem.UInt32;
+    }
+
+    /// <summary>
+    /// The intrinsics of `Std.Memory.Unsafe`. A pointer is a native integer on the stack, and so is a managed reference (`Ref(T)`) once
+    /// it is converted: the instructions do not check what they are given, which is what unsafe means. The types come first in the
+    /// arguments of the call, as in any generic function.
+    /// </summary>
+    private TypeReference? EmitUnsafe(UnsafeOperation operation, IrCall call)
+    {
+        var arguments = call.ArgumentsList.arguments;
+        var system = _owner.Module.TypeSystem;
+        var result = TypeOfNode(call);
+
+        TypeReference Type(int index) => _owner.MapExpression(arguments[index]);
+
+        // A pointer, or a reference taken as one.
+        void Pointer(int index)
+        {
+            if (EmitValue(arguments[index], null) is ByReferenceType) _il.Emit(OpCodes.Conv_U);
+        }
+
+        // The size of an element, for what moves by elements.
+        TypeReference? Element()
+        {
+            var element = Type(0);
+            if (!IsVoid(element)) return element;
+
+            Report("A pointer to 'Opaque' has no element size: cast it to a pointer to a type first (ptrCast)", call.Location);
+            return null;
+        }
+
+        var expected = operation switch
+        {
+            UnsafeOperation.IntFromPtr or UnsafeOperation.AlignOf => 1,
+            UnsafeOperation.PtrFromInt or UnsafeOperation.PtrCast or UnsafeOperation.IsNull
+                or UnsafeOperation.RefFromPtr or UnsafeOperation.PtrFromRef => 2,
+            _ => 3,
+        };
+
+        if (arguments.Length != expected)
+        {
+            Report($"'{operation}' takes {expected} argument(s), but the call gives {arguments.Length}", call.Location);
+            return null;
+        }
+
+        switch (operation)
+        {
+            case UnsafeOperation.PtrFromInt:
+                EmitValue(arguments[1], null);
+                _il.Emit(OpCodes.Conv_U);
+                return result;
+
+            case UnsafeOperation.IntFromPtr:
+                Pointer(0);
+                _il.Emit(OpCodes.Conv_U);
+                return system.UIntPtr;
+
+            case UnsafeOperation.SliceFromPtr:
+            {
+                Pointer(1);
+                EmitValue(arguments[2], null);
+                _il.Emit(OpCodes.Conv_U);
+
+                var helper = _owner.Backend.Runtime.UnsafeOps.Methods.First(method => method.Name == "SliceFromPtr");
+                var instance = new GenericInstanceMethod(_owner.Use(helper));
+                instance.GenericArguments.Add(Type(0));
+                _il.Emit(OpCodes.Call, instance);
+                return result;
+            }
+
+            case UnsafeOperation.PtrCast:
+            case UnsafeOperation.RefFromPtr:
+            case UnsafeOperation.PtrFromRef:
+                Pointer(1);
+                return result;
+
+            case UnsafeOperation.PtrAdd:
+            {
+                if (Element() is not { } element) return null;
+                Pointer(1);
+                EmitValue(arguments[2], null);
+                _il.Emit(OpCodes.Sizeof, element);
+                _il.Emit(OpCodes.Conv_I);
+                _il.Emit(OpCodes.Mul);
+                _il.Emit(OpCodes.Add);
+                return result;
+            }
+
+            case UnsafeOperation.PtrDiff:
+            {
+                if (Element() is not { } element) return null;
+                Pointer(1);
+                Pointer(2);
+                _il.Emit(OpCodes.Sub);
+                _il.Emit(OpCodes.Sizeof, element);
+                _il.Emit(OpCodes.Conv_I);
+                _il.Emit(OpCodes.Div);
+                return system.IntPtr;
+            }
+
+            case UnsafeOperation.IsNull:
+                Pointer(1);
+                _il.Emit(OpCodes.Ldc_I4_0);
+                _il.Emit(OpCodes.Conv_U);
+                _il.Emit(OpCodes.Ceq);
+                return system.Boolean;
+
+            case UnsafeOperation.BitCast:
+            {
+                // `Unsafe.BitCast<TFrom, TTo>`: it throws if the two are not the same size, or not values.
+                var bitCast = _owner.Backend.Core.Find("System.Runtime.CompilerServices.Unsafe")?.Methods
+                    .FirstOrDefault(method => method.Name == "BitCast" && method.HasGenericParameters && method.GenericParameters.Count == 2);
+                if (bitCast == null)
+                {
+                    Report("'bitCast' needs 'System.Runtime.CompilerServices.Unsafe.BitCast', which this runtime does not have", call.Location);
+                    return null;
+                }
+
+                EmitValue(arguments[2], null);
+                var instance = new GenericInstanceMethod(_owner.Module.ImportReference(bitCast));
+                instance.GenericArguments.Add(Type(1));
+                instance.GenericArguments.Add(Type(0));
+                _il.Emit(OpCodes.Call, instance);
+                return Type(0);
+            }
+
+            case UnsafeOperation.AlignOf:
+            {
+                var helper = _owner.Backend.Runtime.UnsafeOps.Methods.First(method => method.Name == "AlignOf");
+                var instance = new GenericInstanceMethod(_owner.Use(helper));
+                instance.GenericArguments.Add(Type(0));
+                _il.Emit(OpCodes.Call, instance);
+                _il.Emit(OpCodes.Conv_U4);
+                return system.UInt32;
+            }
+
+            default:
+                Report($"'{operation}' is not supported by this backend", call.Location);
+                return null;
+        }
     }
 
     private TypeReference? EmitIntrinsic(string owner, string member, IrExpression operand, SourceLocation location)
