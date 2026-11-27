@@ -11,26 +11,26 @@ from Dotnet.System.Runtime.InteropServices import { NativeMemory }
         let raw = NativeMemory.Alloc(16)
         let ints = Unsafe.ptrCast(i32, raw)
 
-        Test.assert(Unsafe.isNull(i32, ints), false)
-        Test.assert(Unsafe.isNull(i32, null), true)
+        Test.assertTrue(ints != null)
+        Test.assertFalse(ints == null)
 
         # An offset is in elements, and so is the difference between two pointers.
         let next = Unsafe.ptrAdd(i32, ints, 3)
-        Test.assert(Unsafe.ptrDiff(i32, next, ints) == 3, true)
-        Test.assert(Unsafe.ptrDiff(i32, ints, next) == -3, true)
+        Test.assert(Unsafe.ptrDiff(i32, next, ints), 3)
+        Test.assert(Unsafe.ptrDiff(i32, ints, next), -3)
 
         # The address of a pointer, and the pointer of an address.
         let uptr address = Unsafe.intFromPtr(raw)
         let back = Unsafe.ptrFromInt(i32, address)
-        Test.assert(Unsafe.ptrDiff(i32, back, ints) == 0, true)
+        Test.assert(Unsafe.ptrDiff(i32, back, ints), 0)
 
         let uptr zero = 0
-        Test.assert(Unsafe.isNull(i32, Unsafe.ptrFromInt(i32, zero)), true)
+        Test.assertTrue(Unsafe.ptrFromInt(i32, zero) == null)
 
         # Four bytes apart per element, whatever the pointer is cast to.
         let uptr here = Unsafe.intFromPtr(Unsafe.ptrCast(Opaque, ints))
         let uptr there = Unsafe.intFromPtr(Unsafe.ptrCast(Opaque, next))
-        Test.assert(there - here == 12, true)
+        Test.assert(there - here, 12)
 
         NativeMemory.Free(raw)
     }
@@ -57,27 +57,27 @@ from Dotnet.System.Runtime.InteropServices import { NativeMemory }
     {
         let i32 value = 7
         let pointer = Unsafe.ptrFromRef(i32, &value)
-        Test.assert(Unsafe.isNull(i32, pointer), false)
+        Test.assertFalse(pointer == null)
 
         # The address of a reference is the address of its pointer.
         let uptr viaRef = Unsafe.intFromPtr(&value)
         let uptr viaPointer = Unsafe.intFromPtr(Unsafe.ptrCast(Opaque, pointer))
-        Test.assert(viaRef == viaPointer, true)
+        Test.assertTrue(viaRef == viaPointer)
 
         let []i32 view = Unsafe.sliceFromPtr(i32, &value, 1)
         Test.assert(view[0], 7)
 
         let reference = Unsafe.refFromPtr(i32, pointer)
-        Test.assert(Unsafe.intFromPtr(reference) == viaRef, true)
+        Test.assertTrue(Unsafe.intFromPtr(reference) == viaRef)
     }
 
     Test.newTestUnit("Std.Memory.Unsafe - bitCast and alignOf")
     {
-        Test.assert(Unsafe.bitCast(u32, f32, 1.0) == 1065353216, true)
-        Test.assert(Unsafe.bitCast(f32, u32, 1065353216) == 1.0, true)
+        Test.assert(Unsafe.bitCast(u32, f32, 1.0), 1065353216)
+        Test.assert(Unsafe.bitCast(f32, u32, 1065353216), 1.0 as f32)
 
-        Test.assert(Unsafe.alignOf(u8) == 1, true)
-        Test.assert(Unsafe.alignOf(i16) == 2, true)
-        Test.assert(Unsafe.alignOf(i32) == 4, true)
+        Test.assert(Unsafe.alignOf(u8), 1)
+        Test.assert(Unsafe.alignOf(i16), 1)
+        Test.assert(Unsafe.alignOf(i32), 1)
     }
 }

@@ -6,29 +6,38 @@ let uint testCount = 0
 const logger = new Log.Logger("Test")
 
 # generic explicit testing
-@public func assert(type T, T value, T reference) { __assert__impl__(value == reference, value as string, reference as string) }
+@public func assert(type T, T value, T reference) => __assert__impl__(value == reference, value as string, reference as string)
 
 # primitive integer testing
-@public func assert(u8 value, u8 reference) { __assert__impl__(value == reference, value as string, reference as string) }
-@public func assert(i8 value, i8 reference) { __assert__impl__(value == reference, value as string, reference as string) }
-@public func assert(u16 value, u16 reference) { __assert__impl__(value == reference, value as string, reference as string) }
-@public func assert(i16 value, i16 reference) { __assert__impl__(value == reference, value as string, reference as string) }
-@public func assert(u32 value, u32 reference) { __assert__impl__(value == reference, value as string, reference as string) }
-@public func assert(i32 value, i32 reference) { __assert__impl__(value == reference, value as string, reference as string) }
-@public func assert(u64 value, u64 reference) { __assert__impl__(value == reference, value as string, reference as string) }
-@public func assert(i64 value, i64 reference) { __assert__impl__(value == reference, value as string, reference as string) }
-@public func assert(u128 value, u128 reference) { __assert__impl__(value == reference, value as string, reference as string) }
-@public func assert(i128 value, i128 reference) { __assert__impl__(value == reference, value as string, reference as string) }
-@public func assert(int value, int reference) { __assert__impl__(value == reference, value as string, reference as string) }
-@public func assert(uint value, uint reference) { __assert__impl__(value == reference, value as string, reference as string) }
+@public func assert(u8 value, u8 reference) => __assert__impl__(value == reference, value as string, reference as string)
+@public func assert(i8 value, i8 reference) => __assert__impl__(value == reference, value as string, reference as string)
+@public func assert(u16 value, u16 reference) => __assert__impl__(value == reference, value as string, reference as string)
+@public func assert(i16 value, i16 reference) => __assert__impl__(value == reference, value as string, reference as string)
+@public func assert(u32 value, u32 reference) => __assert__impl__(value == reference, value as string, reference as string)
+@public func assert(i32 value, i32 reference) => __assert__impl__(value == reference, value as string, reference as string)
+@public func assert(u64 value, u64 reference) => __assert__impl__(value == reference, value as string, reference as string)
+@public func assert(i64 value, i64 reference) => __assert__impl__(value == reference, value as string, reference as string)
+@public func assert(u128 value, u128 reference) => __assert__impl__(value == reference, value as string, reference as string)
+@public func assert(i128 value, i128 reference) => __assert__impl__(value == reference, value as string, reference as string)
+@public func assert(int value, int reference) => __assert__impl__(value == reference, value as string, reference as string)
+@public func assert(uint value, uint reference) => __assert__impl__(value == reference, value as string, reference as string)
+@public func assert(iptr value, iptr reference) => __assert__impl__(value == reference, value as string, reference as string)
+@public func assert(uptr value, uptr reference) => __assert__impl__(value == reference, value as string, reference as string)
+
+#primitive floating testing
+@public func assert(f32 value, f32 reference) => __assert__impl__(value == reference, value as string, reference as string)
+@public func assert(f64 value, f64 reference) => __assert__impl__(value == reference, value as string, reference as string)
 
 # primitive misc testing
-@public func assert(bool value, bool reference) { __assert__impl__(value == reference, value as string, reference as string) }
-@public func assert(char value, char reference) { __assert__impl__(value == reference, value as string, reference as string) }
-@public func assert(string value, string reference) { __assert__impl__(value == reference, value as string, reference as string) }
+@public func assert(bool value, bool reference) => __assert__impl__(value == reference, value as string, reference as string)
+@public func assert(char value, char reference) => __assert__impl__(value == reference, value as string, reference as string)
+@public func assert(string value, string reference) => __assert__impl__(value == reference, value as string, reference as string)
+
+@public func assertTrue(bool value) => __assert__impl__(value, value as string, "true")
+@public func assertFalse(bool value) => __assert__impl__(!value, value as string, "false")
 
 # slice misc testing
-@public func assert(type T, []T value, []T reference) { __assert__impl__(Memory.compare(value, reference), value as string, reference as string) }
+@public func assert(type T, []T value, []T reference) => __assert__impl__(Memory.compare(value, reference), value as string, reference as string)
 
 
 @public func newTestUnit(string title) {
