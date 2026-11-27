@@ -15,9 +15,9 @@ internal sealed class TqRuntimeAssembly
     public AssemblyDefinition Assembly { get; }
     public TypeDefinition Failable { get; }
     public TypeDefinition FailableOf { get; }
-
-    /// <summary>`TqFormatter.Format(object)`.</summary>
-    public MethodDefinition FormatterFormatStatic { get; }
+    
+    public MethodDefinition Formatter_Format_Object { get; }
+    public Dictionary<string, MethodDefinition> FormatterMethods { get; } = [];
 
     /// <summary>`Tq.Ops`, with the helpers of the operators; by operator and type.</summary>
     public TypeDefinition Ops { get; }
@@ -36,10 +36,27 @@ internal sealed class TqRuntimeAssembly
         FailableOf = Require("Failable`1");
         Ops = Require("Ops");
 
-        FormatterFormatStatic = Require("TqFormatter").Methods.FirstOrDefault(method =>
-                method is { Name: "Format", IsStatic: true, Parameters.Count: 1 })
-            ?? throw new BackendError($"The method '{Namespace}.TqFormatter.Format' was not found in '{path}'");
-
+        {
+            var formatterType = Require("TqFormatter");
+            
+            Formatter_Format_Object = formatterType.Methods.FirstOrDefault(m =>
+                    m is { Name: "Format", IsStatic: true, Parameters.Count: 1 } &&
+                    m.Parameters[0].ParameterType.FullName == "System.Object")
+                ?? throw new BackendError($"The method '{Namespace}.TqFormatter.Format(object)' was not found.");
+            
+            foreach (var method in formatterType.Methods)
+            {
+                if (method.Name != "Format" || !method.IsStatic || method.Parameters.Count != 1) continue;
+                
+                var paramType = method.Parameters[0].ParameterType;
+                var elementType = paramType.GetElementType()?.FullName;
+                
+                if (elementType != null) FormatterMethods[elementType] = method;
+            }
+        }
+        
+        return;
+        
         TypeDefinition Require(string type) =>
             Assembly.MainModule.GetType(Namespace, type)
             ?? throw new BackendError($"The type '{Namespace}.{type}' was not found in '{path}'");

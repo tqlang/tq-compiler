@@ -974,22 +974,16 @@ internal sealed class BodyEmitter
 
     private TypeReference EmitConcat(IrStringConcat concat)
     {
-        var @object = Core("System.Object");
+        var sbType = Core("System.Text.StringBuilder");
+        var sbCtor = _target.ImportReference(sbType.Resolve().Methods.First(m => m.IsConstructor && m.Parameters.Count == 0));
+        var sbAppendStr = _target.ImportReference(sbType.Resolve().Methods.First(m => m.Name == "Append" && m.Parameters.Count == 1 && m.Parameters[0].ParameterType.FullName == "System.String"));
+        var sbToString = _target.ImportReference(sbType.Resolve().Methods.First(m => m.Name == "ToString" && m.Parameters.Count == 0));
+        
+        _il.Emit(OpCodes.Newobj, sbCtor);
 
-        _il.Emit(OpCodes.Ldc_I4, concat.Parts.Length);
-        _il.Emit(OpCodes.Newarr, @object);
-
-        for (var i = 0; i < concat.Parts.Length; i++)
+        foreach (var part in concat.Parts)
         {
-            _il.Emit(OpCodes.Dup);
-            _il.Emit(OpCodes.Ldc_I4, i);
-
-            var part = concat.Parts[i];
-            
-            if (part is IrStringConstant textConstant)
-            {
-                _il.Emit(OpCodes.Ldstr, textConstant.Value);
-            }
+            if (part is IrStringConstant textConstant) _il.Emit(OpCodes.Ldstr, textConstant.Value);
             else
             {
                 var partType = Emit(part, null);
@@ -999,29 +993,38 @@ internal sealed class BodyEmitter
                     _il.Emit(OpCodes.Ldnull);
                     partType = Core("System.Object");
                 }
-                
-                if (partType is GenericInstanceType { ElementType.FullName:
-                    "System.Memory`1" or "System.ReadOnlyMemory`1" or "System.Span`1" or "System.ReadOnlySpan`1" } sliceLike)
+
+                if (partType is GenericInstanceType sliceLike &&
+                    _owner.Backend.Runtime.FormatterMethods.TryGetValue(sliceLike.ElementType.FullName, out var specificFormatter))
                 {
-                    var elem = sliceLike.GenericArguments[0];
-                    var temp = NewTemp(sliceLike);
-                    _il.Emit(OpCodes.Stloc, temp);
-                    _il.Emit(OpCodes.Ldloca, temp);
-                    _il.Emit(OpCodes.Call, _owner.GenericMember(sliceLike.ElementType.FullName, sliceLike, "ToArray", 0));
-                    partType = new ArrayType(elem);
+                    var method = new GenericInstanceMethod(_target.ImportReference(specificFormatter));
+                    method.GenericArguments.Add(sliceLike.GenericArguments[0]);
+                    _il.Emit(OpCodes.Call, method);
                 }
-                
-                if (partType.IsValueType) _il.Emit(OpCodes.Box, partType);
-                
-                // Importa e chama o formatador estático do Tq.Runtime
-                var formatMethod = _target.ImportReference(_owner.Backend.Runtime.FormatterFormatStatic);
-                _il.Emit(OpCodes.Call, formatMethod);
+                else
+                {
+                    if (partType is GenericInstanceType
+                        {
+                            ElementType.FullName: "System.Memory`1" or "System.ReadOnlyMemory`1"
+                            or "System.Span`1" or "System.ReadOnlySpan`1",
+                        } slice)
+                    {
+                        var temp = NewTemp(slice);
+                        _il.Emit(OpCodes.Stloc, temp);
+                        _il.Emit(OpCodes.Ldloca, temp);
+                        _il.Emit(OpCodes.Call, _owner.GenericMember(slice.ElementType.FullName, slice, "ToArray", 0));
+                        partType = new ArrayType(slice.GenericArguments[0]);
+                    }
+
+                    if (partType.IsValueType) _il.Emit(OpCodes.Box, partType);
+                    _il.Emit(OpCodes.Call, _target.ImportReference(_owner.Backend.Runtime.Formatter_Format_Object));
+                }
             }
 
-            _il.Emit(OpCodes.Stelem_Ref);
+            _il.Emit(OpCodes.Callvirt, sbAppendStr);
         }
-
-        _il.Emit(OpCodes.Call, Library("System.String", "Concat", "System.Object[]"));
+        
+        _il.Emit(OpCodes.Callvirt, sbToString);
         return Core("System.String");
     }
 
