@@ -250,6 +250,17 @@ internal sealed partial class TypeChecker(
             case IrExpressionStatement expressionStatement:
                 return expressionStatement with { Expression = VisitPerSize(expressionStatement.Expression, Expectation.Discard) };
 
+            case IrDelete deleteStatement:
+            {
+                var operand = VisitPerSize(deleteStatement.Operand);
+                var operandType = TypeOf(operand);
+                if (operandType != null && !Destructors.Has(operandType))
+                    Error($"'delete' needs a value of a type that has a destructor (or implements 'IDisposable'), not '{TypeFormatter.Format(operandType)}'",
+                        operand.Location);
+
+                return deleteStatement with { Operand = operand };
+            }
+
             case IrIf ifStatement:
             {
                 var condition = VisitPerSize(ifStatement.Condition);

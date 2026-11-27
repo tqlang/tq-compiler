@@ -341,6 +341,10 @@ cada aplicação é uma `GenericInstance` da tabela compartilhada; não há nó 
   estática de `f` com `x` como primeiro argumento (`TypeChecker.ExtensionWhenMembersFail`), e o receptor converte como um argumento.
   Ainda não: extensões com parâmetros de tipo próprios (LINQ) nem de receptor genérico, extensões declaradas em Tq, `ref this`, extensão
   de tipos sem lista de membros (inteiros, fatias). O dump do módulo marca `<extension>`.
+- `delete valor` (`DeleteStatementNode` → `IrDelete`): chama o destructor do valor, a única forma de ele rodar por enquanto. O tipo tem de ter
+  `destructor` (ele mesmo ou herdado), ou ser um tipo .NET que implementa `IDisposable` (`Destructors.Has`); senão é erro de compilação. O backend emite
+  `IDisposable.Dispose` (`constrained.` + `callvirt` no endereço do valor, que é destruído no lugar e não numa cópia; `callvirt` numa classe, ou `*Classe`).
+  Ainda não há destruição automática no fim do escopo, análise de uso após `delete`, nem destructor dos campos.
 - Fatia para view do .NET: em argumentos de chamada (só aí) um `[]T` vira `Span(T)`, `ReadOnlySpan(T)`, `Memory(T)` ou
   `ReadOnlyMemory(T)` (`ConversionRules.ClassifyArgument`, custo 20; o `T` tem de ser o mesmo do elemento; `[N]T` não converte, é um
   buffer da pilha). No backend a fatia é um `Tq.Slice<T>`, que converte para `Span`, `ReadOnlySpan` e `ReadOnlyMemory` (e `Memory` só se a memória é gerenciada: numa fatia de memória bruta lança exceção). O caminho contrário, `Span(T)` ou `Memory(T)` do .NET onde se pede `[]T`, é implícito em qualquer lugar (`ClassifyViewAsSlice`; os `ReadOnly*` não, porque a fatia é gravável);
@@ -555,7 +559,7 @@ usado com ou sem um módulo `dotnet` que o liste.
   as constantes; casos numéricos sem nome não aparecem; o valor de um caso é um número ou uma constante .NET, como `CsSeekOrigin.Begin`). Structs genéricas: ver "Structs genéricas de Tq em .NET".
 - Acesso: `@public` é público; o resto (namespace/módulo) é `internal`, o máximo que o .NET diz.
 - Funções: `@static`, `@virtual` e `@override` viram os flags; `lazy` ainda não.
-  Classes sem construtor ganham o construtor sem argumentos; o `destructor` é o `Finalize` (vazio por enquanto).
+  Classes sem construtor ganham o construtor sem argumentos; o `destructor` é o `Dispose` do `IDisposable`, que o tipo (struct ou classe) implementa, e não um finalizador: só roda com `delete`. Uma classe que estende outra com destructor sobrescreve o `Dispose` dela (o destructor da base **não** é encadeado ainda).
 - Propriedades são propriedades .NET; o campo de apoio (`<nome>k__BackingField`) é criado pelo backend quando
   `HasBackingField`. `get = f` precisa nomear uma função do mesmo tipo.
 - Tipos: `i8`..`i128`/`u8`..`u128`, `int`/`uint` = 32 bits, `iptr`/`uptr` = `IntPtr`/`UIntPtr`, `f16/f32/f64`

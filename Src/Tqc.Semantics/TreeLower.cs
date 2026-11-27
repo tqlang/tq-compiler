@@ -627,6 +627,10 @@ public static class TreeLower
                     yield return new IrBreak(node.GetLoc(ctx.SrcFile));
                 break;
 
+                case DeleteStatementNode deleteStatement:
+                    yield return new IrDelete(deleteStatement.GetLoc(ctx.SrcFile), LowerExpression(ctx, deleteStatement.Expression));
+                break;
+
                 case ReturnStatementNode returnStatement:
                     yield return new IrReturnStatement(
                         returnStatement.GetLoc(ctx.SrcFile),

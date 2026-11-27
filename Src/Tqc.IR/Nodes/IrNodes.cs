@@ -38,6 +38,9 @@ public record IrWhile(
 
 /// <summary>`break`: leaves the closest loop.</summary>
 public record IrBreak(SourceLocation Location) : IrStatement(Location);
+
+/// <summary>`delete value`: calls the destructor of the value (and of its fields). It is the only way a destructor is called.</summary>
+public record IrDelete(SourceLocation Location, IrExpression Operand) : IrStatement(Location);
 #endregion
 
 #region Expressions

@@ -13,6 +13,7 @@ from Tests import {
     Builtins.testProperties()
     Builtins.testConstants()
     Builtins.testStrings()
+    Builtins.testDestructors()
     Builtins.testProtocols()
     Builtins.testInheritance()
     Builtins.testPolymorphism()

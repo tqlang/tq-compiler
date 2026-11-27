@@ -1,0 +1,83 @@
+from Std import { Test }
+from Dotnet.System import { Object, EventArgs }
+from Dotnet.System.ComponentModel import { Component }
+
+# The destructor of a type is only called by `delete`; the type implements IDisposable, with the destructor as its Dispose.
+let int destroyed = 0
+
+struct Tally {
+    let int amount = 0
+
+    destructor() {
+        destroyed = destroyed * 10 + amount
+    }
+}
+
+@class struct Handle {
+    let int id = 0
+
+    destructor() {
+        destroyed = destroyed * 10 + id
+    }
+}
+
+@class struct SpecialHandle extends Handle {
+    destructor() {
+        destroyed = destroyed * 10 + 9
+    }
+}
+
+# The destructor of Component (Dispose) raises its Disposed event.
+func onDestroyed(*Object sender, *EventArgs args) { destroyed = destroyed + 1 }
+
+func makeTally(int amount) Tally {
+    let Tally result
+    result.amount = amount
+    return result
+}
+
+@public func testDestructors() {
+    Test.newTestUnit("Builtins - destructors - delete calls the destructor of a struct")
+    {
+        destroyed = 0
+        let Tally first = makeTally(3)
+        Test.assert(destroyed, 0)
+
+        delete first
+        Test.assert(destroyed, 3)
+    }
+
+    Test.newTestUnit("Builtins - destructors - delete calls the destructor of a class")
+    {
+        destroyed = 0
+        let resource = new Handle()
+        resource.id = 4
+        delete resource
+        Test.assert(destroyed, 4)
+    }
+
+    Test.newTestUnit("Builtins - destructors - the destructor of a class that extends another is the one that runs")
+    {
+        destroyed = 0
+        let *Handle resource = new SpecialHandle()
+        delete resource
+        Test.assert(destroyed, 9)
+    }
+
+    Test.newTestUnit("Builtins - destructors - a destructor is not called without delete")
+    {
+        destroyed = 0
+        let Tally first = makeTally(5)
+        first.amount = 6
+        Test.assert(destroyed, 0)
+    }
+
+    Test.newTestUnit("Builtins - destructors - delete calls Dispose of a type of .NET")
+    {
+        destroyed = 0
+        let component = new Component()
+        component.Disposed += onDestroyed
+        delete component
+        Test.assert(destroyed, 1)
+    }
+}

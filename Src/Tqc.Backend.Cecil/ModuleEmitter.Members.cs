@@ -367,20 +367,44 @@ internal sealed partial class ModuleEmitter
         return result;
     }
 
-    /// <summary>A destructor is the finalizer of a class. Its body is not translated yet, so it does nothing.</summary>
+    /// <summary>
+    /// A destructor is the `Dispose` of `IDisposable`, which the type implements: that is how .NET calls it, and `delete` is the only
+    /// way Tq does. It is not a finalizer: the garbage collector never calls it. A class that extends one with a destructor overrides
+    /// its `Dispose` (it already implements the interface).
+    /// </summary>
     private void DeclareDestructor(Container container, TqStruct structure, TqFunction destructor)
     {
-        if (!IsClass(structure))
-        {
-            Report($"The struct '{structure.Name}' is by value and cannot have a destructor in .NET; mark it '@class'", destructor.SourceLocation);
-            return;
-        }
+        var overrides = IsClass(structure) && ExtendsDestructor(structure);
 
-        var method = new MethodDefinition("Finalize",
-            MethodAttributes.Family | MethodAttributes.HideBySig | MethodAttributes.Virtual, Core("System.Void"));
+        var attributes = MethodAttributes.Public | MethodAttributes.HideBySig | MethodAttributes.Virtual;
+        if (!overrides) attributes |= MethodAttributes.NewSlot;
+        if (!IsClass(structure)) attributes |= MethodAttributes.Final;
+
+        var method = new MethodDefinition("Dispose", attributes, Core("System.Void"));
         container.Type.Methods.Add(method);
         _backend.Definitions[destructor] = method;
-        _bodies.Add((method, il => il.Emit(OpCodes.Ret)));
+
+        if (!overrides) container.Type.Interfaces.Add(new InterfaceImplementation(Core("System.IDisposable")));
+        _bodies.Add((method, il => new BodyEmitter(this, destructor, method, il).Emit()));
+    }
+
+    /// <summary>Whether a struct that this one extends has a destructor.</summary>
+    private static bool ExtendsDestructor(TqStruct structure)
+    {
+        var steps = 0;
+        for (var current = structure.BaseStruct as TqStruct; current != null && steps++ < 256; current = current.BaseStruct as TqStruct)
+        {
+            if (current.Destructor != null) return true;
+        }
+
+        return false;
+    }
+
+    /// <summary>`IDisposable.Dispose`, which is what `delete` calls.</summary>
+    internal MethodReference DisposeMethod()
+    {
+        var type = _backend.Core.Find("System.IDisposable") ?? throw new BackendError("The type 'System.IDisposable' was not found in 'System.Runtime'");
+        return _module.ImportReference(type.Methods.First(method => method.Name == "Dispose"));
     }
 
     /// <summary>The constructor without arguments of what the struct extends; null if there is none to call.</summary>

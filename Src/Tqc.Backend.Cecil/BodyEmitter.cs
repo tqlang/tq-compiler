@@ -192,6 +192,25 @@ internal sealed class BodyEmitter
     private TypeReference? TypeOfNode(IrExpression expression) =>
         _types.Get(expression) is { } type ? _owner.MapType(type, expression.Location) : null;
 
+    /// <summary>`delete value`: the `Dispose` of the value, which is its destructor (a value is disposed in place, not a copy of it).</summary>
+    private void EmitDelete(IrDelete @delete)
+    {
+        var type = TypeOfNode(@delete.Operand);
+        if (type == null) return;
+
+        if (type.IsValueType)
+        {
+            EmitAddress(@delete.Operand);
+            _il.Emit(OpCodes.Constrained, type);
+        }
+        else
+        {
+            EmitValue(@delete.Operand, null);
+        }
+
+        _il.Emit(OpCodes.Callvirt, _owner.DisposeMethod());
+    }
+
     // ---- Arrays and slices
 
     private static bool IsSlice(TypeReference? type, out GenericInstanceType slice) => ModuleEmitter.IsSlice(type, out slice);
@@ -606,6 +625,9 @@ internal sealed class BodyEmitter
                 if (_breakTargets.Count == 0) Report("'break' outside of a loop", @break.Location);
                 else _il.Emit(OpCodes.Br, _breakTargets.Peek());
             break;
+
+            case IrDelete @delete:
+                EmitDelete(@delete); break;
 
             case IrExpression expression:
                 EmitDiscard(expression); break;
