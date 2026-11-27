@@ -37,16 +37,16 @@ from Tests import {
     Builtins.testArithmeticI128()
     Builtins.testBitwise()
     Builtins.testNativeSizes()
-    Builtins.testTypeSize()
-    Interop.testUnsafeMemory()
-
     Builtins.testConstants()
+
     Interop.testGenericInterfaces()
     Interop.testRefParameters()
     Interop.testDelegates()
     Interop.testSpans()
     Interop.testUnsafePtr()
 
+    StdLib.testTypeNamespace()
+    StdLib.testMemoryUnsafeNamespace()
     StdLib.testDynamicArray()
     StdLib.testDictionaries()
 }

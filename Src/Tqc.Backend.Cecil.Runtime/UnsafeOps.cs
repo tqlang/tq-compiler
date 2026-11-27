@@ -17,10 +17,17 @@ public static unsafe class UnsafeOps
     /// </summary>
     public static Memory<T> SliceFromPtr<T>(void* pointer, nuint length)
     {
-        if (length > int.MaxValue) throw new ArgumentOutOfRangeException(nameof(length), "A slice cannot have more than 2147483647 elements");
-        if (RuntimeHelpers.IsReferenceOrContainsReferences<T>()) throw new ArgumentException($"A slice cannot be placed over raw memory of '{typeof(T)}': it holds references");
-        if (length == 0) return Memory<T>.Empty;
-        if (pointer == null) throw new ArgumentNullException(nameof(pointer), "A slice that is not empty cannot start at the null pointer");
+        if (length > int.MaxValue)
+            throw new ArgumentOutOfRangeException(nameof(length), "A slice cannot have more than 2147483647 elements");
+        
+        if (RuntimeHelpers.IsReferenceOrContainsReferences<T>())
+            throw new ArgumentException($"A slice cannot be placed over raw memory of '{typeof(T)}': it holds references");
+        
+        if (length == 0)
+            return Memory<T>.Empty;
+        
+        if (pointer == null)
+            throw new ArgumentNullException(nameof(pointer), "A slice that is not empty cannot start at the null pointer");
 
         return new UnmanagedMemoryManager<T>(pointer, (int)length).Memory;
     }

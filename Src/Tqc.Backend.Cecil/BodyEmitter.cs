@@ -2125,7 +2125,7 @@ internal sealed class BodyEmitter
         var arguments = call.ArgumentsList.arguments;
         if (arguments.Length != 1)
         {
-            Report($"'{(bits ? "BitSizeOf" : "SizeOf")}' takes the type, and only it", call.Location);
+            Report($"'{(bits ? "bitSizeOf" : "sizeOf")}' takes the type, and only it", call.Location);
             return null;
         }
 

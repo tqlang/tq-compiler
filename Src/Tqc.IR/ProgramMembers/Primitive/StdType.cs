@@ -14,10 +14,10 @@ public static class StdType
     public const string NamespaceName = "Type";
 
     /// <summary>`SizeOf(type T) uint`: the size of `T` in bytes.</summary>
-    public static readonly TqFunction SizeOf = Declare("SizeOf");
+    public static readonly TqFunction SizeOf = Declare("sizeOf");
 
     /// <summary>`BitSizeOf(type T) uint`: the size of `T` in bits.</summary>
-    public static readonly TqFunction BitSizeOf = Declare("BitSizeOf");
+    public static readonly TqFunction BitSizeOf = Declare("bitSizeOf");
 
     /// <summary>The functions, each in its group of overloads, as the members of the namespace.</summary>
     public static IEnumerable<IMember> Members => [Group(SizeOf), Group(BitSizeOf)];
