@@ -972,60 +972,129 @@ internal sealed class BodyEmitter
 
     }
 
+    private const string InterpolationHandler = "System.Runtime.CompilerServices.DefaultInterpolatedStringHandler";
+
+    /// <summary>
+    /// An interpolated string, as Roslyn compiles one: `String.Concat` when it is up to four strings, and a
+    /// `DefaultInterpolatedStringHandler` otherwise, which takes each value with its own type (nothing is boxed to be formatted).
+    /// </summary>
     private TypeReference EmitConcat(IrStringConcat concat)
     {
-        var sbType = Core("System.Text.StringBuilder");
-        var sbCtor = _target.ImportReference(sbType.Resolve().Methods.First(m => m.IsConstructor && m.Parameters.Count == 0));
-        var sbAppendStr = _target.ImportReference(sbType.Resolve().Methods.First(m => m.Name == "Append" && m.Parameters.Count == 1 && m.Parameters[0].ParameterType.FullName == "System.String"));
-        var sbToString = _target.ImportReference(sbType.Resolve().Methods.First(m => m.Name == "ToString" && m.Parameters.Count == 0));
-        
-        _il.Emit(OpCodes.Newobj, sbCtor);
+        if (concat.Parts.Length is > 0 and <= 4 && concat.Parts.All(IsString)) return EmitStringConcat(concat.Parts);
+
+        var handler = NewTemp(Core(InterpolationHandler));
+        var literalLength = concat.Parts.OfType<IrStringConstant>().Sum(constant => constant.Value.Length);
+        var formattedCount = concat.Parts.Count(part => part is not IrStringConstant);
+
+        _il.Emit(OpCodes.Ldloca, handler);
+        _il.Emit(OpCodes.Ldc_I4, literalLength);
+        _il.Emit(OpCodes.Ldc_I4, formattedCount);
+        _il.Emit(OpCodes.Call, Library(InterpolationHandler, ".ctor", "System.Int32", "System.Int32"));
 
         foreach (var part in concat.Parts)
         {
-            if (part is IrStringConstant textConstant) _il.Emit(OpCodes.Ldstr, textConstant.Value);
-            else
+            _il.Emit(OpCodes.Ldloca, handler);
+
+            if (part is IrStringConstant textConstant)
             {
-                var partType = Emit(part, null);
-                if (partType == null)
-                {
-                    Report("This expression has no value", part.Location);
-                    _il.Emit(OpCodes.Ldnull);
-                    partType = Core("System.Object");
-                }
-
-                if (partType is GenericInstanceType sliceLike &&
-                    _owner.Backend.Runtime.FormatterMethods.TryGetValue(sliceLike.ElementType.FullName, out var specificFormatter))
-                {
-                    var method = new GenericInstanceMethod(_target.ImportReference(specificFormatter));
-                    method.GenericArguments.Add(sliceLike.GenericArguments[0]);
-                    _il.Emit(OpCodes.Call, method);
-                }
-                else
-                {
-                    if (partType is GenericInstanceType
-                        {
-                            ElementType.FullName: "System.Memory`1" or "System.ReadOnlyMemory`1"
-                            or "System.Span`1" or "System.ReadOnlySpan`1",
-                        } slice)
-                    {
-                        var temp = NewTemp(slice);
-                        _il.Emit(OpCodes.Stloc, temp);
-                        _il.Emit(OpCodes.Ldloca, temp);
-                        _il.Emit(OpCodes.Call, _owner.GenericMember(slice.ElementType.FullName, slice, "ToArray", 0));
-                        partType = new ArrayType(slice.GenericArguments[0]);
-                    }
-
-                    if (partType.IsValueType) _il.Emit(OpCodes.Box, partType);
-                    _il.Emit(OpCodes.Call, _target.ImportReference(_owner.Backend.Runtime.Formatter_Format_Object));
-                }
+                _il.Emit(OpCodes.Ldstr, textConstant.Value);
+                _il.Emit(OpCodes.Call, Library(InterpolationHandler, "AppendLiteral", "System.String"));
             }
-
-            _il.Emit(OpCodes.Callvirt, sbAppendStr);
+            else EmitAppendFormatted(part);
         }
-        
-        _il.Emit(OpCodes.Callvirt, sbToString);
+
+        _il.Emit(OpCodes.Ldloca, handler);
+        _il.Emit(OpCodes.Call, Library(InterpolationHandler, "ToStringAndClear"));
         return Core("System.String");
+    }
+
+    private bool IsString(IrExpression part) =>
+        part is IrStringConstant
+        || (_types.Get(part) is { } type && _owner.MapType(type, part.Location).FullName == "System.String");
+
+    /// <summary>`String.Concat` of strings; one alone is itself, or empty when it is null.</summary>
+    private TypeReference EmitStringConcat(IrExpression[] parts)
+    {
+        var text = Core("System.String");
+        foreach (var part in parts) EmitValue(part, text);
+
+        if (parts.Length > 1)
+            _il.Emit(OpCodes.Call, Library("System.String", "Concat", Enumerable.Repeat("System.String", parts.Length).ToArray()));
+        else if (parts[0] is not IrStringConstant)
+        {
+            var end = _il.Create(OpCodes.Nop);
+            _il.Emit(OpCodes.Dup);
+            _il.Emit(OpCodes.Brtrue, end);
+            _il.Emit(OpCodes.Pop);
+            _il.Emit(OpCodes.Ldstr, "");
+            _il.Append(end);
+        }
+
+        return text;
+    }
+
+    /// <summary>
+    /// A value of an interpolated string, with the handler already on the stack. What Tq writes differently from .NET
+    /// (booleans, arrays, slices, and what is only known when the program runs) becomes a string in `Tq.TqFormatter`;
+    /// the other values go to the handler as they are.
+    /// </summary>
+    private void EmitAppendFormatted(IrExpression part)
+    {
+        var type = Emit(part, null);
+        if (type == null)
+        {
+            Report("This expression has no value", part.Location);
+            _il.Emit(OpCodes.Ldnull);
+            type = Core("System.String");
+        }
+
+        var runtime = _owner.Backend.Runtime;
+
+        switch (type)
+        {
+            case { FullName: "System.String" }:
+                break;
+
+            case { FullName: "System.Boolean" }:
+                _il.Emit(OpCodes.Call, _target.ImportReference(runtime.FormatterFormatBool));
+                break;
+
+            case GenericInstanceType { ElementType.FullName: "System.Nullable`1" } nullable
+                when nullable.GenericArguments[0].FullName == "System.Boolean":
+                _il.Emit(OpCodes.Call, _target.ImportReference(runtime.FormatterFormatNullableBool));
+                break;
+
+            case ArrayType { Rank: 1 } array:
+                EmitFormatterCall(runtime.FormatterFormatArray, array.ElementType);
+                break;
+
+            case GenericInstanceType slice when runtime.FormatterMethods.TryGetValue(slice.ElementType.FullName, out var format):
+                EmitFormatterCall(format, slice.GenericArguments[0]);
+                break;
+
+            // `T` may be anything, a `bool` included: it is decided when the program runs.
+            case GenericParameter:
+                EmitFormatterCall(runtime.FormatterFormatValue, type);
+                break;
+
+            case { IsValueType: true }:
+                _il.Emit(OpCodes.Call, _owner.GenericMethodOf(InterpolationHandler, "AppendFormatted", 1, type)!);
+                return;
+
+            // A reference: it may be an array or a boxed `bool`.
+            default:
+                _il.Emit(OpCodes.Call, _target.ImportReference(runtime.FormatterFormatObject));
+                break;
+        }
+
+        _il.Emit(OpCodes.Call, Library(InterpolationHandler, "AppendFormatted", "System.String"));
+    }
+
+    private void EmitFormatterCall(MethodDefinition definition, TypeReference argument)
+    {
+        var method = new GenericInstanceMethod(_target.ImportReference(definition));
+        method.GenericArguments.Add(argument);
+        _il.Emit(OpCodes.Call, method);
     }
 
     /// <summary>
