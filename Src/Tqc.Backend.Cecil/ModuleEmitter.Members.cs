@@ -109,45 +109,40 @@ internal sealed partial class ModuleEmitter
 
         var definition = new FieldDefinition(field.Name, attributes, type);
 
-        if (isConstant)
+        var isLiteral = isConstant && TryConstant(field.Value, type, out var constant);
+        if (isLiteral)
         {
-            if (TryConstant(field.Value, type, out var constant))
-            {
-                definition.Attributes |= FieldAttributes.Literal | FieldAttributes.HasDefault;
-                definition.Constant = constant;
-            }
-            else if (field.Value != null && container.Type.HasGenericParameters)
-            {
-                Report($"The constant '{field.Name}' of the generic struct '{container.Struct?.Name}' must be a literal to be emitted", field.SourceLocation);
-            }
-            else if (field.Value != null)
-            {
-                // Not a literal: it is a `static readonly` field, which the type initializer sets.
-                definition.Attributes |= FieldAttributes.InitOnly;
-                if (!_staticInitializers.TryGetValue(container.Type, out var pending))
-                    _staticInitializers[container.Type] = pending = [];
-                pending.Add((field, definition));
-            }
-            else
-            {
-                Report($"The constant '{field.Name}' has no value", field.SourceLocation);
-            }
+            TryConstant(field.Value, type, out var literal);
+            definition.Attributes |= FieldAttributes.Literal | FieldAttributes.HasDefault;
+            definition.Constant = literal;
+        }
+        else if (isConstant && field.Value == null)
+        {
+            Report($"The constant '{field.Name}' has no value", field.SourceLocation);
+        }
+        else if (isConstant && container.Type.HasGenericParameters)
+        {
+            Report($"The constant '{field.Name}' of the generic struct '{container.Struct?.Name}' must be a literal to be emitted", field.SourceLocation);
         }
 
-        // An array of a namespace or `@static` has its memory from the type initializer.
-        else if (definition.IsStatic && IsArrayField(field) && type is ArrayType && !container.Type.HasGenericParameters)
+        // What a namespace or `@static` field starts with takes code: the type initializer gives it. So does the memory of
+        // an array declared without a value.
+        else if (definition.IsStatic && (field.Value != null || IsArrayField(field) && type is ArrayType))
         {
+            // A constant that is not a literal is `static readonly`.
+            if (isConstant) definition.Attributes |= FieldAttributes.InitOnly;
+
             if (!_staticInitializers.TryGetValue(container.Type, out var pending))
                 _staticInitializers[container.Type] = pending = [];
             pending.Add((field, definition));
         }
 
-        // The initial value of any other field takes code (a constructor), which is not emitted yet.
+        // The initial value of an instance field is given by the constructors.
         container.Type.Fields.Add(definition);
         _backend.Definitions[field] = definition;
     }
 
-    /// <summary>The type initializer (`.cctor`) of each type that has constants with a value that is not a literal.</summary>
+    /// <summary>The type initializer (`.cctor`) of each type that has static fields that start with a value.</summary>
     private void DeclareStaticInitializers()
     {
         foreach (var (type, pending) in _staticInitializers)
@@ -162,7 +157,7 @@ internal sealed partial class ModuleEmitter
             _bodies.Add((initializer, il =>
             {
                 var emitter = new BodyEmitter(this, new TqConstructor(location) { Parameters = [] }, initializer, il);
-                emitter.EmitStaticInitializers(pending);
+                _initializerParts[initializer] = emitter.EmitStaticInitializers(pending);
                 il.Emit(OpCodes.Ret);
             }));
         }

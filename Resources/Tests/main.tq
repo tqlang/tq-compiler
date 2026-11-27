@@ -10,6 +10,7 @@ from Tests import {
     Builtins.testConditionals()
     Builtins.testFunctions()
     Builtins.testOverloadReturn()
+    Builtins.testStaticInitializers()
     Builtins.testProperties()
     Builtins.testConstants()
     Builtins.testStrings()

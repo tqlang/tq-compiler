@@ -38,7 +38,7 @@ internal sealed partial class ModuleEmitter
     private readonly List<Container> _containers = [];
     private readonly List<(MethodDefinition Method, Action<ILProcessor> Emit)> _bodies = [];
 
-    /// <summary>The constants whose value is not a literal, by type: they are `static readonly` fields set by the type initializer.</summary>
+    /// <summary>The static fields that start with a value, by type: the type initializer sets them.</summary>
     private readonly Dictionary<TypeDefinition, List<(TqField Field, FieldDefinition Definition)>> _staticInitializers = [];
 
     public ModuleEmitter(CecilBackend backend, TqModule tq, string name, bool isEntry)
@@ -74,6 +74,7 @@ internal sealed partial class ModuleEmitter
         DeclareStaticInitializers();
 
         foreach (var (method, emit) in _bodies) emit(method.Body.GetILProcessor());
+        OrderStaticInitializers();
 
         if (_isEntry) DeclareEntryPoint();
         return _assembly;

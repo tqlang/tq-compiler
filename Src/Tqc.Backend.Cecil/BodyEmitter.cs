@@ -148,16 +148,34 @@ internal sealed class BodyEmitter
         _il.Emit(OpCodes.Newarr, array.ElementType);
     }
 
-    /// <summary>The values of the constants that are not literals, which the type initializer gives, in the order they are written.</summary>
-    internal void EmitStaticInitializers(List<(TqField Field, FieldDefinition Definition)> pending)
+    /// <summary>
+    /// The values the static fields start with, which the type initializer gives, in the order they are written. Returns
+    /// the first and last instruction of each one, so that they can be put in the order they need each other.
+    /// </summary>
+    internal List<(FieldDefinition Field, Instruction First, Instruction Last)> EmitStaticInitializers(
+        List<(TqField Field, FieldDefinition Definition)> pending)
     {
-        foreach (var (field, definition) in pending.OrderBy(item => item.Field.SourceLocation.span.LineStart)
+        var parts = new List<(FieldDefinition, Instruction, Instruction)>();
+        foreach (var (field, definition) in pending.OrderBy(item => item.Field.SourceLocation.filePath, StringComparer.Ordinal)
+                     .ThenBy(item => item.Field.SourceLocation.span.LineStart)
                      .ThenBy(item => item.Field.SourceLocation.span.ColStart))
         {
-            if (field.Value != null) EmitValue(field.Value, definition.FieldType);
-            else EmitNewArray(field, definition.FieldType);
-            _il.Emit(OpCodes.Stsfld, definition);
+            var first = _il.Create(OpCodes.Nop);
+            _il.Append(first);
+
+            var host = TqHost(null, definition.DeclaringType);
+            var fieldType = host != null ? Instantiate(definition.FieldType, [], host.GenericArguments) : definition.FieldType;
+            if (field.Value != null) EmitValue(field.Value, fieldType);
+            else EmitNewArray(field, fieldType);
+            _il.Emit(OpCodes.Stsfld, host != null ? OnHost(_owner.Use(definition), host) : _owner.Use(definition));
+
+            // What ends a protected region of the value ends here, whatever comes after.
+            var last = _il.Create(OpCodes.Nop);
+            _il.Append(last);
+            parts.Add((definition, first, last));
         }
+
+        return parts;
     }
 
     private VariableDefinition NewTemp(TypeReference type)
@@ -1440,19 +1458,18 @@ internal sealed class BodyEmitter
 
                 if (fieldDefinition.IsStatic)
                 {
-                    _il.Emit(OpCodes.Ldsfld, _owner.Use(fieldDefinition));
-                }
-                else
-                {
-                    EmitFieldReceiver(baseExpr, fieldDefinition.DeclaringType);
-
-                    // A field of a generic struct is read through the type with its arguments.
-                    var tqHost = TqHost(baseExpr, fieldDefinition.DeclaringType);
-                    _il.Emit(OpCodes.Ldfld, tqHost != null ? OnHost(_owner.Use(fieldDefinition), tqHost) : _owner.Use(fieldDefinition));
-                    return tqHost != null ? Instantiate(fieldDefinition.FieldType, [], tqHost.GenericArguments) : fieldDefinition.FieldType;
+                    // The one of a generic struct is the one of the type with its arguments.
+                    var staticHost = TqHost(null, fieldDefinition.DeclaringType);
+                    _il.Emit(OpCodes.Ldsfld, staticHost != null ? OnHost(_owner.Use(fieldDefinition), staticHost) : _owner.Use(fieldDefinition));
+                    return staticHost != null ? Instantiate(fieldDefinition.FieldType, [], staticHost.GenericArguments) : fieldDefinition.FieldType;
                 }
 
-                return fieldDefinition.FieldType;
+                EmitFieldReceiver(baseExpr, fieldDefinition.DeclaringType);
+
+                // A field of a generic struct is read through the type with its arguments.
+                var tqHost = TqHost(baseExpr, fieldDefinition.DeclaringType);
+                _il.Emit(OpCodes.Ldfld, tqHost != null ? OnHost(_owner.Use(fieldDefinition), tqHost) : _owner.Use(fieldDefinition));
+                return tqHost != null ? Instantiate(fieldDefinition.FieldType, [], tqHost.GenericArguments) : fieldDefinition.FieldType;
 
             case TqProperty property when _owner.Backend.BackingFields.TryGetValue(property, out var backing):
                 if (backing.IsStatic)
@@ -1594,7 +1611,8 @@ internal sealed class BodyEmitter
                 when _owner.Backend.Definitions.TryGetValue(field, out var definition) && definition is FieldDefinition { HasConstant: false } fieldDefinition:
                 if (fieldDefinition.IsStatic)
                 {
-                    _il.Emit(OpCodes.Ldsflda, _owner.Use(fieldDefinition));
+                    var staticHost = TqHost(null, fieldDefinition.DeclaringType);
+                    _il.Emit(OpCodes.Ldsflda, staticHost != null ? OnHost(_owner.Use(fieldDefinition), staticHost) : _owner.Use(fieldDefinition));
                 }
                 else
                 {
@@ -3754,11 +3772,11 @@ internal sealed class BodyEmitter
         {
             case TqField field when _owner.Backend.Definitions.TryGetValue(field, out var definition) && definition is FieldDefinition fieldDefinition:
             {
-                var tqHost = fieldDefinition.IsStatic ? null : TqHost(baseExpr, fieldDefinition.DeclaringType);
+                var tqHost = TqHost(fieldDefinition.IsStatic ? null : baseExpr, fieldDefinition.DeclaringType);
                 return tqHost != null
                     ? FieldTarget(
                         OnHost(_owner.Use(fieldDefinition), tqHost),
-                        false,
+                        fieldDefinition.IsStatic,
                         Instantiate(fieldDefinition.FieldType, [], tqHost.GenericArguments),
                         fieldDefinition.DeclaringType,
                         baseExpr

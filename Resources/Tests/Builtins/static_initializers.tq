@@ -1,0 +1,56 @@
+from Std import { Test }
+
+# The values a namespace or `@static` field starts with, written before what they need.
+let i32 startTotal = startSum() + startOffset
+let [3]i32 startValues = [1, 2, 3]
+let i32 startOffset = startBase * 2
+let i32 startBase = 10
+let string startText = "total"
+let [2]i32 startEmpty
+
+func startSum() i32 => startValues[0] + startValues[1] + startValues[2]
+
+struct StartHolder {
+    @static let i32 number = startSum()
+    @static let bool flag = true
+}
+
+struct StartCounter(type T) {
+    @static let i32 count = 10
+
+    func next() i32 {
+        count = count + 1
+        return count
+    }
+}
+
+@public func testStaticInitializers() {
+    Test.newTestUnit("Builtins - static initializers - literals, calls and arrays")
+    {
+        Test.assert(startText, "total")
+        Test.assert(startBase, 10)
+        Test.assert(startValues[2], 3)
+        Test.assert(startEmpty[1], 0)
+        Test.assert(StartHolder.number, 6)
+        Test.assert(StartHolder.flag, true)
+    }
+
+    Test.newTestUnit("Builtins - static initializers - what is needed comes first")
+    {
+        Test.assert(startOffset, 20)
+        Test.assert(startTotal, 26)
+    }
+
+    Test.newTestUnit("Builtins - static initializers - generic struct")
+    {
+        let StartCounter(i32) ints = new StartCounter(i32)()
+        let StartCounter(i64) longs = new StartCounter(i64)()
+        let i32 first = ints.next()
+        let i32 second = ints.next()
+        let i32 other = longs.next()
+
+        Test.assert(first, 11)
+        Test.assert(second, 12)
+        Test.assert(other, 11)
+    }
+}
