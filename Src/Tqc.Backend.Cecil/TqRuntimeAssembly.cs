@@ -16,7 +16,14 @@ internal sealed class TqRuntimeAssembly
     public TypeDefinition Failable { get; }
     public TypeDefinition FailableOf { get; }
     
-    public MethodDefinition Formatter_Format_Object { get; }
+    // The methods of `TqFormatter` that give the text of a value of an interpolated string.
+    public MethodDefinition FormatterFormatObject { get; }
+    public MethodDefinition FormatterFormatBool { get; }
+    public MethodDefinition FormatterFormatNullableBool { get; }
+    public MethodDefinition FormatterFormatArray { get; }
+    public MethodDefinition FormatterFormatValue { get; }
+
+    /// <summary>`Format&lt;T&gt;` of the slices, by the generic type it takes (`System.Memory`1`...).</summary>
     public Dictionary<string, MethodDefinition> FormatterMethods { get; } = [];
 
     /// <summary>`Tq.Ops`, with the helpers of the operators; by operator and type.</summary>
@@ -36,27 +43,29 @@ internal sealed class TqRuntimeAssembly
         FailableOf = Require("Failable`1");
         Ops = Require("Ops");
 
+        var formatter = Require("TqFormatter");
+
+        FormatterFormatObject = Formatter("Format", "System.Object");
+        FormatterFormatBool = Formatter("Format", "System.Boolean");
+        FormatterFormatNullableBool = Formatter("Format", "System.Nullable`1<System.Boolean>");
+        FormatterFormatArray = Formatter("Format", "T[]");
+        FormatterFormatValue = Formatter("FormatValue", "T");
+
+        foreach (var method in formatter.Methods)
         {
-            var formatterType = Require("TqFormatter");
-            
-            Formatter_Format_Object = formatterType.Methods.FirstOrDefault(m =>
-                    m is { Name: "Format", IsStatic: true, Parameters.Count: 1 } &&
-                    m.Parameters[0].ParameterType.FullName == "System.Object")
-                ?? throw new BackendError($"The method '{Namespace}.TqFormatter.Format(object)' was not found.");
-            
-            foreach (var method in formatterType.Methods)
-            {
-                if (method.Name != "Format" || !method.IsStatic || method.Parameters.Count != 1) continue;
-                
-                var paramType = method.Parameters[0].ParameterType;
-                var elementType = paramType.GetElementType()?.FullName;
-                
-                if (elementType != null) FormatterMethods[elementType] = method;
-            }
+            if (method is { Name: "Format", IsStatic: true, Parameters.Count: 1 }
+                && method.Parameters[0].ParameterType is GenericInstanceType { HasGenericArguments: true } parameter
+                && parameter.GenericArguments[0].IsGenericParameter)
+                FormatterMethods[parameter.ElementType.FullName] = method;
         }
         
         return;
         
+        MethodDefinition Formatter(string name, string parameter) =>
+            formatter.Methods.FirstOrDefault(method => method.Name == name && method.IsStatic && method.Parameters.Count == 1
+                                                       && method.Parameters[0].ParameterType.FullName == parameter)
+            ?? throw new BackendError($"The method '{Namespace}.TqFormatter.{name}({parameter})' was not found in '{path}'");
+
         TypeDefinition Require(string type) =>
             Assembly.MainModule.GetType(Namespace, type)
             ?? throw new BackendError($"The type '{Namespace}.{type}' was not found in '{path}'");
