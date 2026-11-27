@@ -24,7 +24,7 @@ namespace Tqc.Backend.Cecil;
 /// A literal has no type of its own: it takes the one that is expected where it is used. An operand is converted to
 /// the type of the operation. `a + b` is checked (it throws on overflow); `+%`, `-%` and `*%` wrap.
 /// </summary>
-internal sealed class BodyEmitter
+internal sealed partial class BodyEmitter
 {
     private readonly ModuleEmitter _owner;
     private readonly TqFunction _function;
@@ -39,6 +39,9 @@ internal sealed class BodyEmitter
     // is written through the reference is what the variable has. The value of the variable is `box.Value`.
     private readonly Dictionary<IrLocal, VariableDefinition> _boxedLocals = [];
     private readonly Stack<Instruction> _breakTargets = new();
+
+    /// <summary>Where each path that leaves the function from the middle of an expression begins.</summary>
+    private readonly List<Instruction> _earlyReturns = [];
 
     public BodyEmitter(ModuleEmitter owner, TqFunction function, MethodDefinition method, ILProcessor il)
     {
@@ -81,6 +84,8 @@ internal sealed class BodyEmitter
             EmitDefaultReturn();
         else
             _owner.EmitStub(_il, $"Tq: '{_function.Name}' reached its end without returning a value");
+
+        DiscardBeforeEarlyReturns();
     }
 
     // ---- Helpers
@@ -2009,7 +2014,8 @@ internal sealed class BodyEmitter
 
     /// <summary>
     /// `try x`: if the `!T` has an error, the function returns a `!U` with that error; if not, the value is the `T`.
-    /// (The return leaves the stack as it is, so `try` is meant for the start of an expression: `let x = try f()`.)
+    /// `try` can be anywhere in an expression: what was computed before it is thrown away when it returns
+    /// (see DiscardBeforeEarlyReturns).
     /// </summary>
     private TypeReference? EmitTry(IrUnary unary)
     {
@@ -2021,6 +2027,8 @@ internal sealed class BodyEmitter
         _il.Emit(OpCodes.Ldloca, failed);
         _il.Emit(OpCodes.Ldfld, FailableField(type, "Error"));
         _il.Emit(OpCodes.Brfalse, ok);
+        _earlyReturns.Add(_il.Create(OpCodes.Nop));
+        _il.Append(_earlyReturns[^1]);
 
         var returnType = _method.ReturnType;
         if (!IsFailable(returnType, out _))
