@@ -32,7 +32,11 @@ public abstract record StringContentNode : SyntaxNode;
 public record StringCharacterLiteralNode(TokenNode Value) : StringContentNode
 {
     override internal StringBuilder AppendSyntaxToStringBuilder(StringBuilder sb) => sb.AppendSyntaxNode(Value);
-    public char GetCharacterLiteralValue() => Value.Value switch
+    public bool IsKnownEscape => ValueOf(Value.Value) != null;
+
+    public char GetCharacterLiteralValue() => ValueOf(Value.Value) ?? throw new NotImplementedException();
+
+    private static char? ValueOf(string escape) => escape switch
     {
         "\\'"  => '\'',
         "\\\"" => '"',
@@ -41,7 +45,7 @@ public record StringCharacterLiteralNode(TokenNode Value) : StringContentNode
         "\\e"  => '\x1B',
         "\\n"  => '\n',
         "\\r"  => '\r',
-        _ => throw new NotImplementedException(),
+        _ => null,
     };
     public override SourceSpan Span => Value.Span;
 }

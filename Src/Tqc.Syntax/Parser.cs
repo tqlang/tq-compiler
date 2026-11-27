@@ -20,12 +20,22 @@ public class Parser(DiagnosticBag diagnostics)
     private readonly TokenKind[] _midExpressionConservativeTrivia = [TokenKind.Comment, TokenKind.Whitespace];
     #endregion
 
+    /// <summary>
+    /// The syntax tree of a file. A syntax error is reported to the diagnostics, and the tree of that file comes out empty:
+    /// the parser stops at the first error of a file.
+    /// </summary>
     public SyntaxTree Parse(string path, string source)
     {
         _path   = path;
-        _lexer  = new Lexer(source);
+        _lexer  = new Lexer(source, path);
         _peeked = null;
-        return new SyntaxTree(path, ParseRoot());
+        _trivia = [];
+
+        try { return new SyntaxTree(path, ParseRoot()); }
+        catch (SyntaxError error) { diagnostics.ReportError(error); }
+        catch (EndOfStreamException) { diagnostics.ReportError(Error(EndOfFile(), "Unexpected end of file")); }
+
+        return new SyntaxTree(path, []);
     }
 
     public SyntaxNode[] ParseRoot()
@@ -65,8 +75,7 @@ public class Parser(DiagnosticBag diagnostics)
         if (allowedDeclarations.HasFlag(ScopeAllowedDeclarations.Case) && CheckKeyword("case")) return ParseCaseDeclaration();
         
         var token = Advance();
-        Console.WriteLine($"'{token.value}' ({token.kind})");
-        throw new NotImplementedException(token.value);
+        throw Error(token, $"Expected a declaration, found '{token.value}'");
     }
 
     #region declarations - entities
@@ -329,7 +338,7 @@ public class Parser(DiagnosticBag diagnostics)
             
             // `let T name = value`: the type is any expression (`*List(T)`, `?i32`, `[]u8`); without it, `name` is the first one.
             if (secondExpression == null && firstExpression is not IdentifierExpressionNode)
-                throw Error(Peek()!.Value, "Expected the name of the field");
+                throw Error(Current(), "Expected the name of the field");
 
             if (secondExpression == null) {
                 secondExpression = (IdentifierExpressionNode)firstExpression;
@@ -350,7 +359,7 @@ public class Parser(DiagnosticBag diagnostics)
         {
             // `let name => value` has no type; `let T name => value` does.
             if (secondExpression == null && firstExpression is not IdentifierExpressionNode)
-                throw Error(Peek()!.Value, "Expected the name of the property");
+                throw Error(Current(), "Expected the name of the property");
             if (secondExpression == null) {
                 secondExpression = (IdentifierExpressionNode)firstExpression;
                 firstExpression  = null!;
@@ -363,7 +372,7 @@ public class Parser(DiagnosticBag diagnostics)
         {
             // `let name { ... }` has no type; `let T name { ... }` does.
             if (secondExpression == null && firstExpression is not IdentifierExpressionNode)
-                throw Error(Peek()!.Value, "Expected the name of the property");
+                throw Error(Current(), "Expected the name of the property");
             
             if (secondExpression == null) {
                 secondExpression = (IdentifierExpressionNode)firstExpression;
@@ -374,7 +383,7 @@ public class Parser(DiagnosticBag diagnostics)
         }
         
         if (secondExpression == null && firstExpression is not IdentifierExpressionNode)
-            throw Error(Peek()!.Value, "Expected the name of the field");
+            throw Error(Current(), "Expected the name of the field");
 
         if (secondExpression == null) {
             secondExpression = (IdentifierExpressionNode)firstExpression;
@@ -397,7 +406,7 @@ public class Parser(DiagnosticBag diagnostics)
     private PropertyDeclarationNode ParsePropertyArrow(TokenNode letKeyword, ExpressionNode? type, IdentifierExpressionNode name)
     {
         if (letKeyword.Value == "const")
-            throw Error(Peek()!.Value, "A property cannot be 'const'");
+            throw Error(Current(), "A property cannot be 'const'");
 
         var arrow = ExpectNode(TokenKind.FatArrow, "'=>'");
         AdvanceTrivia(_midDeclarationTrivia);
@@ -415,7 +424,7 @@ public class Parser(DiagnosticBag diagnostics)
     private PropertyDeclarationNode ParsePropertyBody(TokenNode letKeyword, ExpressionNode? type, IdentifierExpressionNode name)
     {
         if (letKeyword.Value == "const")
-            throw Error(Peek()!.Value, "A property cannot be 'const'");
+            throw Error(Current(), "A property cannot be 'const'");
 
         var left = ExpectNode(TokenKind.LeftBrace, "'{'");
         List<PropertyAccessorNode> accessors = [];
@@ -441,7 +450,7 @@ public class Parser(DiagnosticBag diagnostics)
     private PropertyAccessorNode ParsePropertyAccessor()
     {
         if (!CheckKeyword("get") && !CheckKeyword("set"))
-            throw Error(Peek()!.Value, "Expected 'get' or 'set'");
+            throw Error(Current(), "Expected 'get' or 'set'");
 
         var keyword = AdvanceNode();
         AdvanceTrivia(_midDeclarationConservativeTrivia);
@@ -535,8 +544,8 @@ public class Parser(DiagnosticBag diagnostics)
             List<(IntegerLiteralExpressionNode, TokenNode?)> items = [];
             while (!AtEnd())
             {
-                if (!Check(TokenKind.IntegerNumberLiteral)) throw Error(Peek()!.Value, "Expected integer number literal");
-                var integer = new IntegerLiteralExpressionNode(AdvanceNode());
+                if (!Check(TokenKind.IntegerNumberLiteral)) throw Error(Current(), "Expected integer number literal");
+                var integer = ParseNumber(token => new IntegerLiteralExpressionNode(token));
                 AdvanceTrivia(_midExpressionTrivia);
                 
                 TokenNode? comma = null;
@@ -1289,8 +1298,8 @@ public class Parser(DiagnosticBag diagnostics)
             }
             else Rollback(cp);
             
-            if (secondExpression == null && firstExpression is not IdentifierExpressionNode name)
-                throw new NotImplementedException();
+            if (secondExpression == null && firstExpression is not IdentifierExpressionNode)
+                throw Error(Current(), "Expected the name of the variable");
             
             if (secondExpression == null) {
                 secondExpression = (IdentifierExpressionNode)firstExpression;
@@ -1317,14 +1326,14 @@ public class Parser(DiagnosticBag diagnostics)
                 return new NewExpressionNode(keyword, callExpr.Callee, callExpr.Arguments);
             }
             
-            throw new NotImplementedException();
+            throw Error(Current(), "Expected '(' after the type of 'new'");
         }
         
         if (PeekKind() is TokenKind.IntegerNumberLiteral)
-            return new IntegerLiteralExpressionNode(AdvanceNode());
+            return ParseNumber(token => new IntegerLiteralExpressionNode(token));
         
         if (PeekKind() is TokenKind.FloatingNumberLiteral)
-            return new DecimalLiteralExpressionNode(AdvanceNode());
+            return ParseNumber(token => new DecimalLiteralExpressionNode(token));
             
         if (Check(TokenKind.Identifier))
             return ParseSingleIdentifier();
@@ -1341,8 +1350,23 @@ public class Parser(DiagnosticBag diagnostics)
 
         if (Check(TokenKind.DoubleQuote)) return ParseStringExpression();
         
-        if (Peek() is { } bad) throw Error(bad, $"Invalid expression ({bad})");
-            throw new EndOfStreamException("Expected expression, found End of Stream");
+        if (Peek() is { } bad)
+            throw Error(bad, bad.kind == TokenKind.LineFeed
+                ? "Expected an expression, found the end of the line"
+                : $"Expected an expression, found '{bad.value}'");
+        throw Error(EndOfFile(), "Expected an expression, found the end of the file");
+    }
+
+    /// <summary>A number the lexer accepts may still have no value: `0x`, a decimal too big for `decimal`...</summary>
+    private T ParseNumber<T>(Func<TokenNode, T> create) where T : ExpressionNode
+    {
+        var token = Current();
+        var node = AdvanceNode();
+        try { return create(node); }
+        catch (Exception exception) when (exception is FormatException or OverflowException)
+        {
+            throw Error(token, $"Invalid number '{token.value}'");
+        }
     }
 
     /// <summary>
@@ -1383,11 +1407,18 @@ public class Parser(DiagnosticBag diagnostics)
         
         List<StringContentNode> content = [];
         
+        var openToken = Current();
         var open = ExpectNode(TokenKind.DoubleQuote, "double quotes ('\"')");
         while (!AtEnd() && !Check(TokenKind.DoubleQuote) && !Check(TokenKind.LineFeed))
         {
             if (Check(TokenKind.StringLiteral)) content.Add(new StringLiteralNode(AdvanceNode()));
-            else if (Check(TokenKind.EscapedCharacter)) content.Add(new StringCharacterLiteralNode(AdvanceNode()));
+            else if (Check(TokenKind.EscapedCharacter))
+            {
+                var token = Current();
+                var character = new StringCharacterLiteralNode(AdvanceNode());
+                if (!character.IsKnownEscape) throw Error(token, $"Unknown escape sequence '{token.value}'");
+                content.Add(character);
+            }
             
             else if (Check(TokenKind.EscapedLeftBrace))
             {
@@ -1403,8 +1434,9 @@ public class Parser(DiagnosticBag diagnostics)
                 content.Add(new InterpolatedExpressionNode(leftBrace, exp, rightBrace));
             }
             
-            else throw Error(Peek()!.Value, $"Unexpected token inside string {Peek()!.Value}");
+            else throw Error(Current(), $"Unexpected '{Current().value}' inside a string");
         }
+        if (AtEnd()) throw Error(openToken, "This string is not closed: expected '\"' before the end of the file");
         var close = ExpectNode(TokenKind.DoubleQuote, "double quotes ('\"')");
 
         _lexer.Mode = oldMode;
@@ -1513,7 +1545,7 @@ public class Parser(DiagnosticBag diagnostics)
         {
             if (Peek() is not { kind: TokenKind.LineFeed or TokenKind.Semicolon })
             {
-                var t = Peek()!.Value;
+                var t = Current();
                 throw Error(t, $"Expected Line Feed after statement.");
             }
             //while (Peek() is { kind: TokenKind.LineFeed or TokenKind.Semicolon }) AdvanceTrivia();
@@ -1592,21 +1624,35 @@ public class Parser(DiagnosticBag diagnostics)
     private TokenValue Expect(TokenKind kind, string expected)
     {
         if (Check(kind)) return Advance();
-        if (Peek() is { } t) throw Error(t, $"Expected '{expected}', found '{t.value}'");
-        throw new EndOfStreamException($"Expected '{expected}', found End Of File");
+        if (Peek() is { } t) throw Error(t, $"Expected {Quote(expected)}, found {Describe(t)}");
+        throw Error(EndOfFile(), $"Expected {Quote(expected)}, found the end of the file");
     }
     private TokenNode ExpectNode(string keyword, string expected)
     {
         if (CheckKeyword(keyword)) return new TokenNode(_trivia.Dump(), Advance());
-        if (Peek() is { } t) throw Error(t, $"Expected '{expected}', found '{t.value}'");
-        throw new EndOfStreamException($"Expected '{expected}', found End Of File");
+        if (Peek() is { } t) throw Error(t, $"Expected {Quote(expected)}, found {Describe(t)}");
+        throw Error(EndOfFile(), $"Expected {Quote(expected)}, found the end of the file");
     }
     private TokenNode ExpectNode(TokenKind kind, string expected)
     {
         if (Check(kind)) return new TokenNode(_trivia.Dump(), Advance());
-        if (Peek() is { } t) throw Error(t, $"Expected '{expected}', found '{t.value}'");
-        throw new EndOfStreamException($"Expected '{expected}', found End Of File");
+        if (Peek() is { } t) throw Error(t, $"Expected {Quote(expected)}, found {Describe(t)}");
+        throw Error(EndOfFile(), $"Expected {Quote(expected)}, found the end of the file");
     }
+
+    /// <summary>The next token, or the end of the file: where to point an error at.</summary>
+    private TokenValue Current() => Peek() ?? EndOfFile();
+
+    private TokenValue EndOfFile()
+    {
+        var (line, column) = _lexer.Position;
+        return new TokenValue("", TokenKind.Eof, line, column);
+    }
+
+    /// <summary>What was expected, in quotes unless its description has them already.</summary>
+    private static string Quote(string expected) => expected.Contains('\'') ? expected : $"'{expected}'";
+
+    private static string Describe(TokenValue token) => token.kind == TokenKind.LineFeed ? "the end of the line" : $"'{token.value}'";
 
     private (int, TokenValue?, LexCheckpoint) SaveCheckpoint() => (_trivia.Count, _peeked, _lexer.SaveCheckpoint());
     private void Rollback((int, TokenValue?, LexCheckpoint) cp)
@@ -1616,7 +1662,7 @@ public class Parser(DiagnosticBag diagnostics)
         cp.Item3.Restore();
     }
     
-    private ParsingError Error(TokenValue tok, string message) => new ($"{message}\n({_path} @ {tok.Line+1}:{tok.Column})",
+    private SyntaxError Error(TokenValue tok, string message) => new (message,
         new SourceLocation(_path, tok.Line, tok.Column, tok.Line, tok.Column + tok.value.Length));
     
     #endregion
@@ -1633,6 +1679,4 @@ public class Parser(DiagnosticBag diagnostics)
         Constructor = 1 << 6,
         Destructor = 1 << 7,
     }
-
-    private class ParsingError(string message, SourceLocation location) : CompilationError(message, location);
 }
