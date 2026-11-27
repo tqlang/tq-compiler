@@ -194,137 +194,99 @@ internal sealed class BodyEmitter
 
     // ---- Arrays and slices
 
-    private static bool IsMemory(TypeReference? type, out GenericInstanceType memory) => ModuleEmitter.IsMemory(type, out memory);
+    private static bool IsSlice(TypeReference? type, out GenericInstanceType slice) => ModuleEmitter.IsSlice(type, out slice);
 
-    private GenericInstanceType SpanOf(TypeReference element)
+    private static bool IsViewOf(TypeReference? type, string name, out GenericInstanceType view)
     {
-        var span = new GenericInstanceType(Core("System.Span`1"));
-        span.GenericArguments.Add(element);
-        return span;
+        view = (type as GenericInstanceType)!;
+        return type is GenericInstanceType { ElementType.FullName: var full } && full == name;
     }
 
     /// <summary>
-    /// The `T[]` of the `Memory<T>` on the stack: the array itself when the slice is all of one (what .NET does with it is seen by the
-    /// slice, and nothing is copied), and a copy when it is a part of one (`MemoryMarshal.TryGetArray`, `ToArray` if the runtime has no
-    /// `MemoryMarshal` to offer).
+    /// The `T[]` of the `Slice<T>` on the stack: the array itself when the slice is all of one (what .NET does with it is seen by the
+    /// slice, and nothing is copied), and a copy when it is a part of one or is raw memory.
     /// </summary>
-    private void EmitMemoryToArray(GenericInstanceType memory)
+    private void EmitSliceToArray(GenericInstanceType slice)
     {
-        var element = memory.GenericArguments[0];
-        var copy = _owner.GenericMember("System.Memory`1", memory, "ToArray", 0);
-        var tryGet = _owner.GenericMethodOf("System.Runtime.InteropServices.MemoryMarshal", "TryGetArray", 2, element);
-
-        var held = NewTemp(memory);
+        var held = NewTemp(slice);
         _il.Emit(OpCodes.Stloc, held);
-
-        var useCopy = _il.Create(OpCodes.Nop);
-        var end = _il.Create(OpCodes.Nop);
-
-        if (tryGet != null)
-        {
-            var readOnly = new GenericInstanceType(Core("System.ReadOnlyMemory`1"));
-            readOnly.GenericArguments.Add(element);
-            var segmentType = new GenericInstanceType(Core("System.ArraySegment`1"));
-            segmentType.GenericArguments.Add(element);
-            var segment = NewTemp(segmentType);
-
-            _il.Emit(OpCodes.Ldloc, held);
-            _il.Emit(OpCodes.Call, _owner.GenericMember("System.Memory`1", memory, "op_Implicit", 1,
-                parameter => parameter.ParameterType is GenericInstanceType { ElementType.FullName: "System.Memory`1" }));
-            _il.Emit(OpCodes.Ldloca, segment);
-            _il.Emit(OpCodes.Call, tryGet);
-            _il.Emit(OpCodes.Brfalse, useCopy);
-
-            _il.Emit(OpCodes.Ldloca, segment);
-            _il.Emit(OpCodes.Call, _owner.GenericMember("System.ArraySegment`1", segmentType, "get_Offset", 0));
-            _il.Emit(OpCodes.Brtrue, useCopy);
-
-            _il.Emit(OpCodes.Ldloca, segment);
-            _il.Emit(OpCodes.Call, _owner.GenericMember("System.ArraySegment`1", segmentType, "get_Count", 0));
-            _il.Emit(OpCodes.Ldloca, segment);
-            _il.Emit(OpCodes.Call, _owner.GenericMember("System.ArraySegment`1", segmentType, "get_Array", 0));
-            _il.Emit(OpCodes.Ldlen);
-            _il.Emit(OpCodes.Conv_I4);
-            _il.Emit(OpCodes.Bne_Un, useCopy);
-
-            _il.Emit(OpCodes.Ldloca, segment);
-            _il.Emit(OpCodes.Call, _owner.GenericMember("System.ArraySegment`1", segmentType, "get_Array", 0));
-            _il.Emit(OpCodes.Br, end);
-        }
-
-        _il.Append(useCopy);
         _il.Emit(OpCodes.Ldloca, held);
-        _il.Emit(OpCodes.Call, copy);
-        _il.Append(end);
+        _il.Emit(OpCodes.Call, _owner.SliceMember(slice, "AsArray", 0));
     }
 
     /// <summary>
-    /// The `Memory<T>` on the stack as the view of .NET that is asked: `ReadOnlyMemory<T>` (its implicit conversion), `Span<T>`
-    /// (`.Span`) or `ReadOnlySpan<T>` (`.Span` of the `ReadOnlyMemory<T>`). False if `expected` is none of them.
+    /// The `Slice<T>` on the stack as the view of .NET that is asked: `Span<T>`, `ReadOnlySpan<T>` or `ReadOnlyMemory<T>` (the
+    /// conversions of the slice) or `Memory<T>` (its `Memory`, which a slice of raw memory does not have: it throws). False if
+    /// `expected` is none of them.
     /// </summary>
-    private bool EmitSliceView(GenericInstanceType memory, TypeReference expected)
+    private bool EmitSliceView(GenericInstanceType slice, TypeReference expected)
     {
-        if (expected is not GenericInstanceType { ElementType.FullName: var name and ("System.Span`1" or "System.ReadOnlySpan`1" or "System.ReadOnlyMemory`1") })
+        if (expected is not GenericInstanceType { ElementType.FullName: var name and ("System.Span`1" or "System.ReadOnlySpan`1"
+                or "System.ReadOnlyMemory`1" or "System.Memory`1") })
             return false;
 
-        var element = memory.GenericArguments[0];
-        var readOnly = new GenericInstanceType(Core("System.ReadOnlyMemory`1"));
-        readOnly.GenericArguments.Add(element);
-
-        if (name == "System.Span`1")
+        if (name == "System.Memory`1")
         {
-            var held = NewTemp(memory);
+            var held = NewTemp(slice);
             _il.Emit(OpCodes.Stloc, held);
             _il.Emit(OpCodes.Ldloca, held);
-            _il.Emit(OpCodes.Call, _owner.GenericMember("System.Memory`1", memory, "get_Span", 0));
+            _il.Emit(OpCodes.Call, _owner.SliceMember(slice, "get_Memory", 0));
             return true;
         }
 
-        _il.Emit(OpCodes.Call, _owner.GenericMember("System.Memory`1", memory, "op_Implicit", 1,
-            parameter => parameter.ParameterType is GenericInstanceType { ElementType.FullName: "System.Memory`1" }));
-        if (name == "System.ReadOnlyMemory`1") return true;
-
-        var readOnlyHeld = NewTemp(readOnly);
-        _il.Emit(OpCodes.Stloc, readOnlyHeld);
-        _il.Emit(OpCodes.Ldloca, readOnlyHeld);
-        _il.Emit(OpCodes.Call, _owner.GenericMember("System.ReadOnlyMemory`1", readOnly, "get_Span", 0));
+        _il.Emit(OpCodes.Call, _owner.SliceMember(slice, "op_Implicit", 1,
+            candidate => candidate.ReturnType is GenericInstanceType { ElementType.FullName: var returned } && returned == name));
         return true;
     }
 
-    /// <summary>`Memory<T>` of the array on the stack, which it refers to.</summary>
-    private void EmitMemoryOf(GenericInstanceType memory) =>
-        _il.Emit(OpCodes.Newobj, _owner.GenericMember(
-            "System.Memory`1", memory, ".ctor", 1, parameter => parameter.ParameterType is ArrayType));
-
     /// <summary>
-    /// The `Memory<T>` on the stack becomes the `ref T` of the element whose index `emitIndex` leaves on the stack
-    /// (`memory.Span[index]`; the `Span` is a temporary, which is fine because a `ref` to an element outlives it).
+    /// The `Span<T>`, `Memory<T>` or `T[]` on the stack as the `Slice<T>` it is expected as (the conversion of the slice, which is
+    /// implicit: it is how a view of .NET is handled as a slice). False if `actual` is none of them.
     /// </summary>
-    private void EmitElementAddress(GenericInstanceType memory, Action emitIndex)
+    private bool EmitSliceFromView(TypeReference actual, GenericInstanceType slice)
     {
-        var span = SpanOf(memory.GenericArguments[0]);
+        string? view = actual switch
+        {
+            ArrayType => "T[]",
+            GenericInstanceType { ElementType.FullName: "System.Span`1" } => "System.Span`1",
+            GenericInstanceType { ElementType.FullName: "System.Memory`1" } => "System.Memory`1",
+            _ => null,
+        };
+        if (view == null) return false;
 
-        var memoryTemp = NewTemp(memory);
-        _il.Emit(OpCodes.Stloc, memoryTemp);
-        _il.Emit(OpCodes.Ldloca, memoryTemp);
-        _il.Emit(OpCodes.Call, _owner.GenericMember("System.Memory`1", memory, "get_Span", 0));
-
-        var spanTemp = NewTemp(span);
-        _il.Emit(OpCodes.Stloc, spanTemp);
-        _il.Emit(OpCodes.Ldloca, spanTemp);
-        emitIndex();
-        _il.Emit(OpCodes.Call, _owner.GenericMember("System.Span`1", span, "get_Item", 1));
+        _il.Emit(OpCodes.Call, _owner.SliceMember(slice, "op_Implicit", 1, candidate => candidate.IsStatic
+            && candidate.ReturnType is GenericInstanceType { ElementType.FullName: "Tq.Slice`1" }
+            && (view == "T[]" ? candidate.Parameters[0].ParameterType is ArrayType
+                : candidate.Parameters[0].ParameterType is GenericInstanceType { ElementType.FullName: var parameter } && parameter == view)));
+        return true;
     }
 
-    /// <summary>The length, as an `int`, of the array or the `Memory<T>` on the stack.</summary>
+    /// <summary>`Slice<T>` of the array on the stack, which it refers to.</summary>
+    private void EmitSliceOfArray(GenericInstanceType slice) =>
+        _il.Emit(OpCodes.Newobj, _owner.SliceMember(slice, ".ctor", 1, candidate => candidate.Parameters[0].ParameterType is ArrayType));
+
+    /// <summary>
+    /// The `Slice<T>` on the stack becomes the `ref T` of the element whose index `emitIndex` leaves on the stack (its indexer, which
+    /// is a `ref`: it is read with `ldobj` and written with `stobj`).
+    /// </summary>
+    private void EmitElementAddress(GenericInstanceType slice, Action emitIndex)
+    {
+        var temp = NewTemp(slice);
+        _il.Emit(OpCodes.Stloc, temp);
+        _il.Emit(OpCodes.Ldloca, temp);
+        emitIndex();
+        _il.Emit(OpCodes.Call, _owner.SliceMember(slice, "get_Item", 1));
+    }
+
+    /// <summary>The length, as an `int`, of the array or the `Slice<T>` on the stack.</summary>
     private TypeReference EmitLength(TypeReference actual)
     {
-        if (IsMemory(actual, out var memory))
+        if (IsSlice(actual, out var slice))
         {
-            var temp = NewTemp(memory);
+            var temp = NewTemp(slice);
             _il.Emit(OpCodes.Stloc, temp);
             _il.Emit(OpCodes.Ldloca, temp);
-            _il.Emit(OpCodes.Call, _owner.GenericMember("System.Memory`1", memory, "get_Length", 0));
+            _il.Emit(OpCodes.Ldfld, _owner.SliceLength(slice));
         }
         else
         {
@@ -335,41 +297,41 @@ internal sealed class BodyEmitter
         return Core("System.Int32");
     }
 
-    /// <summary>`memory[from .. to]` (both included): the `Memory<T>` on the stack, or the array, as the part that starts at `from`.</summary>
+    /// <summary>`slice[from .. to]` (both included): the `Slice<T>` on the stack, or the array, as the part that starts at `from`.</summary>
     private TypeReference EmitSliceOf(TypeReference actual, IrRange range)
     {
-        GenericInstanceType memory;
+        GenericInstanceType slice;
         if (actual is ArrayType array)
         {
-            memory = _owner.MemoryOf(array.ElementType);
-            EmitMemoryOf(memory);
+            slice = _owner.SliceOf(array.ElementType);
+            EmitSliceOfArray(slice);
         }
-        else if (!IsMemory(actual, out memory))
+        else if (!IsSlice(actual, out slice))
         {
             Report("This value cannot be sliced", range.Location);
             return actual;
         }
 
         var int32 = Core("System.Int32");
-        var memoryTemp = NewTemp(memory);
+        var sliceTemp = NewTemp(slice);
         var from = NewTemp(int32);
         var to = NewTemp(int32);
 
-        _il.Emit(OpCodes.Stloc, memoryTemp);
+        _il.Emit(OpCodes.Stloc, sliceTemp);
         EmitValue(range.From, int32);
         _il.Emit(OpCodes.Stloc, from);
         EmitValue(range.To, int32);
         _il.Emit(OpCodes.Stloc, to);
 
-        _il.Emit(OpCodes.Ldloca, memoryTemp);
+        _il.Emit(OpCodes.Ldloca, sliceTemp);
         _il.Emit(OpCodes.Ldloc, from);
         _il.Emit(OpCodes.Ldloc, to);
         _il.Emit(OpCodes.Ldloc, from);
         _il.Emit(OpCodes.Sub);
         _il.Emit(OpCodes.Ldc_I4_1);
         _il.Emit(OpCodes.Add);
-        _il.Emit(OpCodes.Call, _owner.GenericMember("System.Memory`1", memory, "Slice", 2));
-        return memory;
+        _il.Emit(OpCodes.Call, _owner.SliceMember(slice, "Part", 2));
+        return slice;
     }
 
     private ParameterDefinition ParameterOf(TqParameter parameter)
@@ -877,20 +839,16 @@ internal sealed class BodyEmitter
 
         if (expected == null || actual.FullName == expected.FullName) return actual;
 
-        // The array of .NET (what it gives and takes) and the slice of Tq: `T[]` is wrapped in a `Memory<T>`; the other way a
-        // `Memory<T>` is the array of it, which is a copy unless it is all of one (a change made by .NET is not seen then).
-        if (actual is ArrayType && IsMemory(expected, out var wrapper))
-        {
-            EmitMemoryOf(wrapper);
-            return expected;
-        }
+        // The array, the `Span<T>` and the `Memory<T>` of .NET (what it gives and takes) are handled as the slice of Tq.
+        if (IsSlice(expected, out var wrapper) && EmitSliceFromView(actual, wrapper)) return expected;
 
-        // A slice where .NET asks for a view of one: `Span<T>`, `ReadOnlySpan<T>` or `ReadOnlyMemory<T>` (`Memory<T>` is the slice itself).
-        if (IsMemory(actual, out var sliced) && EmitSliceView(sliced, expected)) return expected;
+        // A slice where .NET asks for a view of one: `Span<T>`, `ReadOnlySpan<T>`, `Memory<T>` or `ReadOnlyMemory<T>`.
+        if (IsSlice(actual, out var sliced) && EmitSliceView(sliced, expected)) return expected;
 
-        if (IsMemory(actual, out var viewed) && expected is ArrayType)
+        // The array the slice is of, which is a copy unless it is all of one (a change made by .NET is not seen then).
+        if (IsSlice(actual, out var viewed) && expected is ArrayType)
         {
-            EmitMemoryToArray(viewed);
+            EmitSliceToArray(viewed);
             return expected;
         }
 
@@ -1256,9 +1214,9 @@ internal sealed class BodyEmitter
             return actual;
         }
 
-        var memory = _owner.MemoryOf(array.ElementType);
-        EmitMemoryOf(memory);
-        return memory;
+        var slice = _owner.SliceOf(array.ElementType);
+        EmitSliceOfArray(slice);
+        return slice;
     }
 
     private TypeReference? EmitArray(IrArray array)
@@ -1305,10 +1263,10 @@ internal sealed class BodyEmitter
             return array.ElementType;
         }
 
-        if (IsMemory(target, out var memory))
+        if (IsSlice(target, out var slice))
         {
-            var element = memory.GenericArguments[0];
-            EmitElementAddress(memory, () => EmitValue(index.Indices[0], Core("System.Int32")));
+            var element = slice.GenericArguments[0];
+            EmitElementAddress(slice, () => EmitValue(index.Indices[0], Core("System.Int32")));
             _il.Emit(OpCodes.Ldobj, element);
             return element;
         }
@@ -3798,13 +3756,13 @@ internal sealed class BodyEmitter
                 // An element of a slice: the `ref T` of `memory.Span[i]`, so it is read with `ldobj` and written with `stobj`.
                 if (_types.Get(index.Target) is SliceTypeRef sliceType)
                 {
-                    var memory = _owner.MemoryOf(_owner.MapType(sliceType.Element, index.Location));
-                    var elementType = memory.GenericArguments[0];
+                    var slice = _owner.SliceOf(_owner.MapType(sliceType.Element, index.Location));
+                    var elementType = slice.GenericArguments[0];
                     return new Target(elementType, 1,
                         () =>
                         {
-                            EmitValue(index.Target, memory);
-                            EmitElementAddress(memory, () => EmitValue(index.Indices[0], Core("System.Int32")));
+                            EmitValue(index.Target, slice);
+                            EmitElementAddress(slice, () => EmitValue(index.Indices[0], Core("System.Int32")));
                         },
                         () => _il.Emit(OpCodes.Stobj, elementType),
                         () => _il.Emit(OpCodes.Ldobj, elementType)

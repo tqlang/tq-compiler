@@ -107,6 +107,9 @@ internal static class ConversionRules
         var upcast = ClassifyUpcast(argument, parameter);
         if (upcast.Kind != MatchKind.None) return upcast;
 
+        var view = ClassifyViewAsSlice(argument, parameter);
+        if (view.Kind != MatchKind.None) return view;
+
         var protocol = ClassifyProtocol(argument, parameter);
         if (protocol.Kind != MatchKind.None) return protocol;
 
@@ -141,6 +144,19 @@ internal static class ConversionRules
             return ArgumentMatch.None;
 
         return TypeExpressions.Raw(written) is { } wanted && SameType(wanted, element) ? Convert(SliceView) : ArgumentMatch.None;
+    }
+
+    /// <summary>
+    /// A `Span(T)` or a `Memory(T)` of .NET goes where a `[]T` is asked: a slice handles them as its own (`Tq.Slice<T>` converts
+    /// from both implicitly). The read-only ones do not: a slice can be written.
+    /// </summary>
+    private static ArgumentMatch ClassifyViewAsSlice(ITypeRef argument, ITypeRef parameter)
+    {
+        if (parameter is not SliceTypeRef { Element: var element }) return ArgumentMatch.None;
+        if (argument is not StructTypeReference { Struct: GenericInstance { Definition: DotnetStruct definition, Arguments: [var written] } }) return ArgumentMatch.None;
+        if (definition.TypeReference.FullName is not ("System.Span`1" or "System.Memory`1")) return ArgumentMatch.None;
+
+        return TypeExpressions.Raw(written) is { } actual && SameType(actual, element) ? Convert(SliceView) : ArgumentMatch.None;
     }
 
     /// <summary>A number: a sized integer, a float, or a literal of either.</summary>

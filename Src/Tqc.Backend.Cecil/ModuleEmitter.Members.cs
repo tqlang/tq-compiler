@@ -610,7 +610,7 @@ internal sealed partial class ModuleEmitter
 
         var takesArguments = main.Parameters?.Length == 1;
         GenericInstanceType? argumentsType = null;
-        if (takesArguments && !(IsMemory(method.Parameters[0].ParameterType, out argumentsType)
+        if (takesArguments && !(IsSlice(method.Parameters[0].ParameterType, out argumentsType)
                                 && argumentsType.GenericArguments[0].FullName == "System.String"))
         {
             Report("The parameter of 'main' must be '[]string'", main.SourceLocation);
@@ -624,10 +624,9 @@ internal sealed partial class ModuleEmitter
         var il = entry.Body.GetILProcessor();
         if (takesArguments)
         {
-            // `[]string` is a `Memory<string>` that refers to the array of `Main`.
+            // `[]string` is a `Slice<string>` over the array of `Main`.
             il.Emit(OpCodes.Ldarg_0);
-            il.Emit(OpCodes.Newobj, GenericMember(
-                "System.Memory`1", argumentsType!, ".ctor", 1, parameter => parameter.ParameterType is ArrayType));
+            il.Emit(OpCodes.Newobj, SliceMember(argumentsType!, ".ctor", 1, candidate => candidate.Parameters[0].ParameterType is ArrayType));
         }
         il.Emit(OpCodes.Call, method);
         if (method.ReturnType.FullName != "System.Void") il.Emit(OpCodes.Pop);

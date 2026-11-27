@@ -127,8 +127,8 @@ Acesso (`Semantics/Access/`), verificado ao resolver nomes e `a.b`, e ao escolhe
   a referência); declarar com outro array (`let [2]int b = a`) faz uma cópia. `[]T` (`SliceTypeRef`) é uma referência a um array, sem tamanho
   estático. `&array` (`IrAddressOf`) dá o slice que o enxerga, e `a[i .. j]` (`IrRange`, **os dois extremos entram**) dá um slice da parte;
   o que se escreve por um aparece no outro. Um array não vira slice sozinho: é preciso o `&` (`&[1, 2]` também vale).
-  No .NET, `[N]T` é um `T[]` e `[]T` é um `Memory<T>`; ao chamar um método .NET que pede `T[]` o slice vira o array: **o próprio array** se o slice é o array inteiro
-  (`MemoryMarshal.TryGetArray`: o .NET escreve de volta no slice e nada é copiado) e **uma cópia** se é só uma parte e um `T[]` que o .NET devolve vira `Memory<T>`. Um campo de array sem valor (`let [5]int valores`) ganha a memória no construtor (de instância) ou no inicializador do tipo
+  No .NET, `[N]T` é um `T[]` e `[]T` é um `Tq.Slice<T>` (memória gerenciada, um `Memory<T>`, ou memória bruta, ponteiro e tamanho); ao chamar um método .NET que pede `T[]` o slice vira o array: **o próprio array** se o slice é o array inteiro
+  (`Slice<T>.AsArray`, `MemoryMarshal.TryGetArray`: o .NET escreve de volta no slice e nada é copiado) e **uma cópia** se é só uma parte ou se é memória bruta e um `T[]` que o .NET devolve vira `Slice<T>`. Um campo de array sem valor (`let [5]int valores`) ganha a memória no construtor (de instância) ou no inicializador do tipo
   (de namespace/`@static`). Ainda não: parâmetros de array por valor (copiar ao chamar), extremos de range omitidos.
 - Struct: campos, funções (overloads em grupo), `constructor`, `destructor` e `extends` (`TqStruct`, `TqConstructor`,
   `TqDestructor`). Dentro dele valem os parâmetros genéricos, os membros herdados, os próprios e `this`.
@@ -343,7 +343,7 @@ cada aplicação é uma `GenericInstance` da tabela compartilhada; não há nó 
   de tipos sem lista de membros (inteiros, fatias). O dump do módulo marca `<extension>`.
 - Fatia para view do .NET: em argumentos de chamada (só aí) um `[]T` vira `Span(T)`, `ReadOnlySpan(T)`, `Memory(T)` ou
   `ReadOnlyMemory(T)` (`ConversionRules.ClassifyArgument`, custo 20; o `T` tem de ser o mesmo do elemento; `[N]T` não converte, é um
-  buffer da pilha). No backend a fatia é um `Memory<T>`: `.Span` para `Span`, e `ReadOnlyMemory` (e o `.Span` dele) para os read-only;
+  buffer da pilha). No backend a fatia é um `Tq.Slice<T>`, que converte para `Span`, `ReadOnlySpan` e `ReadOnlyMemory` (e `Memory` só se a memória é gerenciada: numa fatia de memória bruta lança exceção). O caminho contrário, `Span(T)` ou `Memory(T)` do .NET onde se pede `[]T`, é implícito em qualquer lugar (`ClassifyViewAsSlice`; os `ReadOnly*` não, porque a fatia é gravável);
   o que o .NET escreve no `Span` aparece na fatia. `&array` continua sendo `[]T`, não `*T`. Em atribuição e declaração não vale.
 - Strings em linhas consecutivas são uma string só (`StringExpressionNode.Following`, no parser): cada literal (também os interpolados)
   é uma linha, com `\n` entre duas e nenhum no fim. Precisa haver quebra de linha entre eles (`"a" "b"` na mesma linha não junta);
@@ -376,7 +376,7 @@ cada aplicação é uma `GenericInstance` da tabela compartilhada; não há nó 
 - `Std.Memory.Unsafe` (`StdMemoryUnsafe`, `UnsafeOperation`): intrínsecas de memória sobre `UnsafePtr(T)` e `Ref(T)`, sem corpo; o Cecil emite o IL (`EmitUnsafe`).
   Nada é conferido em tempo de execução. `ptrFromInt(type T, iptr|uptr) UnsafePtr(T)`; `intFromPtr(UnsafePtr(Opaque) | Ref(qualquer coisa)) uptr` (um `UnsafePtr(T)` de
   outro `T` passa por `ptrCast`; `Ref(AnyType)` e `UnsafePtr(AnyType)` como parâmetro casam com qualquer `Ref`/`UnsafePtr`, `ConversionRules`);
-  `sliceFromPtr(type T, UnsafePtr(T) | Ref(T), uptr) []T` (um `MemoryManager` sobre o ponteiro, `Tq.UnsafeOps` no `Tq.Runtime`: a memória não é do slice, `T` não pode ter
+  `sliceFromPtr(type T, UnsafePtr(T) | Ref(T), uptr) []T` (um `Slice<T>` de memória bruta, `Tq.UnsafeOps` no `Tq.Runtime`: a memória não é do slice, `T` não pode ter
   referências, e o tamanho cabe em `int`; senão lança exceção); `ptrCast(type T, UnsafePtr(qualquer)) UnsafePtr(T)`; `ptrAdd(type T, UnsafePtr(T), iptr)` e
   `ptrDiff(type T, UnsafePtr(T), UnsafePtr(T)) iptr`, em elementos; `ptr == null` / `ptr != null` (o `null` de um `UnsafePtr` é o endereço 0); `refFromPtr` e `ptrFromRef` (um `Ref` é um ponteiro gerenciado: o GC pode movê-lo, o
   `ptrFromRef` só serve para o que não se move); `bitCast(type To, type From, From) To` (`Unsafe.BitCast`: lança exceção se não forem valores do mesmo tamanho);
@@ -576,7 +576,7 @@ no backend ("The generic type 'Span' of .NET..."): instanciar com `Span(i8)` é 
 argumento e a chamada ficava sem decidir em silêncio (`Console.Write(string)` competia com `Write(char[])`).
 
 **`len` de slices e arrays:** `slice.len` (e `array.len`) é um `int` (o mesmo tipo de `let i = 0`, então `i < slice.len` não pede `as`); não dá para
-atribuir. No .NET é `ldlen` + `conv.i4` num array e `Memory<T>.Length` num slice.
+atribuir. No .NET é `ldlen` + `conv.i4` num array e o campo `Length` do `Slice<T>` num slice.
 
 **Métodos genéricos e arrays do .NET (etapa 1b, parte 1):** os parâmetros genéricos de um método .NET são os primeiros
 argumentos da chamada, como numa função genérica de Tq: `GC.AllocateArray(T, length as int, false)` chama

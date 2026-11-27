@@ -162,8 +162,8 @@ internal sealed partial class ModuleEmitter
             case ComptimeIntegerTypeRef: return Core("System.Int32");
             case ComptimeDecimalTypeRef: return Core("System.Double");
             case NullTypeRef: return Core("System.Object");
-            // `[]T` refers to part of an array: a `Memory<T>` (array, start and length). `[N]T` is the array itself.
-            case SliceTypeRef slice: return MemoryOf(MapType(slice.Element, location));
+            // `[]T` is a `Tq.Slice<T>`: managed memory (a `Memory<T>`) or raw memory (pointer and length). `[N]T` is the array itself.
+            case SliceTypeRef slice: return SliceOf(MapType(slice.Element, location));
             case ArrayTypeRef array: return new ArrayType(MapType(array.Element, location));
             case GenericParameterTypeRef generic:
                 return GenericParameters.TryGetValue(generic.Parameter, out var parameter)
@@ -177,11 +177,27 @@ internal sealed partial class ModuleEmitter
         }
     }
 
-    internal GenericInstanceType MemoryOf(TypeReference element)
+    internal GenericInstanceType SliceOf(TypeReference element)
     {
-        var memory = new GenericInstanceType(Core("System.Memory`1"));
-        memory.GenericArguments.Add(element);
-        return memory;
+        var slice = new GenericInstanceType(_module.ImportReference(_backend.Runtime.Slice));
+        slice.GenericArguments.Add(element);
+        return slice;
+    }
+
+    /// <summary>A member of `Tq.Slice&lt;T&gt;` (its constructors, `Part`, `AsArray`, the conversions...) on the instance `host`.</summary>
+    internal MethodReference SliceMember(GenericInstanceType host, string name, int parameters, Func<MethodDefinition, bool>? choose = null)
+    {
+        var method = _backend.Runtime.Slice.Methods.FirstOrDefault(candidate => candidate.Name == name && candidate.Parameters.Count == parameters
+                                                                                && (choose == null || choose(candidate)))
+                     ?? throw new BackendError($"The method 'Tq.Slice.{name}' was not found in the runtime");
+
+        return BodyEmitter.OnHost(Use(method), host);
+    }
+
+    internal FieldReference SliceLength(GenericInstanceType host)
+    {
+        var field = _backend.Runtime.Slice.Fields.First(candidate => candidate.Name == "Length");
+        return new FieldReference(field.Name, _module.ImportReference(field.FieldType), host);
     }
 
     /// <summary>
@@ -211,11 +227,11 @@ internal sealed partial class ModuleEmitter
         return instance;
     }
 
-    /// <summary>`Memory<T>`: what a slice is in .NET.</summary>
-    internal static bool IsMemory(TypeReference? type, out GenericInstanceType memory)
+    /// <summary>`Tq.Slice<T>`: what a slice is in .NET.</summary>
+    internal static bool IsSlice(TypeReference? type, out GenericInstanceType slice)
     {
-        memory = (type as GenericInstanceType)!;
-        return type is GenericInstanceType { ElementType.FullName: "System.Memory`1" };
+        slice = (type as GenericInstanceType)!;
+        return type is GenericInstanceType { ElementType.FullName: "Tq.Slice`1" };
     }
 
     private TypeReference Defined(IMember member, string name, SourceLocation? location)
