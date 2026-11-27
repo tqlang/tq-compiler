@@ -77,7 +77,7 @@ from Dotnet.System.Runtime.InteropServices import { NativeMemory }
         Test.assert(Unsafe.bitCast(f32, u32, 1065353216), 1.0 as f32)
 
         Test.assert(Unsafe.alignOf(u8), 1)
-        Test.assert(Unsafe.alignOf(i16), 1)
-        Test.assert(Unsafe.alignOf(i32), 1)
+        Test.assert(Unsafe.alignOf(i16), 2)
+        Test.assert(Unsafe.alignOf(i32), 4)
     }
 }

@@ -12,11 +12,11 @@ namespace Tq;
 public static unsafe class UnsafeOps
 {
     /// <summary>
-    /// `sliceFromPtr`: a slice (a `Memory&lt;T&gt;`) over `length` elements at `pointer`. It does not own the memory: whoever
+    /// `sliceFromPtr`: a `Slice&lt;T&gt;` over `length` elements at `pointer`. It does not own the memory: whoever
     /// allocated it frees it, and the slice must not be used after that. `T` has to be unmanaged (an array of references
     /// cannot be placed over raw memory), which the runtime checks.
     /// </summary>
-    public static Memory<T> SliceFromPtr<T>(void* pointer, nuint length)
+    public static Slice<T> SliceFromPtr<T>(void* pointer, nuint length)
     {
         if (length > int.MaxValue)
             throw new ArgumentOutOfRangeException(nameof(length), "A slice cannot have more than 2147483647 elements");
@@ -25,12 +25,12 @@ public static unsafe class UnsafeOps
             throw new ArgumentException($"A slice cannot be placed over raw memory of '{typeof(T)}': it holds references");
         
         if (length == 0)
-            return Memory<T>.Empty;
+            return default;
         
         if (pointer == null)
             throw new ArgumentNullException(nameof(pointer), "A slice that is not empty cannot start at the null pointer");
 
-        return new UnmanagedMemoryManager<T>(pointer, (int)length).Memory;
+        return new Slice<T>(pointer, (int)length);
     }
 
     /// <summary>
@@ -53,20 +53,5 @@ public static unsafe class UnsafeOps
     {
         public byte Byte;
         public T Value;
-    }
-
-    private sealed class UnmanagedMemoryManager<T>(void* pointer, int length) : MemoryManager<T>
-    {
-        public override Span<T> GetSpan() => new(pointer, length);
-
-        public override MemoryHandle Pin(int elementIndex = 0)
-        {
-            if ((uint)elementIndex > (uint)length) throw new ArgumentOutOfRangeException(nameof(elementIndex));
-            return new MemoryHandle((byte*)pointer + (nint)elementIndex * Unsafe.SizeOf<T>());
-        }
-
-        public override void Unpin() { }
-
-        protected override void Dispose(bool disposing) { }
     }
 }
