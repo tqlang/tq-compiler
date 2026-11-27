@@ -369,6 +369,10 @@ cada aplicação é uma `GenericInstance` da tabela compartilhada; não há nó 
   casa com nenhuma versão, porque o backend ainda não decide isso (um binário que serve a vários tamanhos fica para depois). Com um só candidato para
   tudo nada disso acontece e a IR é a de sempre. Limites: um bloco nunca é repetido inteiro; o tipo inferido de um `let` local que difere entre tamanhos não é
   detectado; deslocamentos de `iptr/uptr` continuam sendo erro; o literal em `int/uint` ainda não é conferido contra o tamanho.
+- `Std.Type.SizeOf(T)` e `Std.Type.BitSizeOf(T)` (`StdType`): funções intrínsecas que recebem um tipo e devolvem um `uint`, o tamanho dele em bytes e em bits. São
+  `TqFunction` sem corpo (`type T` como parâmetro de tipo), no namespace primitivo `Std.Type`; o backend reconhece e emite o `sizeof` do IL, então quem responde é o
+  runtime (e o `iptr` não é decidido na compilação). Aceita inteiros, floats, `bool` e `char`, structs por valor, classes e `*T` (`Ref`: o tamanho de um inteiro
+  nativo, já que o IL não mede um ponteiro gerenciado), `UnsafePtr(T)` e o `T` de uma função genérica. Os bits são os bytes vezes `ByteBits` da ABI do backend.
 - Operações bit a bit, só de inteiros (`TypeChecker.VisitBitwise`): `a ⋏ b` (e), `a ⋎ b` (ou), `a ⊕ b` (ou exclusivo), `~a` (não), `a << n` e `a >> n`
   (`>>` aritmético em inteiro com sinal, lógico sem sinal), `a <<% n` e `a >>% n` (a quantidade é tomada módulo o tamanho do tipo). Sem alternativas
   em ASCII e sem atribuição composta. Precedência como Rust e Zig, do mais forte: `* /`, `+ -`, deslocamentos, `⋏`, `⊕`, `⋎`, comparações.

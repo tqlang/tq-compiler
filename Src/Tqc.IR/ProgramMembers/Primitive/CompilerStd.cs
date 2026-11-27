@@ -23,6 +23,7 @@ public static class CompilerStd
             new PrimitiveNamespace("Types", Types.All),
             new PrimitiveNamespace("Memory", []),
             new PrimitiveNamespace(StdMath.NamespaceName, [StdMath.Operator]),
+            new PrimitiveNamespace(StdType.NamespaceName, StdType.Members),
         ]));
 }
 

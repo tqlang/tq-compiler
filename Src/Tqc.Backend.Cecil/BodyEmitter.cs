@@ -1623,6 +1623,9 @@ internal sealed class BodyEmitter
             case IntrinsicMethod intrinsic when receiver != null:
                 return EmitIntrinsic(intrinsic.Owner.Name, intrinsic.Name, receiver, call.Location);
 
+            case TqFunction sizeFunction when StdType.IsIntrinsic(sizeFunction):
+                return EmitTypeSize(call, bits: ReferenceEquals(sizeFunction, StdType.BitSizeOf));
+
             case TqFunction tq when _owner.Backend.Definitions.TryGetValue(tq, out var definition) && definition is MethodDefinition method:
             {
                 // Through a reference to a struct of a hierarchy the call goes to the interface, so that the most derived function runs.
@@ -2097,6 +2100,33 @@ internal sealed class BodyEmitter
     /// What a member that the compiler declares on its own types (`Nullable.unwrap`, `Failable.ignored`) stands for: its lowering.
     /// The operand is what the member is read or called on. Null (void) is the result of what gives nothing.
     /// </summary>
+    /// <summary>
+    /// `Std.Type.SizeOf(T)` and `BitSizeOf(T)`: the `sizeof` of IL, which the runtime answers for any type (a generic parameter too),
+    /// so what depends on where the program runs (`iptr`) is not decided here. A reference (`Ref(T)`) is a managed pointer, which IL cannot
+    /// measure: it is as large as a native integer.
+    /// </summary>
+    private TypeReference? EmitTypeSize(IrCall call, bool bits)
+    {
+        var arguments = call.ArgumentsList.arguments;
+        if (arguments.Length != 1)
+        {
+            Report($"'{(bits ? "BitSizeOf" : "SizeOf")}' takes the type, and only it", call.Location);
+            return null;
+        }
+
+        var type = _owner.MapExpression(arguments[0]);
+        if (type is ByReferenceType) type = _owner.Module.TypeSystem.IntPtr;
+
+        _il.Emit(OpCodes.Sizeof, type);
+        if (bits)
+        {
+            _il.Emit(OpCodes.Ldc_I4, CecilBackend.Abi.ByteBits);
+            _il.Emit(OpCodes.Mul);
+        }
+
+        return _owner.Module.TypeSystem.UInt32;
+    }
+
     private TypeReference? EmitIntrinsic(string owner, string member, IrExpression operand, SourceLocation location)
     {
         switch (owner, member)
