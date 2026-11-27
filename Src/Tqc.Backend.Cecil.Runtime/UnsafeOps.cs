@@ -1,6 +1,7 @@
 using System;
 using System.Buffers;
 using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 
 namespace Tq;
 
@@ -41,10 +42,13 @@ public static unsafe class UnsafeOps
         if (RuntimeHelpers.IsReferenceOrContainsReferences<T>()) return (nuint)sizeof(nint);
 
         var probe = default(Aligned<T>);
-        return (nuint)Unsafe.ByteOffset(ref Unsafe.As<byte, byte>(ref probe.Byte), ref Unsafe.As<T, byte>(ref probe.Value));
+        return (nuint)Unsafe.ByteOffset(
+            ref Unsafe.As<byte, byte>(ref probe.Byte),
+            ref Unsafe.As<T, byte>(ref probe.Value!)
+        );
     }
 
-    [System.Runtime.InteropServices.StructLayout(System.Runtime.InteropServices.LayoutKind.Sequential)]
+    [StructLayout(LayoutKind.Sequential)]
     private struct Aligned<T>
     {
         public byte Byte;
