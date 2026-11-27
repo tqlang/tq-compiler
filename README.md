@@ -344,7 +344,10 @@ cada aplicação é uma `GenericInstance` da tabela compartilhada; não há nó 
 - `delete valor` (`DeleteStatementNode` → `IrDelete`): chama o destructor do valor, a única forma de ele rodar por enquanto. O tipo tem de ter
   `destructor` (ele mesmo ou herdado), ou ser um tipo .NET que implementa `IDisposable` (`Destructors.Has`); senão é erro de compilação. O backend emite
   `IDisposable.Dispose` (`constrained.` + `callvirt` no endereço do valor, que é destruído no lugar e não numa cópia; `callvirt` numa classe, ou `*Classe`).
-  Ainda não há destruição automática no fim do escopo, análise de uso após `delete`, nem destructor dos campos.
+  Depois do `delete` a variável (local ou parâmetro) está morta: usá-la, ou dar `delete` de novo, é erro de compilação (`LifetimeChecker`, depois de checar o corpo
+  de cada função), até ela receber um valor novo (`x = ...`). A análise segue todos os caminhos: um `if` ou um `match` junta os estados dos ramos (morta em um só
+  deles é "pode ter sido apagada", também erro), e um `while` repete até o estado parar de crescer (apagar no corpo sem atribuir de novo é erro no turno seguinte).
+  Só variáveis são seguidas; campos e elementos não. Ainda não há destruição automática no fim do escopo, nem destructor dos campos.
 - Fatia para view do .NET: em argumentos de chamada (só aí) um `[]T` vira `Span(T)`, `ReadOnlySpan(T)`, `Memory(T)` ou
   `ReadOnlyMemory(T)` (`ConversionRules.ClassifyArgument`, custo 20; o `T` tem de ser o mesmo do elemento; `[N]T` não converte, é um
   buffer da pilha). No backend a fatia é um `Tq.Slice<T>`, que converte para `Span`, `ReadOnlySpan` e `ReadOnlyMemory` (e `Memory` só se a memória é gerenciada: numa fatia de memória bruta lança exceção). O caminho contrário, `Span(T)` ou `Memory(T)` do .NET onde se pede `[]T`, é implícito em qualquer lugar (`ClassifyViewAsSlice`; os `ReadOnly*` não, porque a fatia é gravável);

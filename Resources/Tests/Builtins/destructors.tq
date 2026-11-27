@@ -80,4 +80,42 @@ func makeTally(int amount) Tally {
         delete component
         Test.assert(destroyed, 1)
     }
+
+    # A variable that was deleted is used again only after it gets a new value: using it, or deleting it twice, is a compile error.
+    Test.newTestUnit("Builtins - destructors - a deleted variable is alive again when it is assigned")
+    {
+        destroyed = 0
+        let Tally value = makeTally(2)
+        delete value
+        value = makeTally(5)
+        delete value
+        Test.assert(destroyed, 25)
+    }
+
+    Test.newTestUnit("Builtins - destructors - a loop that assigns what it deletes")
+    {
+        destroyed = 0
+        let int turn = 0
+        let Tally value = makeTally(1)
+        while turn < 3 {
+            delete value
+            turn = turn + 1
+            value = makeTally(turn)
+        }
+        Test.assert(destroyed, 112)
+    }
+
+    Test.newTestUnit("Builtins - destructors - both branches delete the variable")
+    {
+        destroyed = 0
+        let Tally value = makeTally(7)
+        let int choice = 1
+        if choice == 1 {
+            delete value
+        }
+        else {
+            delete value
+        }
+        Test.assert(destroyed, 7)
+    }
 }
