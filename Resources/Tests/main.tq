@@ -16,6 +16,7 @@ from Tests import {
     Builtins.testStrings()
     Builtins.testDestructors()
     Builtins.testStackArrays()
+    Builtins.testArrayParameters()
     Builtins.testProtocols()
     Builtins.testInheritance()
     Builtins.testPolymorphism()

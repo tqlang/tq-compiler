@@ -275,7 +275,7 @@ internal sealed partial class ModuleEmitter
         TypeReference returnType;
         if (accessorOf != null) returnType = isSetter ? Core("System.Void") : PropertyTypeOf(accessorOf)!;
         else if (isConstructor || function.ReturnType == null) returnType = Core("System.Void");
-        else returnType = MapExpression(function.ReturnType);
+        else returnType = MapSignature(function.ReturnType);
         method.ReturnType = returnType;
 
         if (accessorOf != null)
@@ -287,7 +287,7 @@ internal sealed partial class ModuleEmitter
             foreach (var parameter in function.Parameters ?? [])
             {
                 if (GenericParameterTypeRef.IsTypeParameter(parameter)) continue;
-                method.Parameters.Add(new ParameterDefinition(parameter.Name, ParameterAttributes.None, MapExpression(parameter.Type)));
+                method.Parameters.Add(new ParameterDefinition(parameter.Name, ParameterAttributes.None, MapSignature(parameter.Type)));
             }
         }
 

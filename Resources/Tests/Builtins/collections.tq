@@ -179,3 +179,81 @@ func sumOf([]i32 view) i32 {
         Test.assert(names[1], "b")
     }
 }
+
+# `[N]T` of a parameter or of what a function returns is passed whole: the callee has a copy of its own.
+func bumpFirst([3]i32 values) i32 {
+    values[0] = values[0] + 100
+    return values[0] + values[1] + values[2]
+}
+
+func headOf([3]i32 values) i32 {
+    return values[0]
+}
+
+func doubledOf([3]i32 values) [3]i32 {
+    let [3]i32 result
+    let int index = 0
+    while index < values.len {
+        result[index] = values[index] * 2
+        index = index + 1
+    }
+
+    return result
+}
+
+func handOver([3]i32 values) [3]i32 {
+    return values
+}
+
+func seriesOf() [3]i32 {
+    return [7, 8, 9]
+}
+
+func redOfSecond([2]Pixel pixels) u8 {
+    return pixels[1].red
+}
+
+@public func testArrayParameters() {
+    Test.newTestUnit("Builtins - array parameters - the callee changes a copy")
+    {
+        let [3]i32 values = [1, 2, 3]
+        Test.assert(bumpFirst(values), 106)
+        Test.assert(values[0], 1)
+        Test.assert(headOf(values), 1)
+    }
+
+    Test.newTestUnit("Builtins - array parameters - an array is returned by value")
+    {
+        let [3]i32 values = [1, 2, 3]
+        let [3]i32 doubled = doubledOf(values)
+        Test.assert(doubled[0], 2)
+        Test.assert(doubled[2], 6)
+        Test.assert(values[2], 3)
+
+        doubled = handOver(doubled)
+        Test.assert(doubled[1], 4)
+    }
+
+    Test.newTestUnit("Builtins - array parameters - a returned array is read, sliced and passed on")
+    {
+        Test.assert(seriesOf()[1], 8)
+        Test.assert(seriesOf().len, 3)
+        Test.assert(headOf(seriesOf()), 7)
+        let [3]i32 series = doubledOf(seriesOf())
+        Test.assert(sumOf(&series), 48)
+
+        let [3]i32 source = [4, 5, 6]
+        let [3]i32 passed = handOver(source)
+        let []i32 view = &passed
+        Test.assert(view[2], 6)
+    }
+
+    Test.newTestUnit("Builtins - array parameters - an array of structs and a literal as arguments")
+    {
+        let [2]Pixel pixels
+        pixels[1].red = 9
+        Test.assert(redOfSecond(pixels), 9)
+        let [3]i32 literal = [5, 6, 7]
+        Test.assert(headOf(literal), 5)
+    }
+}
