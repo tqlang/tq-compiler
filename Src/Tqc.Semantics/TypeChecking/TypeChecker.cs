@@ -122,6 +122,7 @@ internal sealed partial class TypeChecker(
                 {
                     // The fields first: one without a type has the type of its value, which the functions that use it need.
                     foreach (var inner in structure.Members.Values.OrderBy(inner => inner is TqField ? 0 : 1)) CheckMember(inner);
+                    Destructors.Analyze(structure);
                     foreach (var constructor in structure.Constructors) CheckFunction(constructor);
                     if (structure.Destructor != null) CheckFunction(structure.Destructor);
                 });

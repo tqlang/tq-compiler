@@ -206,7 +206,7 @@ internal sealed partial class ModuleEmitter
         // have initial values, because those take code.
         if (structure.Constructors.Count == 0 && (IsClass(structure) || InstanceInitializers(structure).Count > 0) || structure.BaseStruct != null)
             DeclareDefaultConstructor(container, structure);
-        if (structure.Destructor != null) DeclareDestructor(container, structure, structure.Destructor);
+        if (structure.DeclaresDestructor) DeclareDestructor(container, structure, structure.Destructor);
     }
 
     private void DeclareFunction(Container container, TqFunction function, TqProperty? accessorOf)
@@ -372,7 +372,7 @@ internal sealed partial class ModuleEmitter
     /// way Tq does. It is not a finalizer: the garbage collector never calls it. A class that extends one with a destructor overrides
     /// its `Dispose` (it already implements the interface).
     /// </summary>
-    private void DeclareDestructor(Container container, TqStruct structure, TqFunction destructor)
+    private void DeclareDestructor(Container container, TqStruct structure, TqFunction? destructor)
     {
         var overrides = IsClass(structure) && ExtendsDestructor(structure);
 
@@ -382,10 +382,22 @@ internal sealed partial class ModuleEmitter
 
         var method = new MethodDefinition("Dispose", attributes, Core("System.Void"));
         container.Type.Methods.Add(method);
-        _backend.Definitions[destructor] = method;
+        if (destructor != null) _backend.Definitions[destructor] = method;
+        _backend.DisposeMethods[structure] = method;
 
         if (!overrides) container.Type.Interfaces.Add(new InterfaceImplementation(Core("System.IDisposable")));
-        _bodies.Add((method, il => new BodyEmitter(this, destructor, method, il).Emit()));
+        _bodies.Add((method, il =>
+        {
+            if (destructor != null)
+            {
+                new BodyEmitter(this, destructor, method, il).Emit();
+                return;
+            }
+
+            // No destructor is declared: only the fields are destroyed.
+            EmitDestructorTail(il, structure, method.DeclaringType);
+            il.Emit(OpCodes.Ret);
+        }));
     }
 
     /// <summary>Whether a struct that this one extends has a destructor.</summary>
@@ -394,10 +406,55 @@ internal sealed partial class ModuleEmitter
         var steps = 0;
         for (var current = structure.BaseStruct as TqStruct; current != null && steps++ < 256; current = current.BaseStruct as TqStruct)
         {
-            if (current.Destructor != null) return true;
+            if (current.DeclaresDestructor) return true;
         }
 
         return false;
+    }
+
+    /// <summary>
+    /// What a destructor does after its own body: the destructors of the fields that are destroyed with the struct (the last declared first),
+    /// then the one of what it extends (a class calls its `Dispose`; a struct by value has it as a field).
+    /// </summary>
+    internal void EmitDestructorTail(ILProcessor il, TqStruct structure, TypeDefinition type)
+    {
+        var dispose = DisposeMethod();
+
+        foreach (var field in (structure.DestroyedFields ?? []).Reverse())
+        {
+            if (!_backend.Definitions.TryGetValue(field, out var definition) || definition is not FieldDefinition fieldDefinition) continue;
+
+            il.Emit(OpCodes.Ldarg_0);
+            il.Emit(OpCodes.Ldflda, Use(fieldDefinition));
+            il.Emit(OpCodes.Constrained, fieldDefinition.FieldType);
+            il.Emit(OpCodes.Callvirt, dispose);
+        }
+
+        // What it extends, if that has a destructor.
+        var steps = 0;
+        TqStruct? declaring = null;
+        for (var current = structure.BaseStruct as TqStruct; current != null && steps++ < 256; current = current.BaseStruct as TqStruct)
+        {
+            if (!current.DeclaresDestructor) continue;
+            declaring = current;
+            break;
+        }
+
+        if (declaring == null) return;
+
+        if (IsClass(structure))
+        {
+            if (!_backend.DisposeMethods.TryGetValue(declaring, out var baseDispose)) return;
+            il.Emit(OpCodes.Ldarg_0);
+            il.Emit(OpCodes.Call, Use(baseDispose));
+        }
+        else if (_backend.BaseFields.TryGetValue(type.FullName, out var baseField))
+        {
+            il.Emit(OpCodes.Ldarg_0);
+            il.Emit(OpCodes.Ldflda, Use(baseField));
+            il.Emit(OpCodes.Constrained, baseField.FieldType);
+            il.Emit(OpCodes.Callvirt, dispose);
+        }
     }
 
     /// <summary>`IDisposable.Dispose`, which is what `delete` calls.</summary>

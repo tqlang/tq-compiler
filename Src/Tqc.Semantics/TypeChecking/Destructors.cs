@@ -40,7 +40,7 @@ internal static class Destructors
                 {
                     switch (current)
                     {
-                        case TqStruct { Destructor: not null }: return true;
+                        case TqStruct declaring when Analyze(declaring).Count >= 0 && declaring.DeclaresDestructor: return true;
                         case TqStruct next: current = next.BaseStruct; continue;
                         case DotnetClass dotnet: return IsDisposable(dotnet.TypeReference);
                         default: return false;
@@ -54,6 +54,31 @@ internal static class Destructors
             case DotnetStruct dotnetStruct: return IsDisposable(dotnetStruct.TypeReference);
             default: return false;
         }
+    }
+
+    /// <summary>A value that is not a reference: a struct by value, or a type of .NET that is not a class.</summary>
+    public static bool IsByValue(ITypeRef type) => !CompilerStd.Types.IsRef(type, out _) && !IsClass(type);
+
+    /// <summary>
+    /// Finds the fields of a struct that are destroyed with it (`TqStruct.DestroyedFields`): the ones, not static, that are by value and have a
+    /// destructor. A reference is not: what it refers to may have other owners.
+    /// </summary>
+    public static IReadOnlyList<TqField> Analyze(TqStruct structure)
+    {
+        if (structure.DestroyedFields != null) return structure.DestroyedFields;
+
+        // A struct by value cannot contain itself; this is only for the one that is being analyzed.
+        structure.DestroyedFields = [];
+
+        var fields = new List<TqField>();
+        foreach (var field in structure.Members.Values.OfType<TqField>().OrderBy(field => field.SourceLocation.span.LineStart).ThenBy(field => field.SourceLocation.span.ColStart))
+        {
+            if (field.Type == null || field.Attributes.OfType<TqBuiltinAttribute>().Any(attribute => attribute.Kind == BuiltinAttribute.Static)) continue;
+            if (TypeChecker.TypeFromExpression(field.Type) is { } type && IsByValue(type) && Has(type)) fields.Add(field);
+        }
+
+        structure.DestroyedFields = fields;
+        return fields;
     }
 
     private static bool IsClass(ITypeRef type) => type switch

@@ -131,6 +131,11 @@ internal sealed partial class TypeChecker
                         Variants = choice.Variants.Select(variant => variant with { Statement = (IrStatement)Node(variant.Statement) }).ToArray(),
                     };
 
+                // The value of a call that nobody keeps is destroyed at once.
+                case IrExpressionStatement { Expression: IrCall call }
+                    when checker.TypeTable.Get(call) is { } resultType && Destructors.IsByValue(resultType) && Destructors.Has(resultType):
+                    return new IrDestroy(call.Location, call);
+
                 case IrExpressionStatement statement:
                     return statement with { Expression = (IrExpression)Node(statement.Expression) };
 

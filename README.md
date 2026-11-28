@@ -353,8 +353,13 @@ cada aplicação é uma `GenericInstance` da tabela compartilhada; não há nó 
   `break` que a deixa (`IrReturnStatement.Cleanup`, `IrBreak.Cleanup`, `IrDestroy`), e quando um valor novo toma o lugar do que ela tem (`IrAssign.DestroyOld`).
   Um parâmetro por valor é cópia da função e é destruído por ela; um `*T` é do chamador e não. Cópias são do C#: `return local` destrói o local, e a cópia que o
   chamador recebe tem o seu destructor chamado depois. Para as variáveis que um `delete` destrói o backend guarda uma flag de "viva" (`TqFunction.DeletedVariables`):
-  o `delete` a apaga e a destruição automática a respeita, então nada é destruído duas vezes. Ainda não: temporários que ninguém guarda, o destructor dos
-  campos e o da base, e blocos de `match` dentro de outra expressão (só `match` como statement, ou o valor de um statement, é seguido).
+  o `delete` a apaga e a destruição automática a respeita, então nada é destruído duas vezes. O valor de uma chamada que ninguém guarda (`f()` como statement,
+  com `f` devolvendo um struct por valor com destructor) é destruído na hora. Ainda não: outros temporários (argumentos, `f().campo`) e blocos de `match`
+  dentro de outra expressão (só `match` como statement, ou o valor de um statement, é seguido).
+- Campos e base: depois do corpo do destructor de um struct rodam os destructors dos campos que são structs **por valor** com destructor (o último declarado
+  primeiro; `TqStruct.DestroyedFields`, achados por `Destructors.Analyze`) e então o da base (uma classe chama o `Dispose` da base; um struct por valor tem a base
+  como o campo `__base`). Um struct com tais campos tem destructor mesmo sem declarar um (o backend gera o `Dispose`). Campos que são referências (classes) não são
+  destruídos: o objeto pode ter outros donos. Um `return` dentro do corpo do destructor pula essa parte.
 - Fatia para view do .NET: em argumentos de chamada (só aí) um `[]T` vira `Span(T)`, `ReadOnlySpan(T)`, `Memory(T)` ou
   `ReadOnlyMemory(T)` (`ConversionRules.ClassifyArgument`, custo 20; o `T` tem de ser o mesmo do elemento; `[N]T` não converte, é um
   buffer da pilha). No backend a fatia é um `Tq.Slice<T>`, que converte para `Span`, `ReadOnlySpan` e `ReadOnlyMemory` (e `Memory` só se a memória é gerenciada: numa fatia de memória bruta lança exceção). O caminho contrário, `Span(T)` ou `Memory(T)` do .NET onde se pede `[]T`, é implícito em qualquer lugar (`ClassifyViewAsSlice`; os `ReadOnly*` não, porque a fatia é gravável);
@@ -569,7 +574,7 @@ usado com ou sem um módulo `dotnet` que o liste.
   as constantes; casos numéricos sem nome não aparecem; o valor de um caso é um número ou uma constante .NET, como `CsSeekOrigin.Begin`). Structs genéricas: ver "Structs genéricas de Tq em .NET".
 - Acesso: `@public` é público; o resto (namespace/módulo) é `internal`, o máximo que o .NET diz.
 - Funções: `@static`, `@virtual` e `@override` viram os flags; `lazy` ainda não.
-  Classes sem construtor ganham o construtor sem argumentos; o `destructor` é o `Dispose` do `IDisposable`, que o tipo (struct ou classe) implementa, e não um finalizador: só roda com `delete`. Uma classe que estende outra com destructor sobrescreve o `Dispose` dela (o destructor da base **não** é encadeado ainda).
+  Classes sem construtor ganham o construtor sem argumentos; o `destructor` é o `Dispose` do `IDisposable`, que o tipo (struct ou classe) implementa, e não um finalizador: só roda com `delete`. Uma classe que estende outra com destructor sobrescreve o `Dispose` dela (o destructor da base é chamado depois, ver abaixo).
 - Propriedades são propriedades .NET; o campo de apoio (`<nome>k__BackingField`) é criado pelo backend quando
   `HasBackingField`. `get = f` precisa nomear uma função do mesmo tipo.
 - Tipos: `i8`..`i128`/`u8`..`u128`, `int`/`uint` = 32 bits, `iptr`/`uptr` = `IntPtr`/`UIntPtr`, `f16/f32/f64`

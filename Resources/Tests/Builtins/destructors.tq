@@ -43,6 +43,54 @@ func beforeReturn(int amount) int {
     return amount * 2
 }
 
+struct Pair {
+    let Tally first
+    let Tally second
+}
+
+struct Owner {
+    let Tally part
+
+    destructor() {
+        destroyed = destroyed * 10 + 7
+    }
+}
+
+struct Seven {
+    let int number = 0
+
+    destructor() {
+        destroyed = destroyed * 10 + 5
+    }
+}
+
+struct Heir extends Seven {
+    destructor() {
+        destroyed = destroyed * 10 + 6
+    }
+}
+
+func makeTally(int amount) Tally {
+    let Tally result
+    result.amount = amount
+    return result
+}
+
+func pairOf() {
+    let Pair pair
+    pair.first.amount = 1
+    pair.second.amount = 2
+}
+
+func ownerOf() {
+    let Owner owner
+    owner.part.amount = 3
+}
+
+func heirOf() {
+    let Heir heir
+}
+
 func byValue(Tally value) {
     destroyed = destroyed * 10 + 8
 }
@@ -73,12 +121,14 @@ func ofClass(int id) {
         Test.assert(destroyed, 4)
     }
 
-    Test.newTestUnit("Builtins - destructors - the destructor of a class that extends another is the one that runs")
+    Test.newTestUnit("Builtins - destructors - the destructor of a class is followed by the one of what it extends")
     {
         destroyed = 0
         let *Handle handle = new SpecialHandle()
         delete handle
-        Test.assert(destroyed, 9)
+
+        # The destructor of the class, then the one of what it extends (id 0).
+        Test.assert(destroyed, 90)
     }
 
     Test.newTestUnit("Builtins - destructors - delete calls Dispose of a type of .NET")
@@ -198,6 +248,36 @@ func ofClass(int id) {
         destroyed = 0
         ofClass(2)
         Test.assert(destroyed, 2)
+    }
+
+    Test.newTestUnit("Builtins - destructors - a struct destroys its fields, the last declared first, without declaring a destructor")
+    {
+        destroyed = 0
+        pairOf()
+        Test.assert(destroyed, 21)
+    }
+
+    Test.newTestUnit("Builtins - destructors - the fields are destroyed after the destructor of the struct")
+    {
+        destroyed = 0
+        ownerOf()
+        Test.assert(destroyed, 73)
+    }
+
+    Test.newTestUnit("Builtins - destructors - the destructor of a struct by value is followed by the one of what it extends")
+    {
+        destroyed = 0
+        heirOf()
+        Test.assert(destroyed, 65)
+    }
+
+    Test.newTestUnit("Builtins - destructors - the value of a call that nobody keeps is destroyed at once")
+    {
+        destroyed = 0
+
+        # `result` of makeTally is destroyed when it returns (4), and so is the copy that is not kept (4).
+        makeTally(4)
+        Test.assert(destroyed, 44)
     }
 
     Test.newTestUnit("Builtins - destructors - a variable that delete destroyed is not destroyed again")

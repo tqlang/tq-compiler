@@ -102,6 +102,10 @@ internal sealed class BodyEmitter
         if (_function is TqConstructor) EmitInitializers();
         if (_function.Body != null) EmitStatement(_function.Body);
 
+        // What a destructor does after its own body: destroys the fields and what the struct extends.
+        if (_function is TqDestructor && _function.Owner is TqStruct destroyed)
+            _owner.EmitDestructorTail(_il, destroyed, _method.DeclaringType);
+
         // The end of the function: what a function without `return` at its end gives.
         var returnType = _method.ReturnType;
         if (IsVoid(returnType))
