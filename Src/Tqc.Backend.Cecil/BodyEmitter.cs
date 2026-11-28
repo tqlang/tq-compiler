@@ -500,15 +500,11 @@ internal sealed partial class BodyEmitter
         return _boxedLocals.GetValueOrDefault(local);
     }
 
-    /// <summary>The `Box` of a struct, with the value of its type zeroed, kept in `box`.</summary>
+    /// <summary>The `Box` of a variable that has no value yet (the struct in it is all zeros), kept in `box`.</summary>
     private void EmitNewBox(VariableDefinition value, VariableDefinition box)
     {
         var boxType = _owner.Backend.RefBoxes[value.VariableType.FullName];
-        var zero = NewTemp(value.VariableType);
-        _il.Emit(OpCodes.Ldloca, zero);
-        _il.Emit(OpCodes.Initobj, value.VariableType);
-        _il.Emit(OpCodes.Ldloc, zero);
-        _il.Emit(OpCodes.Newobj, _owner.Use(boxType.Methods.First(method => method.IsConstructor && method.HasParameters)));
+        _il.Emit(OpCodes.Newobj, _owner.Use(boxType.Methods.First(method => method.IsConstructor && !method.HasParameters)));
         _il.Emit(OpCodes.Stloc, box);
     }
 
@@ -519,15 +515,30 @@ internal sealed partial class BodyEmitter
         _il.Emit(OpCodes.Callvirt, _owner.Use(_owner.Backend.RefGetters[value.VariableType.FullName]));
     }
 
-    private Target BoxTarget(VariableDefinition value, VariableDefinition box, bool declares) => new(
+    /// <summary>The struct inside the `Box` of a variable: what is assigned is written there, where the references to it see it.</summary>
+    private Target BoxTarget(VariableDefinition value, VariableDefinition box) => new(
         value.VariableType,
         1,
+        () => EmitBoxAddress(value, box),
+        () => _il.Emit(OpCodes.Stobj, value.VariableType),
         () =>
         {
-            if (declares) EmitNewBox(value, box);
             EmitBoxAddress(value, box);
+            _il.Emit(OpCodes.Ldobj, value.VariableType);
+        }
+    );
+
+    /// <summary>A declaration with a value: the value is what the new `Box` is made of.</summary>
+    private Target NewBoxTarget(VariableDefinition value, VariableDefinition box) => new(
+        value.VariableType,
+        0,
+        () => { },
+        () =>
+        {
+            var boxType = _owner.Backend.RefBoxes[value.VariableType.FullName];
+            _il.Emit(OpCodes.Newobj, _owner.Use(boxType.Methods.First(method => method.IsConstructor && method.HasParameters)));
+            _il.Emit(OpCodes.Stloc, box);
         },
-        () => _il.Emit(OpCodes.Stobj, value.VariableType),
         () =>
         {
             EmitBoxAddress(value, box);
@@ -3946,10 +3957,10 @@ internal sealed partial class BodyEmitter
         switch (expression)
         {
             case IrLocal local:
-                return BoxOf(local) is { } declaredBox ? BoxTarget(GetLocal(local), declaredBox, true) : LocalTarget(GetLocal(local));
+                return BoxOf(local) is { } declaredBox ? NewBoxTarget(GetLocal(local), declaredBox) : LocalTarget(GetLocal(local));
 
             case IrReference { Reference: LocalReference local }:
-                return BoxOf(local.Local) is { } box ? BoxTarget(GetLocal(local.Local), box, false) : LocalTarget(GetLocal(local.Local));
+                return BoxOf(local.Local) is { } box ? BoxTarget(GetLocal(local.Local), box) : LocalTarget(GetLocal(local.Local));
 
             case IrReference { Reference: ParameterReference parameter }:
             {

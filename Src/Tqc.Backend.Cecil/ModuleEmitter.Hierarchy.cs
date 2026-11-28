@@ -234,6 +234,14 @@ internal sealed partial class ModuleEmitter
             body.Emit(OpCodes.Ret);
             box.Methods.Add(constructor);
 
+            // The one of a variable that gets its value later: the struct starts as all zeros.
+            var empty = new MethodDefinition(".ctor", constructor.Attributes, Core("System.Void"));
+            body = empty.Body.GetILProcessor();
+            body.Emit(OpCodes.Ldarg_0);
+            body.Emit(OpCodes.Call, reference.Methods.First(candidate => candidate.IsConstructor && !candidate.HasParameters));
+            body.Emit(OpCodes.Ret);
+            box.Methods.Add(empty);
+
             var access = new MethodDefinition(valueName,
                 MethodAttributes.Public | MethodAttributes.Virtual | MethodAttributes.Final | MethodAttributes.HideBySig
                 | MethodAttributes.SpecialName, byReference);

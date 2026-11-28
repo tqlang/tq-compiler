@@ -42,6 +42,20 @@ func kindOfRef(*Car car) string => "car"
 
 
 @public func testValueInheritance() {
+    Test.newTestUnit("Builtins - inheritance by value - a reference sees what is assigned later")
+    {
+        let car = new Car()
+        let reference = &car
+        car = new Car()
+        car.plate = "new"
+        Test.assert(reference.plate, "new")
+
+        let Car later
+        later = new Car()
+        renameRef(&later, "later")
+        Test.assert(later.plate, "later")
+    }
+
     Test.newTestUnit("Builtins - inheritance by value - a struct that extends another has its functions")
     {
         let Car car = new Car()
