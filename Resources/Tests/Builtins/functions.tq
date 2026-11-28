@@ -1,4 +1,5 @@
 from Std import { Test }
+from Dotnet.System import { Int32 }
 
 let int calls = 0
 
@@ -30,7 +31,25 @@ func firstAbove(i32 limit) i32 {
     }
 }
 
+# Every path assigns `kind` before it is used.
+func assignedLater(i32 v) i32 {
+    let i32 kind
+    if v > 0 { kind = 1 }
+    elif v < 0 { kind = 2 }
+    else { kind = 3 }
+    return kind
+}
+
 @public func testFunctions() {
+    Test.newTestUnit("Builtins - functions - a variable assigned later")
+    {
+        Test.assert(assignedLater(5) * 100 + assignedLater(-5) * 10 + assignedLater(0), 123)
+
+        let int parsed
+        Test.assert(Int32.TryParse("42", &parsed), true)
+        Test.assert(parsed, 42)
+    }
+
     Test.newTestUnit("Builtins - functions - every path returns")
     {
         Test.assert(sign(-5) + sign(7) * 10, 9)

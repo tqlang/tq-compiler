@@ -41,6 +41,10 @@ public class DotnetMethod(
     /// <summary>Virtual, abstract and interface methods can be replaced; the last two are always virtual in the metadata.</summary>
     public bool CanBeOverridden => IsVirtual || IsAbstract;
 
+    /// <summary>Whether the parameter is an `out` one: what it refers to is written, and needs no value before the call.</summary>
+    public bool IsOut(int parameter) =>
+        parameter < reference.Parameters.Count && reference.Parameters[parameter] is { IsOut: true, ParameterType.IsByReference: true };
+
     private MethodDefinition? Definition
     {
         get

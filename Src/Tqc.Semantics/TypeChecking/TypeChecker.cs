@@ -179,6 +179,7 @@ internal sealed partial class TypeChecker(
         {
             CheckBody(function.Body);
             CheckEveryPathReturns(function, function.Body);
+            new AssignmentChecker(Error, TypeOf).Check(function.Body);
         }
         _function = outer;
     }
