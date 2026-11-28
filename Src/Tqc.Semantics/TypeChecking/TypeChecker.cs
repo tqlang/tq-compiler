@@ -122,6 +122,7 @@ internal sealed partial class TypeChecker(
                 {
                     // The fields first: one without a type has the type of its value, which the functions that use it need.
                     foreach (var inner in structure.Members.Values.OrderBy(inner => inner is TqField ? 0 : 1)) CheckMember(inner);
+                    Destructors.Analyze(structure);
                     foreach (var constructor in structure.Constructors) CheckFunction(constructor);
                     if (structure.Destructor != null) CheckFunction(structure.Destructor);
                 });
@@ -175,7 +176,14 @@ internal sealed partial class TypeChecker(
 
         var outer = _function;
         _function = function;
-        if (function.Body != null) CheckBody(function.Body);
+        if (function.Body != null)
+        {
+            CheckBody(function.Body);
+            var lifetimes = new LifetimeChecker(Error);
+            lifetimes.Check(function);
+            function.DeletedVariables = lifetimes.Deleted;
+            new Destruction(this).Function(function);
+        }
         _function = outer;
     }
 
@@ -249,6 +257,17 @@ internal sealed partial class TypeChecker(
 
             case IrExpressionStatement expressionStatement:
                 return expressionStatement with { Expression = VisitPerSize(expressionStatement.Expression, Expectation.Discard) };
+
+            case IrDelete deleteStatement:
+            {
+                var operand = VisitPerSize(deleteStatement.Operand);
+                var operandType = TypeOf(operand);
+                if (operandType != null && !Destructors.Has(operandType))
+                    Error($"'delete' needs a value of a type that has a destructor (or implements 'IDisposable'), not '{TypeFormatter.Format(operandType)}'",
+                        operand.Location);
+
+                return deleteStatement with { Operand = operand };
+            }
 
             case IrIf ifStatement:
             {

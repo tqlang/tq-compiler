@@ -193,16 +193,16 @@ from Std import { Test }
 
 	Test.newTestUnit("Builtins - u8 arithmetic - comparison")
 	{
-		Test.assert(lo < hi, true)
-		Test.assert(hi > lo, true)
-		Test.assert(one <= one, true)
-		Test.assert(two >= one, true)
-		Test.assert(one == one, true)
-		Test.assert(one != two, true)
-		Test.assert(hi < lo, false)
-		Test.assert(two <= one, false)
-		Test.assert(one > two, false)
-		Test.assert(one == two, false)
+		Test.assertTrue(lo < hi)
+		Test.assertTrue(hi > lo)
+		Test.assertTrue(one <= one)
+		Test.assertTrue(two >= one)
+		Test.assertTrue(one == one)
+		Test.assertTrue(one != two)
+		Test.assertFalse(hi < lo)
+		Test.assertFalse(two <= one)
+		Test.assertFalse(one > two)
+		Test.assertFalse(one == two)
 	}
 }
 
@@ -453,15 +453,15 @@ from Std import { Test }
 
 	Test.newTestUnit("Builtins - i8 arithmetic - comparison")
 	{
-		Test.assert(lo < hi, true)
-		Test.assert(hi > lo, true)
-		Test.assert(one <= one, true)
-		Test.assert(two >= one, true)
-		Test.assert(one == one, true)
-		Test.assert(one != two, true)
-		Test.assert(hi < lo, false)
-		Test.assert(two <= one, false)
-		Test.assert(one > two, false)
-		Test.assert(one == two, false)
+		Test.assertTrue(lo < hi)
+		Test.assertTrue(hi > lo)
+		Test.assertTrue(one <= one)
+		Test.assertTrue(two >= one)
+		Test.assertTrue(one == one)
+		Test.assertTrue(one != two)
+		Test.assertFalse(hi < lo)
+		Test.assertFalse(two <= one)
+		Test.assertFalse(one > two)
+		Test.assertFalse(one == two)
 	}
 }

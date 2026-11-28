@@ -1,6 +1,5 @@
 <Solution>
   <Folder Name="/Src/">
-    <Project Path="Src/Tq.Runtime/Tq.Runtime.csproj" />
     <Project Path="Src/Tqc.Backend.Cecil/Tqc.Backend.Cecil.csproj" />
     <Project Path="Src/Tqc.Build.Toml/Tqc.Build.Toml.csproj" />
     <Project Path="Src/Tqc.Build/Tqc.Build.csproj" />
@@ -11,6 +10,7 @@
     <Project Path="Src/Tqc.IR/Tqc.IR.csproj" />
     <Project Path="Src/Tqc.Semantics/Tqc.Semantics.csproj" />
     <Project Path="Src/Tqc.Syntax/Tqc.Syntax.csproj" />
+    <Project Path="Src\Tqc.Backend.Cecil.Runtime\Tqc.Backend.Cecil.Runtime.csproj" />
   </Folder>
   <Folder Name="/Tests/" />
 </Solution>

@@ -15,6 +15,12 @@ internal sealed class TqRuntimeAssembly
     public AssemblyDefinition Assembly { get; }
     public TypeDefinition Failable { get; }
     public TypeDefinition FailableOf { get; }
+
+    /// <summary>`Tq.Slice&lt;T&gt;`: what `[]T` is.</summary>
+    public TypeDefinition Slice { get; }
+
+    /// <summary>`Tq.UnsafeOps`: what `Std.Memory.Unsafe` needs more than instructions (`sliceFromPtr`, `alignOf`).</summary>
+    public TypeDefinition UnsafeOps { get; }
     
     // The methods of `TqFormatter` that give the text of a value of an interpolated string.
     public MethodDefinition FormatterFormatObject { get; }
@@ -41,7 +47,9 @@ internal sealed class TqRuntimeAssembly
 
         Failable = Require("Failable");
         FailableOf = Require("Failable`1");
+        Slice = Require("Slice`1");
         Ops = Require("Ops");
+        UnsafeOps = Require("UnsafeOps");
 
         var formatter = Require("TqFormatter");
 

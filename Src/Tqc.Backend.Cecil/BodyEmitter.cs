@@ -50,8 +50,37 @@ internal sealed class BodyEmitter
         _types    = owner.Tq.Types;
     }
 
+    /// <summary>
+    /// Whether a variable that a `delete` destroys is alive (see `TqFunction.DeletedVariables`): set when it gets a value, cleared by `delete`,
+    /// read where the variable is destroyed because it goes out of scope. The variables nothing deletes are always alive and have none.
+    /// </summary>
+    private readonly Dictionary<object, VariableDefinition> _aliveFlags = [];
+
+    private VariableDefinition? AliveFlag(IrNode? variable) =>
+        variable != null && IrVariables.KeyOf(variable) is { } key && _aliveFlags.TryGetValue(key, out var flag) ? flag : null;
+
+    private void SetAlive(IrNode? variable, bool alive)
+    {
+        if (AliveFlag(variable) is not { } flag) return;
+        _il.Emit(alive ? OpCodes.Ldc_I4_1 : OpCodes.Ldc_I4_0);
+        _il.Emit(OpCodes.Stloc, flag);
+    }
+
     public void Emit()
     {
+        foreach (var key in _function.DeletedVariables)
+        {
+            var flag = NewTemp(Core("System.Boolean"));
+            _aliveFlags[key] = flag;
+
+            // A parameter has its value from the start.
+            if (key is TqParameter)
+            {
+                _il.Emit(OpCodes.Ldc_I4_1);
+                _il.Emit(OpCodes.Stloc, flag);
+            }
+        }
+
         // A class starts by calling the constructor of what it extends.
         if (_function is TqConstructor && _function.Owner is TqStruct structure && ModuleEmitter.IsClass(structure)
             && _owner.FindBaseConstructor(structure) is { } baseConstructor)
@@ -73,6 +102,10 @@ internal sealed class BodyEmitter
         if (_function is TqConstructor) EmitInitializers();
         if (_function.Body != null) EmitStatement(_function.Body);
 
+        // What a destructor does after its own body: destroys the fields and what the struct extends.
+        if (_function is TqDestructor && _function.Owner is TqStruct destroyed)
+            _owner.EmitDestructorTail(_il, destroyed, _method.DeclaringType);
+
         // The end of the function: what a function without `return` at its end gives.
         var returnType = _method.ReturnType;
         if (IsVoid(returnType))
@@ -81,6 +114,8 @@ internal sealed class BodyEmitter
             EmitDefaultReturn();
         else
             _owner.EmitStub(_il, $"Tq: '{_function.Name}' reached its end without returning a value");
+
+        EmitStackBlocks();
     }
 
     // ---- Helpers
@@ -192,139 +227,199 @@ internal sealed class BodyEmitter
     private TypeReference? TypeOfNode(IrExpression expression) =>
         _types.Get(expression) is { } type ? _owner.MapType(type, expression.Location) : null;
 
-    // ---- Arrays and slices
-
-    private static bool IsMemory(TypeReference? type, out GenericInstanceType memory) => ModuleEmitter.IsMemory(type, out memory);
-
-    private GenericInstanceType SpanOf(TypeReference element)
+    /// <summary>`delete value`: the `Dispose` of the value, which is its destructor (a value is disposed in place, not a copy of it).</summary>
+    private void EmitDelete(IrDelete @delete)
     {
-        var span = new GenericInstanceType(Core("System.Span`1"));
-        span.GenericArguments.Add(element);
-        return span;
+        EmitDispose(@delete.Operand, skipNull: false);
+        SetAlive(@delete.Operand, false);
     }
 
     /// <summary>
-    /// The `T[]` of the `Memory<T>` on the stack: the array itself when the slice is all of one (what .NET does with it is seen by the
-    /// slice, and nothing is copied), and a copy when it is a part of one (`MemoryMarshal.TryGetArray`, `ToArray` if the runtime has no
-    /// `MemoryMarshal` to offer).
+    /// The destruction of a variable that goes out of scope: `delete`, unless the variable was deleted already (its flag) or is a reference
+    /// that is null.
     /// </summary>
-    private void EmitMemoryToArray(GenericInstanceType memory)
+    private void EmitDestroy(IrDestroy destroy)
     {
-        var element = memory.GenericArguments[0];
-        var copy = _owner.GenericMember("System.Memory`1", memory, "ToArray", 0);
-        var tryGet = _owner.GenericMethodOf("System.Runtime.InteropServices.MemoryMarshal", "TryGetArray", 2, element);
-
-        var held = NewTemp(memory);
-        _il.Emit(OpCodes.Stloc, held);
-
-        var useCopy = _il.Create(OpCodes.Nop);
-        var end = _il.Create(OpCodes.Nop);
-
-        if (tryGet != null)
+        var skip = _il.Create(OpCodes.Nop);
+        if (AliveFlag(destroy.Variable) is { } flag)
         {
-            var readOnly = new GenericInstanceType(Core("System.ReadOnlyMemory`1"));
-            readOnly.GenericArguments.Add(element);
-            var segmentType = new GenericInstanceType(Core("System.ArraySegment`1"));
-            segmentType.GenericArguments.Add(element);
-            var segment = NewTemp(segmentType);
-
-            _il.Emit(OpCodes.Ldloc, held);
-            _il.Emit(OpCodes.Call, _owner.GenericMember("System.Memory`1", memory, "op_Implicit", 1,
-                parameter => parameter.ParameterType is GenericInstanceType { ElementType.FullName: "System.Memory`1" }));
-            _il.Emit(OpCodes.Ldloca, segment);
-            _il.Emit(OpCodes.Call, tryGet);
-            _il.Emit(OpCodes.Brfalse, useCopy);
-
-            _il.Emit(OpCodes.Ldloca, segment);
-            _il.Emit(OpCodes.Call, _owner.GenericMember("System.ArraySegment`1", segmentType, "get_Offset", 0));
-            _il.Emit(OpCodes.Brtrue, useCopy);
-
-            _il.Emit(OpCodes.Ldloca, segment);
-            _il.Emit(OpCodes.Call, _owner.GenericMember("System.ArraySegment`1", segmentType, "get_Count", 0));
-            _il.Emit(OpCodes.Ldloca, segment);
-            _il.Emit(OpCodes.Call, _owner.GenericMember("System.ArraySegment`1", segmentType, "get_Array", 0));
-            _il.Emit(OpCodes.Ldlen);
-            _il.Emit(OpCodes.Conv_I4);
-            _il.Emit(OpCodes.Bne_Un, useCopy);
-
-            _il.Emit(OpCodes.Ldloca, segment);
-            _il.Emit(OpCodes.Call, _owner.GenericMember("System.ArraySegment`1", segmentType, "get_Array", 0));
-            _il.Emit(OpCodes.Br, end);
+            _il.Emit(OpCodes.Ldloc, flag);
+            _il.Emit(OpCodes.Brfalse, skip);
         }
 
-        _il.Append(useCopy);
+        EmitDispose(destroy.Variable, skipNull: true);
+        _il.Append(skip);
+    }
+
+    private void EmitDispose(IrExpression operand, bool skipNull)
+    {
+        var type = TypeOfNode(operand);
+        if (type == null) return;
+
+        if (type.IsValueType)
+        {
+            EmitAddress(operand);
+            _il.Emit(OpCodes.Constrained, type);
+            _il.Emit(OpCodes.Callvirt, _owner.DisposeMethod());
+            return;
+        }
+
+        EmitValue(operand, null);
+        if (!skipNull)
+        {
+            _il.Emit(OpCodes.Callvirt, _owner.DisposeMethod());
+            return;
+        }
+
+        var done = _il.Create(OpCodes.Nop);
+        var call = _il.Create(OpCodes.Nop);
+        _il.Emit(OpCodes.Dup);
+        _il.Emit(OpCodes.Brtrue, call);
+        _il.Emit(OpCodes.Pop);
+        _il.Emit(OpCodes.Br, done);
+        _il.Append(call);
+        _il.Emit(OpCodes.Callvirt, _owner.DisposeMethod());
+        _il.Append(done);
+    }
+
+    // ---- Arrays and slices
+
+    private static bool IsSlice(TypeReference? type, out GenericInstanceType slice) => ModuleEmitter.IsSlice(type, out slice);
+
+    private bool IsInlineArray(TypeReference? type, out (TypeReference Element, int Length) info)
+    {
+        info = default;
+        return type != null && _owner.Backend.InlineArrayInfo.TryGetValue(type.FullName, out info);
+    }
+
+    /// <summary>The `[InlineArray]` on the stack as a `Slice<T>` over a copy of it that the function keeps (valid until the function returns).</summary>
+    private GenericInstanceType EmitInlineArrayView(TypeReference inlineType, (TypeReference Element, int Length) info)
+    {
+        var held = NewTemp(inlineType);
+        _il.Emit(OpCodes.Stloc, held);
         _il.Emit(OpCodes.Ldloca, held);
-        _il.Emit(OpCodes.Call, copy);
-        _il.Append(end);
+        _il.Emit(OpCodes.Conv_U);
+        _il.Emit(OpCodes.Ldc_I4, info.Length);
+
+        var slice = _owner.SliceOf(info.Element);
+        _il.Emit(OpCodes.Newobj, _owner.SliceMember(slice, ".ctor", 2, candidate => candidate.Parameters[0].ParameterType is PointerType));
+        return slice;
+    }
+
+    /// <summary>The `Slice<T>` or the `T[]` on the stack copied into a new value of the `[InlineArray]` type, which is left on the stack.</summary>
+    private void EmitIntoInlineArray(TypeReference actual, TypeReference inlineType)
+    {
+        IsInlineArray(inlineType, out var info);
+        var slice = _owner.SliceOf(info.Element);
+        if (actual is ArrayType) EmitSliceFromView(actual, slice);
+
+        var source = NewTemp(slice);
+        _il.Emit(OpCodes.Stloc, source);
+
+        var value = NewTemp(inlineType);
+        _il.Emit(OpCodes.Ldloca, value);
+        _il.Emit(OpCodes.Initobj, inlineType);
+
+        _il.Emit(OpCodes.Ldloca, source);
+        _il.Emit(OpCodes.Ldloca, value);
+        _il.Emit(OpCodes.Conv_U);
+        _il.Emit(OpCodes.Ldc_I4, info.Length);
+        _il.Emit(OpCodes.Newobj, _owner.SliceMember(slice, ".ctor", 2, candidate => candidate.Parameters[0].ParameterType is PointerType));
+        _il.Emit(OpCodes.Call, _owner.SliceMember(slice, "CopyTo", 1));
+        _il.Emit(OpCodes.Ldloc, value);
+    }
+
+    private static bool IsViewOf(TypeReference? type, string name, out GenericInstanceType view)
+    {
+        view = (type as GenericInstanceType)!;
+        return type is GenericInstanceType { ElementType.FullName: var full } && full == name;
     }
 
     /// <summary>
-    /// The `Memory<T>` on the stack as the view of .NET that is asked: `ReadOnlyMemory<T>` (its implicit conversion), `Span<T>`
-    /// (`.Span`) or `ReadOnlySpan<T>` (`.Span` of the `ReadOnlyMemory<T>`). False if `expected` is none of them.
+    /// The `T[]` of the `Slice<T>` on the stack: the array itself when the slice is all of one (what .NET does with it is seen by the
+    /// slice, and nothing is copied), and a copy when it is a part of one or is raw memory.
     /// </summary>
-    private bool EmitSliceView(GenericInstanceType memory, TypeReference expected)
+    private void EmitSliceToArray(GenericInstanceType slice)
     {
-        if (expected is not GenericInstanceType { ElementType.FullName: var name and ("System.Span`1" or "System.ReadOnlySpan`1" or "System.ReadOnlyMemory`1") })
+        var held = NewTemp(slice);
+        _il.Emit(OpCodes.Stloc, held);
+        _il.Emit(OpCodes.Ldloca, held);
+        _il.Emit(OpCodes.Call, _owner.SliceMember(slice, "AsArray", 0));
+    }
+
+    /// <summary>
+    /// The `Slice<T>` on the stack as the view of .NET that is asked: `Span<T>`, `ReadOnlySpan<T>` or `ReadOnlyMemory<T>` (the
+    /// conversions of the slice) or `Memory<T>` (its `Memory`, which a slice of raw memory does not have: it throws). False if
+    /// `expected` is none of them.
+    /// </summary>
+    private bool EmitSliceView(GenericInstanceType slice, TypeReference expected)
+    {
+        if (expected is not GenericInstanceType { ElementType.FullName: var name and ("System.Span`1" or "System.ReadOnlySpan`1"
+                or "System.ReadOnlyMemory`1" or "System.Memory`1") })
             return false;
 
-        var element = memory.GenericArguments[0];
-        var readOnly = new GenericInstanceType(Core("System.ReadOnlyMemory`1"));
-        readOnly.GenericArguments.Add(element);
-
-        if (name == "System.Span`1")
+        if (name == "System.Memory`1")
         {
-            var held = NewTemp(memory);
+            var held = NewTemp(slice);
             _il.Emit(OpCodes.Stloc, held);
             _il.Emit(OpCodes.Ldloca, held);
-            _il.Emit(OpCodes.Call, _owner.GenericMember("System.Memory`1", memory, "get_Span", 0));
+            _il.Emit(OpCodes.Call, _owner.SliceMember(slice, "get_Memory", 0));
             return true;
         }
 
-        _il.Emit(OpCodes.Call, _owner.GenericMember("System.Memory`1", memory, "op_Implicit", 1,
-            parameter => parameter.ParameterType is GenericInstanceType { ElementType.FullName: "System.Memory`1" }));
-        if (name == "System.ReadOnlyMemory`1") return true;
-
-        var readOnlyHeld = NewTemp(readOnly);
-        _il.Emit(OpCodes.Stloc, readOnlyHeld);
-        _il.Emit(OpCodes.Ldloca, readOnlyHeld);
-        _il.Emit(OpCodes.Call, _owner.GenericMember("System.ReadOnlyMemory`1", readOnly, "get_Span", 0));
+        _il.Emit(OpCodes.Call, _owner.SliceMember(slice, "op_Implicit", 1,
+            candidate => candidate.ReturnType is GenericInstanceType { ElementType.FullName: var returned } && returned == name));
         return true;
     }
 
-    /// <summary>`Memory<T>` of the array on the stack, which it refers to.</summary>
-    private void EmitMemoryOf(GenericInstanceType memory) =>
-        _il.Emit(OpCodes.Newobj, _owner.GenericMember(
-            "System.Memory`1", memory, ".ctor", 1, parameter => parameter.ParameterType is ArrayType));
-
     /// <summary>
-    /// The `Memory<T>` on the stack becomes the `ref T` of the element whose index `emitIndex` leaves on the stack
-    /// (`memory.Span[index]`; the `Span` is a temporary, which is fine because a `ref` to an element outlives it).
+    /// The `Span<T>`, `Memory<T>` or `T[]` on the stack as the `Slice<T>` it is expected as (the conversion of the slice, which is
+    /// implicit: it is how a view of .NET is handled as a slice). False if `actual` is none of them.
     /// </summary>
-    private void EmitElementAddress(GenericInstanceType memory, Action emitIndex)
+    private bool EmitSliceFromView(TypeReference actual, GenericInstanceType slice)
     {
-        var span = SpanOf(memory.GenericArguments[0]);
+        string? view = actual switch
+        {
+            ArrayType => "T[]",
+            GenericInstanceType { ElementType.FullName: "System.Span`1" } => "System.Span`1",
+            GenericInstanceType { ElementType.FullName: "System.Memory`1" } => "System.Memory`1",
+            _ => null,
+        };
+        if (view == null) return false;
 
-        var memoryTemp = NewTemp(memory);
-        _il.Emit(OpCodes.Stloc, memoryTemp);
-        _il.Emit(OpCodes.Ldloca, memoryTemp);
-        _il.Emit(OpCodes.Call, _owner.GenericMember("System.Memory`1", memory, "get_Span", 0));
-
-        var spanTemp = NewTemp(span);
-        _il.Emit(OpCodes.Stloc, spanTemp);
-        _il.Emit(OpCodes.Ldloca, spanTemp);
-        emitIndex();
-        _il.Emit(OpCodes.Call, _owner.GenericMember("System.Span`1", span, "get_Item", 1));
+        _il.Emit(OpCodes.Call, _owner.SliceMember(slice, "op_Implicit", 1, candidate => candidate.IsStatic
+            && candidate.ReturnType is GenericInstanceType { ElementType.FullName: "Tq.Slice`1" }
+            && (view == "T[]" ? candidate.Parameters[0].ParameterType is ArrayType
+                : candidate.Parameters[0].ParameterType is GenericInstanceType { ElementType.FullName: var parameter } && parameter == view)));
+        return true;
     }
 
-    /// <summary>The length, as an `int`, of the array or the `Memory<T>` on the stack.</summary>
+    /// <summary>`Slice<T>` of the array on the stack, which it refers to.</summary>
+    private void EmitSliceOfArray(GenericInstanceType slice) =>
+        _il.Emit(OpCodes.Newobj, _owner.SliceMember(slice, ".ctor", 1, candidate => candidate.Parameters[0].ParameterType is ArrayType));
+
+    /// <summary>
+    /// The `Slice<T>` on the stack becomes the `ref T` of the element whose index `emitIndex` leaves on the stack (its indexer, which
+    /// is a `ref`: it is read with `ldobj` and written with `stobj`).
+    /// </summary>
+    private void EmitElementAddress(GenericInstanceType slice, Action emitIndex)
+    {
+        var temp = NewTemp(slice);
+        _il.Emit(OpCodes.Stloc, temp);
+        _il.Emit(OpCodes.Ldloca, temp);
+        emitIndex();
+        _il.Emit(OpCodes.Call, _owner.SliceMember(slice, "get_Item", 1));
+    }
+
+    /// <summary>The length, as an `int`, of the array or the `Slice<T>` on the stack.</summary>
     private TypeReference EmitLength(TypeReference actual)
     {
-        if (IsMemory(actual, out var memory))
+        if (IsSlice(actual, out var slice))
         {
-            var temp = NewTemp(memory);
+            var temp = NewTemp(slice);
             _il.Emit(OpCodes.Stloc, temp);
             _il.Emit(OpCodes.Ldloca, temp);
-            _il.Emit(OpCodes.Call, _owner.GenericMember("System.Memory`1", memory, "get_Length", 0));
+            _il.Emit(OpCodes.Ldfld, _owner.SliceLength(slice));
         }
         else
         {
@@ -335,41 +430,41 @@ internal sealed class BodyEmitter
         return Core("System.Int32");
     }
 
-    /// <summary>`memory[from .. to]` (both included): the `Memory<T>` on the stack, or the array, as the part that starts at `from`.</summary>
+    /// <summary>`slice[from .. to]` (both included): the `Slice<T>` on the stack, or the array, as the part that starts at `from`.</summary>
     private TypeReference EmitSliceOf(TypeReference actual, IrRange range)
     {
-        GenericInstanceType memory;
+        GenericInstanceType slice;
         if (actual is ArrayType array)
         {
-            memory = _owner.MemoryOf(array.ElementType);
-            EmitMemoryOf(memory);
+            slice = _owner.SliceOf(array.ElementType);
+            EmitSliceOfArray(slice);
         }
-        else if (!IsMemory(actual, out memory))
+        else if (!IsSlice(actual, out slice))
         {
             Report("This value cannot be sliced", range.Location);
             return actual;
         }
 
         var int32 = Core("System.Int32");
-        var memoryTemp = NewTemp(memory);
+        var sliceTemp = NewTemp(slice);
         var from = NewTemp(int32);
         var to = NewTemp(int32);
 
-        _il.Emit(OpCodes.Stloc, memoryTemp);
+        _il.Emit(OpCodes.Stloc, sliceTemp);
         EmitValue(range.From, int32);
         _il.Emit(OpCodes.Stloc, from);
         EmitValue(range.To, int32);
         _il.Emit(OpCodes.Stloc, to);
 
-        _il.Emit(OpCodes.Ldloca, memoryTemp);
+        _il.Emit(OpCodes.Ldloca, sliceTemp);
         _il.Emit(OpCodes.Ldloc, from);
         _il.Emit(OpCodes.Ldloc, to);
         _il.Emit(OpCodes.Ldloc, from);
         _il.Emit(OpCodes.Sub);
         _il.Emit(OpCodes.Ldc_I4_1);
         _il.Emit(OpCodes.Add);
-        _il.Emit(OpCodes.Call, _owner.GenericMember("System.Memory`1", memory, "Slice", 2));
-        return memory;
+        _il.Emit(OpCodes.Call, _owner.SliceMember(slice, "Part", 2));
+        return slice;
     }
 
     private ParameterDefinition ParameterOf(TqParameter parameter)
@@ -392,6 +487,157 @@ internal sealed class BodyEmitter
         throw new BackendError($"The parameter '{parameter.Name}' does not belong to '{_function.Name}'", _function.SourceLocation);
     }
 
+    /// <summary>The variables that are arrays whose memory is a block of the stack: the pointer, the type of the elements and how many.</summary>
+    private readonly Dictionary<IrLocal, (VariableDefinition Pointer, TypeReference Element, int Length)> _stackLocals = [];
+
+    /// <summary>The parameters that are `[N]T` passed whole (an `[InlineArray]`): the pointer to the copy the function has, the type of the elements and how many.</summary>
+    private readonly Dictionary<ParameterDefinition, (VariableDefinition Pointer, TypeReference Element, int Length)> _parameterBlocks = [];
+
+    private (VariableDefinition Pointer, TypeReference Element, int Length)? ParameterBlockOf(ParameterDefinition definition)
+    {
+        if (_parameterBlocks.TryGetValue(definition, out var known)) return known;
+        if (!_owner.Backend.InlineArrayInfo.TryGetValue(definition.ParameterType.FullName, out var info)) return null;
+
+        var block = (NewTemp(new PointerType(info.Element)), info.Element, info.Length);
+        _parameterBlocks[definition] = block;
+        return block;
+    }
+
+    /// <summary>The length of the array a variable is declared as (`let [4]u8 buffer`), if it is one.</summary>
+    private int? ArrayLengthOf(IrLocal local) =>
+        local.type != null && !IsUntypedConstant(local.type) && TypeExpressions.Raw(local.type) is ArrayTypeRef { Length: var length } ? length
+        : _types.Get(local) is ArrayTypeRef { Length: var inferred } ? inferred
+        : null;
+
+    /// <summary>The block of the stack of the variable `expression` names, if it is an array that has one.</summary>
+    private (VariableDefinition Pointer, TypeReference Element, int Length)? StackBlockOf(IrExpression expression)
+    {
+        if (expression is IrReference { Reference: ParameterReference parameter } && !GenericParameterTypeRef.IsTypeParameter(parameter.Parameter))
+            return ParameterBlockOf(ParameterOf(parameter.Parameter));
+
+        if (expression is IrReference { Reference: IrField { Field: TqField bare } }) return FieldBlockOf(bare, null);
+        if (expression is IrAccess { access.Reference: IrField { Field: TqField member } } access) return FieldBlockOf(member, access.baseExpr);
+
+        var local = expression switch
+        {
+            IrLocal declared => declared,
+            IrReference { Reference: LocalReference reference } => reference.Local,
+            _ => null,
+        };
+
+        if (local == null) return null;
+        GetLocal(local);
+        return _stackLocals.TryGetValue(local, out var block) ? block : null;
+    }
+
+    /// <summary>
+    /// The memory of a field that is an `[InlineArray]` (a public `[N]T`): its address, kept pinned for as long as the method runs (an instance of a class
+    /// may be moved by the garbage collector), as the pointer of a block. The address is taken where this is called, so what it is used for follows at once.
+    /// </summary>
+    private (VariableDefinition Pointer, TypeReference Element, int Length)? FieldBlockOf(TqField field, IrExpression? baseExpr)
+    {
+        if (!_owner.Backend.Definitions.TryGetValue(field, out var definition) || definition is not FieldDefinition { HasConstant: false } fieldDefinition
+            || !IsInlineArray(fieldDefinition.FieldType, out var info))
+            return null;
+
+        var pinned = new VariableDefinition(new PinnedType(new ByReferenceType(fieldDefinition.FieldType)));
+        _il.Body.Variables.Add(pinned);
+
+        if (fieldDefinition.IsStatic)
+        {
+            _il.Emit(OpCodes.Ldsflda, _owner.Use(fieldDefinition));
+        }
+        else
+        {
+            EmitFieldReceiver(baseExpr, fieldDefinition.DeclaringType);
+            var host = TqHost(baseExpr, fieldDefinition.DeclaringType);
+            _il.Emit(OpCodes.Ldflda, host != null ? OnHost(_owner.Use(fieldDefinition), host) : _owner.Use(fieldDefinition));
+        }
+
+        _il.Emit(OpCodes.Stloc, pinned);
+        _il.Emit(OpCodes.Ldloc, pinned);
+        _il.Emit(OpCodes.Conv_U);
+
+        var pointer = NewTemp(new PointerType(info.Element));
+        _il.Emit(OpCodes.Stloc, pointer);
+        return (pointer, info.Element, info.Length);
+    }
+
+    /// <summary>The `Slice<T>` over a block of the stack, with the pointer and the length of the array.</summary>
+    private GenericInstanceType EmitBlockSlice((VariableDefinition Pointer, TypeReference Element, int Length) block)
+    {
+        var slice = _owner.SliceOf(block.Element);
+        _il.Emit(OpCodes.Ldloc, block.Pointer);
+        _il.Emit(OpCodes.Ldc_I4, block.Length);
+        _il.Emit(OpCodes.Newobj, _owner.SliceMember(slice, ".ctor", 2, candidate => candidate.Parameters[0].ParameterType is PointerType));
+        return slice;
+    }
+
+    /// <summary>The block is zeroed: where the array is declared, which a loop reaches again and again.</summary>
+    private void EmitZeroBlock((VariableDefinition Pointer, TypeReference Element, int Length) block)
+    {
+        _il.Emit(OpCodes.Ldloc, block.Pointer);
+        _il.Emit(OpCodes.Ldc_I4_0);
+        _il.Emit(OpCodes.Ldc_I4, block.Length);
+        _il.Emit(OpCodes.Sizeof, block.Element);
+        _il.Emit(OpCodes.Mul);
+        _il.Emit(OpCodes.Initblk);
+    }
+
+    /// <summary>
+    /// The allocation of the blocks of the stack, at the start of the function (`localloc` needs an empty stack): once, so a loop that declares an array
+    /// does not grow the stack. A block lives until the function returns: a slice of it that is kept longer is not valid (it is not checked).
+    /// </summary>
+    private void EmitStackBlocks()
+    {
+        if (_stackLocals.Count == 0 && _parameterBlocks.Count == 0) return;
+
+        var first = _il.Body.Instructions[0];
+
+        // The copy an `[InlineArray]` parameter is lives in the frame of the function: its address is the block (nothing moves it).
+        foreach (var (definition, block) in _parameterBlocks)
+        {
+            _il.InsertBefore(first, _il.Create(OpCodes.Ldarga, definition));
+            _il.InsertBefore(first, _il.Create(OpCodes.Conv_U));
+            _il.InsertBefore(first, _il.Create(OpCodes.Stloc, block.Pointer));
+        }
+
+        foreach (var (_, block) in _stackLocals)
+        {
+            _il.InsertBefore(first, _il.Create(OpCodes.Ldc_I4, block.Length));
+            _il.InsertBefore(first, _il.Create(OpCodes.Sizeof, block.Element));
+            _il.InsertBefore(first, _il.Create(OpCodes.Mul));
+            _il.InsertBefore(first, _il.Create(OpCodes.Conv_U));
+            _il.InsertBefore(first, _il.Create(OpCodes.Localloc));
+            _il.InsertBefore(first, _il.Create(OpCodes.Stloc, block.Pointer));
+        }
+    }
+
+    /// <summary>Whether a value of the type can live in memory the garbage collector does not see (no reference in it).</summary>
+    internal static bool IsUnmanaged(TypeReference type, int depth = 0)
+    {
+        if (depth > 16) return false;
+
+        switch (type)
+        {
+            case PointerType: return true;
+            case GenericInstanceType or ByReferenceType or ArrayType or GenericParameter: return false;
+        }
+
+        if (type.FullName is "System.Boolean" or "System.Byte" or "System.SByte" or "System.Int16" or "System.UInt16" or "System.Int32"
+            or "System.UInt32" or "System.Int64" or "System.UInt64" or "System.Single" or "System.Double" or "System.Char"
+            or "System.IntPtr" or "System.UIntPtr")
+            return true;
+
+        TypeDefinition? definition;
+        try { definition = type.Resolve(); }
+        catch (AssemblyResolutionException) { return false; }
+
+        if (definition is not { IsValueType: true }) return false;
+        if (definition.IsEnum) return true;
+        return definition.Fields.Where(field => !field.IsStatic).All(field => IsUnmanaged(field.FieldType, depth + 1));
+    }
+
     private VariableDefinition GetLocal(IrLocal local)
     {
         if (_locals.TryGetValue(local, out var known)) return known;
@@ -409,6 +655,15 @@ internal sealed class BodyEmitter
         {
             Report($"The type of the variable '{local.name}' is not known", local.Location);
             type = Core("System.Object");
+        }
+
+        // `[N]T` of unmanaged elements is a block of the stack of the function (`stackalloc`): the variable is a pointer to it.
+        if (type is ArrayType { Rank: 1 } storage && IsUnmanaged(storage.ElementType) && ArrayLengthOf(local) is { } blockLength)
+        {
+            var pointer = NewTemp(new PointerType(storage.ElementType));
+            _locals[local] = pointer;
+            _stackLocals[local] = (pointer, storage.ElementType, blockLength);
+            return pointer;
         }
 
         var variable = NewTemp(type);
@@ -641,9 +896,21 @@ internal sealed class BodyEmitter
                 EmitWhile(@while); break;
 
             case IrBreak @break:
-                if (_breakTargets.Count == 0) Report("'break' outside of a loop", @break.Location);
-                else _il.Emit(OpCodes.Br, _breakTargets.Peek());
+                if (_breakTargets.Count == 0)
+                {
+                    Report("'break' outside of a loop", @break.Location);
+                    break;
+                }
+
+                if (@break.Cleanup != null) foreach (var cleanup in @break.Cleanup) EmitStatement(cleanup);
+                _il.Emit(OpCodes.Br, _breakTargets.Peek());
             break;
+
+            case IrDelete @delete:
+                EmitDelete(@delete); break;
+
+            case IrDestroy destroy:
+                EmitDestroy(destroy); break;
 
             case IrExpression expression:
                 EmitDiscard(expression); break;
@@ -700,13 +967,40 @@ internal sealed class BodyEmitter
         _il.Append(end);
     }
 
+    private IrStatement[]? _returnCleanup;
+
+    /// <summary>
+    /// `ret`: the value on the stack is kept while the variables that go out of scope are destroyed (what `return` carries, see
+    /// `IrReturnStatement.Cleanup`).
+    /// </summary>
+    private void EmitRet()
+    {
+        if (_returnCleanup is { Length: > 0 } cleanup)
+        {
+            _returnCleanup = null;
+            var held = IsVoid(_method.ReturnType) ? null : NewTemp(_method.ReturnType);
+            if (held != null) _il.Emit(OpCodes.Stloc, held);
+            foreach (var statement in cleanup) EmitStatement(statement);
+            if (held != null) _il.Emit(OpCodes.Ldloc, held);
+        }
+
+        _il.Emit(OpCodes.Ret);
+    }
+
     private void EmitReturn(IrReturnStatement statement)
+    {
+        _returnCleanup = statement.Cleanup;
+        try { EmitReturnValue(statement); }
+        finally { _returnCleanup = null; }
+    }
+
+    private void EmitReturnValue(IrReturnStatement statement)
     {
         var returnType = _method.ReturnType;
 
         if (statement.ReturnValue == null)
         {
-            if (IsVoid(returnType)) _il.Emit(OpCodes.Ret);
+            if (IsVoid(returnType)) EmitRet();
             else EmitDefaultReturn();
             return;
         }
@@ -715,7 +1009,7 @@ internal sealed class BodyEmitter
         if (IsVoid(returnType))
         {
             EmitDiscard(statement.ReturnValue);
-            _il.Emit(OpCodes.Ret);
+            EmitRet();
             return;
         }
 
@@ -736,12 +1030,12 @@ internal sealed class BodyEmitter
             EmitValue(statement.ReturnValue, result);
             _il.Emit(OpCodes.Stfld, new CecilField(value.Name, value.FieldType, returnType));
             _il.Emit(OpCodes.Ldloc, wrapper);
-            _il.Emit(OpCodes.Ret);
+            EmitRet();
             return;
         }
 
         EmitValue(statement.ReturnValue, returnType);
-        _il.Emit(OpCodes.Ret);
+        EmitRet();
     }
 
     /// <summary>The value of `return` with nothing to say: a `Tq.Failable` with no error.</summary>
@@ -750,7 +1044,7 @@ internal sealed class BodyEmitter
         var returnType = _method.ReturnType;
         if (IsVoid(returnType))
         {
-            _il.Emit(OpCodes.Ret);
+            EmitRet();
             return;
         }
 
@@ -758,7 +1052,7 @@ internal sealed class BodyEmitter
         _il.Emit(OpCodes.Ldloca, empty);
         _il.Emit(OpCodes.Initobj, returnType);
         _il.Emit(OpCodes.Ldloc, empty);
-        _il.Emit(OpCodes.Ret);
+        EmitRet();
     }
 
     // ---- Expressions
@@ -845,6 +1139,7 @@ internal sealed class BodyEmitter
             case IrLocal local:
             {
                 var variable = GetLocal(local);
+                if (_stackLocals.TryGetValue(local, out var declaredBlock)) EmitZeroBlock(declaredBlock);
                 if (BoxOf(local) is { } declaredBox) EmitNewBox(variable, declaredBox);
 
                 // An array exists as soon as it is declared: memory with room for all of its elements.
@@ -856,6 +1151,7 @@ internal sealed class BodyEmitter
                     _il.Emit(OpCodes.Stloc, variable);
                 }
 
+                SetAlive(local, true);
                 return null;
             }
 
@@ -875,22 +1171,34 @@ internal sealed class BodyEmitter
             return expected ?? Core("System.Object");
         }
 
-        if (expected == null || actual.FullName == expected.FullName) return actual;
+        if (expected != null && actual.FullName == expected.FullName) return actual;
 
-        // The array of .NET (what it gives and takes) and the slice of Tq: `T[]` is wrapped in a `Memory<T>`; the other way a
-        // `Memory<T>` is the array of it, which is a copy unless it is all of one (a change made by .NET is not seen then).
-        if (actual is ArrayType && IsMemory(expected, out var wrapper))
+        // An `[InlineArray]` the code reads (what a function returns): a slice over a copy of it that the function has.
+        if (IsInlineArray(actual, out var inlineActual))
         {
-            EmitMemoryOf(wrapper);
+            actual = EmitInlineArrayView(actual, inlineActual);
+            if (expected == null || actual.FullName == expected.FullName) return actual;
+        }
+
+        if (expected == null) return actual;
+
+        // `[N]T` where it is passed whole or returned: the elements are copied into a value of the `[InlineArray]`.
+        if (IsInlineArray(expected, out _) && (IsSlice(actual, out _) || actual is ArrayType))
+        {
+            EmitIntoInlineArray(actual, expected);
             return expected;
         }
 
-        // A slice where .NET asks for a view of one: `Span<T>`, `ReadOnlySpan<T>` or `ReadOnlyMemory<T>` (`Memory<T>` is the slice itself).
-        if (IsMemory(actual, out var sliced) && EmitSliceView(sliced, expected)) return expected;
+        // The array, the `Span<T>` and the `Memory<T>` of .NET (what it gives and takes) are handled as the slice of Tq.
+        if (IsSlice(expected, out var wrapper) && EmitSliceFromView(actual, wrapper)) return expected;
 
-        if (IsMemory(actual, out var viewed) && expected is ArrayType)
+        // A slice where .NET asks for a view of one: `Span<T>`, `ReadOnlySpan<T>`, `Memory<T>` or `ReadOnlyMemory<T>`.
+        if (IsSlice(actual, out var sliced) && EmitSliceView(sliced, expected)) return expected;
+
+        // The array the slice is of, which is a copy unless it is all of one (a change made by .NET is not seen then).
+        if (IsSlice(actual, out var viewed) && expected is ArrayType)
         {
-            EmitMemoryToArray(viewed);
+            EmitSliceToArray(viewed);
             return expected;
         }
 
@@ -1049,6 +1357,7 @@ internal sealed class BodyEmitter
         }
 
         var runtime = _owner.Backend.Runtime;
+        if (IsInlineArray(type, out var inlineArray)) type = EmitInlineArrayView(type, inlineArray);
 
         switch (type)
         {
@@ -1243,6 +1552,10 @@ internal sealed class BodyEmitter
         }
 
         var actual = Emit(addressOf.Operand, null);
+
+        // The array of a block of the stack already is a slice.
+        if (IsSlice(actual, out _)) return actual;
+
         if (actual is not ArrayType array)
         {
             if (actual != null)
@@ -1256,9 +1569,9 @@ internal sealed class BodyEmitter
             return actual;
         }
 
-        var memory = _owner.MemoryOf(array.ElementType);
-        EmitMemoryOf(memory);
-        return memory;
+        var slice = _owner.SliceOf(array.ElementType);
+        EmitSliceOfArray(slice);
+        return slice;
     }
 
     private TypeReference? EmitArray(IrArray array)
@@ -1294,6 +1607,7 @@ internal sealed class BodyEmitter
         }
 
         var target = Emit(index.Target, null);
+        if (IsInlineArray(target, out var inlineTarget)) target = EmitInlineArrayView(target!, inlineTarget);
 
         if (index.Indices[0] is IrRange range && target != null)
             return EmitSliceOf(target, range);
@@ -1305,10 +1619,10 @@ internal sealed class BodyEmitter
             return array.ElementType;
         }
 
-        if (IsMemory(target, out var memory))
+        if (IsSlice(target, out var slice))
         {
-            var element = memory.GenericArguments[0];
-            EmitElementAddress(memory, () => EmitValue(index.Indices[0], Core("System.Int32")));
+            var element = slice.GenericArguments[0];
+            EmitElementAddress(slice, () => EmitValue(index.Indices[0], Core("System.Int32")));
             _il.Emit(OpCodes.Ldobj, element);
             return element;
         }
@@ -1333,6 +1647,8 @@ internal sealed class BodyEmitter
             case LocalReference local:
             {
                 var variable = GetLocal(local.Local);
+                if (_stackLocals.TryGetValue(local.Local, out var block)) return EmitBlockSlice(block);
+
                 if (BoxOf(local.Local) is { } box)
                 {
                     EmitBoxAddress(variable, box);
@@ -1355,6 +1671,7 @@ internal sealed class BodyEmitter
             case ParameterReference parameter:
             {
                 var definition = ParameterOf(parameter.Parameter);
+                if (ParameterBlockOf(definition) is { } parameterBlock) return EmitBlockSlice(parameterBlock);
                 _il.Emit(OpCodes.Ldarg, definition);
 
                 // `*T` of a value: the value itself is wanted.
@@ -1418,6 +1735,9 @@ internal sealed class BodyEmitter
                     EmitConstant(fieldDefinition.Constant, location);
                     return fieldDefinition.FieldType;
                 }
+
+                // The memory of an `[InlineArray]` field is not copied out of it: what is read is a slice over it.
+                if (IsInlineArray(fieldDefinition.FieldType, out _) && FieldBlockOf(field, baseExpr) is { } fieldBlock) return EmitBlockSlice(fieldBlock);
 
                 if (fieldDefinition.IsStatic)
                 {
@@ -1586,10 +1906,46 @@ internal sealed class BodyEmitter
                 return;
         }
 
+        // An element of an array, a slice or a block of the stack: its own address, so that what is written through it stays in place.
+        if (expression is IrIndex { Indices.Length: 1 } element && element.Indices[0] is not IrRange && TryEmitElementAddress(element)) return;
+
         var type = EmitValue(expression, null);
         var copy = NewTemp(type);
         _il.Emit(OpCodes.Stloc, copy);
         _il.Emit(OpCodes.Ldloca, copy);
+    }
+
+    private bool TryEmitElementAddress(IrIndex index)
+    {
+        if (StackBlockOf(index.Target) is { } block)
+        {
+            var blockSlice = _owner.SliceOf(block.Element);
+            EmitBlockSlice(block);
+            EmitElementAddress(blockSlice, () => EmitValue(index.Indices[0], Core("System.Int32")));
+            return true;
+        }
+
+        switch (_types.Get(index.Target))
+        {
+            case SliceTypeRef sliceType:
+            {
+                var slice = _owner.SliceOf(_owner.MapType(sliceType.Element, index.Location));
+                EmitValue(index.Target, slice);
+                EmitElementAddress(slice, () => EmitValue(index.Indices[0], Core("System.Int32")));
+                return true;
+            }
+
+            case ArrayTypeRef arrayType:
+            {
+                var elementType = _owner.MapType(arrayType.Element, index.Location);
+                EmitValue(index.Target, null);
+                EmitValue(index.Indices[0], Core("System.Int32"));
+                _il.Emit(OpCodes.Ldelema, elementType);
+                return true;
+            }
+        }
+
+        return false;
     }
 
     // ---- Calls
@@ -1622,6 +1978,12 @@ internal sealed class BodyEmitter
         {
             case IntrinsicMethod intrinsic when receiver != null:
                 return EmitIntrinsic(intrinsic.Owner.Name, intrinsic.Name, receiver, call.Location);
+
+            case TqFunction unsafeFunction when StdMemoryUnsafe.TryGet(unsafeFunction, out var unsafeOperation):
+                return EmitUnsafe(unsafeOperation, call);
+
+            case TqFunction sizeFunction when StdType.IsIntrinsic(sizeFunction):
+                return EmitTypeSize(call, bits: ReferenceEquals(sizeFunction, StdType.BitSizeOf));
 
             case TqFunction tq when _owner.Backend.Definitions.TryGetValue(tq, out var definition) && definition is MethodDefinition method:
             {
@@ -1957,6 +2319,18 @@ internal sealed class BodyEmitter
                 _il.Emit(OpCodes.Ceq);
             }
         }
+        else if (type is PointerType)
+        {
+            // An `UnsafePtr(T)` is null when it is the address 0.
+            _il.Emit(OpCodes.Ldc_I4_0);
+            _il.Emit(OpCodes.Conv_U);
+            _il.Emit(OpCodes.Ceq);
+            if (!equal)
+            {
+                _il.Emit(OpCodes.Ldc_I4_0);
+                _il.Emit(OpCodes.Ceq);
+            }
+        }
         else
         {
             _il.Emit(OpCodes.Ldnull);
@@ -2097,6 +2471,166 @@ internal sealed class BodyEmitter
     /// What a member that the compiler declares on its own types (`Nullable.unwrap`, `Failable.ignored`) stands for: its lowering.
     /// The operand is what the member is read or called on. Null (void) is the result of what gives nothing.
     /// </summary>
+    /// <summary>
+    /// `Std.Type.SizeOf(T)` and `BitSizeOf(T)`: the `sizeof` of IL, which the runtime answers for any type (a generic parameter too),
+    /// so what depends on where the program runs (`iptr`) is not decided here. A reference (`Ref(T)`) is a managed pointer, which IL cannot
+    /// measure: it is as large as a native integer.
+    /// </summary>
+    private TypeReference? EmitTypeSize(IrCall call, bool bits)
+    {
+        var arguments = call.ArgumentsList.arguments;
+        if (arguments.Length != 1)
+        {
+            Report($"'{(bits ? "bitSizeOf" : "sizeOf")}' takes the type, and only it", call.Location);
+            return null;
+        }
+
+        var type = _owner.MapExpression(arguments[0]);
+        if (type is ByReferenceType) type = _owner.Module.TypeSystem.IntPtr;
+
+        _il.Emit(OpCodes.Sizeof, type);
+        if (bits)
+        {
+            _il.Emit(OpCodes.Ldc_I4, CecilBackend.Abi.ByteBits);
+            _il.Emit(OpCodes.Mul);
+        }
+
+        return _owner.Module.TypeSystem.UInt32;
+    }
+
+    /// <summary>
+    /// The intrinsics of `Std.Memory.Unsafe`. A pointer is a native integer on the stack, and so is a managed reference (`Ref(T)`) once
+    /// it is converted: the instructions do not check what they are given, which is what unsafe means. The types come first in the
+    /// arguments of the call, as in any generic function.
+    /// </summary>
+    private TypeReference? EmitUnsafe(UnsafeOperation operation, IrCall call)
+    {
+        var arguments = call.ArgumentsList.arguments;
+        var system = _owner.Module.TypeSystem;
+        var result = TypeOfNode(call);
+
+        TypeReference Type(int index) => _owner.MapExpression(arguments[index]);
+
+        // A pointer, or a reference taken as one.
+        void Pointer(int index)
+        {
+            if (EmitValue(arguments[index], null) is ByReferenceType) _il.Emit(OpCodes.Conv_U);
+        }
+
+        // The size of an element, for what moves by elements.
+        TypeReference? Element()
+        {
+            var element = Type(0);
+            if (!IsVoid(element)) return element;
+
+            Report("A pointer to 'Opaque' has no element size: cast it to a pointer to a type first (ptrCast)", call.Location);
+            return null;
+        }
+
+        var expected = operation switch
+        {
+            UnsafeOperation.IntFromPtr or UnsafeOperation.AlignOf => 1,
+            UnsafeOperation.PtrFromInt or UnsafeOperation.PtrCast
+                or UnsafeOperation.RefFromPtr or UnsafeOperation.PtrFromRef => 2,
+            _ => 3,
+        };
+
+        if (arguments.Length != expected)
+        {
+            Report($"'{operation}' takes {expected} argument(s), but the call gives {arguments.Length}", call.Location);
+            return null;
+        }
+
+        switch (operation)
+        {
+            case UnsafeOperation.PtrFromInt:
+                EmitValue(arguments[1], null);
+                _il.Emit(OpCodes.Conv_U);
+                return result;
+
+            case UnsafeOperation.IntFromPtr:
+                Pointer(0);
+                _il.Emit(OpCodes.Conv_U);
+                return system.UIntPtr;
+
+            case UnsafeOperation.SliceFromPtr:
+            {
+                Pointer(1);
+                EmitValue(arguments[2], null);
+                _il.Emit(OpCodes.Conv_U);
+
+                var helper = _owner.Backend.Runtime.UnsafeOps.Methods.First(method => method.Name == "SliceFromPtr");
+                var instance = new GenericInstanceMethod(_owner.Use(helper));
+                instance.GenericArguments.Add(Type(0));
+                _il.Emit(OpCodes.Call, instance);
+                return result;
+            }
+
+            case UnsafeOperation.PtrCast:
+            case UnsafeOperation.RefFromPtr:
+            case UnsafeOperation.PtrFromRef:
+                Pointer(1);
+                return result;
+
+            case UnsafeOperation.PtrAdd:
+            {
+                if (Element() is not { } element) return null;
+                Pointer(1);
+                EmitValue(arguments[2], null);
+                _il.Emit(OpCodes.Sizeof, element);
+                _il.Emit(OpCodes.Conv_I);
+                _il.Emit(OpCodes.Mul);
+                _il.Emit(OpCodes.Add);
+                return result;
+            }
+
+            case UnsafeOperation.PtrDiff:
+            {
+                if (Element() is not { } element) return null;
+                Pointer(1);
+                Pointer(2);
+                _il.Emit(OpCodes.Sub);
+                _il.Emit(OpCodes.Sizeof, element);
+                _il.Emit(OpCodes.Conv_I);
+                _il.Emit(OpCodes.Div);
+                return system.IntPtr;
+            }
+
+            case UnsafeOperation.BitCast:
+            {
+                // `Unsafe.BitCast<TFrom, TTo>`: it throws if the two are not the same size, or not values.
+                var bitCast = _owner.Backend.Core.Find("System.Runtime.CompilerServices.Unsafe")?.Methods
+                    .FirstOrDefault(method => method.Name == "BitCast" && method.HasGenericParameters && method.GenericParameters.Count == 2);
+                if (bitCast == null)
+                {
+                    Report("'bitCast' needs 'System.Runtime.CompilerServices.Unsafe.BitCast', which this runtime does not have", call.Location);
+                    return null;
+                }
+
+                EmitValue(arguments[2], null);
+                var instance = new GenericInstanceMethod(_owner.Module.ImportReference(bitCast));
+                instance.GenericArguments.Add(Type(1));
+                instance.GenericArguments.Add(Type(0));
+                _il.Emit(OpCodes.Call, instance);
+                return Type(0);
+            }
+
+            case UnsafeOperation.AlignOf:
+            {
+                var helper = _owner.Backend.Runtime.UnsafeOps.Methods.First(method => method.Name == "AlignOf");
+                var instance = new GenericInstanceMethod(_owner.Use(helper));
+                instance.GenericArguments.Add(Type(0));
+                _il.Emit(OpCodes.Call, instance);
+                _il.Emit(OpCodes.Conv_U4);
+                return system.UInt32;
+            }
+
+            default:
+                Report($"'{operation}' is not supported by this backend", call.Location);
+                return null;
+        }
+    }
+
     private TypeReference? EmitIntrinsic(string owner, string member, IrExpression operand, SourceLocation location)
     {
         switch (owner, member)
@@ -3499,6 +4033,9 @@ internal sealed class BodyEmitter
 
     private TypeReference? EmitAssign(IrAssign assign, bool discard)
     {
+        // The array of a block of the stack: `a = [1, 2]` writes the elements into it, and so does the declaration (the block is zeroed first).
+        if (_types.Get(assign.Source) is ArrayTypeRef && StackBlockOf(assign.Target) is { } block) return EmitBlockAssign(assign, block, discard);
+
         var target = ResolveTarget(assign.Target);
         if (target == null) return null;
 
@@ -3510,6 +4047,9 @@ internal sealed class BodyEmitter
         target.Prefix();
         EmitValue(assign.Source, target.Type);
 
+        // The value the variable has is destroyed before the new one takes its place.
+        if (assign.DestroyOld) EmitDestroy(new IrDestroy(assign.Location, assign.Target));
+
         VariableDefinition? kept = null;
         if (!discard)
         {
@@ -3519,10 +4059,30 @@ internal sealed class BodyEmitter
         }
 
         target.Store();
+        SetAlive(assign.Target, true);
 
         if (kept == null) return null;
         _il.Emit(OpCodes.Ldloc, kept);
         return target.Type;
+    }
+
+    private TypeReference? EmitBlockAssign(IrAssign assign, (VariableDefinition Pointer, TypeReference Element, int Length) block, bool discard)
+    {
+        var slice = _owner.SliceOf(block.Element);
+        var source = NewTemp(slice);
+
+        // The source is evaluated first (a block that is declared in a loop may be the one it is read from).
+        EmitValue(assign.Source, slice);
+        _il.Emit(OpCodes.Stloc, source);
+        if (assign.Target is IrLocal) EmitZeroBlock(block);
+
+        _il.Emit(OpCodes.Ldloca, source);
+        EmitBlockSlice(block);
+        _il.Emit(OpCodes.Call, _owner.SliceMember(slice, "CopyTo", 1));
+        SetAlive(assign.Target, true);
+
+        if (discard) return null;
+        return EmitBlockSlice(block);
     }
 
     private TypeReference? EmitArrayAssign(IrAssign assign, Target target, int length, bool discard)
@@ -3620,16 +4180,30 @@ internal sealed class BodyEmitter
                 // An element of a slice: the `ref T` of `memory.Span[i]`, so it is read with `ldobj` and written with `stobj`.
                 if (_types.Get(index.Target) is SliceTypeRef sliceType)
                 {
-                    var memory = _owner.MemoryOf(_owner.MapType(sliceType.Element, index.Location));
-                    var elementType = memory.GenericArguments[0];
+                    var slice = _owner.SliceOf(_owner.MapType(sliceType.Element, index.Location));
+                    var elementType = slice.GenericArguments[0];
                     return new Target(elementType, 1,
                         () =>
                         {
-                            EmitValue(index.Target, memory);
-                            EmitElementAddress(memory, () => EmitValue(index.Indices[0], Core("System.Int32")));
+                            EmitValue(index.Target, slice);
+                            EmitElementAddress(slice, () => EmitValue(index.Indices[0], Core("System.Int32")));
                         },
                         () => _il.Emit(OpCodes.Stobj, elementType),
                         () => _il.Emit(OpCodes.Ldobj, elementType)
+                    );
+                }
+
+                if (StackBlockOf(index.Target) is { } blockTarget)
+                {
+                    var blockSlice = _owner.SliceOf(blockTarget.Element);
+                    return new Target(blockTarget.Element, 1,
+                        () =>
+                        {
+                            EmitBlockSlice(blockTarget);
+                            EmitElementAddress(blockSlice, () => EmitValue(index.Indices[0], Core("System.Int32")));
+                        },
+                        () => _il.Emit(OpCodes.Stobj, blockTarget.Element),
+                        () => _il.Emit(OpCodes.Ldobj, blockTarget.Element)
                     );
                 }
 

@@ -1,0 +1,44 @@
+from Std import { Test, Type }
+
+struct SizePair {
+	let i32 first
+	let i32 second
+}
+
+func sizeOfGeneric(type T) uint => Type.sizeOf(T)
+
+@public func testTypeNamespace() {
+	Test.newTestUnit("Std.Type - sizeOf")
+	{
+		Test.assert(Type.sizeOf(u8), 1)
+		Test.assert(Type.sizeOf(i16), 2)
+		Test.assert(Type.sizeOf(i32), 4)
+		Test.assert(Type.sizeOf(u64), 8)
+		Test.assert(Type.sizeOf(u128), 16)
+		Test.assert(Type.sizeOf(f32), 4)
+		Test.assert(Type.sizeOf(f64), 8)
+		Test.assert(Type.sizeOf(bool), 1)
+		Test.assert(Type.sizeOf(SizePair), 8)
+
+		let uint native = Type.sizeOf(iptr)
+		Test.assert(Type.sizeOf(uptr), native)
+		Test.assert(Type.sizeOf(*i32), native)
+
+		Test.assert(Type.sizeOf(string), native)
+		Test.assert(sizeOfGeneric(i64), 8)
+		Test.assert(sizeOfGeneric(i16), 2)
+	}
+
+	Test.newTestUnit("Std.Type - bitSizeOf")
+	{
+		Test.assert(Type.bitSizeOf(u8), 8)
+        Test.assert(Type.bitSizeOf(i16), 16)
+        Test.assert(Type.bitSizeOf(i32), 32)
+        Test.assert(Type.bitSizeOf(u64), 64)
+        Test.assert(Type.bitSizeOf(u128), 128)
+        Test.assert(Type.bitSizeOf(f32), 32)
+        Test.assert(Type.bitSizeOf(f64), 64)
+        Test.assert(Type.bitSizeOf(bool), 8)
+        Test.assert(Type.bitSizeOf(SizePair), 64)
+	}
+}

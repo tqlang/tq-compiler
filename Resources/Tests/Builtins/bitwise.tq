@@ -71,6 +71,6 @@ from Std import { Test }
 		Test.assert(one32 << one32 + one32, 4)
 		Test.assert(twelve ⋎ ten ⋏ 4, 12)
 		Test.assert(twelve ⊕ ten ⋎ 1, 7)
-		Test.assert(twelve ⋏ ten == 8, true)
+		Test.assert(twelve ⋏ ten, 8)
 	}
 }

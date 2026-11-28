@@ -124,6 +124,55 @@ internal sealed partial class ModuleEmitter
         return raw != null ? MapType(raw, expression.location) : Unsupported($"As a type, {Describe(expression)}", expression.location);
     }
 
+    /// <summary>
+    /// The type of a parameter or of what a function returns. `[N]T` of unmanaged elements is a value that is passed whole: an `[InlineArray(N)]` struct
+    /// (the callee has a copy of its own); any other type is as `MapExpression` gives.
+    /// </summary>
+    internal TypeReference MapSignature(IrExpression expression)
+    {
+        if (TypeExpressions.Raw(expression) is ArrayTypeRef { Length: > 0 and var length } array)
+        {
+            var element = MapType(array.Element, expression.location);
+            if (BodyEmitter.IsUnmanaged(element)) return InlineArrayOf(element, length);
+        }
+
+        return MapExpression(expression);
+    }
+
+    /// <summary>
+    /// The `[InlineArray(N)]` struct of `N` elements of the type: `Tq.Generated.InlineArray_N&lt;T&gt;`, a generic struct that is declared in this module
+    /// once for each length (the element type is its argument).
+    /// </summary>
+    internal TypeReference InlineArrayOf(TypeReference element, int length)
+    {
+        var key = length.ToString();
+        if (!_backend.InlineArrays.TryGetValue(key, out var definition))
+        {
+            var constructor = _backend.Core.Find("System.Runtime.CompilerServices.InlineArrayAttribute")?.Methods
+                .FirstOrDefault(candidate => candidate.IsConstructor && !candidate.IsStatic && candidate.Parameters.Count == 1);
+            if (constructor == null) return Unsupported("An array as a parameter (`System.Runtime.CompilerServices.InlineArrayAttribute` was not found)", null);
+
+            definition = new TypeDefinition("Tq.Generated", $"InlineArray_{length}`1",
+                TypeAttributes.Public | TypeAttributes.Sealed | TypeAttributes.SequentialLayout | TypeAttributes.BeforeFieldInit, Core("System.ValueType"));
+
+            var parameter = new GenericParameter("T", definition);
+            definition.GenericParameters.Add(parameter);
+            definition.Fields.Add(new FieldDefinition("_element0", FieldAttributes.Public, parameter));
+
+            var attribute = new CustomAttribute(_module.ImportReference(constructor));
+            attribute.ConstructorArguments.Add(new CustomAttributeArgument(Core("System.Int32"), length));
+            definition.CustomAttributes.Add(attribute);
+
+            _module.Types.Add(definition);
+            _backend.InlineArrays[key] = definition;
+        }
+
+        var instance = new GenericInstanceType(Use(definition));
+        instance.GenericArguments.Add(element);
+        _backend.InlineArrayInfo[instance.FullName] = (element, length);
+        return instance;
+    }
+
     /// <summary>What an expression is, for the messages: the kind of node and what it refers to.</summary>
     internal static string Describe(IrExpression expression) => expression switch
     {
@@ -162,8 +211,8 @@ internal sealed partial class ModuleEmitter
             case ComptimeIntegerTypeRef: return Core("System.Int32");
             case ComptimeDecimalTypeRef: return Core("System.Double");
             case NullTypeRef: return Core("System.Object");
-            // `[]T` refers to part of an array: a `Memory<T>` (array, start and length). `[N]T` is the array itself.
-            case SliceTypeRef slice: return MemoryOf(MapType(slice.Element, location));
+            // `[]T` is a `Tq.Slice<T>`: managed memory (a `Memory<T>`) or raw memory (pointer and length). `[N]T` is the array itself.
+            case SliceTypeRef slice: return SliceOf(MapType(slice.Element, location));
             case ArrayTypeRef array: return new ArrayType(MapType(array.Element, location));
             case GenericParameterTypeRef generic:
                 return GenericParameters.TryGetValue(generic.Parameter, out var parameter)
@@ -177,11 +226,27 @@ internal sealed partial class ModuleEmitter
         }
     }
 
-    internal GenericInstanceType MemoryOf(TypeReference element)
+    internal GenericInstanceType SliceOf(TypeReference element)
     {
-        var memory = new GenericInstanceType(Core("System.Memory`1"));
-        memory.GenericArguments.Add(element);
-        return memory;
+        var slice = new GenericInstanceType(_module.ImportReference(_backend.Runtime.Slice));
+        slice.GenericArguments.Add(element);
+        return slice;
+    }
+
+    /// <summary>A member of `Tq.Slice&lt;T&gt;` (its constructors, `Part`, `AsArray`, the conversions...) on the instance `host`.</summary>
+    internal MethodReference SliceMember(GenericInstanceType host, string name, int parameters, Func<MethodDefinition, bool>? choose = null)
+    {
+        var method = _backend.Runtime.Slice.Methods.FirstOrDefault(candidate => candidate.Name == name && candidate.Parameters.Count == parameters
+                                                                                && (choose == null || choose(candidate)))
+                     ?? throw new BackendError($"The method 'Tq.Slice.{name}' was not found in the runtime");
+
+        return BodyEmitter.OnHost(Use(method), host);
+    }
+
+    internal FieldReference SliceLength(GenericInstanceType host)
+    {
+        var field = _backend.Runtime.Slice.Fields.First(candidate => candidate.Name == "Length");
+        return new FieldReference(field.Name, _module.ImportReference(field.FieldType), host);
     }
 
     /// <summary>
@@ -211,11 +276,11 @@ internal sealed partial class ModuleEmitter
         return instance;
     }
 
-    /// <summary>`Memory<T>`: what a slice is in .NET.</summary>
-    internal static bool IsMemory(TypeReference? type, out GenericInstanceType memory)
+    /// <summary>`Tq.Slice<T>`: what a slice is in .NET.</summary>
+    internal static bool IsSlice(TypeReference? type, out GenericInstanceType slice)
     {
-        memory = (type as GenericInstanceType)!;
-        return type is GenericInstanceType { ElementType.FullName: "System.Memory`1" };
+        slice = (type as GenericInstanceType)!;
+        return type is GenericInstanceType { ElementType.FullName: "Tq.Slice`1" };
     }
 
     private TypeReference Defined(IMember member, string name, SourceLocation? location)
