@@ -15,7 +15,28 @@ func pick(type T, T first, T second, bool useFirst) T => match useFirst {
     case false => second
 }
 
+# Every path returns, with no `return` at the end.
+func sign(i32 v) i32 {
+    if v > 0 { return 1 }
+    elif v < 0 { return -1 }
+    else { return 0 }
+}
+
+func firstAbove(i32 limit) i32 {
+    let i32 n = 0
+    while true {
+        if n > limit { return n }
+        n = n + 1
+    }
+}
+
 @public func testFunctions() {
+    Test.newTestUnit("Builtins - functions - every path returns")
+    {
+        Test.assert(sign(-5) + sign(7) * 10, 9)
+        Test.assert(firstAbove(3), 4)
+    }
+
     Test.newTestUnit("Builtins - functions - body with =>")
     {
         Test.assert(twice(21), 42)

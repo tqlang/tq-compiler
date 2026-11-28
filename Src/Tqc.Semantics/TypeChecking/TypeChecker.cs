@@ -175,7 +175,11 @@ internal sealed partial class TypeChecker(
 
         var outer = _function;
         _function = function;
-        if (function.Body != null) CheckBody(function.Body);
+        if (function.Body != null)
+        {
+            CheckBody(function.Body);
+            CheckEveryPathReturns(function, function.Body);
+        }
         _function = outer;
     }
 
