@@ -50,8 +50,37 @@ internal sealed class BodyEmitter
         _types    = owner.Tq.Types;
     }
 
+    /// <summary>
+    /// Whether a variable that a `delete` destroys is alive (see `TqFunction.DeletedVariables`): set when it gets a value, cleared by `delete`,
+    /// read where the variable is destroyed because it goes out of scope. The variables nothing deletes are always alive and have none.
+    /// </summary>
+    private readonly Dictionary<object, VariableDefinition> _aliveFlags = [];
+
+    private VariableDefinition? AliveFlag(IrNode? variable) =>
+        variable != null && IrVariables.KeyOf(variable) is { } key && _aliveFlags.TryGetValue(key, out var flag) ? flag : null;
+
+    private void SetAlive(IrNode? variable, bool alive)
+    {
+        if (AliveFlag(variable) is not { } flag) return;
+        _il.Emit(alive ? OpCodes.Ldc_I4_1 : OpCodes.Ldc_I4_0);
+        _il.Emit(OpCodes.Stloc, flag);
+    }
+
     public void Emit()
     {
+        foreach (var key in _function.DeletedVariables)
+        {
+            var flag = NewTemp(Core("System.Boolean"));
+            _aliveFlags[key] = flag;
+
+            // A parameter has its value from the start.
+            if (key is TqParameter)
+            {
+                _il.Emit(OpCodes.Ldc_I4_1);
+                _il.Emit(OpCodes.Stloc, flag);
+            }
+        }
+
         // A class starts by calling the constructor of what it extends.
         if (_function is TqConstructor && _function.Owner is TqStruct structure && ModuleEmitter.IsClass(structure)
             && _owner.FindBaseConstructor(structure) is { } baseConstructor)
@@ -195,20 +224,56 @@ internal sealed class BodyEmitter
     /// <summary>`delete value`: the `Dispose` of the value, which is its destructor (a value is disposed in place, not a copy of it).</summary>
     private void EmitDelete(IrDelete @delete)
     {
-        var type = TypeOfNode(@delete.Operand);
+        EmitDispose(@delete.Operand, skipNull: false);
+        SetAlive(@delete.Operand, false);
+    }
+
+    /// <summary>
+    /// The destruction of a variable that goes out of scope: `delete`, unless the variable was deleted already (its flag) or is a reference
+    /// that is null.
+    /// </summary>
+    private void EmitDestroy(IrDestroy destroy)
+    {
+        var skip = _il.Create(OpCodes.Nop);
+        if (AliveFlag(destroy.Variable) is { } flag)
+        {
+            _il.Emit(OpCodes.Ldloc, flag);
+            _il.Emit(OpCodes.Brfalse, skip);
+        }
+
+        EmitDispose(destroy.Variable, skipNull: true);
+        _il.Append(skip);
+    }
+
+    private void EmitDispose(IrExpression operand, bool skipNull)
+    {
+        var type = TypeOfNode(operand);
         if (type == null) return;
 
         if (type.IsValueType)
         {
-            EmitAddress(@delete.Operand);
+            EmitAddress(operand);
             _il.Emit(OpCodes.Constrained, type);
-        }
-        else
-        {
-            EmitValue(@delete.Operand, null);
+            _il.Emit(OpCodes.Callvirt, _owner.DisposeMethod());
+            return;
         }
 
+        EmitValue(operand, null);
+        if (!skipNull)
+        {
+            _il.Emit(OpCodes.Callvirt, _owner.DisposeMethod());
+            return;
+        }
+
+        var done = _il.Create(OpCodes.Nop);
+        var call = _il.Create(OpCodes.Nop);
+        _il.Emit(OpCodes.Dup);
+        _il.Emit(OpCodes.Brtrue, call);
+        _il.Emit(OpCodes.Pop);
+        _il.Emit(OpCodes.Br, done);
+        _il.Append(call);
         _il.Emit(OpCodes.Callvirt, _owner.DisposeMethod());
+        _il.Append(done);
     }
 
     // ---- Arrays and slices
@@ -622,12 +687,21 @@ internal sealed class BodyEmitter
                 EmitWhile(@while); break;
 
             case IrBreak @break:
-                if (_breakTargets.Count == 0) Report("'break' outside of a loop", @break.Location);
-                else _il.Emit(OpCodes.Br, _breakTargets.Peek());
+                if (_breakTargets.Count == 0)
+                {
+                    Report("'break' outside of a loop", @break.Location);
+                    break;
+                }
+
+                if (@break.Cleanup != null) foreach (var cleanup in @break.Cleanup) EmitStatement(cleanup);
+                _il.Emit(OpCodes.Br, _breakTargets.Peek());
             break;
 
             case IrDelete @delete:
                 EmitDelete(@delete); break;
+
+            case IrDestroy destroy:
+                EmitDestroy(destroy); break;
 
             case IrExpression expression:
                 EmitDiscard(expression); break;
@@ -684,13 +758,40 @@ internal sealed class BodyEmitter
         _il.Append(end);
     }
 
+    private IrStatement[]? _returnCleanup;
+
+    /// <summary>
+    /// `ret`: the value on the stack is kept while the variables that go out of scope are destroyed (what `return` carries, see
+    /// `IrReturnStatement.Cleanup`).
+    /// </summary>
+    private void EmitRet()
+    {
+        if (_returnCleanup is { Length: > 0 } cleanup)
+        {
+            _returnCleanup = null;
+            var held = IsVoid(_method.ReturnType) ? null : NewTemp(_method.ReturnType);
+            if (held != null) _il.Emit(OpCodes.Stloc, held);
+            foreach (var statement in cleanup) EmitStatement(statement);
+            if (held != null) _il.Emit(OpCodes.Ldloc, held);
+        }
+
+        _il.Emit(OpCodes.Ret);
+    }
+
     private void EmitReturn(IrReturnStatement statement)
+    {
+        _returnCleanup = statement.Cleanup;
+        try { EmitReturnValue(statement); }
+        finally { _returnCleanup = null; }
+    }
+
+    private void EmitReturnValue(IrReturnStatement statement)
     {
         var returnType = _method.ReturnType;
 
         if (statement.ReturnValue == null)
         {
-            if (IsVoid(returnType)) _il.Emit(OpCodes.Ret);
+            if (IsVoid(returnType)) EmitRet();
             else EmitDefaultReturn();
             return;
         }
@@ -699,7 +800,7 @@ internal sealed class BodyEmitter
         if (IsVoid(returnType))
         {
             EmitDiscard(statement.ReturnValue);
-            _il.Emit(OpCodes.Ret);
+            EmitRet();
             return;
         }
 
@@ -720,12 +821,12 @@ internal sealed class BodyEmitter
             EmitValue(statement.ReturnValue, result);
             _il.Emit(OpCodes.Stfld, new CecilField(value.Name, value.FieldType, returnType));
             _il.Emit(OpCodes.Ldloc, wrapper);
-            _il.Emit(OpCodes.Ret);
+            EmitRet();
             return;
         }
 
         EmitValue(statement.ReturnValue, returnType);
-        _il.Emit(OpCodes.Ret);
+        EmitRet();
     }
 
     /// <summary>The value of `return` with nothing to say: a `Tq.Failable` with no error.</summary>
@@ -734,7 +835,7 @@ internal sealed class BodyEmitter
         var returnType = _method.ReturnType;
         if (IsVoid(returnType))
         {
-            _il.Emit(OpCodes.Ret);
+            EmitRet();
             return;
         }
 
@@ -742,7 +843,7 @@ internal sealed class BodyEmitter
         _il.Emit(OpCodes.Ldloca, empty);
         _il.Emit(OpCodes.Initobj, returnType);
         _il.Emit(OpCodes.Ldloc, empty);
-        _il.Emit(OpCodes.Ret);
+        EmitRet();
     }
 
     // ---- Expressions
@@ -840,6 +941,7 @@ internal sealed class BodyEmitter
                     _il.Emit(OpCodes.Stloc, variable);
                 }
 
+                SetAlive(local, true);
                 return null;
             }
 
@@ -3668,6 +3770,9 @@ internal sealed class BodyEmitter
         target.Prefix();
         EmitValue(assign.Source, target.Type);
 
+        // The value the variable has is destroyed before the new one takes its place.
+        if (assign.DestroyOld) EmitDestroy(new IrDestroy(assign.Location, assign.Target));
+
         VariableDefinition? kept = null;
         if (!discard)
         {
@@ -3677,6 +3782,7 @@ internal sealed class BodyEmitter
         }
 
         target.Store();
+        SetAlive(assign.Target, true);
 
         if (kept == null) return null;
         _il.Emit(OpCodes.Ldloc, kept);

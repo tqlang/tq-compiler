@@ -178,7 +178,10 @@ internal sealed partial class TypeChecker(
         if (function.Body != null)
         {
             CheckBody(function.Body);
-            new LifetimeChecker(Error).Check(function);
+            var lifetimes = new LifetimeChecker(Error);
+            lifetimes.Check(function);
+            function.DeletedVariables = lifetimes.Deleted;
+            new Destruction(this).Function(function);
         }
         _function = outer;
     }

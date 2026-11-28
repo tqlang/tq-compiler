@@ -347,7 +347,14 @@ cada aplicação é uma `GenericInstance` da tabela compartilhada; não há nó 
   Depois do `delete` a variável (local ou parâmetro) está morta: usá-la, ou dar `delete` de novo, é erro de compilação (`LifetimeChecker`, depois de checar o corpo
   de cada função), até ela receber um valor novo (`x = ...`). A análise segue todos os caminhos: um `if` ou um `match` junta os estados dos ramos (morta em um só
   deles é "pode ter sido apagada", também erro), e um `while` repete até o estado parar de crescer (apagar no corpo sem atribuir de novo é erro no turno seguinte).
-  Só variáveis são seguidas; campos e elementos não. Ainda não há destruição automática no fim do escopo, nem destructor dos campos.
+  Só variáveis são seguidas; campos e elementos não.
+- Destruição automática (`TypeChecker.Destruction`, depois de checar cada função): uma variável de um tipo com destructor (struct, classe ou `IDisposable` do .NET)
+  é destruída onde deixa de ser acessível: no fim do bloco (em ordem inversa de declaração), antes de um `return` (depois de calcular o valor) ou de um
+  `break` que a deixa (`IrReturnStatement.Cleanup`, `IrBreak.Cleanup`, `IrDestroy`), e quando um valor novo toma o lugar do que ela tem (`IrAssign.DestroyOld`).
+  Um parâmetro por valor é cópia da função e é destruído por ela; um `*T` é do chamador e não. Cópias são do C#: `return local` destrói o local, e a cópia que o
+  chamador recebe tem o seu destructor chamado depois. Para as variáveis que um `delete` destrói o backend guarda uma flag de "viva" (`TqFunction.DeletedVariables`):
+  o `delete` a apaga e a destruição automática a respeita, então nada é destruído duas vezes. Ainda não: temporários que ninguém guarda, o destructor dos
+  campos e o da base, e blocos de `match` dentro de outra expressão (só `match` como statement, ou o valor de um statement, é seguido).
 - Fatia para view do .NET: em argumentos de chamada (só aí) um `[]T` vira `Span(T)`, `ReadOnlySpan(T)`, `Memory(T)` ou
   `ReadOnlyMemory(T)` (`ConversionRules.ClassifyArgument`, custo 20; o `T` tem de ser o mesmo do elemento; `[N]T` não converte, é um
   buffer da pilha). No backend a fatia é um `Tq.Slice<T>`, que converte para `Span`, `ReadOnlySpan` e `ReadOnlyMemory` (e `Memory` só se a memória é gerenciada: numa fatia de memória bruta lança exceção). O caminho contrário, `Span(T)` ou `Memory(T)` do .NET onde se pede `[]T`, é implícito em qualquer lugar (`ClassifyViewAsSlice`; os `ReadOnly*` não, porque a fatia é gravável);

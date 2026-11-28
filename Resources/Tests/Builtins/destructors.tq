@@ -2,7 +2,9 @@ from Std import { Test }
 from Dotnet.System import { Object, EventArgs }
 from Dotnet.System.ComponentModel import { Component }
 
-# The destructor of a type is only called by `delete`; the type implements IDisposable, with the destructor as its Dispose.
+# The destructor of a type is the Dispose of the IDisposable that the type implements. It is called by `delete`, and by the compiler where a
+# variable goes out of scope (the end of its block, before `return` and `break`) and when a new value replaces the one it has.
+# `destroyed` is a log: each destructor writes its own number at the end.
 let int destroyed = 0
 
 struct Tally {
@@ -30,17 +32,32 @@ struct Tally {
 # The destructor of Component (Dispose) raises its Disposed event.
 func onDestroyed(*Object sender, *EventArgs args) { destroyed = destroyed + 1 }
 
-func makeTally(int amount) Tally {
-    let Tally result
-    result.amount = amount
-    return result
+func endOfFunction(int amount) {
+    let Tally value
+    value.amount = amount
+}
+
+func beforeReturn(int amount) int {
+    let Tally value
+    value.amount = amount
+    return amount * 2
+}
+
+func byValue(Tally value) {
+    destroyed = destroyed * 10 + 8
+}
+
+func ofClass(int id) {
+    let handle = new Handle()
+    handle.id = id
 }
 
 @public func testDestructors() {
     Test.newTestUnit("Builtins - destructors - delete calls the destructor of a struct")
     {
         destroyed = 0
-        let Tally first = makeTally(3)
+        let Tally first
+        first.amount = 3
         Test.assert(destroyed, 0)
 
         delete first
@@ -50,26 +67,18 @@ func makeTally(int amount) Tally {
     Test.newTestUnit("Builtins - destructors - delete calls the destructor of a class")
     {
         destroyed = 0
-        let resource = new Handle()
-        resource.id = 4
-        delete resource
+        let handle = new Handle()
+        handle.id = 4
+        delete handle
         Test.assert(destroyed, 4)
     }
 
     Test.newTestUnit("Builtins - destructors - the destructor of a class that extends another is the one that runs")
     {
         destroyed = 0
-        let *Handle resource = new SpecialHandle()
-        delete resource
+        let *Handle handle = new SpecialHandle()
+        delete handle
         Test.assert(destroyed, 9)
-    }
-
-    Test.newTestUnit("Builtins - destructors - a destructor is not called without delete")
-    {
-        destroyed = 0
-        let Tally first = makeTally(5)
-        first.amount = 6
-        Test.assert(destroyed, 0)
     }
 
     Test.newTestUnit("Builtins - destructors - delete calls Dispose of a type of .NET")
@@ -85,9 +94,13 @@ func makeTally(int amount) Tally {
     Test.newTestUnit("Builtins - destructors - a deleted variable is alive again when it is assigned")
     {
         destroyed = 0
-        let Tally value = makeTally(2)
+        let Tally value
+        value.amount = 2
         delete value
-        value = makeTally(5)
+
+        let Tally other
+        other.amount = 5
+        value = other
         delete value
         Test.assert(destroyed, 25)
     }
@@ -96,19 +109,25 @@ func makeTally(int amount) Tally {
     {
         destroyed = 0
         let int turn = 0
-        let Tally value = makeTally(1)
+        let Tally value
+        value.amount = 1
         while turn < 3 {
             delete value
             turn = turn + 1
-            value = makeTally(turn)
+            let Tally next
+            next.amount = turn
+            value = next
         }
-        Test.assert(destroyed, 112)
+
+        # Each turn deletes the value and assigns a copy of `next`, which the end of the turn destroys: 1 (deleted), 1 (next), 1 (deleted copy), 2 (next), 2 (deleted copy), 3 (next).
+        Test.assert(destroyed, 111223)
     }
 
     Test.newTestUnit("Builtins - destructors - both branches delete the variable")
     {
         destroyed = 0
-        let Tally value = makeTally(7)
+        let Tally value
+        value.amount = 7
         let int choice = 1
         if choice == 1 {
             delete value
@@ -118,4 +137,79 @@ func makeTally(int amount) Tally {
         }
         Test.assert(destroyed, 7)
     }
+
+    Test.newTestUnit("Builtins - destructors - a variable is destroyed at the end of its function")
+    {
+        destroyed = 0
+        endOfFunction(6)
+        Test.assert(destroyed, 6)
+    }
+
+    Test.newTestUnit("Builtins - destructors - a variable is destroyed before return, after the value is calculated")
+    {
+        destroyed = 0
+        let int result = beforeReturn(4)
+        Test.assert(result, 8)
+        Test.assert(destroyed, 4)
+    }
+
+    Test.newTestUnit("Builtins - destructors - a variable of a loop is destroyed at the end of each turn, and before break")
+    {
+        destroyed = 0
+        let int turn = 0
+        while turn < 3 {
+            turn = turn + 1
+            let Tally value
+            value.amount = turn
+        }
+        Test.assert(destroyed, 123)
+
+        destroyed = 0
+        while true {
+            let Tally value
+            value.amount = 5
+            break
+        }
+        Test.assert(destroyed, 5)
+    }
+
+    Test.newTestUnit("Builtins - destructors - a new value destroys the one the variable has")
+    {
+        destroyed = 0
+        let Tally value
+        value.amount = 1
+        let Tally other
+        other.amount = 2
+        value = other
+        Test.assert(destroyed, 1)
+    }
+
+    Test.newTestUnit("Builtins - destructors - a parameter by value is destroyed by the function, and so is what was passed")
+    {
+        destroyed = 0
+        let Tally value
+        value.amount = 3
+        byValue(value)
+        Test.assert(destroyed, 83)
+    }
+
+    Test.newTestUnit("Builtins - destructors - a class variable is destroyed at the end of its function")
+    {
+        destroyed = 0
+        ofClass(2)
+        Test.assert(destroyed, 2)
+    }
+
+    Test.newTestUnit("Builtins - destructors - a variable that delete destroyed is not destroyed again")
+    {
+        destroyed = 0
+        endOfFunctionDeleted()
+        Test.assert(destroyed, 5)
+    }
+}
+
+func endOfFunctionDeleted() {
+    let Tally value
+    value.amount = 5
+    delete value
 }

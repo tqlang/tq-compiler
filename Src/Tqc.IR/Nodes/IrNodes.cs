@@ -18,7 +18,11 @@ public record IrArgumentsList(SourceLocation location, IrExpression[] arguments)
 
 #region Statement
 public abstract record IrStatement(SourceLocation Location) : IrNode(Location);
-public record IrReturnStatement(SourceLocation Location, IrExpression? ReturnValue) : IrStatement(Location);
+/// <summary>
+/// `return`. `Cleanup` is what the type checker adds: the destruction of the variables that go out of scope, which runs after the value is
+/// calculated and before the function returns.
+/// </summary>
+public record IrReturnStatement(SourceLocation Location, IrExpression? ReturnValue, IrStatement[]? Cleanup = null) : IrStatement(Location);
 public record IrExpressionStatement(SourceLocation Location, IrExpression Expression) : IrStatement(Location);
 
 /// <summary>`if c { } elif d { } else { }` is an `IrIf` whose `Else` is the next `IrIf`.</summary>
@@ -37,7 +41,13 @@ public record IrWhile(
 ) : IrStatement(Location);
 
 /// <summary>`break`: leaves the closest loop.</summary>
-public record IrBreak(SourceLocation Location) : IrStatement(Location);
+public record IrBreak(SourceLocation Location, IrStatement[]? Cleanup = null) : IrStatement(Location);
+
+/// <summary>
+/// The destruction of a variable that the type checker adds where the variable goes out of scope (the end of its block, `return`, `break`):
+/// what `delete` does, but only if the variable was not deleted already.
+/// </summary>
+public record IrDestroy(SourceLocation Location, IrExpression Variable) : IrStatement(Location);
 
 /// <summary>`delete value`: calls the destructor of the value (and of its fields). It is the only way a destructor is called.</summary>
 public record IrDelete(SourceLocation Location, IrExpression Operand) : IrStatement(Location);
@@ -51,7 +61,8 @@ public record IrCall(SourceLocation Location, IrExpression callee, IrArgumentsLi
 public record IrNew(SourceLocation Location, IrExpression Type, IrArgumentsList ArgumentsList, IFunction? Constructor = null)
     : IrExpression(Location);
 public record IrConvert(SourceLocation Location, IrExpression Expression, IrExpression toType) : IrExpression(Location);
-public record IrAssign(SourceLocation Location, IrExpression Target, IrExpression Source) : IrExpression(Location);
+/// <summary>`target = source`. `DestroyOld` is what the type checker sets when the target is a variable that has a destructor: the value it has is destroyed before the new one replaces it.</summary>
+public record IrAssign(SourceLocation Location, IrExpression Target, IrExpression Source, bool DestroyOld = false) : IrExpression(Location);
 
 /// <summary>
 /// A function of Tq as the delegate of .NET that is expected (`DelegateType` is `*Action`): `ldftn` of the function and the

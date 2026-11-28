@@ -22,6 +22,9 @@ internal sealed class LifetimeChecker(Action<string, SourceLocation> report)
         public bool SameAs(State other) => Count == other.Count && this.All(pair => other.TryGetValue(pair.Key, out var value) && value == pair.Value);
     }
 
+    /// <summary>The variables a `delete` destroys (the keys of <see cref="VariableKey"/>).</summary>
+    public HashSet<object> Deleted { get; } = [];
+
     private readonly HashSet<(string, SourceLocation)> _reported = [];
     private readonly Stack<List<State>> _breaks = new();
     private readonly Dictionary<object, string> _names = [];
@@ -47,6 +50,9 @@ internal sealed class LifetimeChecker(Action<string, SourceLocation> report)
     }
 
     private static State? Copy(State? state) => state == null ? null : new State(state);
+
+    /// <summary>What identifies a variable: a local by its name and place, a parameter by itself. Null for what is not one.</summary>
+    public static object? VariableKey(IrNode node) => KeyOf(node, out _);
 
     private static object? KeyOf(IrNode node, out string name)
     {
@@ -106,6 +112,7 @@ internal sealed class LifetimeChecker(Action<string, SourceLocation> report)
                 }
 
                 VisitNode(@delete.Operand, ref state);
+                if (key != null) Deleted.Add(key);
                 if (key != null && state != null) state[key] = true;
                 return;
             }
@@ -228,7 +235,7 @@ internal sealed class LifetimeChecker(Action<string, SourceLocation> report)
     private static readonly Dictionary<Type, PropertyInfo[]> _properties = [];
 
     /// <summary>The nodes a node is made of, in the order it declares them (what is evaluated first is declared first).</summary>
-    private static IEnumerable<IrNode> ChildrenOf(IrNode node)
+    internal static IEnumerable<IrNode> ChildrenOf(IrNode node)
     {
         var type = node.GetType();
         PropertyInfo[] properties;
