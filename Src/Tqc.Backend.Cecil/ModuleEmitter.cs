@@ -139,30 +139,38 @@ internal sealed partial class ModuleEmitter
         return MapExpression(expression);
     }
 
-    /// <summary>The `[InlineArray(N)]` struct of `N` elements of the type, which is declared in this module the first time it is asked for.</summary>
+    /// <summary>
+    /// The `[InlineArray(N)]` struct of `N` elements of the type: `Tq.Generated.InlineArray_N&lt;T&gt;`, a generic struct that is declared in this module
+    /// once for each length (the element type is its argument).
+    /// </summary>
     internal TypeReference InlineArrayOf(TypeReference element, int length)
     {
-        var key = $"{element.FullName}|{length}";
-        if (_backend.InlineArrays.TryGetValue(key, out var known)) return Use(known);
+        var key = length.ToString();
+        if (!_backend.InlineArrays.TryGetValue(key, out var definition))
+        {
+            var constructor = _backend.Core.Find("System.Runtime.CompilerServices.InlineArrayAttribute")?.Methods
+                .FirstOrDefault(candidate => candidate.IsConstructor && !candidate.IsStatic && candidate.Parameters.Count == 1);
+            if (constructor == null) return Unsupported("An array as a parameter (`System.Runtime.CompilerServices.InlineArrayAttribute` was not found)", null);
 
-        var name = "InlineArray_" + new string(element.FullName.Select(character => char.IsLetterOrDigit(character) ? character : '_').ToArray()) + "_" + length;
-        var type = new TypeDefinition("Tq.Generated", name,
-            TypeAttributes.Public | TypeAttributes.Sealed | TypeAttributes.SequentialLayout | TypeAttributes.BeforeFieldInit, Core("System.ValueType"));
+            definition = new TypeDefinition("Tq.Generated", $"InlineArray_{length}`1",
+                TypeAttributes.Public | TypeAttributes.Sealed | TypeAttributes.SequentialLayout | TypeAttributes.BeforeFieldInit, Core("System.ValueType"));
 
-        type.Fields.Add(new FieldDefinition("_element0", FieldAttributes.Public, element));
+            var parameter = new GenericParameter("T", definition);
+            definition.GenericParameters.Add(parameter);
+            definition.Fields.Add(new FieldDefinition("_element0", FieldAttributes.Public, parameter));
 
-        var constructor = _backend.Core.Find("System.Runtime.CompilerServices.InlineArrayAttribute")?.Methods
-            .FirstOrDefault(candidate => candidate.IsConstructor && !candidate.IsStatic && candidate.Parameters.Count == 1);
-        if (constructor == null) return Unsupported("An array as a parameter (`System.Runtime.CompilerServices.InlineArrayAttribute` was not found)", null);
+            var attribute = new CustomAttribute(_module.ImportReference(constructor));
+            attribute.ConstructorArguments.Add(new CustomAttributeArgument(Core("System.Int32"), length));
+            definition.CustomAttributes.Add(attribute);
 
-        var attribute = new CustomAttribute(_module.ImportReference(constructor));
-        attribute.ConstructorArguments.Add(new CustomAttributeArgument(Core("System.Int32"), length));
-        type.CustomAttributes.Add(attribute);
+            _module.Types.Add(definition);
+            _backend.InlineArrays[key] = definition;
+        }
 
-        _module.Types.Add(type);
-        _backend.InlineArrays[key] = type;
-        _backend.InlineArrayInfo[type.FullName] = (element, length);
-        return type;
+        var instance = new GenericInstanceType(Use(definition));
+        instance.GenericArguments.Add(element);
+        _backend.InlineArrayInfo[instance.FullName] = (element, length);
+        return instance;
     }
 
     /// <summary>What an expression is, for the messages: the kind of node and what it refers to.</summary>
