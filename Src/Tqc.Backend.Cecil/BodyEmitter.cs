@@ -106,9 +106,10 @@ internal sealed class BodyEmitter
         if (_function is TqDestructor && _function.Owner is TqStruct destroyed)
             _owner.EmitDestructorTail(_il, destroyed, _method.DeclaringType);
 
-        // The end of the function: what a function without `return` at its end gives.
+        // The end of the function: what a function without `return` at its end gives (nothing, where the last thing it does is leave).
         var returnType = _method.ReturnType;
-        if (IsVoid(returnType))
+        if (EndsInLeave()) { }
+        else if (IsVoid(returnType))
             _il.Emit(OpCodes.Ret);
         else if (IsFailable(returnType, out var result) && IsVoid(result))
             EmitDefaultReturn();
@@ -117,6 +118,23 @@ internal sealed class BodyEmitter
 
         EmitStackBlocks();
     }
+
+    /// <summary>
+    /// Whether the code already ends with `ret` or `throw`, so what a function without `return` at its end gives would be
+    /// code that never runs. A mark (`nop`) that no jump goes to is not code after it, and is taken away.
+    /// </summary>
+    private bool EndsInLeave()
+    {
+        var code = _il.Body.Instructions;
+
+        while (code.Count > 1 && code[^1].OpCode == OpCodes.Nop && !IsJumpTarget(code[^1]))
+            _il.Remove(code[^1]);
+
+        return code.Count > 0 && code[^1].OpCode.Code is Code.Ret or Code.Throw;
+    }
+
+    private bool IsJumpTarget(Instruction instruction) =>
+        _il.Body.Instructions.Any(other => ReferenceEquals(other.Operand, instruction) || other.Operand is Instruction[] targets && targets.Contains(instruction));
 
     // ---- Helpers
 
@@ -409,6 +427,61 @@ internal sealed class BodyEmitter
         _il.Emit(OpCodes.Ldloca, temp);
         emitIndex();
         _il.Emit(OpCodes.Call, _owner.SliceMember(slice, "get_Item", 1));
+    }
+
+    /// <summary>
+    /// The address of the `Slice<T>` that `target` is, to call what it has: of the variable itself when it is one (so the slice, which is a struct of
+    /// a few words, is not copied to be read), otherwise of a temporary that has the value.
+    /// </summary>
+    private void EmitSliceAddress(IrExpression target, GenericInstanceType slice)
+    {
+        if (_types.Get(target) is SliceTypeRef
+            && target is IrReference { Reference: LocalReference or ParameterReference or IrField } or IrAccess { access.Reference: IrField })
+        {
+            EmitAddress(target);
+            return;
+        }
+
+        EmitValue(target, slice);
+        var temp = NewTemp(slice);
+        _il.Emit(OpCodes.Stloc, temp);
+        _il.Emit(OpCodes.Ldloca, temp);
+    }
+
+    /// <summary>The `ref T` of the element of a slice (a variable or an expression) that `emitIndex` gives the index of.</summary>
+    private void EmitSliceElement(IrExpression target, GenericInstanceType slice, Action emitIndex)
+    {
+        EmitSliceAddress(target, slice);
+        emitIndex();
+        _il.Emit(OpCodes.Call, _owner.SliceMember(slice, "get_Item", 1));
+    }
+
+    /// <summary>
+    /// The `ref T` of the element of a block of memory (of the stack, of a field, of a parameter) that `emitIndex` gives the index of: its pointer, the index and
+    /// the length that is known, with nothing made in between.
+    /// </summary>
+    private void EmitBlockElement((VariableDefinition Pointer, TypeReference Element, int Length) block, Action emitIndex)
+    {
+        _il.Emit(OpCodes.Ldloc, block.Pointer);
+        emitIndex();
+        _il.Emit(OpCodes.Ldc_I4, block.Length);
+
+        var at = new GenericInstanceMethod(_target.ImportReference(_owner.Backend.Runtime.UnsafeAt));
+        at.GenericArguments.Add(block.Element);
+        _il.Emit(OpCodes.Call, at);
+    }
+
+    /// <summary>The length that the type of an array variable or parameter says, without making the array or reading it (nothing else of it is used).</summary>
+    private int? KnownLengthOf(IrExpression expression)
+    {
+        if (_types.Get(expression) is not ArrayTypeRef { Length: > 0 and var length }) return null;
+
+        return expression switch
+        {
+            IrReference { Reference: LocalReference } or IrLocal => length,
+            IrReference { Reference: ParameterReference parameter } when !GenericParameterTypeRef.IsTypeParameter(parameter.Parameter) => length,
+            _ => null,
+        };
     }
 
     /// <summary>The length, as an `int`, of the array or the `Slice<T>` on the stack.</summary>
@@ -1606,6 +1679,25 @@ internal sealed class BodyEmitter
             return null;
         }
 
+        // An element read from memory that is known (a block) or from a slice that is a variable: its address, without making or copying a slice.
+        if (index.Indices[0] is not IrRange)
+        {
+            if (StackBlockOf(index.Target) is { } memory)
+            {
+                EmitBlockElement(memory, () => EmitValue(index.Indices[0], Core("System.Int32")));
+                _il.Emit(OpCodes.Ldobj, memory.Element);
+                return memory.Element;
+            }
+
+            if (_types.Get(index.Target) is SliceTypeRef elementOf)
+            {
+                var sliceOf = _owner.SliceOf(_owner.MapType(elementOf.Element, index.Location));
+                EmitSliceElement(index.Target, sliceOf, () => EmitValue(index.Indices[0], Core("System.Int32")));
+                _il.Emit(OpCodes.Ldobj, sliceOf.GenericArguments[0]);
+                return sliceOf.GenericArguments[0];
+            }
+        }
+
         var target = Emit(index.Target, null);
         if (IsInlineArray(target, out var inlineTarget)) target = EmitInlineArrayView(target!, inlineTarget);
 
@@ -1709,7 +1801,24 @@ internal sealed class BodyEmitter
 
             // `slice.len`: the length of the array, as an `int`.
             case UnsolvedRef { Value: "len" } when _types.Get(access.baseExpr) is SliceTypeRef or ArrayTypeRef:
+            {
+                // The length of an array is in its type; that of a slice that is a variable is read from the variable.
+                if (KnownLengthOf(access.baseExpr) is { } known)
+                {
+                    _il.Emit(OpCodes.Ldc_I4, known);
+                    return Core("System.Int32");
+                }
+
+                if (_types.Get(access.baseExpr) is SliceTypeRef lengthOf)
+                {
+                    var sliceOf = _owner.SliceOf(_owner.MapType(lengthOf.Element, access.Location));
+                    EmitSliceAddress(access.baseExpr, sliceOf);
+                    _il.Emit(OpCodes.Ldfld, _owner.SliceLength(sliceOf));
+                    return Core("System.Int32");
+                }
+
                 return EmitLength(EmitValue(access.baseExpr, null));
+            }
 
             default:
                 Report($"'{access.access.Reference}' cannot be used as a value in .NET yet", access.Location);
@@ -1919,9 +2028,7 @@ internal sealed class BodyEmitter
     {
         if (StackBlockOf(index.Target) is { } block)
         {
-            var blockSlice = _owner.SliceOf(block.Element);
-            EmitBlockSlice(block);
-            EmitElementAddress(blockSlice, () => EmitValue(index.Indices[0], Core("System.Int32")));
+            EmitBlockElement(block, () => EmitValue(index.Indices[0], Core("System.Int32")));
             return true;
         }
 
@@ -1930,8 +2037,7 @@ internal sealed class BodyEmitter
             case SliceTypeRef sliceType:
             {
                 var slice = _owner.SliceOf(_owner.MapType(sliceType.Element, index.Location));
-                EmitValue(index.Target, slice);
-                EmitElementAddress(slice, () => EmitValue(index.Indices[0], Core("System.Int32")));
+                EmitSliceElement(index.Target, slice, () => EmitValue(index.Indices[0], Core("System.Int32")));
                 return true;
             }
 
@@ -2303,6 +2409,20 @@ internal sealed class BodyEmitter
         if (other is IrNull)
         {
             _il.Emit(equal ? OpCodes.Ldc_I4_1 : OpCodes.Ldc_I4_0);
+            return Core("System.Boolean");
+        }
+
+        // A `?T` that is a variable is asked from the variable itself, which is not copied.
+        if (other is IrReference { Reference: LocalReference or ParameterReference } && TypeOfNode(other) is { } heldType && IsNullableValue(heldType, out var held))
+        {
+            EmitAddress(other);
+            _il.Emit(OpCodes.Call, _owner.GenericMember("System.Nullable`1", held, "get_HasValue", 0));
+            if (equal)
+            {
+                _il.Emit(OpCodes.Ldc_I4_0);
+                _il.Emit(OpCodes.Ceq);
+            }
+
             return Core("System.Boolean");
         }
 
@@ -4183,11 +4303,7 @@ internal sealed class BodyEmitter
                     var slice = _owner.SliceOf(_owner.MapType(sliceType.Element, index.Location));
                     var elementType = slice.GenericArguments[0];
                     return new Target(elementType, 1,
-                        () =>
-                        {
-                            EmitValue(index.Target, slice);
-                            EmitElementAddress(slice, () => EmitValue(index.Indices[0], Core("System.Int32")));
-                        },
+                        () => EmitSliceElement(index.Target, slice, () => EmitValue(index.Indices[0], Core("System.Int32"))),
                         () => _il.Emit(OpCodes.Stobj, elementType),
                         () => _il.Emit(OpCodes.Ldobj, elementType)
                     );
@@ -4195,13 +4311,8 @@ internal sealed class BodyEmitter
 
                 if (StackBlockOf(index.Target) is { } blockTarget)
                 {
-                    var blockSlice = _owner.SliceOf(blockTarget.Element);
                     return new Target(blockTarget.Element, 1,
-                        () =>
-                        {
-                            EmitBlockSlice(blockTarget);
-                            EmitElementAddress(blockSlice, () => EmitValue(index.Indices[0], Core("System.Int32")));
-                        },
+                        () => EmitBlockElement(blockTarget, () => EmitValue(index.Indices[0], Core("System.Int32"))),
                         () => _il.Emit(OpCodes.Stobj, blockTarget.Element),
                         () => _il.Emit(OpCodes.Ldobj, blockTarget.Element)
                     );

@@ -21,6 +21,9 @@ internal sealed class TqRuntimeAssembly
 
     /// <summary>`Tq.UnsafeOps`: what `Std.Memory.Unsafe` needs more than instructions (`sliceFromPtr`, `alignOf`).</summary>
     public TypeDefinition UnsafeOps { get; }
+
+    /// <summary>`UnsafeOps.At&lt;T&gt;(T*, int, int)`: the `ref T` of an element of memory whose length is known.</summary>
+    public MethodDefinition UnsafeAt { get; }
     
     // The methods of `TqFormatter` that give the text of a value of an interpolated string.
     public MethodDefinition FormatterFormatObject { get; }
@@ -50,6 +53,8 @@ internal sealed class TqRuntimeAssembly
         Slice = Require("Slice`1");
         Ops = Require("Ops");
         UnsafeOps = Require("UnsafeOps");
+        UnsafeAt = UnsafeOps.Methods.FirstOrDefault(method => method.Name == "At" && method.IsStatic && method.Parameters.Count == 3)
+                   ?? throw new BackendError($"The method '{Namespace}.UnsafeOps.At' was not found in '{path}'");
 
         var formatter = Require("TqFormatter");
 
