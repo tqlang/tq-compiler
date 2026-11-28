@@ -59,6 +59,9 @@ public readonly unsafe struct Slice<T>
     /// <summary>The `Memory&lt;T&gt;` of a slice of managed memory; memory that is not managed has none.</summary>
     public Memory<T> Memory => IsUnmanaged ? throw new InvalidOperationException("Slice points to unmanaged memory") : _memory;
 
+    /// <summary>Copies the elements of the slice into `destination` (what `a = b` does with two arrays).</summary>
+    public void CopyTo(Slice<T> destination) => Span.CopyTo(destination.Span);
+
     /// <summary>The element at `index`, by reference (so it is read and written in place).</summary>
     public ref T this[int index] => ref Span[index];
 

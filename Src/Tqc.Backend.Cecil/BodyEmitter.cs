@@ -119,6 +119,7 @@ internal sealed partial class BodyEmitter
             _owner.EmitStub(_il, $"Tq: '{_function.Name}' reached its end without returning a value");
 
         DiscardBeforeEarlyReturns();
+        EmitStackBlocks();
     }
 
     // ---- Helpers
@@ -465,6 +466,96 @@ internal sealed partial class BodyEmitter
         throw new BackendError($"The parameter '{parameter.Name}' does not belong to '{_function.Name}'", _function.SourceLocation);
     }
 
+    /// <summary>The variables that are arrays whose memory is a block of the stack: the pointer, the type of the elements and how many.</summary>
+    private readonly Dictionary<IrLocal, (VariableDefinition Pointer, TypeReference Element, int Length)> _stackLocals = [];
+
+    /// <summary>The length of the array a variable is declared as (`let [4]u8 buffer`), if it is one.</summary>
+    private int? ArrayLengthOf(IrLocal local) =>
+        local.type != null && !IsUntypedConstant(local.type) && TypeExpressions.Raw(local.type) is ArrayTypeRef { Length: var length } ? length
+        : _types.Get(local) is ArrayTypeRef { Length: var inferred } ? inferred
+        : null;
+
+    /// <summary>The block of the stack of the variable `expression` names, if it is an array that has one.</summary>
+    private (VariableDefinition Pointer, TypeReference Element, int Length)? StackBlockOf(IrExpression expression)
+    {
+        var local = expression switch
+        {
+            IrLocal declared => declared,
+            IrReference { Reference: LocalReference reference } => reference.Local,
+            _ => null,
+        };
+
+        if (local == null) return null;
+        GetLocal(local);
+        return _stackLocals.TryGetValue(local, out var block) ? block : null;
+    }
+
+    /// <summary>The `Slice<T>` over a block of the stack, with the pointer and the length of the array.</summary>
+    private GenericInstanceType EmitBlockSlice((VariableDefinition Pointer, TypeReference Element, int Length) block)
+    {
+        var slice = _owner.SliceOf(block.Element);
+        _il.Emit(OpCodes.Ldloc, block.Pointer);
+        _il.Emit(OpCodes.Ldc_I4, block.Length);
+        _il.Emit(OpCodes.Newobj, _owner.SliceMember(slice, ".ctor", 2, candidate => candidate.Parameters[0].ParameterType is PointerType));
+        return slice;
+    }
+
+    /// <summary>The block is zeroed: where the array is declared, which a loop reaches again and again.</summary>
+    private void EmitZeroBlock((VariableDefinition Pointer, TypeReference Element, int Length) block)
+    {
+        _il.Emit(OpCodes.Ldloc, block.Pointer);
+        _il.Emit(OpCodes.Ldc_I4_0);
+        _il.Emit(OpCodes.Ldc_I4, block.Length);
+        _il.Emit(OpCodes.Sizeof, block.Element);
+        _il.Emit(OpCodes.Mul);
+        _il.Emit(OpCodes.Initblk);
+    }
+
+    /// <summary>
+    /// The allocation of the blocks of the stack, at the start of the function (`localloc` needs an empty stack): once, so a loop that declares an array
+    /// does not grow the stack. A block lives until the function returns: a slice of it that is kept longer is not valid (it is not checked).
+    /// </summary>
+    private void EmitStackBlocks()
+    {
+        if (_stackLocals.Count == 0) return;
+
+        var first = _il.Body.Instructions[0];
+        foreach (var (_, block) in _stackLocals)
+        {
+            _il.InsertBefore(first, _il.Create(OpCodes.Ldc_I4, block.Length));
+            _il.InsertBefore(first, _il.Create(OpCodes.Sizeof, block.Element));
+            _il.InsertBefore(first, _il.Create(OpCodes.Mul));
+            _il.InsertBefore(first, _il.Create(OpCodes.Conv_U));
+            _il.InsertBefore(first, _il.Create(OpCodes.Localloc));
+            _il.InsertBefore(first, _il.Create(OpCodes.Stloc, block.Pointer));
+        }
+    }
+
+    /// <summary>Whether a value of the type can live in memory the garbage collector does not see (no reference in it).</summary>
+    private static bool IsUnmanaged(TypeReference type, int depth = 0)
+    {
+        if (depth > 16) return false;
+
+        switch (type)
+        {
+            case PointerType: return true;
+            case GenericInstanceType or ByReferenceType or ArrayType or GenericParameter: return false;
+        }
+
+        if (type.FullName is "System.Boolean" or "System.Byte" or "System.SByte" or "System.Int16" or "System.UInt16" or "System.Int32"
+            or "System.UInt32" or "System.Int64" or "System.UInt64" or "System.Single" or "System.Double" or "System.Char"
+            or "System.IntPtr" or "System.UIntPtr")
+            return true;
+
+        TypeDefinition? definition;
+        try { definition = type.Resolve(); }
+        catch (AssemblyResolutionException) { return false; }
+
+        if (definition is not { IsValueType: true }) return false;
+        if (definition.IsEnum) return true;
+        return definition.Fields.Where(field => !field.IsStatic).All(field => IsUnmanaged(field.FieldType, depth + 1));
+    }
+
     private VariableDefinition GetLocal(IrLocal local)
     {
         if (_locals.TryGetValue(local, out var known)) return known;
@@ -482,6 +573,15 @@ internal sealed partial class BodyEmitter
         {
             Report($"The type of the variable '{local.name}' is not known", local.Location);
             type = Core("System.Object");
+        }
+
+        // `[N]T` of unmanaged elements is a block of the stack of the function (`stackalloc`): the variable is a pointer to it.
+        if (type is ArrayType { Rank: 1 } storage && IsUnmanaged(storage.ElementType) && ArrayLengthOf(local) is { } blockLength)
+        {
+            var pointer = NewTemp(new PointerType(storage.ElementType));
+            _locals[local] = pointer;
+            _stackLocals[local] = (pointer, storage.ElementType, blockLength);
+            return pointer;
         }
 
         var variable = NewTemp(type);
@@ -987,6 +1087,7 @@ internal sealed partial class BodyEmitter
             case IrLocal local:
             {
                 var variable = GetLocal(local);
+                if (_stackLocals.TryGetValue(local, out var declaredBlock)) EmitZeroBlock(declaredBlock);
                 if (BoxOf(local) is { } declaredBox) EmitNewBox(variable, declaredBox);
 
                 // An array exists as soon as it is declared: memory with room for all of its elements.
@@ -1383,6 +1484,10 @@ internal sealed partial class BodyEmitter
         }
 
         var actual = Emit(addressOf.Operand, null);
+
+        // The array of a block of the stack already is a slice.
+        if (IsSlice(actual, out _)) return actual;
+
         if (actual is not ArrayType array)
         {
             if (actual != null)
@@ -1473,6 +1578,8 @@ internal sealed partial class BodyEmitter
             case LocalReference local:
             {
                 var variable = GetLocal(local.Local);
+                if (_stackLocals.TryGetValue(local.Local, out var block)) return EmitBlockSlice(block);
+
                 if (BoxOf(local.Local) is { } box)
                 {
                     EmitBoxAddress(variable, box);
@@ -1726,10 +1833,46 @@ internal sealed partial class BodyEmitter
                 return;
         }
 
+        // An element of an array, a slice or a block of the stack: its own address, so that what is written through it stays in place.
+        if (expression is IrIndex { Indices.Length: 1 } element && element.Indices[0] is not IrRange && TryEmitElementAddress(element)) return;
+
         var type = EmitValue(expression, null);
         var copy = NewTemp(type);
         _il.Emit(OpCodes.Stloc, copy);
         _il.Emit(OpCodes.Ldloca, copy);
+    }
+
+    private bool TryEmitElementAddress(IrIndex index)
+    {
+        if (StackBlockOf(index.Target) is { } block)
+        {
+            var blockSlice = _owner.SliceOf(block.Element);
+            EmitBlockSlice(block);
+            EmitElementAddress(blockSlice, () => EmitValue(index.Indices[0], Core("System.Int32")));
+            return true;
+        }
+
+        switch (_types.Get(index.Target))
+        {
+            case SliceTypeRef sliceType:
+            {
+                var slice = _owner.SliceOf(_owner.MapType(sliceType.Element, index.Location));
+                EmitValue(index.Target, slice);
+                EmitElementAddress(slice, () => EmitValue(index.Indices[0], Core("System.Int32")));
+                return true;
+            }
+
+            case ArrayTypeRef arrayType:
+            {
+                var elementType = _owner.MapType(arrayType.Element, index.Location);
+                EmitValue(index.Target, null);
+                EmitValue(index.Indices[0], Core("System.Int32"));
+                _il.Emit(OpCodes.Ldelema, elementType);
+                return true;
+            }
+        }
+
+        return false;
     }
 
     // ---- Calls
@@ -3880,6 +4023,9 @@ internal sealed partial class BodyEmitter
 
     private TypeReference? EmitAssign(IrAssign assign, bool discard)
     {
+        // The array of a block of the stack: `a = [1, 2]` writes the elements into it, and so does the declaration (the block is zeroed first).
+        if (StackBlockOf(assign.Target) is { } block && _types.Get(assign.Source) is ArrayTypeRef) return EmitBlockAssign(assign, block, discard);
+
         var target = ResolveTarget(assign.Target);
         if (target == null) return null;
 
@@ -3908,6 +4054,25 @@ internal sealed partial class BodyEmitter
         if (kept == null) return null;
         _il.Emit(OpCodes.Ldloc, kept);
         return target.Type;
+    }
+
+    private TypeReference? EmitBlockAssign(IrAssign assign, (VariableDefinition Pointer, TypeReference Element, int Length) block, bool discard)
+    {
+        var slice = _owner.SliceOf(block.Element);
+        var source = NewTemp(slice);
+
+        // The source is evaluated first (a block that is declared in a loop may be the one it is read from).
+        EmitValue(assign.Source, slice);
+        _il.Emit(OpCodes.Stloc, source);
+        if (assign.Target is IrLocal) EmitZeroBlock(block);
+
+        _il.Emit(OpCodes.Ldloca, source);
+        EmitBlockSlice(block);
+        _il.Emit(OpCodes.Call, _owner.SliceMember(slice, "CopyTo", 1));
+        SetAlive(assign.Target, true);
+
+        if (discard) return null;
+        return EmitBlockSlice(block);
     }
 
     private TypeReference? EmitArrayAssign(IrAssign assign, Target target, int length, bool discard)
@@ -4015,6 +4180,20 @@ internal sealed partial class BodyEmitter
                         },
                         () => _il.Emit(OpCodes.Stobj, elementType),
                         () => _il.Emit(OpCodes.Ldobj, elementType)
+                    );
+                }
+
+                if (StackBlockOf(index.Target) is { } blockTarget)
+                {
+                    var blockSlice = _owner.SliceOf(blockTarget.Element);
+                    return new Target(blockTarget.Element, 1,
+                        () =>
+                        {
+                            EmitBlockSlice(blockTarget);
+                            EmitElementAddress(blockSlice, () => EmitValue(index.Indices[0], Core("System.Int32")));
+                        },
+                        () => _il.Emit(OpCodes.Stobj, blockTarget.Element),
+                        () => _il.Emit(OpCodes.Ldobj, blockTarget.Element)
                     );
                 }
 
