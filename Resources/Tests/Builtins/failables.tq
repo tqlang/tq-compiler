@@ -7,6 +7,14 @@ func halfPlusOne(int num) !int {
     return h + 1
 }
 
+func sum(int a, int b) int => a + b
+
+func halvesInTheMiddle(int num) !int {
+    let a = sum(100, try half(num))
+    let b = 10 + try half(num + 2)
+    return sum(a, sum(b, 1 + try half(try half(num))))
+}
+
 @public func testFailables() {
     Test.newTestUnit("Builtins - failability - a value goes where a failable is returned")
     {
@@ -30,5 +38,11 @@ func halfPlusOne(int num) !int {
     {
         let ?int result = halfPlusOne(8)!
         Test.assert(result ?? -1, 5)
+    }
+
+    Test.newTestUnit("Builtins - failability - try in the middle of an expression")
+    {
+        let ?int result = halvesInTheMiddle(8)!
+        Test.assert(result ?? -1, 122)
     }
 }
