@@ -41,6 +41,18 @@ func assignedLater(i32 v) i32 {
 }
 
 @public func testFunctions() {
+    Test.newTestUnit("Builtins - functions - numbers with separators")
+    {
+        let i32 decimal = 1_000_000
+        Test.assert(decimal, 1000000)
+
+        let i32 hexAndBinary = 0x1_0 + 0b0_1_0_1
+        Test.assert(hexAndBinary, 21)
+
+        let f64 fraction = 1_000.2_5
+        Test.assert(fraction == 1000.25, true)
+    }
+
     Test.newTestUnit("Builtins - functions - a variable assigned later")
     {
         Test.assert(assignedLater(5) * 100 + assignedLater(-5) * 10 + assignedLater(0), 123)

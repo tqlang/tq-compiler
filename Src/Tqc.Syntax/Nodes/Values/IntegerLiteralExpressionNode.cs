@@ -15,9 +15,9 @@ public record IntegerLiteralExpressionNode(TokenNode Token) : ExpressionNode
     {
         var tokenVal = token.Value;
         
-        if (tokenVal.StartsWith("0x")) return BigInteger.Parse(tokenVal[2..], NumberStyles.HexNumber);
-        if (tokenVal.StartsWith("0b")) return BigInteger.Parse(tokenVal[2..], NumberStyles.BinaryNumber);
+        if (tokenVal.StartsWith("0x")) return BigInteger.Parse(NumberText.WithoutSeparators(tokenVal[2..]), NumberStyles.HexNumber);
+        if (tokenVal.StartsWith("0b")) return BigInteger.Parse(NumberText.WithoutSeparators(tokenVal[2..]), NumberStyles.BinaryNumber);
         
-        return BigInteger.Parse(tokenVal);
+        return BigInteger.Parse(NumberText.WithoutSeparators(tokenVal));
     }
 }
