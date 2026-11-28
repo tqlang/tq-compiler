@@ -127,7 +127,9 @@ Acesso (`Semantics/Access/`), verificado ao resolver nomes e `a.b`, e ao escolhe
   a referência); declarar com outro array (`let [2]int b = a`) faz uma cópia. `[]T` (`SliceTypeRef`) é uma referência a um array, sem tamanho
   estático. `&array` (`IrAddressOf`) dá o slice que o enxerga, e `a[i .. j]` (`IrRange`, **os dois extremos entram**) dá um slice da parte;
   o que se escreve por um aparece no outro. Um array não vira slice sozinho: é preciso o `&` (`&[1, 2]` também vale).
-  No .NET, `[N]T` é um `T[]` e `[]T` é um `Tq.Slice<T>` (memória gerenciada, um `Memory<T>`, ou memória bruta, ponteiro e tamanho); ao chamar um método .NET que pede `T[]` o slice vira o array: **o próprio array** se o slice é o array inteiro
+  No .NET, um `[N]T` **local** cujos elementos não guardam referência (inteiros, floats, structs de valor...) é um bloco da pilha: `localloc` no prólogo do método (então um laço não faz a pilha crescer), zerado a cada declaração, e `&a`/`a[i .. j]`
+  são um `Tq.Slice<T>` sobre o bloco (sem cópia); `let b = a` e `a = [..]` copiam para dentro (`Slice<T>.CopyTo`). Campos, globais e locais cujos elementos são referências (`[2]string`) continuam `T[]` gerenciado; `[N]T` como parâmetro ou retorno ainda converte para `T[]` (cópia), e o próximo passo é `[InlineArray]`.
+  Fora isso, `[N]T` é um `T[]` e `[]T` é um `Tq.Slice<T>` (memória gerenciada, um `Memory<T>`, ou memória bruta, ponteiro e tamanho); ao chamar um método .NET que pede `T[]` o slice vira o array: **o próprio array** se o slice é o array inteiro
   (`Slice<T>.AsArray`, `MemoryMarshal.TryGetArray`: o .NET escreve de volta no slice e nada é copiado) e **uma cópia** se é só uma parte ou se é memória bruta e um `T[]` que o .NET devolve vira `Slice<T>`. Um campo de array sem valor (`let [5]int valores`) ganha a memória no construtor (de instância) ou no inicializador do tipo
   (de namespace/`@static`). Ainda não: parâmetros de array por valor (copiar ao chamar), extremos de range omitidos.
 - Struct: campos, funções (overloads em grupo), `constructor`, `destructor` e `extends` (`TqStruct`, `TqConstructor`,
