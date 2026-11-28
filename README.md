@@ -139,8 +139,8 @@ Acesso (`Semantics/Access/`), verificado ao resolver nomes e `a.b`, e ao escolhe
   a referência); declarar com outro array (`let [2]int b = a`) faz uma cópia. `[]T` (`SliceTypeRef`) é uma referência a um array, sem tamanho
   estático. `&array` (`IrAddressOf`) dá o slice que o enxerga, e `a[i .. j]` (`IrRange`, **os dois extremos entram**) dá um slice da parte;
   o que se escreve por um aparece no outro. Um array não vira slice sozinho: é preciso o `&` (`&[1, 2]` também vale).
-  No .NET, `[N]T` é um `T[]` e `[]T` é um `Memory<T>`; ao chamar um método .NET que pede `T[]` o slice vira o array: **o próprio array** se o slice é o array inteiro
-  (`MemoryMarshal.TryGetArray`: o .NET escreve de volta no slice e nada é copiado) e **uma cópia** se é só uma parte e um `T[]` que o .NET devolve vira `Memory<T>`. Um campo de array sem valor (`let [5]int valores`) ganha a memória no construtor (de instância) ou no inicializador do tipo
+  No .NET, `[N]T` é um `T[]` e `[]T` é um `Tq.Slice<T>` (memória gerenciada, um `Memory<T>`, ou memória bruta, ponteiro e tamanho); ao chamar um método .NET que pede `T[]` o slice vira o array: **o próprio array** se o slice é o array inteiro
+  (`Slice<T>.AsArray`, `MemoryMarshal.TryGetArray`: o .NET escreve de volta no slice e nada é copiado) e **uma cópia** se é só uma parte ou se é memória bruta e um `T[]` que o .NET devolve vira `Slice<T>`. Um campo de array sem valor (`let [5]int valores`) ganha a memória no construtor (de instância) ou no inicializador do tipo
   (de namespace/`@static`). Ainda não: parâmetros de array por valor (copiar ao chamar), extremos de range omitidos.
 - Struct: campos, funções (overloads em grupo), `constructor`, `destructor` e `extends` (`TqStruct`, `TqConstructor`,
   `TqDestructor`). Dentro dele valem os parâmetros genéricos, os membros herdados, os próprios e `this`.
@@ -353,9 +353,28 @@ cada aplicação é uma `GenericInstance` da tabela compartilhada; não há nó 
   estática de `f` com `x` como primeiro argumento (`TypeChecker.ExtensionWhenMembersFail`), e o receptor converte como um argumento.
   Ainda não: extensões com parâmetros de tipo próprios (LINQ) nem de receptor genérico, extensões declaradas em Tq, `ref this`, extensão
   de tipos sem lista de membros (inteiros, fatias). O dump do módulo marca `<extension>`.
+- `delete valor` (`DeleteStatementNode` → `IrDelete`): chama o destructor do valor, a única forma de ele rodar por enquanto. O tipo tem de ter
+  `destructor` (ele mesmo ou herdado), ou ser um tipo .NET que implementa `IDisposable` (`Destructors.Has`); senão é erro de compilação. O backend emite
+  `IDisposable.Dispose` (`constrained.` + `callvirt` no endereço do valor, que é destruído no lugar e não numa cópia; `callvirt` numa classe, ou `*Classe`).
+  Depois do `delete` a variável (local ou parâmetro) está morta: usá-la, ou dar `delete` de novo, é erro de compilação (`LifetimeChecker`, depois de checar o corpo
+  de cada função), até ela receber um valor novo (`x = ...`). A análise segue todos os caminhos: um `if` ou um `match` junta os estados dos ramos (morta em um só
+  deles é "pode ter sido apagada", também erro), e um `while` repete até o estado parar de crescer (apagar no corpo sem atribuir de novo é erro no turno seguinte).
+  Só variáveis são seguidas; campos e elementos não.
+- Destruição automática (`TypeChecker.Destruction`, depois de checar cada função): uma variável de um tipo com destructor (struct, classe ou `IDisposable` do .NET)
+  é destruída onde deixa de ser acessível: no fim do bloco (em ordem inversa de declaração), antes de um `return` (depois de calcular o valor) ou de um
+  `break` que a deixa (`IrReturnStatement.Cleanup`, `IrBreak.Cleanup`, `IrDestroy`), e quando um valor novo toma o lugar do que ela tem (`IrAssign.DestroyOld`).
+  Um parâmetro por valor é cópia da função e é destruído por ela; um `*T` é do chamador e não. Cópias são do C#: `return local` destrói o local, e a cópia que o
+  chamador recebe tem o seu destructor chamado depois. Para as variáveis que um `delete` destrói o backend guarda uma flag de "viva" (`TqFunction.DeletedVariables`):
+  o `delete` a apaga e a destruição automática a respeita, então nada é destruído duas vezes. O valor de uma chamada que ninguém guarda (`f()` como statement,
+  com `f` devolvendo um struct por valor com destructor) é destruído na hora. Ainda não: outros temporários (argumentos, `f().campo`) e blocos de `match`
+  dentro de outra expressão (só `match` como statement, ou o valor de um statement, é seguido).
+- Campos e base: depois do corpo do destructor de um struct rodam os destructors dos campos que são structs **por valor** com destructor (o último declarado
+  primeiro; `TqStruct.DestroyedFields`, achados por `Destructors.Analyze`) e então o da base (uma classe chama o `Dispose` da base; um struct por valor tem a base
+  como o campo `__base`). Um struct com tais campos tem destructor mesmo sem declarar um (o backend gera o `Dispose`). Campos que são referências (classes) não são
+  destruídos: o objeto pode ter outros donos. Um `return` dentro do corpo do destructor pula essa parte.
 - Fatia para view do .NET: em argumentos de chamada (só aí) um `[]T` vira `Span(T)`, `ReadOnlySpan(T)`, `Memory(T)` ou
   `ReadOnlyMemory(T)` (`ConversionRules.ClassifyArgument`, custo 20; o `T` tem de ser o mesmo do elemento; `[N]T` não converte, é um
-  buffer da pilha). No backend a fatia é um `Memory<T>`: `.Span` para `Span`, e `ReadOnlyMemory` (e o `.Span` dele) para os read-only;
+  buffer da pilha). No backend a fatia é um `Tq.Slice<T>`, que converte para `Span`, `ReadOnlySpan` e `ReadOnlyMemory` (e `Memory` só se a memória é gerenciada: numa fatia de memória bruta lança exceção). O caminho contrário, `Span(T)` ou `Memory(T)` do .NET onde se pede `[]T`, é implícito em qualquer lugar (`ClassifyViewAsSlice`; os `ReadOnly*` não, porque a fatia é gravável);
   o que o .NET escreve no `Span` aparece na fatia. `&array` continua sendo `[]T`, não `*T`. Em atribuição e declaração não vale.
 - Strings em linhas consecutivas são uma string só (`StringExpressionNode.Following`, no parser): cada literal (também os interpolados)
   é uma linha, com `\n` entre duas e nenhum no fim. Precisa haver quebra de linha entre eles (`"a" "b"` na mesma linha não junta);
@@ -381,6 +400,18 @@ cada aplicação é uma `GenericInstance` da tabela compartilhada; não há nó 
   casa com nenhuma versão, porque o backend ainda não decide isso (um binário que serve a vários tamanhos fica para depois). Com um só candidato para
   tudo nada disso acontece e a IR é a de sempre. Limites: um bloco nunca é repetido inteiro; o tipo inferido de um `let` local que difere entre tamanhos não é
   detectado; deslocamentos de `iptr/uptr` continuam sendo erro; o literal em `int/uint` ainda não é conferido contra o tamanho.
+- `Std.Type.SizeOf(T)` e `Std.Type.BitSizeOf(T)` (`StdType`): funções intrínsecas que recebem um tipo e devolvem um `uint`, o tamanho dele em bytes e em bits. São
+  `TqFunction` sem corpo (`type T` como parâmetro de tipo), no namespace primitivo `Std.Type`; o backend reconhece e emite o `sizeof` do IL, então quem responde é o
+  runtime (e o `iptr` não é decidido na compilação). Aceita inteiros, floats, `bool` e `char`, structs por valor, classes e `*T` (`Ref`: o tamanho de um inteiro
+  nativo, já que o IL não mede um ponteiro gerenciado), `UnsafePtr(T)` e o `T` de uma função genérica. Os bits são os bytes vezes `ByteBits` da ABI do backend.
+- `Std.Memory.Unsafe` (`StdMemoryUnsafe`, `UnsafeOperation`): intrínsecas de memória sobre `UnsafePtr(T)` e `Ref(T)`, sem corpo; o Cecil emite o IL (`EmitUnsafe`).
+  Nada é conferido em tempo de execução. `ptrFromInt(type T, iptr|uptr) UnsafePtr(T)`; `intFromPtr(UnsafePtr(Opaque) | Ref(qualquer coisa)) uptr` (um `UnsafePtr(T)` de
+  outro `T` passa por `ptrCast`; `Ref(AnyType)` e `UnsafePtr(AnyType)` como parâmetro casam com qualquer `Ref`/`UnsafePtr`, `ConversionRules`);
+  `sliceFromPtr(type T, UnsafePtr(T) | Ref(T), uptr) []T` (um `Slice<T>` de memória bruta, `Tq.UnsafeOps` no `Tq.Runtime`: a memória não é do slice, `T` não pode ter
+  referências, e o tamanho cabe em `int`; senão lança exceção); `ptrCast(type T, UnsafePtr(qualquer)) UnsafePtr(T)`; `ptrAdd(type T, UnsafePtr(T), iptr)` e
+  `ptrDiff(type T, UnsafePtr(T), UnsafePtr(T)) iptr`, em elementos; `ptr == null` / `ptr != null` (o `null` de um `UnsafePtr` é o endereço 0); `refFromPtr` e `ptrFromRef` (um `Ref` é um ponteiro gerenciado: o GC pode movê-lo, o
+  `ptrFromRef` só serve para o que não se move); `bitCast(type To, type From, From) To` (`Unsafe.BitCast`: lança exceção se não forem valores do mesmo tamanho);
+  `alignOf(type T) uint` (o .NET não informa: é o deslocamento de um `T` depois de um byte num struct sequencial; um tipo com referências alinha como ponteiro).
 - Operações bit a bit, só de inteiros (`TypeChecker.VisitBitwise`): `a ⋏ b` (e), `a ⋎ b` (ou), `a ⊕ b` (ou exclusivo), `~a` (não), `a << n` e `a >> n`
   (`>>` aritmético em inteiro com sinal, lógico sem sinal), `a <<% n` e `a >>% n` (a quantidade é tomada módulo o tamanho do tipo). Sem alternativas
   em ASCII e sem atribuição composta. Precedência como Rust e Zig, do mais forte: `* /`, `+ -`, deslocamentos, `⋏`, `⊕`, `⋎`, comparações.
@@ -555,7 +586,7 @@ usado com ou sem um módulo `dotnet` que o liste.
   as constantes; casos numéricos sem nome não aparecem; o valor de um caso é um número ou uma constante .NET, como `CsSeekOrigin.Begin`). Structs genéricas: ver "Structs genéricas de Tq em .NET".
 - Acesso: `@public` é público; o resto (namespace/módulo) é `internal`, o máximo que o .NET diz.
 - Funções: `@static`, `@virtual` e `@override` viram os flags; `lazy` ainda não.
-  Classes sem construtor ganham o construtor sem argumentos; o `destructor` é o `Finalize` (vazio por enquanto).
+  Classes sem construtor ganham o construtor sem argumentos; o `destructor` é o `Dispose` do `IDisposable`, que o tipo (struct ou classe) implementa, e não um finalizador: só roda com `delete`. Uma classe que estende outra com destructor sobrescreve o `Dispose` dela (o destructor da base é chamado depois, ver abaixo).
 - Propriedades são propriedades .NET; o campo de apoio (`<nome>k__BackingField`) é criado pelo backend quando
   `HasBackingField`. `get = f` precisa nomear uma função do mesmo tipo.
 - Tipos: `i8`..`i128`/`u8`..`u128`, `int`/`uint` = 32 bits, `iptr`/`uptr` = `IntPtr`/`UIntPtr`, `f16/f32/f64`
@@ -576,7 +607,7 @@ no backend ("The generic type 'Span' of .NET..."): instanciar com `Span(i8)` é 
 argumento e a chamada ficava sem decidir em silêncio (`Console.Write(string)` competia com `Write(char[])`).
 
 **`len` de slices e arrays:** `slice.len` (e `array.len`) é um `int` (o mesmo tipo de `let i = 0`, então `i < slice.len` não pede `as`); não dá para
-atribuir. No .NET é `ldlen` + `conv.i4` num array e `Memory<T>.Length` num slice.
+atribuir. No .NET é `ldlen` + `conv.i4` num array e o campo `Length` do `Slice<T>` num slice.
 
 **Métodos genéricos e arrays do .NET (etapa 1b, parte 1):** os parâmetros genéricos de um método .NET são os primeiros
 argumentos da chamada, como numa função genérica de Tq: `GC.AllocateArray(T, length as int, false)` chama

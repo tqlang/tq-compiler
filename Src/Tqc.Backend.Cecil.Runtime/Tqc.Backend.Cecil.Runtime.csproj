@@ -6,14 +6,17 @@
     -->
     <PropertyGroup>
         <TargetFramework>net10.0</TargetFramework>
-        <AssemblyName>Tq.Runtime</AssemblyName>
         <RootNamespace>Tq</RootNamespace>
         <Version>1.0.0</Version>
         <Nullable>enable</Nullable>
         <ImplicitUsings>disable</ImplicitUsings>
         <Optimize>true</Optimize>
+        <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+        <AssemblyName>Tq.Runtime</AssemblyName>
+        
         <!-- the compiler rewrites the assembly, so its symbols would not match it -->
         <DebugType>none</DebugType>
+        <PackageId>Tqc.Backend.Cecil.Runtime</PackageId>
     </PropertyGroup>
 
 </Project>

@@ -14,6 +14,7 @@ from Tests import {
     Builtins.testProperties()
     Builtins.testConstants()
     Builtins.testStrings()
+    Builtins.testDestructors()
     Builtins.testProtocols()
     Builtins.testInheritance()
     Builtins.testPolymorphism()
@@ -38,14 +39,16 @@ from Tests import {
     Builtins.testArithmeticI128()
     Builtins.testBitwise()
     Builtins.testNativeSizes()
-
     Builtins.testConstants()
+
     Interop.testGenericInterfaces()
     Interop.testRefParameters()
     Interop.testDelegates()
     Interop.testSpans()
     Interop.testUnsafePtr()
 
+    StdLib.testTypeNamespace()
+    StdLib.testMemoryUnsafeNamespace()
     StdLib.testDynamicArray()
     StdLib.testDictionaries()
 }

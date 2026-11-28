@@ -24,7 +24,7 @@ func halvesInTheMiddle(int num) !int {
     Test.newTestUnit("Builtins - failability - ignored is a nullable")
     {
         let ?int result = half(10).ignored()
-        Test.assert(result != null, true)
+        Test.assertTrue(result != null)
         Test.assert(result ?? -1, 5)
     }
 

@@ -700,6 +700,7 @@ public class Parser(DiagnosticBag diagnostics)
         
         // Misc
         else if (CheckKeyword("return")) statement =  ParseReturnStatement();
+        else if (CheckKeyword("delete")) statement = ParseDeleteStatement();
         else if (Check(TokenKind.LeftBrace)) statement = ParseScope();
         
         else statement = ParseExpressionStatement();
@@ -807,6 +808,14 @@ public class Parser(DiagnosticBag diagnostics)
         var value = Check(TokenKind.LineFeed) ? null : ParseExpression();
         
         return new ReturnStatementNode(start, value, ConsumeStatementLeadingTrivia());
+    }
+    private DeleteStatementNode ParseDeleteStatement()
+    {
+        var keyword = ExpectNode("delete", "'delete' keyword");
+        AdvanceTrivia(TokenKind.Whitespace);
+        var value = ParseExpression();
+
+        return new DeleteStatementNode(keyword, value, ConsumeStatementLeadingTrivia());
     }
     private ScopeNode ParseScope()
     {

@@ -1,0 +1,295 @@
+from Std import { Test }
+from Dotnet.System import { Object, EventArgs }
+from Dotnet.System.ComponentModel import { Component }
+
+# The destructor of a type is the Dispose of the IDisposable that the type implements. It is called by `delete`, and by the compiler where a
+# variable goes out of scope (the end of its block, before `return` and `break`) and when a new value replaces the one it has.
+# `destroyed` is a log: each destructor writes its own number at the end.
+let int destroyed = 0
+
+struct Tally {
+    let int amount = 0
+
+    destructor() {
+        destroyed = destroyed * 10 + amount
+    }
+}
+
+@class struct Handle {
+    let int id = 0
+
+    destructor() {
+        destroyed = destroyed * 10 + id
+    }
+}
+
+@class struct SpecialHandle extends Handle {
+    destructor() {
+        destroyed = destroyed * 10 + 9
+    }
+}
+
+# The destructor of Component (Dispose) raises its Disposed event.
+func onDestroyed(*Object sender, *EventArgs args) { destroyed = destroyed + 1 }
+
+func endOfFunction(int amount) {
+    let value = new Tally()
+    value.amount = amount
+}
+
+func beforeReturn(int amount) int {
+    let value = new Tally()
+    value.amount = amount
+    return amount * 2
+}
+
+struct Pair {
+    let Tally first
+    let Tally second
+}
+
+struct Owner {
+    let Tally part
+
+    destructor() {
+        destroyed = destroyed * 10 + 7
+    }
+}
+
+struct Seven {
+    let int number = 0
+
+    destructor() {
+        destroyed = destroyed * 10 + 5
+    }
+}
+
+struct Heir extends Seven {
+    destructor() {
+        destroyed = destroyed * 10 + 6
+    }
+}
+
+func makeTally(int amount) Tally {
+    let result = new Tally()
+    result.amount = amount
+    return result
+}
+
+func pairOf() {
+    let pair = new Pair()
+    pair.first.amount = 1
+    pair.second.amount = 2
+}
+
+func ownerOf() {
+    let owner = new Owner()
+    owner.part.amount = 3
+}
+
+func heirOf() {
+    let heir = new Heir()
+}
+
+func byValue(Tally value) {
+    destroyed = destroyed * 10 + 8
+}
+
+func ofClass(int id) {
+    let handle = new Handle()
+    handle.id = id
+}
+
+@public func testDestructors() {
+    Test.newTestUnit("Builtins - destructors - delete calls the destructor of a struct")
+    {
+        destroyed = 0
+        let first = new Tally()
+        first.amount = 3
+        Test.assert(destroyed, 0)
+
+        delete first
+        Test.assert(destroyed, 3)
+    }
+
+    Test.newTestUnit("Builtins - destructors - delete calls the destructor of a class")
+    {
+        destroyed = 0
+        let handle = new Handle()
+        handle.id = 4
+        delete handle
+        Test.assert(destroyed, 4)
+    }
+
+    Test.newTestUnit("Builtins - destructors - the destructor of a class is followed by the one of what it extends")
+    {
+        destroyed = 0
+        let *Handle handle = new SpecialHandle()
+        delete handle
+
+        # The destructor of the class, then the one of what it extends (id 0).
+        Test.assert(destroyed, 90)
+    }
+
+    Test.newTestUnit("Builtins - destructors - delete calls Dispose of a type of .NET")
+    {
+        destroyed = 0
+        let component = new Component()
+        component.Disposed += onDestroyed
+        delete component
+        Test.assert(destroyed, 1)
+    }
+
+    # A variable that was deleted is used again only after it gets a new value: using it, or deleting it twice, is a compile error.
+    Test.newTestUnit("Builtins - destructors - a deleted variable is alive again when it is assigned")
+    {
+        destroyed = 0
+        let value = new Tally()
+        value.amount = 2
+        delete value
+
+        let other = new Tally()
+        other.amount = 5
+        value = other
+        delete value
+        Test.assert(destroyed, 25)
+    }
+
+    Test.newTestUnit("Builtins - destructors - a loop that assigns what it deletes")
+    {
+        destroyed = 0
+        let int turn = 0
+        let value = new Tally()
+        value.amount = 1
+        while turn < 3 {
+            delete value
+            turn = turn + 1
+            let next = new Tally()
+            next.amount = turn
+            value = next
+        }
+
+        # Each turn deletes the value and assigns a copy of `next`, which the end of the turn destroys: 1 (deleted), 1 (next), 1 (deleted copy), 2 (next), 2 (deleted copy), 3 (next).
+        Test.assert(destroyed, 111223)
+    }
+
+    Test.newTestUnit("Builtins - destructors - both branches delete the variable")
+    {
+        destroyed = 0
+        let value = new Tally()
+        value.amount = 7
+        let int choice = 1
+        if choice == 1 {
+            delete value
+        }
+        else {
+            delete value
+        }
+        Test.assert(destroyed, 7)
+    }
+
+    Test.newTestUnit("Builtins - destructors - a variable is destroyed at the end of its function")
+    {
+        destroyed = 0
+        endOfFunction(6)
+        Test.assert(destroyed, 6)
+    }
+
+    Test.newTestUnit("Builtins - destructors - a variable is destroyed before return, after the value is calculated")
+    {
+        destroyed = 0
+        let int result = beforeReturn(4)
+        Test.assert(result, 8)
+        Test.assert(destroyed, 4)
+    }
+
+    Test.newTestUnit("Builtins - destructors - a variable of a loop is destroyed at the end of each turn, and before break")
+    {
+        destroyed = 0
+        let int turn = 0
+        while turn < 3 {
+            turn = turn + 1
+            let value = new Tally()
+            value.amount = turn
+        }
+        Test.assert(destroyed, 123)
+
+        destroyed = 0
+        while true {
+            let value = new Tally()
+            value.amount = 5
+            break
+        }
+        Test.assert(destroyed, 5)
+    }
+
+    Test.newTestUnit("Builtins - destructors - a new value destroys the one the variable has")
+    {
+        destroyed = 0
+        let value = new Tally()
+        value.amount = 1
+        let other = new Tally()
+        other.amount = 2
+        value = other
+        Test.assert(destroyed, 1)
+    }
+
+    Test.newTestUnit("Builtins - destructors - a parameter by value is destroyed by the function, and so is what was passed")
+    {
+        destroyed = 0
+        let value = new Tally()
+        value.amount = 3
+        byValue(value)
+        Test.assert(destroyed, 83)
+    }
+
+    Test.newTestUnit("Builtins - destructors - a class variable is destroyed at the end of its function")
+    {
+        destroyed = 0
+        ofClass(2)
+        Test.assert(destroyed, 2)
+    }
+
+    Test.newTestUnit("Builtins - destructors - a struct destroys its fields, the last declared first, without declaring a destructor")
+    {
+        destroyed = 0
+        pairOf()
+        Test.assert(destroyed, 21)
+    }
+
+    Test.newTestUnit("Builtins - destructors - the fields are destroyed after the destructor of the struct")
+    {
+        destroyed = 0
+        ownerOf()
+        Test.assert(destroyed, 73)
+    }
+
+    Test.newTestUnit("Builtins - destructors - the destructor of a struct by value is followed by the one of what it extends")
+    {
+        destroyed = 0
+        heirOf()
+        Test.assert(destroyed, 65)
+    }
+
+    Test.newTestUnit("Builtins - destructors - the value of a call that nobody keeps is destroyed at once")
+    {
+        destroyed = 0
+
+        # `result` of makeTally is destroyed when it returns (4), and so is the copy that is not kept (4).
+        makeTally(4)
+        Test.assert(destroyed, 44)
+    }
+
+    Test.newTestUnit("Builtins - destructors - a variable that delete destroyed is not destroyed again")
+    {
+        destroyed = 0
+        endOfFunctionDeleted()
+        Test.assert(destroyed, 5)
+    }
+}
+
+func endOfFunctionDeleted() {
+    let value = new Tally()
+    value.amount = 5
+    delete value
+}

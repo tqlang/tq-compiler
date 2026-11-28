@@ -49,11 +49,11 @@ internal sealed partial class TypeChecker
         var rightType = TypeOf(right);
         if (leftType == null || rightType == null) return (visited, isComparison ? BoolType() : null);
 
-        // `x == null` and `x != null`: only a `?T` can be null.
+        // `x == null` and `x != null`: only a `?T` or an `UnsafePtr(T)` can be null.
         if (binary.Operator is BinaryOperator.Equal or BinaryOperator.NotEqual && (left is IrNull || right is IrNull))
         {
             var other = left is IrNull ? rightType : leftType;
-            if (!(left is IrNull && right is IrNull) && !CompilerStd.Types.IsNullable(other, out _))
+            if (!(left is IrNull && right is IrNull) && !CompilerStd.Types.IsNullable(other, out _) && !CompilerStd.Types.IsUnsafePtr(other, out _))
                 Error($"Only a '?T' can be compared with null, not '{TypeFormatter.Format(other)}'", binary.Location);
 
             return (visited, BoolType());

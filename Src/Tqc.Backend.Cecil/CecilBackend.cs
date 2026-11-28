@@ -53,6 +53,9 @@ public sealed class CecilBackend(DiagnosticBag diagnostics)
     /// <summary>`__base`: the field of a struct that holds the one it extends.</summary>
     internal Dictionary<string, FieldDefinition> BaseFields { get; } = [];
 
+    /// <summary>The `Dispose` of each struct that has a destructor (the one it declares, or the one that destroys its fields).</summary>
+    internal Dictionary<TqStruct, MethodDefinition> DisposeMethods { get; } = [];
+
     /// <summary>property `ref S Value` (`get_Value`) of the interface of the struct.</summary>
     internal Dictionary<string, MethodDefinition> RefGetters { get; } = [];
 

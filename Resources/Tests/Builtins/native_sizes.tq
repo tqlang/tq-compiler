@@ -15,9 +15,9 @@ func nativeIdentity(iptr value) iptr => value
 		let uptr large = 4000000000
 		let iptr negative = -5
 
-		Test.assert(small == 100, true)
-		Test.assert(large == 4000000000, true)
-		Test.assert(negative < 0, true)
-		Test.assert(nativeIdentity(7) == 7, true)
+		Test.assert(small, 100)
+		Test.assert(large, 4000000000)
+		Test.assertTrue(negative < 0)
+		Test.assert(nativeIdentity(7), 7)
 	}
 }

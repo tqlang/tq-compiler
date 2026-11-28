@@ -201,7 +201,7 @@ internal sealed partial class ModuleEmitter
         // have initial values, because those take code.
         if (structure.Constructors.Count == 0 && (IsClass(structure) || InstanceInitializers(structure).Count > 0) || structure.BaseStruct != null)
             DeclareDefaultConstructor(container, structure);
-        if (structure.Destructor != null) DeclareDestructor(container, structure, structure.Destructor);
+        if (structure.DeclaresDestructor) DeclareDestructor(container, structure, structure.Destructor);
     }
 
     private void DeclareFunction(Container container, TqFunction function, TqProperty? accessorOf)
@@ -362,20 +362,101 @@ internal sealed partial class ModuleEmitter
         return result;
     }
 
-    /// <summary>A destructor is the finalizer of a class. Its body is not translated yet, so it does nothing.</summary>
-    private void DeclareDestructor(Container container, TqStruct structure, TqFunction destructor)
+    /// <summary>
+    /// A destructor is the `Dispose` of `IDisposable`, which the type implements: that is how .NET calls it, and `delete` is the only
+    /// way Tq does. It is not a finalizer: the garbage collector never calls it. A class that extends one with a destructor overrides
+    /// its `Dispose` (it already implements the interface).
+    /// </summary>
+    private void DeclareDestructor(Container container, TqStruct structure, TqFunction? destructor)
     {
-        if (!IsClass(structure))
+        var overrides = IsClass(structure) && ExtendsDestructor(structure);
+
+        var attributes = MethodAttributes.Public | MethodAttributes.HideBySig | MethodAttributes.Virtual;
+        if (!overrides) attributes |= MethodAttributes.NewSlot;
+        if (!IsClass(structure)) attributes |= MethodAttributes.Final;
+
+        var method = new MethodDefinition("Dispose", attributes, Core("System.Void"));
+        container.Type.Methods.Add(method);
+        if (destructor != null) _backend.Definitions[destructor] = method;
+        _backend.DisposeMethods[structure] = method;
+
+        if (!overrides) container.Type.Interfaces.Add(new InterfaceImplementation(Core("System.IDisposable")));
+        _bodies.Add((method, il =>
         {
-            Report($"The struct '{structure.Name}' is by value and cannot have a destructor in .NET; mark it '@class'", destructor.SourceLocation);
-            return;
+            if (destructor != null)
+            {
+                new BodyEmitter(this, destructor, method, il).Emit();
+                return;
+            }
+
+            // No destructor is declared: only the fields are destroyed.
+            EmitDestructorTail(il, structure, method.DeclaringType);
+            il.Emit(OpCodes.Ret);
+        }));
+    }
+
+    /// <summary>Whether a struct that this one extends has a destructor.</summary>
+    private static bool ExtendsDestructor(TqStruct structure)
+    {
+        var steps = 0;
+        for (var current = structure.BaseStruct as TqStruct; current != null && steps++ < 256; current = current.BaseStruct as TqStruct)
+        {
+            if (current.DeclaresDestructor) return true;
         }
 
-        var method = new MethodDefinition("Finalize",
-            MethodAttributes.Family | MethodAttributes.HideBySig | MethodAttributes.Virtual, Core("System.Void"));
-        container.Type.Methods.Add(method);
-        _backend.Definitions[destructor] = method;
-        _bodies.Add((method, il => il.Emit(OpCodes.Ret)));
+        return false;
+    }
+
+    /// <summary>
+    /// What a destructor does after its own body: the destructors of the fields that are destroyed with the struct (the last declared first),
+    /// then the one of what it extends (a class calls its `Dispose`; a struct by value has it as a field).
+    /// </summary>
+    internal void EmitDestructorTail(ILProcessor il, TqStruct structure, TypeDefinition type)
+    {
+        var dispose = DisposeMethod();
+
+        foreach (var field in (structure.DestroyedFields ?? []).Reverse())
+        {
+            if (!_backend.Definitions.TryGetValue(field, out var definition) || definition is not FieldDefinition fieldDefinition) continue;
+
+            il.Emit(OpCodes.Ldarg_0);
+            il.Emit(OpCodes.Ldflda, Use(fieldDefinition));
+            il.Emit(OpCodes.Constrained, fieldDefinition.FieldType);
+            il.Emit(OpCodes.Callvirt, dispose);
+        }
+
+        // What it extends, if that has a destructor.
+        var steps = 0;
+        TqStruct? declaring = null;
+        for (var current = structure.BaseStruct as TqStruct; current != null && steps++ < 256; current = current.BaseStruct as TqStruct)
+        {
+            if (!current.DeclaresDestructor) continue;
+            declaring = current;
+            break;
+        }
+
+        if (declaring == null) return;
+
+        if (IsClass(structure))
+        {
+            if (!_backend.DisposeMethods.TryGetValue(declaring, out var baseDispose)) return;
+            il.Emit(OpCodes.Ldarg_0);
+            il.Emit(OpCodes.Call, Use(baseDispose));
+        }
+        else if (_backend.BaseFields.TryGetValue(type.FullName, out var baseField))
+        {
+            il.Emit(OpCodes.Ldarg_0);
+            il.Emit(OpCodes.Ldflda, Use(baseField));
+            il.Emit(OpCodes.Constrained, baseField.FieldType);
+            il.Emit(OpCodes.Callvirt, dispose);
+        }
+    }
+
+    /// <summary>`IDisposable.Dispose`, which is what `delete` calls.</summary>
+    internal MethodReference DisposeMethod()
+    {
+        var type = _backend.Core.Find("System.IDisposable") ?? throw new BackendError("The type 'System.IDisposable' was not found in 'System.Runtime'");
+        return _module.ImportReference(type.Methods.First(method => method.Name == "Dispose"));
     }
 
     /// <summary>The constructor without arguments of what the struct extends; null if there is none to call.</summary>
@@ -605,7 +686,7 @@ internal sealed partial class ModuleEmitter
 
         var takesArguments = main.Parameters?.Length == 1;
         GenericInstanceType? argumentsType = null;
-        if (takesArguments && !(IsMemory(method.Parameters[0].ParameterType, out argumentsType)
+        if (takesArguments && !(IsSlice(method.Parameters[0].ParameterType, out argumentsType)
                                 && argumentsType.GenericArguments[0].FullName == "System.String"))
         {
             Report("The parameter of 'main' must be '[]string'", main.SourceLocation);
@@ -619,10 +700,9 @@ internal sealed partial class ModuleEmitter
         var il = entry.Body.GetILProcessor();
         if (takesArguments)
         {
-            // `[]string` is a `Memory<string>` that refers to the array of `Main`.
+            // `[]string` is a `Slice<string>` over the array of `Main`.
             il.Emit(OpCodes.Ldarg_0);
-            il.Emit(OpCodes.Newobj, GenericMember(
-                "System.Memory`1", argumentsType!, ".ctor", 1, parameter => parameter.ParameterType is ArrayType));
+            il.Emit(OpCodes.Newobj, SliceMember(argumentsType!, ".ctor", 1, candidate => candidate.Parameters[0].ParameterType is ArrayType));
         }
         il.Emit(OpCodes.Call, method);
         if (method.ReturnType.FullName != "System.Void") il.Emit(OpCodes.Pop);

@@ -23,6 +23,9 @@ internal static partial class ReferenceBinder
             case IrReturnStatement { ReturnValue: not null } returnStatement:
                 return returnStatement with { ReturnValue = BindExpression(ctx, returnStatement.ReturnValue) };
 
+            case IrDelete deleteStatement:
+                return deleteStatement with { Operand = BindExpression(ctx, deleteStatement.Operand) };
+
             case IrExpressionStatement expressionStatement:
                 return expressionStatement with { Expression = BindExpression(ctx, expressionStatement.Expression) };
 

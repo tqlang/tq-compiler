@@ -36,6 +36,16 @@ public class TqStruct(string name, SourceLocation location) : IStruct, ITqMember
     public IReadOnlyList<TqConstructor> Constructors { get; init; } = [];
     public TqDestructor? Destructor { get; init; }
 
+    /// <summary>
+    /// The fields whose destructors run after the destructor of the struct (in the order they are declared; they are destroyed in reverse): the
+    /// ones that are structs by value with a destructor. Null until the type checker finds them. A struct that has any has a destructor of its own
+    /// even if it declares none.
+    /// </summary>
+    public IReadOnlyList<TqField>? DestroyedFields { get; set; }
+
+    /// <summary>Whether the struct has a destructor of its own: the one it declares, or the one that destroys its fields.</summary>
+    public bool DeclaresDestructor => Destructor != null || DestroyedFields is { Count: > 0 };
+
     public IEnumerable<IMember> OwnMembers => Members.Values;
 
     /// <summary>What it extends, once bound: a struct of Tq, of .NET or any other.</summary>

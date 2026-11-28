@@ -14,6 +14,9 @@ public class TqFunction(string name, SourceLocation location) : IMethod, ITqMemb
 
     public IrBody? Body { get; set; }
 
+    /// <summary>The variables (locals and parameters) that a `delete` of the body destroys: the backend keeps a flag of whether each one is alive.</summary>
+    public HashSet<object> DeletedVariables { get; set; } = [];
+
     /// <summary>The struct it is declared in; null for a function of a namespace or of a typedef.</summary>
     public IObjectType? Owner { get; set; }
 

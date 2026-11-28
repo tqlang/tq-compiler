@@ -423,6 +423,10 @@ public sealed class IrDumper
                 Line($"break{at}");
                 break;
 
+            case IrDelete @delete:
+                Line($"delete {Expr(@delete.Operand)}{at}");
+                break;
+
             case IrExpression expression:
                 ExpressionStatement(expression, at);
                 break;

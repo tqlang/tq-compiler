@@ -21,8 +21,9 @@ public static class CompilerStd
         new PrimitiveNamespace(ModuleName,
         [
             new PrimitiveNamespace("Types", Types.All),
-            new PrimitiveNamespace("Memory", []),
+            new PrimitiveNamespace("Memory", [new PrimitiveNamespace(StdMemoryUnsafe.NamespaceName, StdMemoryUnsafe.Members)]),
             new PrimitiveNamespace(StdMath.NamespaceName, [StdMath.Operator]),
+            new PrimitiveNamespace(StdType.NamespaceName, StdType.Members),
         ]));
 }
 
