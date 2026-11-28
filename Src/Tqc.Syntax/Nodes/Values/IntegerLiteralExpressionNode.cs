@@ -15,8 +15,9 @@ public record IntegerLiteralExpressionNode(TokenNode Token) : ExpressionNode
     {
         var tokenVal = token.Value;
         
-        if (tokenVal.StartsWith("0x")) return BigInteger.Parse(NumberText.WithoutSeparators(tokenVal[2..]), NumberStyles.HexNumber);
-        if (tokenVal.StartsWith("0b")) return BigInteger.Parse(NumberText.WithoutSeparators(tokenVal[2..]), NumberStyles.BinaryNumber);
+        // A literal has no sign: the `0` in front keeps `0xFF` from being read as the two's complement -1.
+        if (tokenVal.StartsWith("0x")) return BigInteger.Parse("0" + NumberText.WithoutSeparators(tokenVal[2..]), NumberStyles.HexNumber);
+        if (tokenVal.StartsWith("0b")) return BigInteger.Parse("0" + NumberText.WithoutSeparators(tokenVal[2..]), NumberStyles.BinaryNumber);
         
         return BigInteger.Parse(NumberText.WithoutSeparators(tokenVal));
     }
