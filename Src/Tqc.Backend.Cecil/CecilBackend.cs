@@ -47,6 +47,12 @@ public sealed class CecilBackend(DiagnosticBag diagnostics)
     internal Dictionary<string, TypeDefinition> RefInterfaces { get; } = [];
     internal HashSet<string> RefInterfaceNames { get; } = [];
 
+    /// <summary>The `[InlineArray(N)]` struct of each element type and length (`[N]T` as a parameter or as what a function returns), by `T|N`.</summary>
+    internal Dictionary<string, TypeDefinition> InlineArrays { get; } = [];
+
+    /// <summary>The element and the length of each of those structs, found by the full name of the struct.</summary>
+    internal Dictionary<string, (TypeReference Element, int Length)> InlineArrayInfo { get; } = [];
+
     /// <summary>`S.Box`, the class that has the value of each struct of a hierarchy.</summary>
     internal Dictionary<string, TypeDefinition> RefBoxes { get; } = [];
 

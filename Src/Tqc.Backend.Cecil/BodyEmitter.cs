@@ -286,6 +286,49 @@ internal sealed class BodyEmitter
 
     private static bool IsSlice(TypeReference? type, out GenericInstanceType slice) => ModuleEmitter.IsSlice(type, out slice);
 
+    private bool IsInlineArray(TypeReference? type, out (TypeReference Element, int Length) info)
+    {
+        info = default;
+        return type != null && _owner.Backend.InlineArrayInfo.TryGetValue(type.FullName, out info);
+    }
+
+    /// <summary>The `[InlineArray]` on the stack as a `Slice<T>` over a copy of it that the function keeps (valid until the function returns).</summary>
+    private GenericInstanceType EmitInlineArrayView(TypeReference inlineType, (TypeReference Element, int Length) info)
+    {
+        var held = NewTemp(inlineType);
+        _il.Emit(OpCodes.Stloc, held);
+        _il.Emit(OpCodes.Ldloca, held);
+        _il.Emit(OpCodes.Conv_U);
+        _il.Emit(OpCodes.Ldc_I4, info.Length);
+
+        var slice = _owner.SliceOf(info.Element);
+        _il.Emit(OpCodes.Newobj, _owner.SliceMember(slice, ".ctor", 2, candidate => candidate.Parameters[0].ParameterType is PointerType));
+        return slice;
+    }
+
+    /// <summary>The `Slice<T>` or the `T[]` on the stack copied into a new value of the `[InlineArray]` type, which is left on the stack.</summary>
+    private void EmitIntoInlineArray(TypeReference actual, TypeReference inlineType)
+    {
+        IsInlineArray(inlineType, out var info);
+        var slice = _owner.SliceOf(info.Element);
+        if (actual is ArrayType) EmitSliceFromView(actual, slice);
+
+        var source = NewTemp(slice);
+        _il.Emit(OpCodes.Stloc, source);
+
+        var value = NewTemp(inlineType);
+        _il.Emit(OpCodes.Ldloca, value);
+        _il.Emit(OpCodes.Initobj, inlineType);
+
+        _il.Emit(OpCodes.Ldloca, source);
+        _il.Emit(OpCodes.Ldloca, value);
+        _il.Emit(OpCodes.Conv_U);
+        _il.Emit(OpCodes.Ldc_I4, info.Length);
+        _il.Emit(OpCodes.Newobj, _owner.SliceMember(slice, ".ctor", 2, candidate => candidate.Parameters[0].ParameterType is PointerType));
+        _il.Emit(OpCodes.Call, _owner.SliceMember(slice, "CopyTo", 1));
+        _il.Emit(OpCodes.Ldloc, value);
+    }
+
     private static bool IsViewOf(TypeReference? type, string name, out GenericInstanceType view)
     {
         view = (type as GenericInstanceType)!;
@@ -447,6 +490,19 @@ internal sealed class BodyEmitter
     /// <summary>The variables that are arrays whose memory is a block of the stack: the pointer, the type of the elements and how many.</summary>
     private readonly Dictionary<IrLocal, (VariableDefinition Pointer, TypeReference Element, int Length)> _stackLocals = [];
 
+    /// <summary>The parameters that are `[N]T` passed whole (an `[InlineArray]`): the pointer to the copy the function has, the type of the elements and how many.</summary>
+    private readonly Dictionary<ParameterDefinition, (VariableDefinition Pointer, TypeReference Element, int Length)> _parameterBlocks = [];
+
+    private (VariableDefinition Pointer, TypeReference Element, int Length)? ParameterBlockOf(ParameterDefinition definition)
+    {
+        if (_parameterBlocks.TryGetValue(definition, out var known)) return known;
+        if (!_owner.Backend.InlineArrayInfo.TryGetValue(definition.ParameterType.FullName, out var info)) return null;
+
+        var block = (NewTemp(new PointerType(info.Element)), info.Element, info.Length);
+        _parameterBlocks[definition] = block;
+        return block;
+    }
+
     /// <summary>The length of the array a variable is declared as (`let [4]u8 buffer`), if it is one.</summary>
     private int? ArrayLengthOf(IrLocal local) =>
         local.type != null && !IsUntypedConstant(local.type) && TypeExpressions.Raw(local.type) is ArrayTypeRef { Length: var length } ? length
@@ -456,6 +512,9 @@ internal sealed class BodyEmitter
     /// <summary>The block of the stack of the variable `expression` names, if it is an array that has one.</summary>
     private (VariableDefinition Pointer, TypeReference Element, int Length)? StackBlockOf(IrExpression expression)
     {
+        if (expression is IrReference { Reference: ParameterReference parameter } && !GenericParameterTypeRef.IsTypeParameter(parameter.Parameter))
+            return ParameterBlockOf(ParameterOf(parameter.Parameter));
+
         var local = expression switch
         {
             IrLocal declared => declared,
@@ -495,9 +554,18 @@ internal sealed class BodyEmitter
     /// </summary>
     private void EmitStackBlocks()
     {
-        if (_stackLocals.Count == 0) return;
+        if (_stackLocals.Count == 0 && _parameterBlocks.Count == 0) return;
 
         var first = _il.Body.Instructions[0];
+
+        // The copy an `[InlineArray]` parameter is lives in the frame of the function: its address is the block (nothing moves it).
+        foreach (var (definition, block) in _parameterBlocks)
+        {
+            _il.InsertBefore(first, _il.Create(OpCodes.Ldarga, definition));
+            _il.InsertBefore(first, _il.Create(OpCodes.Conv_U));
+            _il.InsertBefore(first, _il.Create(OpCodes.Stloc, block.Pointer));
+        }
+
         foreach (var (_, block) in _stackLocals)
         {
             _il.InsertBefore(first, _il.Create(OpCodes.Ldc_I4, block.Length));
@@ -510,7 +578,7 @@ internal sealed class BodyEmitter
     }
 
     /// <summary>Whether a value of the type can live in memory the garbage collector does not see (no reference in it).</summary>
-    private static bool IsUnmanaged(TypeReference type, int depth = 0)
+    internal static bool IsUnmanaged(TypeReference type, int depth = 0)
     {
         if (depth > 16) return false;
 
@@ -1067,7 +1135,23 @@ internal sealed class BodyEmitter
             return expected ?? Core("System.Object");
         }
 
-        if (expected == null || actual.FullName == expected.FullName) return actual;
+        if (expected != null && actual.FullName == expected.FullName) return actual;
+
+        // An `[InlineArray]` the code reads (what a function returns): a slice over a copy of it that the function has.
+        if (IsInlineArray(actual, out var inlineActual))
+        {
+            actual = EmitInlineArrayView(actual, inlineActual);
+            if (expected == null || actual.FullName == expected.FullName) return actual;
+        }
+
+        if (expected == null) return actual;
+
+        // `[N]T` where it is passed whole or returned: the elements are copied into a value of the `[InlineArray]`.
+        if (IsInlineArray(expected, out _) && (IsSlice(actual, out _) || actual is ArrayType))
+        {
+            EmitIntoInlineArray(actual, expected);
+            return expected;
+        }
 
         // The array, the `Span<T>` and the `Memory<T>` of .NET (what it gives and takes) are handled as the slice of Tq.
         if (IsSlice(expected, out var wrapper) && EmitSliceFromView(actual, wrapper)) return expected;
@@ -1486,6 +1570,7 @@ internal sealed class BodyEmitter
         }
 
         var target = Emit(index.Target, null);
+        if (IsInlineArray(target, out var inlineTarget)) target = EmitInlineArrayView(target!, inlineTarget);
 
         if (index.Indices[0] is IrRange range && target != null)
             return EmitSliceOf(target, range);
@@ -1549,6 +1634,7 @@ internal sealed class BodyEmitter
             case ParameterReference parameter:
             {
                 var definition = ParameterOf(parameter.Parameter);
+                if (ParameterBlockOf(definition) is { } parameterBlock) return EmitBlockSlice(parameterBlock);
                 _il.Emit(OpCodes.Ldarg, definition);
 
                 // `*T` of a value: the value itself is wanted.

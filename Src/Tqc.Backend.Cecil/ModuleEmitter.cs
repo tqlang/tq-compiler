@@ -124,6 +124,47 @@ internal sealed partial class ModuleEmitter
         return raw != null ? MapType(raw, expression.location) : Unsupported($"As a type, {Describe(expression)}", expression.location);
     }
 
+    /// <summary>
+    /// The type of a parameter or of what a function returns. `[N]T` of unmanaged elements is a value that is passed whole: an `[InlineArray(N)]` struct
+    /// (the callee has a copy of its own); any other type is as `MapExpression` gives.
+    /// </summary>
+    internal TypeReference MapSignature(IrExpression expression)
+    {
+        if (TypeExpressions.Raw(expression) is ArrayTypeRef { Length: > 0 and var length } array)
+        {
+            var element = MapType(array.Element, expression.location);
+            if (BodyEmitter.IsUnmanaged(element)) return InlineArrayOf(element, length);
+        }
+
+        return MapExpression(expression);
+    }
+
+    /// <summary>The `[InlineArray(N)]` struct of `N` elements of the type, which is declared in this module the first time it is asked for.</summary>
+    internal TypeReference InlineArrayOf(TypeReference element, int length)
+    {
+        var key = $"{element.FullName}|{length}";
+        if (_backend.InlineArrays.TryGetValue(key, out var known)) return Use(known);
+
+        var name = "InlineArray_" + new string(element.FullName.Select(character => char.IsLetterOrDigit(character) ? character : '_').ToArray()) + "_" + length;
+        var type = new TypeDefinition("Tq.Generated", name,
+            TypeAttributes.Public | TypeAttributes.Sealed | TypeAttributes.SequentialLayout | TypeAttributes.BeforeFieldInit, Core("System.ValueType"));
+
+        type.Fields.Add(new FieldDefinition("_element0", FieldAttributes.Public, element));
+
+        var constructor = _backend.Core.Find("System.Runtime.CompilerServices.InlineArrayAttribute")?.Methods
+            .FirstOrDefault(candidate => candidate.IsConstructor && !candidate.IsStatic && candidate.Parameters.Count == 1);
+        if (constructor == null) return Unsupported("An array as a parameter (`System.Runtime.CompilerServices.InlineArrayAttribute` was not found)", null);
+
+        var attribute = new CustomAttribute(_module.ImportReference(constructor));
+        attribute.ConstructorArguments.Add(new CustomAttributeArgument(Core("System.Int32"), length));
+        type.CustomAttributes.Add(attribute);
+
+        _module.Types.Add(type);
+        _backend.InlineArrays[key] = type;
+        _backend.InlineArrayInfo[type.FullName] = (element, length);
+        return type;
+    }
+
     /// <summary>What an expression is, for the messages: the kind of node and what it refers to.</summary>
     internal static string Describe(IrExpression expression) => expression switch
     {
