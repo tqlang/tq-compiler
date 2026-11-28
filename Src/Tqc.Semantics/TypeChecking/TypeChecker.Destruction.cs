@@ -108,6 +108,10 @@ internal sealed partial class TypeChecker
                 case IrWhile loop:
                     return loop with { Body = Branch(loop.Body, true) };
 
+                // The variables of a `for` do not own their values, so nothing destroys them.
+                case IrFor loop:
+                    return loop with { Body = Branch(loop.Body, true) };
+
                 case IrReturnStatement returnStatement:
                 {
                     var cleanup = Destroys(_scopes.SelectMany(scope => scope.Variables).ToList()).ToArray();

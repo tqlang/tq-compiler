@@ -304,6 +304,8 @@ internal sealed partial class TypeChecker
 
         var type = TypeOf(operand);
 
+        if (unary.Operator is UnaryOperator.Increment or UnaryOperator.Decrement) CheckNotReadOnly(operand, "changed");
+
         if (unary.Operator is UnaryOperator.Increment or UnaryOperator.Decrement && ConstantNameOf(operand) is { } constant)
             Error($"'{constant}' is a constant and cannot be changed", unary.Location);
 
@@ -448,6 +450,7 @@ internal sealed partial class TypeChecker
 
         var visitedIndex = index with { Target = target, Indices = indices };
         var container = ContainerOf(targetType);
+        CheckNotReadOnly(visitedIndex, "assigned");
 
         if (!HasIndexers(container))
         {

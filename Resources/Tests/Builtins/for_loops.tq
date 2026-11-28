@@ -1,0 +1,218 @@
+from Std import { Test }
+
+# `for item in collection` and `for item, index in collection`, over arrays and slices.
+let [3]i32 forGlobal = [7, 8, 9]
+let int forDestroyed = 0
+let int forEvaluations = 0
+
+struct ForPoint {
+    @public let i32 x = 0
+}
+
+struct ForShape {
+    @public let i32 sides = 3
+}
+
+struct ForSquare extends ForShape {
+    @public let i32 size = 2
+}
+
+@class struct ForCell {
+    @public let i32 value = 0
+}
+
+struct ForTracked {
+    @public let i32 id = 1
+
+    destructor() {
+        forDestroyed = forDestroyed + 1
+    }
+}
+
+struct ForBag {
+    @public let [3]i32 values
+}
+
+func forMake() [3]i32 {
+    forEvaluations = forEvaluations + 1
+    let [3]i32 made = [4, 5, 6]
+    return made
+}
+
+func forSumSlice([]i32 items) i32 {
+    let i32 total = 0
+    for item in items {
+        total = total + item
+    }
+    return total
+}
+
+func forSumFixed([3]i32 items) i32 {
+    let i32 total = 0
+    for item in items total = total + item
+    return total
+}
+
+func forFind([]i32 items, i32 wanted) int {
+    for item, position in items {
+        if item == wanted { return position }
+    }
+    return -1
+}
+
+func forTracking() {
+    let [2]ForTracked items
+    for item in items {
+        let i32 id = item.id
+    }
+}
+
+@public func testForLoops() {
+    Test.newTestUnit("Builtins - for - arrays and slices")
+    {
+        let [4]i32 numbers = [1, 2, 3, 4]
+        let i32 total = 0
+        for item in numbers {
+            total = total * 10 + item
+        }
+        Test.assert(total, 1234)
+
+        Test.assert(forSumSlice(&numbers), 10)
+        Test.assert(forSumSlice(numbers[1 .. 2]), 5)
+
+        let [3]i32 three = [1, 2, 3]
+        Test.assert(forSumFixed(three), 6)
+
+        let i32 literal = 0
+        for item in [5, 6, 7] {
+            literal = literal + (item as i32)
+        }
+        Test.assert(literal, 18)
+
+        let i32 global = 0
+        for (item in forGlobal) global = global + item
+        Test.assert(global, 24)
+
+        let ForBag bag = new ForBag()
+        bag.values = [2, 3, 4]
+        let i32 field = 0
+        for item in bag.values field = field + item
+        Test.assert(field, 9)
+
+        let [2]string words = ["for", "in"]
+        let string joined = ""
+        for word in words joined = "\{joined}\{word};"
+        Test.assert(joined, "for;in;")
+    }
+
+    Test.newTestUnit("Builtins - for - index")
+    {
+        let [3]i32 numbers = [10, 20, 30]
+        let int positions = 0
+        let i32 total = 0
+        for item, i in numbers {
+            positions = positions * 10 + i
+            total = total + item
+        }
+        Test.assert(positions, 12)
+        Test.assert(total, 60)
+        Test.assert(forFind(&numbers, 30), 2)
+        Test.assert(forFind(&numbers, 31), -1)
+    }
+
+    Test.newTestUnit("Builtins - for - the collection is evaluated once and not copied")
+    {
+        forEvaluations = 0
+        let i32 total = 0
+        for item in forMake() total = total + item
+        Test.assert(total, 15)
+        Test.assert(forEvaluations, 1)
+
+        let [3]i32 numbers = [1, 1, 1]
+        let i32 seen = 0
+        for item, i in numbers {
+            if i == 0 { numbers[2] = 5 }
+            seen = seen + item
+        }
+        Test.assert(seen, 7)
+
+        let [2]string words = ["a", "b"]
+        let string joined = ""
+        for word, i in words {
+            if i == 0 { words[1] = "c" }
+            joined = "\{joined}\{word}"
+        }
+        Test.assert(joined, "ac")
+    }
+
+    Test.newTestUnit("Builtins - for - empty, break and nesting")
+    {
+        let [3]i32 numbers = [1, 2, 3]
+        let int turns = 0
+        let [0]i32 none
+        for item in none turns = turns + 1
+        for item in &none turns = turns + 1
+        Test.assert(turns, 0)
+
+        let i32 total = 0
+        for outer in numbers {
+            for inner in numbers {
+                if inner == 3 { break }
+                total = total + outer * inner
+            }
+            if outer == 2 { break }
+        }
+        Test.assert(total, 9)
+
+        # The variables only exist in the loop, so the names can be used again.
+        for outer in numbers total = total + outer
+        let i32 outer = 100
+        Test.assert(total + outer, 115)
+
+        let int i = 0
+        while i < 2 {
+            for item in numbers total = total + item
+            i = i + 1
+        }
+        Test.assert(total, 27)
+    }
+
+    Test.newTestUnit("Builtins - for - structs and classes")
+    {
+        let [2]ForPoint points
+        points[0].x = 3
+        points[1].x = 4
+        let i32 total = 0
+        for point in points {
+            total = total + point.x
+        }
+        Test.assert(total, 7)
+
+        let [2]ForSquare squares = [new ForSquare(), new ForSquare()]
+        let i32 sides = 0
+        for square in squares {
+            sides = sides + square.sides + square.size
+        }
+        Test.assert(sides, 10)
+
+        let [2]*ForCell cells = [new ForCell(), new ForCell()]
+        for cell, i in cells cell.value = 5
+        Test.assert(cells[0].value + cells[1].value, 10)
+    }
+
+    Test.newTestUnit("Builtins - for - the variable does not own its value")
+    {
+        forDestroyed = 0
+        forTracking()
+        Test.assert(forDestroyed, 0)
+
+        let [2]ForTracked items
+        let int turns = 0
+        for item in items {
+            let local = new ForTracked()
+            turns = turns + 1
+            if turns == 2 { break }
+        }
+        Test.assert(forDestroyed, 2)
+    }
+}

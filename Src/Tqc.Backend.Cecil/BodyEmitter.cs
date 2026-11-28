@@ -644,7 +644,8 @@ internal sealed partial class BodyEmitter
         }
 
         // `[N]T` of unmanaged elements is a block of the stack of the function (`stackalloc`): the variable is a pointer to it.
-        if (type is ArrayType { Rank: 1 } storage && IsUnmanaged(storage.ElementType) && ArrayLengthOf(local) is { } blockLength)
+        // A read-only variable has the value it is given as it is: it has no memory of its own.
+        if (!local.IsReadOnly && type is ArrayType { Rank: 1 } storage && IsUnmanaged(storage.ElementType) && ArrayLengthOf(local) is { } blockLength)
         {
             var pointer = NewTemp(new PointerType(storage.ElementType));
             _locals[local] = pointer;
@@ -891,6 +892,9 @@ internal sealed partial class BodyEmitter
 
             case IrWhile @while:
                 EmitWhile(@while); break;
+
+            case IrFor @for:
+                EmitFor(@for); break;
 
             case IrBreak @break:
                 if (_breakTargets.Count == 0)

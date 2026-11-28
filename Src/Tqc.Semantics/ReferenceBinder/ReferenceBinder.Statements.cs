@@ -50,6 +50,20 @@ internal static partial class ReferenceBinder
                 return loop with { Declaration = declaration, Condition = condition, Step = step, Body = body };
             }
 
+            case IrFor loop:
+            {
+                // The collection is bound first: it does not see the variables the loop declares.
+                var collection = BindExpression(ctx, loop.Collection);
+
+                ctx.PushFrame();
+                var item = (IrLocal)BindLocal(ctx, loop.Item);
+                var index = loop.Index != null ? (IrLocal)BindLocal(ctx, loop.Index) : null;
+                var body = BindBranch(ctx, loop.Body);
+                ctx.PopFrame();
+
+                return loop with { Collection = collection, Item = item, Index = index, Body = body };
+            }
+
             case IrBody nested:
                 BindBody(ctx, nested);
                 return nested;

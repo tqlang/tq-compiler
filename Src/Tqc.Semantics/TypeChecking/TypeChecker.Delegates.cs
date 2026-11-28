@@ -139,6 +139,7 @@ internal sealed partial class TypeChecker
 
     private (IrExpression, ITypeRef?) ChainAssign(IrAssign assign, IrExpression target, IrBinary compound, bool remove)
     {
+        CheckNotReadOnly(target, "assigned");
         var type = TypeOf(target)!;
         var handler = HandlerAs(compound.Right, type, DelegateOf(type)!, $"'{(remove ? "-=" : "+=")}'");
         if (handler == null) return (assign with { Target = target }, type);

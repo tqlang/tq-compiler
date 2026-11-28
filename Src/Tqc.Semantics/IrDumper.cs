@@ -419,6 +419,15 @@ public sealed class IrDumper
                 break;
             }
 
+            case IrFor @for:
+            {
+                var variables = @for.Index != null ? $"{@for.Item.name}, {@for.Index.name}" : @for.Item.name;
+                Line($"for ({variables} in {Expr(@for.Collection)}) {{{at}");
+                Nested(@for.Body);
+                Line("}");
+                break;
+            }
+
             case IrBreak:
                 Line($"break{at}");
                 break;

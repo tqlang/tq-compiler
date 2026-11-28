@@ -696,6 +696,7 @@ public class Parser(DiagnosticBag diagnostics)
         
         // Loops
         else if (CheckKeyword("while")) statement = ParseWhileStatement();
+        else if (CheckKeyword("for")) statement = ParseForStatement();
         else if (CheckKeyword("break")) statement = ParseBreakStatement();
         
         // Misc
@@ -792,6 +793,53 @@ public class Parser(DiagnosticBag diagnostics)
             2 => new WhileStatementNode(whileKeyword, OpenParenthesis, null, null, parts[0], colons[0], parts[1], ClosingParenthesis, body, []), //ConsumeStatementLeadingTrivia()),
             _ => new WhileStatementNode(whileKeyword, OpenParenthesis, parts[0], colons[0], parts[1], colons[1], parts[2], ClosingParenthesis, body, []), //ConsumeStatementLeadingTrivia()),
         };
+    }
+    /// <summary>`for item in c s` or `for item, index in c s`; like `while`, it may have parentheses around what is before the body.</summary>
+    private ForStatementNode ParseForStatement()
+    {
+        var forKeyword = ExpectNode("for", "'for' keyword");
+        AdvanceTrivia(TokenKind.Whitespace);
+
+        TokenNode? openParenthesis = null;
+        TokenNode? closingParenthesis = null;
+
+        if (Check(TokenKind.LeftParenthesis))
+        {
+            openParenthesis = AdvanceNode();
+            AdvanceTrivia(TokenKind.Whitespace);
+        }
+
+        var item = ParseSingleIdentifier();
+        AdvanceTrivia(TokenKind.Whitespace);
+
+        TokenNode? comma = null;
+        IdentifierExpressionNode? index = null;
+        if (Check(TokenKind.Comma))
+        {
+            comma = AdvanceNode();
+            AdvanceTrivia(TokenKind.Whitespace);
+            index = ParseSingleIdentifier();
+            AdvanceTrivia(TokenKind.Whitespace);
+        }
+
+        var inKeyword = ExpectNode("in", "'in' after the variable of 'for'");
+        AdvanceTrivia(TokenKind.Whitespace);
+        var collection = ParseExpression();
+        AdvanceTrivia(TokenKind.Whitespace);
+
+        if (Check(TokenKind.DotDot)) throw Error(Current(), "'for' over a range is not supported yet.");
+
+        if (openParenthesis != null)
+        {
+            closingParenthesis = ExpectNode(TokenKind.RightParenthesis, "close parenthesis (')')");
+            AdvanceTrivia(TokenKind.Whitespace);
+        }
+
+        AdvanceTrivia(_midDeclarationTrivia);
+        var body = ParseStatement();
+
+        return new ForStatementNode(
+            forKeyword, openParenthesis, item, comma, index, inKeyword, collection, closingParenthesis, body, []);
     }
     private BreakStatementNode ParseBreakStatement()
     {

@@ -64,6 +64,11 @@ internal sealed partial class TypeChecker
                 return loop.Condition is not IrComptimeBool { Value: true } || own.Count > 0;
             }
 
+            // The collection may have no elements. The body is walked for what its `break`s leave: only this loop.
+            case IrFor loop:
+                CanReachEnd(loop.Body, []);
+                return CanReachEnd(loop.Collection, breaks);
+
             case IrExpressionStatement statement:
                 return CanReachEnd(statement.Expression, breaks);
 

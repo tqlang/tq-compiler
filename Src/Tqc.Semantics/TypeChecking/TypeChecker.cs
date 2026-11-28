@@ -269,6 +269,7 @@ internal sealed partial class TypeChecker(
             case IrDelete deleteStatement:
             {
                 var operand = VisitPerSize(deleteStatement.Operand);
+                CheckNotReadOnly(operand, "deleted");
                 var operandType = TypeOf(operand);
                 if (operandType != null && !Destructors.Has(operandType))
                     Error($"'delete' needs a value of a type that has a destructor (or implements 'IDisposable'), not '{TypeFormatter.Format(operandType)}'",
@@ -309,6 +310,9 @@ internal sealed partial class TypeChecker(
 
                 return loop with { Declaration = declaration, Condition = condition, Step = step, Body = body };
             }
+
+            case IrFor loop:
+                return CheckFor(loop);
 
             case IrBreak breakStatement:
                 if (_loopDepth == 0) Error("'break' can only be used inside a loop", breakStatement.Location);

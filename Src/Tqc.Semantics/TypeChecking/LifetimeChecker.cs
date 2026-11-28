@@ -131,6 +131,10 @@ internal sealed class LifetimeChecker(Action<string, SourceLocation> report)
                 VisitLoop(loop, ref state);
                 return;
 
+            case IrFor loop:
+                VisitFor(loop, ref state);
+                return;
+
             case IrAssign assign:
             {
                 VisitNode(assign.Source, ref state);
@@ -230,6 +234,31 @@ internal sealed class LifetimeChecker(Action<string, SourceLocation> report)
         }
 
         state = exit;
+    }
+
+    /// <summary>Like <see cref="VisitLoop"/>: the collection is evaluated once and the body may run any number of times.</summary>
+    private void VisitFor(IrFor loop, ref State? state)
+    {
+        VisitNode(loop.Collection, ref state);
+        if (state == null) return;
+
+        var head = state;
+        List<State> breaks = [];
+
+        for (var turn = 0; turn < 16; turn++)
+        {
+            var current = Copy(head);
+            _breaks.Push([]);
+            VisitNode(loop.Body, ref current);
+            breaks = _breaks.Pop();
+
+            var next = Join(head, current)!;
+            if (next.SameAs(head)) break;
+            head = next;
+        }
+
+        state = head;
+        foreach (var @break in breaks) state = Join(state, @break);
     }
 
     private static readonly Dictionary<Type, PropertyInfo[]> _properties = [];

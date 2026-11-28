@@ -104,6 +104,10 @@ internal sealed class AssignmentChecker(Action<string, SourceLocation> report, F
                 VisitLoop(loop, ref state);
                 return;
 
+            case IrFor loop:
+                VisitFor(loop, ref state);
+                return;
+
             // The right side runs only when the left one has nothing: what it assigns may not be.
             case IrBinary { Operator: BinaryOperator.Coalesce } coalesce:
             {
@@ -217,6 +221,21 @@ internal sealed class AssignmentChecker(Action<string, SourceLocation> report, F
         Visit(loop.Body, ref state);
         if (loop.Step != null) Visit(loop.Step, ref state);
 
+        foreach (var @break in _breaks.Pop()) exit = Join(exit, @break);
+        state = exit;
+    }
+
+    /// <summary>The body may not run, so what it assigns may have no value after the loop.</summary>
+    private void VisitFor(IrFor loop, ref State? state)
+    {
+        Visit(loop.Collection, ref state);
+        if (state == null) return;
+
+        _breaks.Push([]);
+        var body = Copy(state);
+        Visit(loop.Body, ref body);
+
+        var exit = Join(state, body);
         foreach (var @break in _breaks.Pop()) exit = Join(exit, @break);
         state = exit;
     }

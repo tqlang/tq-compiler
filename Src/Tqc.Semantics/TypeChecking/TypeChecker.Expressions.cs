@@ -302,6 +302,7 @@ internal sealed partial class TypeChecker
     {
         var operand = Visit(addressOf.Operand);
         var visited = addressOf with { Operand = operand };
+        CheckNotReadOnly(operand, "referenced with '&'");
 
         switch (TypeOf(operand))
         {
@@ -483,6 +484,7 @@ internal sealed partial class TypeChecker
         }
 
         target ??= VisitTarget(assign.Target);
+        if (assign.Target is not IrLocal) CheckNotReadOnly(target, "assigned");
 
         if (PropertyOf(target) is { } written) return WriteProperty(assign, target, source, written);
 

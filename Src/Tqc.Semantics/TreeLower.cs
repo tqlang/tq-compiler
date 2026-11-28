@@ -623,6 +623,21 @@ public static class TreeLower
                 }
                 break;
 
+                case ForStatementNode forNode:
+                {
+                    IrLocal Variable(IdentifierExpressionNode name) =>
+                        new(name.GetLoc(ctx.SrcFile), null, name.Value) { IsReadOnly = true };
+
+                    yield return new IrFor(
+                        forNode.GetLoc(ctx.SrcFile),
+                        LowerExpression(ctx, forNode.Collection),
+                        Variable(forNode.Item),
+                        forNode.Index != null ? Variable(forNode.Index) : null,
+                        LowerStatement(ctx, forNode.Statement)
+                    );
+                }
+                break;
+
                 case BreakStatementNode:
                     yield return new IrBreak(node.GetLoc(ctx.SrcFile));
                 break;

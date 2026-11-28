@@ -40,6 +40,19 @@ public record IrWhile(
     IrStatement Body
 ) : IrStatement(Location);
 
+/// <summary>
+/// `for item, index in collection`: runs the body once for each element, in order. It stays like this down to the backend,
+/// as each target has its own way to iterate. The collection is evaluated once; `Item` and `Index` are read-only and get
+/// their values before each turn.
+/// </summary>
+public record IrFor(
+    SourceLocation Location,
+    IrExpression Collection,
+    IrLocal Item,
+    IrLocal? Index,
+    IrStatement Body
+) : IrStatement(Location);
+
 /// <summary>`break`: leaves the closest loop.</summary>
 public record IrBreak(SourceLocation Location, IrStatement[]? Cleanup = null) : IrStatement(Location);
 
@@ -130,7 +143,11 @@ public record IrComptimeBool(SourceLocation Location, bool Value) : IrValue(Loca
 /// <summary>`null`: nothing, for a `?T`.</summary>
 public record IrNull(SourceLocation Location) : IrValue(Location);
 
-public record IrLocal(SourceLocation Location, IrExpression? type, string name) : IrValue(Location); 
+public record IrLocal(SourceLocation Location, IrExpression? type, string name) : IrValue(Location)
+{
+    /// <summary>A variable the code cannot write, as the ones a `for` declares: it does not own the value it holds.</summary>
+    public bool IsReadOnly { get; init; }
+} 
 
 public sealed record IrStringConstant(SourceLocation Location, string Value) : IrExpression(Location);
 public sealed record IrStringConcat(SourceLocation Location, IrExpression[] Parts) : IrExpression(Location);
