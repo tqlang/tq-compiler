@@ -104,7 +104,17 @@ internal sealed partial class ModuleEmitter
             type = Core("System.Object");
         }
 
+        // `[N]T` of a public field, if the elements hold no reference, is the memory itself (an `[InlineArray]`, zero from the start); a field that is not public
+        // keeps its array, which is made once, so it is `readonly` (an assignment writes the elements into it).
+        if (!isConstant && type is ArrayType { Rank: 1 } array)
+        {
+            var arrayRef = (typeExpression != null ? TypeExpressions.Raw(typeExpression) : field.Value != null ? _tq.Types.Get(field.Value) : null) as ArrayTypeRef;
+            if (IsPublic(field.Access) && arrayRef is { Length: > 0 and var arrayLength } && BodyEmitter.IsUnmanaged(array.ElementType))
+                type = InlineArrayOf(array.ElementType, arrayLength);
+        }
+
         var attributes = IsPublic(field.Access) ? FieldAttributes.Public : FieldAttributes.Assembly;
+        if (!isConstant && !IsPublic(field.Access) && type is ArrayType) attributes |= FieldAttributes.InitOnly;
         if (isGlobal || isConstant || Has(field.Attributes, BuiltinAttribute.Static)) attributes |= FieldAttributes.Static;
 
         var definition = new FieldDefinition(field.Name, attributes, type);
@@ -360,7 +370,8 @@ internal sealed partial class ModuleEmitter
         {
             if (member is TqField field && (field.Value != null || IsArrayField(field))
                 && _backend.Definitions.TryGetValue(field, out var definition)
-                && definition is FieldDefinition { IsStatic: false, HasConstant: false } fieldDefinition)
+                && definition is FieldDefinition { IsStatic: false, HasConstant: false } fieldDefinition
+                && (field.Value != null || fieldDefinition.FieldType is ArrayType))
                 result.Add((field, fieldDefinition));
         }
 

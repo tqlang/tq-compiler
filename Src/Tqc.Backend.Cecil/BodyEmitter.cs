@@ -515,6 +515,9 @@ internal sealed class BodyEmitter
         if (expression is IrReference { Reference: ParameterReference parameter } && !GenericParameterTypeRef.IsTypeParameter(parameter.Parameter))
             return ParameterBlockOf(ParameterOf(parameter.Parameter));
 
+        if (expression is IrReference { Reference: IrField { Field: TqField bare } }) return FieldBlockOf(bare, null);
+        if (expression is IrAccess { access.Reference: IrField { Field: TqField member } } access) return FieldBlockOf(member, access.baseExpr);
+
         var local = expression switch
         {
             IrLocal declared => declared,
@@ -525,6 +528,39 @@ internal sealed class BodyEmitter
         if (local == null) return null;
         GetLocal(local);
         return _stackLocals.TryGetValue(local, out var block) ? block : null;
+    }
+
+    /// <summary>
+    /// The memory of a field that is an `[InlineArray]` (a public `[N]T`): its address, kept pinned for as long as the method runs (an instance of a class
+    /// may be moved by the garbage collector), as the pointer of a block. The address is taken where this is called, so what it is used for follows at once.
+    /// </summary>
+    private (VariableDefinition Pointer, TypeReference Element, int Length)? FieldBlockOf(TqField field, IrExpression? baseExpr)
+    {
+        if (!_owner.Backend.Definitions.TryGetValue(field, out var definition) || definition is not FieldDefinition { HasConstant: false } fieldDefinition
+            || !IsInlineArray(fieldDefinition.FieldType, out var info))
+            return null;
+
+        var pinned = new VariableDefinition(new PinnedType(new ByReferenceType(fieldDefinition.FieldType)));
+        _il.Body.Variables.Add(pinned);
+
+        if (fieldDefinition.IsStatic)
+        {
+            _il.Emit(OpCodes.Ldsflda, _owner.Use(fieldDefinition));
+        }
+        else
+        {
+            EmitFieldReceiver(baseExpr, fieldDefinition.DeclaringType);
+            var host = TqHost(baseExpr, fieldDefinition.DeclaringType);
+            _il.Emit(OpCodes.Ldflda, host != null ? OnHost(_owner.Use(fieldDefinition), host) : _owner.Use(fieldDefinition));
+        }
+
+        _il.Emit(OpCodes.Stloc, pinned);
+        _il.Emit(OpCodes.Ldloc, pinned);
+        _il.Emit(OpCodes.Conv_U);
+
+        var pointer = NewTemp(new PointerType(info.Element));
+        _il.Emit(OpCodes.Stloc, pointer);
+        return (pointer, info.Element, info.Length);
     }
 
     /// <summary>The `Slice<T>` over a block of the stack, with the pointer and the length of the array.</summary>
@@ -1699,6 +1735,9 @@ internal sealed class BodyEmitter
                     EmitConstant(fieldDefinition.Constant, location);
                     return fieldDefinition.FieldType;
                 }
+
+                // The memory of an `[InlineArray]` field is not copied out of it: what is read is a slice over it.
+                if (IsInlineArray(fieldDefinition.FieldType, out _) && FieldBlockOf(field, baseExpr) is { } fieldBlock) return EmitBlockSlice(fieldBlock);
 
                 if (fieldDefinition.IsStatic)
                 {
@@ -3995,7 +4034,7 @@ internal sealed class BodyEmitter
     private TypeReference? EmitAssign(IrAssign assign, bool discard)
     {
         // The array of a block of the stack: `a = [1, 2]` writes the elements into it, and so does the declaration (the block is zeroed first).
-        if (StackBlockOf(assign.Target) is { } block && _types.Get(assign.Source) is ArrayTypeRef) return EmitBlockAssign(assign, block, discard);
+        if (_types.Get(assign.Source) is ArrayTypeRef && StackBlockOf(assign.Target) is { } block) return EmitBlockAssign(assign, block, discard);
 
         var target = ResolveTarget(assign.Target);
         if (target == null) return null;

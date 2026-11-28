@@ -258,3 +258,81 @@ func redOfSecond([2]Pixel pixels) u8 {
         Test.assert(headOf(literal), 5)
     }
 }
+
+# A public `[N]T` field is the memory itself (an `[InlineArray]`); one that is not public keeps an array that is made once.
+@public let [4]u8 publicBytes
+let [4]u8 hiddenBytes
+
+struct Board {
+    @public let [3]i32 cells
+    @public let [2]Pixel pixels
+    let [3]i32 secret
+    let [2]string names = ["a", "b"]
+
+    @public func secretSum() i32 {
+        return secret[0] + secret[1] + secret[2]
+    }
+
+    @public func setSecret(i32 value) {
+        secret = [value, value, value]
+    }
+}
+
+@public func testArrayFields() {
+    Test.newTestUnit("Builtins - array fields - a public global array")
+    {
+        publicBytes[1] = 5
+        publicBytes[3] = 6
+        Test.assert(publicBytes[1], 5)
+        Test.assert(publicBytes.len, 4)
+
+        fillView(&publicBytes, 2)
+        Test.assert(publicBytes[3], 2)
+
+        publicBytes = [9, 8, 7, 6]
+        Test.assert(publicBytes[0], 9)
+        let []u8 tail = publicBytes[2 .. 2]
+        Test.assert(tail[0], 7)
+    }
+
+    Test.newTestUnit("Builtins - array fields - a global array that is not public")
+    {
+        hiddenBytes[0] = 4
+        Test.assert(hiddenBytes[0], 4)
+
+        let [4]u8 copy = hiddenBytes
+        copy[0] = 1
+        Test.assert(hiddenBytes[0], 4)
+
+        hiddenBytes = [1, 2, 3, 4]
+        Test.assert(hiddenBytes[3], 4)
+    }
+
+    Test.newTestUnit("Builtins - array fields - public fields of a struct")
+    {
+        let Board board = new Board()
+        board.cells[0] = 10
+        board.cells[2] = 30
+        Test.assert(board.cells[0], 10)
+        Test.assert(sumOf(&board.cells), 40)
+
+        board.pixels[1].green = 3
+        Test.assert(board.pixels[1].green, 3)
+        Test.assert(board.pixels[0].green, 0)
+
+        let [3]i32 other = board.cells
+        other[0] = 1
+        Test.assert(board.cells[0], 10)
+
+        board.cells = other
+        Test.assert(board.cells[0], 1)
+        Test.assert(headOf(board.cells), 1)
+    }
+
+    Test.newTestUnit("Builtins - array fields - fields of a struct that are not public")
+    {
+        let Board board = new Board()
+        board.setSecret(4)
+        Test.assert(board.secretSum(), 12)
+    }
+}
