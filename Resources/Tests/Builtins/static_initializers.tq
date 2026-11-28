@@ -1,4 +1,5 @@
 from Std import { Test }
+from Dotnet.System import { Func }
 
 # The values a namespace or `@static` field starts with, written before what they need.
 let i32 startTotal = startSum() + startOffset
@@ -7,6 +8,13 @@ let i32 startOffset = startBase * 2
 let i32 startBase = 10
 let string startText = "total"
 let [2]i32 startEmpty
+
+# Only taking a function does not read what it reads: this is not a cycle.
+let *Func(i32) startReader = readStartLater
+let i32 startLater = startCountOf(startReader) + 3
+
+func readStartLater() i32 => startLater
+func startCountOf(*Func(i32) reader) i32 => 1
 
 func startSum() i32 => startValues[0] + startValues[1] + startValues[2]
 
@@ -39,6 +47,7 @@ struct StartCounter(type T) {
     {
         Test.assert(startOffset, 20)
         Test.assert(startTotal, 26)
+        Test.assert(startReader.Invoke(), 4)
     }
 
     Test.newTestUnit("Builtins - static initializers - generic struct")
