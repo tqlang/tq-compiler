@@ -238,6 +238,7 @@ func redOfSecond([2]Pixel pixels) u8 {
     {
         Test.assert(seriesOf()[1], 8)
         Test.assert(seriesOf().len, 3)
+        Test.assert("series = \{seriesOf()}", "series = [7, 8, 9]")
         Test.assert(headOf(seriesOf()), 7)
         let [3]i32 series = doubledOf(seriesOf())
         Test.assert(sumOf(&series), 48)

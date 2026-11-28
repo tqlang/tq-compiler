@@ -1321,6 +1321,7 @@ internal sealed class BodyEmitter
         }
 
         var runtime = _owner.Backend.Runtime;
+        if (IsInlineArray(type, out var inlineArray)) type = EmitInlineArrayView(type, inlineArray);
 
         switch (type)
         {
