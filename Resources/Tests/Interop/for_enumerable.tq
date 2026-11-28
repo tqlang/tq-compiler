@@ -1,0 +1,141 @@
+from Std import { Test }
+from Dotnet.System.Collections.Generic import {
+    List,
+    Dictionary,
+    HashSet,
+    Queue,
+    IEnumerable,
+    IList
+}
+
+# `for` over what is IEnumerable: the collections of .NET, and the types of Tq that implement the interface.
+func forEnumerableSum(*IEnumerable(i32) items) i32 {
+    let i32 total = 0
+    for item in items total = total + item
+    return total
+}
+
+func forEnumerableFirst(*List(i32) items) i32 {
+    for item in items {
+        return item
+    }
+    return -1
+}
+
+func forEnumerableFind(*IEnumerable(i32) items, i32 wanted) int {
+    for item, position in items {
+        if item == wanted { return position }
+    }
+    return -1
+}
+
+func forEnumerableCount(type T, *List(T) items) int {
+    let int count = 0
+    for item in items count = count + 1
+    return count
+}
+
+func forEnumerableNumbers() *List(i32) {
+    let list = new List(i32)()
+    list.Add(1)
+    list.Add(2)
+    list.Add(3)
+    return list
+}
+
+@public func testForEnumerable() {
+    Test.newTestUnit("Interop - for - a list")
+    {
+        let list = forEnumerableNumbers()
+        let i32 total = 0
+        for item in list total = total * 10 + item
+        Test.assert(total, 123)
+
+        let int positions = 0
+        for item, i in list positions = positions * 10 + i
+        Test.assert(positions, 12)
+
+        let i32 made = 0
+        for item in forEnumerableNumbers() made = made + item
+        Test.assert(made, 6)
+
+        let empty = new List(i32)()
+        let int turns = 0
+        for item in empty turns = turns + 1
+        Test.assert(turns, 0)
+
+        Test.assert(forEnumerableCount(i32, list), 3)
+    }
+
+    Test.newTestUnit("Interop - for - break and return")
+    {
+        let list = forEnumerableNumbers()
+        let i32 total = 0
+        for outer in list {
+            for inner in list {
+                if inner == 3 { break }
+                total = total + outer * inner
+            }
+            if outer == 2 { break }
+        }
+        Test.assert(total, 9)
+
+        Test.assert(forEnumerableFirst(list), 1)
+        Test.assert(forEnumerableFind(list as *IEnumerable(i32), 3), 2)
+        Test.assert(forEnumerableFind(list as *IEnumerable(i32), 4), -1)
+
+        let [3]i32 array = [1, 2, 3]
+        let i32 mixed = 0
+        for item in list {
+            for other in array {
+                if other == 2 { break }
+                mixed = mixed + item
+            }
+        }
+        Test.assert(mixed, 6)
+
+        # The enumerator is disposed after a `break`, so the list can be changed and iterated again.
+        list.Add(4)
+        Test.assert(forEnumerableSum(list as *IEnumerable(i32)), 10)
+    }
+
+    Test.newTestUnit("Interop - for - interfaces and other collections")
+    {
+        let list = forEnumerableNumbers()
+        let *IList(i32) indexed = list as *IList(i32)
+        let i32 total = 0
+        for item in indexed total = total + item
+        Test.assert(total, 6)
+
+        let set = new HashSet(i32)()
+        set.Add(5)
+        set.Add(5)
+        set.Add(6)
+        let i32 unique = 0
+        for item in set unique = unique + item
+        Test.assert(unique, 11)
+
+        let queue = new Queue(string)()
+        queue.Enqueue("a")
+        queue.Enqueue("b")
+        let string joined = ""
+        for word in queue joined = "\{joined}\{word}"
+        Test.assert(joined, "ab")
+
+        let ages = new Dictionary(string, i32)()
+        ages.Add("a", 1)
+        ages.Add("b", 2)
+        let string keys = ""
+        let i32 sum = 0
+        for pair in ages {
+            keys = "\{keys}\{pair.Key}"
+            sum = sum + pair.Value
+        }
+        Test.assert(keys, "ab")
+        Test.assert(sum, 3)
+
+        let i32 values = 0
+        for value in ages.Values values = values + value
+        Test.assert(values, 3)
+    }
+}

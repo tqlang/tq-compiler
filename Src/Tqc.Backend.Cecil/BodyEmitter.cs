@@ -118,7 +118,15 @@ internal sealed partial class BodyEmitter
         else
             _owner.EmitStub(_il, $"Tq: '{_function.Name}' reached its end without returning a value");
 
+        if (_exit != null)
+        {
+            _il.Append(_exit);
+            if (_exitValue != null) _il.Emit(OpCodes.Ldloc, _exitValue);
+            EmitReturnValue();
+        }
+
         DiscardBeforeEarlyReturns();
+        CheckProtectedBlocks();
         EmitStackBlocks();
     }
 
@@ -904,7 +912,8 @@ internal sealed partial class BodyEmitter
                 }
 
                 if (@break.Cleanup != null) foreach (var cleanup in @break.Cleanup) EmitStatement(cleanup);
-                _il.Emit(OpCodes.Br, _breakTargets.Peek());
+                var loopEnd = _breakTargets.Peek();
+                _il.Emit(_leftByBreak.Contains(loopEnd) ? OpCodes.Leave : OpCodes.Br, loopEnd);
             break;
 
             case IrDelete @delete:
@@ -1063,6 +1072,20 @@ internal sealed partial class BodyEmitter
     /// <summary>With the value on the stack, returns it.</summary>
     private void EmitReturnValue()
     {
+        // Inside a `try` there is no `ret`: the value waits in a variable and the end of the method returns it.
+        if (_protected > 0)
+        {
+            var returned = ReturnType;
+            if (!IsVoid(returned))
+            {
+                _exitValue ??= NewTemp(returned);
+                _il.Emit(OpCodes.Stloc, _exitValue);
+            }
+
+            _il.Emit(OpCodes.Leave, _exit ??= _il.Create(OpCodes.Nop));
+            return;
+        }
+
         if (_owner.Backend.OutResults.TryGetValue(_method, out var type))
         {
             var value = NewTemp(type);
@@ -1192,6 +1215,12 @@ internal sealed partial class BodyEmitter
             return expected ?? Core("System.Object");
         }
 
+        return Coerce(actual, expected);
+    }
+
+    /// <summary>With a value of the type `actual` on the stack, makes it one of the expected type.</summary>
+    private TypeReference Coerce(TypeReference actual, TypeReference? expected)
+    {
         if (expected != null && actual.FullName == expected.FullName) return actual;
 
         // An `[InlineArray]` the code reads (what a function returns): a slice over a copy of it that the function has.

@@ -308,10 +308,10 @@ internal static class ConversionRules
         return true;
     }
 
-    private static ITypeRef Unwrap(ITypeRef type) => CompilerStd.Types.IsRef(type, out var inner) ? inner : type;
+    internal static ITypeRef Unwrap(ITypeRef type) => CompilerStd.Types.IsRef(type, out var inner) ? inner : type;
 
     /// <summary>The type constructor or type behind a type: `List` for `List(i32)`.</summary>
-    private static object? DefinitionOf(ITypeRef type) => type switch
+    internal static object? DefinitionOf(ITypeRef type) => type switch
     {
         StructTypeReference { Struct: GenericInstance { Definition: var definition } } => definition,
         StructTypeReference { Struct: var structure } => structure,
@@ -320,7 +320,7 @@ internal static class ConversionRules
     };
 
     /// <summary>The base and interfaces of a type of .NET, with the arguments of the type in place of its own parameters.</summary>
-    private static IEnumerable<ITypeRef> ParentsOf(ITypeRef type)
+    internal static IEnumerable<ITypeRef> ParentsOf(ITypeRef type)
     {
         IEnumerable<ITypeRef?> declared = DefinitionOf(type) switch
         {

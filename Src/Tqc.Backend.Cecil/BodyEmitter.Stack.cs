@@ -23,12 +23,25 @@ internal sealed partial class BodyEmitter
         }
     }
 
+    /// <summary>A `try` of .NET starts with nothing on the stack.</summary>
+    private void CheckProtectedBlocks()
+    {
+        if (_method.Body.ExceptionHandlers.Count == 0) return;
+
+        var depths = StackDepths();
+        if (_method.Body.ExceptionHandlers.Any(handler => depths.GetValueOrDefault(handler.TryStart) != 0))
+            Report("A 'for' that disposes its enumerator cannot be in the middle of an expression in .NET", _function.SourceLocation);
+    }
+
     /// <summary>The number of values on the stack before each instruction that can be reached.</summary>
     private Dictionary<Instruction, int> StackDepths()
     {
         var depths = new Dictionary<Instruction, int>(ReferenceEqualityComparer.Instance);
         var pending = new Stack<(Instruction Instruction, int Depth)>();
         if (_method.Body.Instructions.Count > 0) pending.Push((_method.Body.Instructions[0], 0));
+
+        // No branch goes to a `finally`: .NET runs it, with nothing on the stack.
+        foreach (var handler in _method.Body.ExceptionHandlers) pending.Push((handler.HandlerStart, 0));
 
         while (pending.TryPop(out var next))
         {
@@ -37,7 +50,10 @@ internal sealed partial class BodyEmitter
             // Every path that reaches an instruction does it with the same stack, so one visit is enough.
             if (!depths.TryAdd(instruction, depth)) continue;
 
-            var after = depth - Pops(instruction) + Pushes(instruction);
+            // `leave` empties the stack, whatever is on it.
+            var after = instruction.OpCode.Code is Code.Leave or Code.Leave_S
+                ? 0
+                : depth - Pops(instruction) + Pushes(instruction);
             var flow = instruction.OpCode.FlowControl;
 
             if (instruction.Operand is Instruction target) pending.Push((target, after));

@@ -49,6 +49,7 @@ from Tests import {
     Interop.testDelegates()
     Interop.testSpans()
     Interop.testUnsafePtr()
+    Interop.testForEnumerable()
 
     StdLib.testTypeNamespace()
     StdLib.testMemoryUnsafeNamespace()

@@ -5,8 +5,8 @@ using Tqc.IR.Nodes;
 namespace Tqc.Backend.Cecil;
 
 /// <summary>
-/// `for` over an array or a `Slice<T>`, as .NET iterates an array or a span: the collection is kept in a variable and
-/// read by position, up to its length.
+/// `for` as the `foreach` of .NET. An array or a `Slice<T>` is kept in a variable and read by position, up to its length;
+/// anything else is iterated through its enumerator (see `BodyEmitter.Enumeration.cs`).
 /// </summary>
 internal sealed partial class BodyEmitter
 {
@@ -19,7 +19,7 @@ internal sealed partial class BodyEmitter
         GenericInstanceType? slice = null;
         if (array == null && !IsSlice(actual, out slice))
         {
-            Report("'for' cannot iterate this value in .NET", loop.Collection.Location);
+            if (actual != null) EmitEnumeration(loop, actual);
             return;
         }
 
@@ -58,14 +58,7 @@ internal sealed partial class BodyEmitter
 
         item.Store();
 
-        if (loop.Index != null)
-        {
-            if (ResolveTarget(loop.Index) is not { } index) return;
-            index.Prefix();
-            _il.Emit(OpCodes.Ldloc, position);
-            if (TryNum(index.Type, out var number)) ConvertNumber(new Num(false, true, 32, false), number);
-            index.Store();
-        }
+        if (!EmitForIndex(loop, position)) return;
 
         _breakTargets.Push(end);
         EmitStatement(loop.Body);
@@ -92,5 +85,18 @@ internal sealed partial class BodyEmitter
 
         _il.Emit(OpCodes.Blt, turn);
         _il.Append(end);
+    }
+
+    /// <summary>`index = position`, if the loop has an index.</summary>
+    private bool EmitForIndex(IrFor loop, VariableDefinition position)
+    {
+        if (loop.Index == null) return true;
+        if (ResolveTarget(loop.Index) is not { } index) return false;
+
+        index.Prefix();
+        _il.Emit(OpCodes.Ldloc, position);
+        if (TryNum(index.Type, out var number)) ConvertNumber(new Num(false, true, 32, false), number);
+        index.Store();
+        return true;
     }
 }
